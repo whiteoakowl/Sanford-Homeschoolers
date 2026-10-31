@@ -81,6 +81,26 @@ async function deleteBlockImageFile(key) {
   if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
 }
 
+// A real request: "This design page should look and function exactly
+// like Shopify when you edit the online store website" - with a
+// screenshot of Shopify's own Settings > Online Store > Themes page: a
+// "Themes" list showing the current theme's live preview, name, fonts,
+// and color swatches, with its own "Customize" button that's what
+// actually opens the full editor (views/main-admin-website.ejs). This
+// app only ever has the one theme (there's no concept of installing a
+// second one to switch between), so the list is always exactly one
+// card - still its own page, not folded into the editor, so "Exit" on
+// the editor has somewhere short of all of Settings to return to,
+// matching Shopify's own Customize -> Exit -> Themes flow.
+router.get('/themes', async (req, res) => {
+  const theme = await homepage.getThemeSettings();
+  res.render('main-admin-website-themes', {
+    title: 'Public Homepage',
+    theme,
+    fontChoices: homepage.FONT_CHOICES,
+  });
+});
+
 router.get('/', async (req, res) => {
   const settings = await db.prepare('SELECT * FROM site_settings WHERE id = 1').get();
   const blocks = await homepage.listBlocks();

@@ -509,7 +509,7 @@ router.post('/import', importUpload.single('file'), async (req, res) => {
     return res.redirect('/main-admin/members?error=' + encodeURIComponent('Could not read that file. Please use the example spreadsheet format.'));
   }
 
-  const { mergeCandidates, summary } = await memberImport.importMembersFromRows(rows);
+  const { mergeCandidates, summary } = await memberImport.importMembersFromRows(rows, true, req.portalAccount.id);
 
   if (mergeCandidates.length === 0) {
     return res.redirect('/main-admin/members?notice=' + encodeURIComponent(summary));

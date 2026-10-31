@@ -166,4 +166,40 @@ test('POST /main-admin/members/import', async (t) => {
     assert.ok(created, 'the row should still have created a member');
     assert.equal(created.member_type, 'admin');
   });
+
+  // A real request: "the primary parent or first adult listed on the
+  // member account should automatically have the changeme123 as their
+  // initial password as well" - the Add Member/Membership forms already
+  // did this (test/utils-auto-portal-account-on-member-create.test.js);
+  // this import path never called ensurePortalAccountForMember at all,
+  // so an imported family's parent got no portal account whatsoever.
+  await t.test('an imported parent row with an email gets an active portal account automatically, password "changeme123"', async () => {
+    const buffer = buildImportBuffer([
+      ['Imported', 'Guardian', 'Parent', '', '', '', '', '', 'imported.guardian@example.com', '', '', '', '', ''],
+    ]);
+    const res = await request(app).post('/main-admin/members/import?_csrf=' + encodeURIComponent(csrfToken)).set('Cookie', cookie).attach('file', buffer, 'parent-account.xlsx');
+    assert.equal(res.status, 302);
+
+    const parent = await db.prepare("SELECT id FROM members WHERE name = 'Imported Guardian'").get();
+    assert.ok(parent, 'the parent should have been created');
+    const account = await db.prepare('SELECT * FROM member_accounts WHERE member_id = ?').get(parent.id);
+    assert.ok(account, 'a portal account should already exist for this imported parent');
+    assert.equal(account.status, 'active');
+    assert.equal(account.email, 'imported.guardian@example.com');
+    const { verifyPassword } = require('../utils/portalAuth');
+    assert.ok(await verifyPassword(account, 'changeme123'), 'the starting password should be changeme123, same as the manual Add Member form');
+  });
+
+  await t.test('an imported student row does not get a portal account on its own - only parent/admin rows do, per the real request\'s own wording', async () => {
+    const buffer = buildImportBuffer([
+      ['Imported', 'Kid', 'Student', '', '', '', '', '', 'imported.kid@example.com', '', '', '', '', ''],
+    ]);
+    const res = await request(app).post('/main-admin/members/import?_csrf=' + encodeURIComponent(csrfToken)).set('Cookie', cookie).attach('file', buffer, 'student-no-account.xlsx');
+    assert.equal(res.status, 302);
+
+    const kid = await db.prepare("SELECT id FROM members WHERE name = 'Imported Kid'").get();
+    assert.ok(kid);
+    const account = await db.prepare('SELECT id FROM member_accounts WHERE member_id = ?').get(kid.id);
+    assert.equal(account, undefined);
+  });
 });

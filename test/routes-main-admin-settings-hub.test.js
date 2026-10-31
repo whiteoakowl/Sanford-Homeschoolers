@@ -50,8 +50,11 @@ test('GET /main-admin/settings renders a card for every settings-area destinatio
   assert.match(res.text, /href="\/main-admin\/roles"[^]*?Portal Permissions/);
   assert.match(res.text, /href="\/main-admin\/admins"[^]*?Admins/);
   // A real request: "settings gear, website. Should say public
-  // homepage."
-  assert.match(res.text, /href="\/main-admin\/website"[^]*?Public Homepage/);
+  // homepage." Later real request (with a Shopify Themes-page
+  // screenshot): "should look and function exactly like Shopify" - the
+  // card now opens the new Themes landing page (test/routes-admin-
+  // website-themes-page.test.js), not straight into the full editor.
+  assert.match(res.text, /href="\/main-admin\/website\/themes"[^]*?Public Homepage/);
   assert.match(res.text, /href="\/main-admin\/faq"[^]*?FAQ/);
   assert.match(res.text, /href="\/main-admin\/quick-links"[^]*?Quick Links/);
   assert.match(res.text, /href="\/main-admin\/audit-log"[^]*?Audit Log/);

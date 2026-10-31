@@ -20,11 +20,11 @@ This system runs on **Node.js**, a free program. Go to **[nodejs.org](https://no
 
 Go to the project's GitHub page and download it as a zip file:
 
-1. Open **https://github.com/whiteoakowl/sh-check-in-out**
+1. Open **https://github.com/whiteoakowl/Sanford-Homeschoolers**
 2. Click the green **Code** button → **Download ZIP**
 3. Unzip it somewhere you'll remember, like your Desktop or Documents folder
 
-*(If you're comfortable with git, `git clone https://github.com/whiteoakowl/sh-check-in-out.git` works too.)*
+*(If you're comfortable with git, `git clone https://github.com/whiteoakowl/Sanford-Homeschoolers.git` works too.)*
 
 ## Step 3 — Start it
 

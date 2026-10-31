@@ -10,6 +10,7 @@ const db = require('../db');
 const { isValidISODate } = require('./dates');
 const { generateMemberCode } = require('./members');
 const { toCsvRow } = require('./spreadsheet');
+const { ensurePortalAccountForMember } = require('./portalAuth');
 
 const MEMBER_TYPES = ['student', 'parent', 'admin'];
 
@@ -156,7 +157,7 @@ async function ensureFamilyForParent(parentId) {
 // false, so a spreadsheet row typed "Admin" there falls back to
 // 'student' (same fallback an unrecognized type already gets) instead
 // of silently granting admin status through an import CSV.
-async function importMembersFromRows(rows, allowAdminType = true) {
+async function importMembersFromRows(rows, allowAdminType = true, createdByAccountId) {
   let created = 0;
   let skipped = 0;
   const nameToId = {};
@@ -198,6 +199,19 @@ async function importMembersFromRows(rows, allowAdminType = true) {
       );
     nameToId[r.name.toLowerCase()] = info.lastInsertRowid;
     created++;
+    // A real request: "the primary parent or first adult listed on the
+    // member account should automatically have changeme123 as their
+    // initial password as well" - the Add Member/Membership forms
+    // already do this (utils/memberIntake.js's own createParentMember -
+    // see ensurePortalAccountForMember's own comment), but this importer
+    // never called it at all, so a spreadsheet-imported family got no
+    // portal account for anyone. Every imported parent/admin row with an
+    // email gets one now, same active-status/changeme123-password/skip-
+    // if-no-email-or-email-taken policy as everywhere else - students
+    // aren't included here, same as the real request's own wording.
+    if ((memberType === 'parent' || memberType === 'admin') && r.email) {
+      await ensurePortalAccountForMember(info.lastInsertRowid, r.email, createdByAccountId, null);
+    }
   }
 
   let linkedParents = 0;

@@ -56,7 +56,7 @@ test('migration seeds starting blocks from the old fixed site_settings fields', 
   const admin = await loginAsMainAdmin();
   const page = await request(app).get('/main-admin/website').set('Cookie', admin.cookie);
   assert.equal(page.status, 200);
-  assert.match(page.text, /<h1>Public Homepage<\/h1>/);
+  assert.match(page.text, /<h1 class="homepage-theme-topbar-label">Public Homepage<\/h1>/);
 
   const blocks = await db.prepare('SELECT * FROM homepage_blocks ORDER BY position').all();
   assert.ok(blocks.length >= 8, 'expected the seeded starter blocks');

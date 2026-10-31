@@ -32,12 +32,9 @@
     %>
 
     <div class="homepage-theme-topbar no-print">
-      <a class="homepage-theme-exit" href="/main-admin/settings">&larr; Exit</a>
-      <div class="homepage-theme-topbar-label">
-        <h1>Public Homepage</h1>
-        <span class="hint">Theme &amp; content</span>
-      </div>
-      <div class="homepage-theme-viewport-toggle" role="group" aria-label="Preview size">
+      <a class="homepage-theme-exit" href="/main-admin/website/themes">&larr; Exit</a>
+      <h1 class="homepage-theme-topbar-label">Public Homepage</h1>
+      <div class="homepage-theme-viewport-toggle no-mobile" role="group" aria-label="Preview size">
         <button type="button" class="homepage-theme-viewport-btn is-active" data-viewport="desktop">Desktop</button>
         <button type="button" class="homepage-theme-viewport-btn" data-viewport="mobile">Mobile</button>
       </div>
@@ -52,7 +49,7 @@
     <div class="homepage-theme-shell">
       <aside class="homepage-theme-sidebar no-print">
         <details class="manage-section homepage-theme-section">
-          <summary>Site Info</summary>
+          <summary><svg class="icon homepage-theme-section-chevron"><use href="#icon-chevron-down"/></svg> Site Info</summary>
           <div class="homepage-theme-section-body">
             <form method="POST" action="/main-admin/website/settings" class="stack-form">
               <label>Organization Name
@@ -81,7 +78,7 @@
               readable value to put on its iframe's query string - see
               public/js/homepage-theme-editor.js). %>
           <details class="manage-section homepage-theme-section" open>
-            <summary>Colors</summary>
+            <summary><svg class="icon homepage-theme-section-chevron"><use href="#icon-chevron-down"/></svg> Colors</summary>
             <div class="homepage-theme-section-body">
               <label class="homepage-theme-color-row">
                 <span>Primary (buttons)</span>
@@ -126,7 +123,7 @@
               are the two Google Fonts partials/head.ejs already loads
               site-wide, the rest are plain web-safe stacks. %>
           <details class="manage-section homepage-theme-section">
-            <summary>Typography</summary>
+            <summary><svg class="icon homepage-theme-section-chevron"><use href="#icon-chevron-down"/></svg> Typography</summary>
             <div class="homepage-theme-section-body">
               <label>Heading Font
                 <select name="fontHeading" data-theme-field>
@@ -157,7 +154,7 @@
               Storage when configured, local disk otherwise - see
               routes/admin-website.js's own saveBlockImageIfProvided). %>
           <details class="manage-section homepage-theme-section">
-            <summary>Logo &amp; Favicon</summary>
+            <summary><svg class="icon homepage-theme-section-chevron"><use href="#icon-chevron-down"/></svg> Logo &amp; Favicon</summary>
             <div class="homepage-theme-section-body">
               <% if (theme.logoUrl) { %><p class="hint">Current logo: <img src="<%= theme.logoUrl %>" alt="" class="homepage-theme-logo-preview" /></p><% } %>
               <label>Logo <span class="hint">(replaces the default logo in the site header - leave blank to keep the current one)</span>
@@ -173,7 +170,7 @@
           <%# Announcement Bar - off by default; shown only once an admin
               both enables it and gives it text (views/public-home.ejs). %>
           <details class="manage-section homepage-theme-section">
-            <summary>Announcement Bar</summary>
+            <summary><svg class="icon homepage-theme-section-chevron"><use href="#icon-chevron-down"/></svg> Announcement Bar</summary>
             <div class="homepage-theme-section-body">
               <label class="checkbox-option">
                 <input type="checkbox" name="announcementEnabled" data-theme-field <%= theme.announcementEnabled ? 'checked' : '' %> /> Show announcement bar
@@ -190,7 +187,7 @@
             relocated into this sidebar instead of the old full-width
             page body. %>
         <details class="manage-section homepage-theme-section" open>
-          <summary>Home Page Content</summary>
+          <summary><svg class="icon homepage-theme-section-chevron"><use href="#icon-chevron-down"/></svg> Home Page Content</summary>
           <div class="homepage-theme-section-body">
             <div class="roster-btn-row homepage-builder-add-row no-print">
               <button type="button" class="roster-action-btn" onclick="document.getElementById('add-block-dialog-text').showModal()">+ Text</button>
@@ -231,7 +228,7 @@
         <%# Menu Tabs - unchanged data model/routes, reusing the exact
             same drag-reorder script as the block canvas above. %>
         <details class="manage-section homepage-theme-section">
-          <summary>Menu Tabs</summary>
+          <summary><svg class="icon homepage-theme-section-chevron"><use href="#icon-chevron-down"/></svg> Menu Tabs</summary>
           <div class="homepage-theme-section-body">
             <div class="roster-btn-row no-print">
               <button type="button" class="roster-action-btn" onclick="document.getElementById('add-menu-item-dialog').showModal()">+ Menu Tab</button>

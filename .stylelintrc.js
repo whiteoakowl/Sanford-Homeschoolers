@@ -17,15 +17,20 @@ module.exports = {
         '640px', '860px', '1100px', '1400px',
         // grandfathered ad hoc values, not yet migrated
         '480px', '500px', '720px', '760px', '800px', '900px',
+        // 359px: a deliberate narrower sub-breakpoint for genuinely tiny
+        // phones (~320-359px, e.g. the original iPhone SE) where even
+        // the 640px mobile rules still overflow - see its own comment in
+        // styles.css (Grade Level Settings table).
+        '359px',
       ],
       'min-width': [
         // canonical scale
         '640px', '860px', '1100px', '1400px',
-        // grandfathered ad hoc values, not yet migrated - 641px/861px
-        // are the deliberate "one above" pairing for an adjacent
-        // max-width: 640px/860px rule, so the two never both match at
-        // the exact boundary pixel.
-        '641px', '861px',
+        // grandfathered ad hoc values, not yet migrated - 641px/861px/
+        // 901px are the deliberate "one above" pairing for an adjacent
+        // max-width: 640px/860px/900px rule, so the two never both match
+        // at the exact boundary pixel.
+        '641px', '861px', '901px',
       ],
     },
 

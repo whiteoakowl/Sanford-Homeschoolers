@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', {
+    portalTitle: 'Main Admin',
+  }) %>
+
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <%- include('partials/main-admin-settings-tabs', { activeSettingsTab: 'website' }) %>
+
+    <%
+      // A real request, with a screenshot of Shopify's own Settings >
+      // Online Store > Themes page: "This design page should look and
+      // function exactly like Shopify when you edit the online store
+      // website." That page is a card per installed theme (a live
+      // preview thumbnail, the theme's name, its fonts, its color
+      // swatches, and a Customize button) with "View your store" in its
+      // own top-right corner - this app only ever has the one theme for
+      // the one co-op homepage, so the list is always exactly one card.
+      var headingFont = fontChoices.find(function(f) { return f.key === theme.fontHeading; }) || fontChoices[0];
+      var bodyFont = fontChoices.find(function(f) { return f.key === theme.fontBody; }) || fontChoices[0];
+    %>
+
+    <div class="homepage-themes-header">
+      <h1>Themes</h1>
+      <a class="btn-secondary" href="/" target="_blank" rel="noopener">View your store</a>
+    </div>
+
+    <div class="homepage-theme-card">
+      <a class="homepage-theme-card-preview" href="/main-admin/website" aria-label="Customize theme">
+        <iframe src="/main-admin/website/preview" title="Live preview of the public homepage" tabindex="-1"></iframe>
+      </a>
+      <div class="homepage-theme-card-body">
+        <div class="homepage-theme-card-info">
+          <div class="homepage-theme-card-name-row">
+            <h2>Default Theme</h2>
+            <span class="badge-pill homepage-theme-current-badge">Current theme</span>
+          </div>
+          <p class="hint">Fonts: <%= headingFont.label %> / <%= bodyFont.label %></p>
+          <div class="homepage-theme-card-swatches" aria-hidden="true">
+            <span class="homepage-theme-swatch" style="background: <%= theme.colorPrimary %>" title="Primary / buttons"></span>
+            <span class="homepage-theme-swatch" style="background: <%= theme.colorAccent %>" title="Accent"></span>
+            <span class="homepage-theme-swatch" style="background: <%= theme.colorBackground %>" title="Background"></span>
+            <span class="homepage-theme-swatch" style="background: <%= theme.colorText %>" title="Text"></span>
+          </div>
+        </div>
+        <a class="primary-btn homepage-theme-card-customize" href="/main-admin/website">Customize</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
