@@ -32,34 +32,51 @@
 -- than needing a brand new migration every time. Every id below is the
 -- exact bucket name string Grep found as a `_BUCKET`/`bucket:` constant
 -- across utils/*.js and routes/*.js as of this pass.
-insert into storage.buckets (id, name, public) values
-  -- Public (served via utils/storage.js's publicUrl() - a plain, stable
-  -- <img src>/<a href> URL, same as everything under public/uploads/ was
-  -- before Storage existed).
-  ('class-images', 'class-images', true),
-  ('custom-form-images', 'custom-form-images', true),
-  ('event-images', 'event-images', true),
-  ('member-photos', 'member-photos', true),
-  ('homepage-images', 'homepage-images', true),
-  ('lesson-attachments', 'lesson-attachments', true),
-  ('text-campaign-images', 'text-campaign-images', true),
-  ('classifieds-images', 'classifieds-images', true),
-  ('directory-images', 'directory-images', true),
-  ('member-text-images', 'member-text-images', true),
-  ('name-tag-images', 'name-tag-images', true),
-  ('schedule-card-images', 'schedule-card-images', true),
-  ('setup-cleanup-notification-images', 'setup-cleanup-notification-images', true),
-  ('store-images', 'store-images', true),
-  ('training-resources', 'training-resources', true),
-  ('floater-notification-images', 'floater-notification-images', true),
-  -- Private (served only by the app's own routes, via downloadFile() -
-  -- member balances/receipts, documents gated by admin role, babysitter/
-  -- member photos that aren't meant to be a guessable public URL, etc.).
-  ('documents', 'documents', false),
-  ('private-photos', 'private-photos', false),
-  ('private-babysitter-photos', 'private-babysitter-photos', false),
-  ('private-nature-news', 'private-nature-news', false),
-  ('custom-form-files', 'custom-form-files', false),
-  ('accounting-receipts', 'accounting-receipts', false),
-  ('family-school-attachments', 'family-school-attachments', false)
-on conflict (id) do nothing;
+--
+-- Guarded on the `storage` schema actually existing - a real Supabase
+-- project always has it (Storage ships with every project), but
+-- test/pgTestDb.js applies every file in this directory, in order,
+-- against a plain PGlite instance built from db/schema.sql alone, which
+-- has no `storage` schema at all - the exact same "this is Supabase-
+-- platform infrastructure, not an app table" gap db/schema.sql itself
+-- never defines. Without this guard every single test that boots the
+-- app fails at seed time with `relation "storage.buckets" does not
+-- exist`, a real regression this one caused and that any later migration
+-- touching storage.* needs to guard the same way.
+do $$
+begin
+  if to_regclass('storage.buckets') is not null then
+    insert into storage.buckets (id, name, public) values
+      -- Public (served via utils/storage.js's publicUrl() - a plain,
+      -- stable <img src>/<a href> URL, same as everything under
+      -- public/uploads/ was before Storage existed).
+      ('class-images', 'class-images', true),
+      ('custom-form-images', 'custom-form-images', true),
+      ('event-images', 'event-images', true),
+      ('member-photos', 'member-photos', true),
+      ('homepage-images', 'homepage-images', true),
+      ('lesson-attachments', 'lesson-attachments', true),
+      ('text-campaign-images', 'text-campaign-images', true),
+      ('classifieds-images', 'classifieds-images', true),
+      ('directory-images', 'directory-images', true),
+      ('member-text-images', 'member-text-images', true),
+      ('name-tag-images', 'name-tag-images', true),
+      ('schedule-card-images', 'schedule-card-images', true),
+      ('setup-cleanup-notification-images', 'setup-cleanup-notification-images', true),
+      ('store-images', 'store-images', true),
+      ('training-resources', 'training-resources', true),
+      ('floater-notification-images', 'floater-notification-images', true),
+      -- Private (served only by the app's own routes, via
+      -- downloadFile() - member balances/receipts, documents gated by
+      -- admin role, babysitter/member photos that aren't meant to be a
+      -- guessable public URL, etc.).
+      ('documents', 'documents', false),
+      ('private-photos', 'private-photos', false),
+      ('private-babysitter-photos', 'private-babysitter-photos', false),
+      ('private-nature-news', 'private-nature-news', false),
+      ('custom-form-files', 'custom-form-files', false),
+      ('accounting-receipts', 'accounting-receipts', false),
+      ('family-school-attachments', 'family-school-attachments', false)
+    on conflict (id) do nothing;
+  end if;
+end $$;

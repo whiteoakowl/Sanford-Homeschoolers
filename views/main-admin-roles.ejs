@@ -23,6 +23,18 @@
               title, portal key listed stacked underneath in next row." %>
           <h2><%= role.label %></h2>
           <p class="hint">portal key: <%= role.key %></p>
+          <%# A real request: "Family school management portal isn't
+              included in the portal permissions" - Family School
+              Management has no DB role of its own (routes/portal-
+              auth.js's own expandPortalRoles - a 2nd Portal Switcher
+              card for the SAME 'parent' role, not a 2nd role), so it was
+              never going to get its own top-level card here; its pages
+              are a 2nd section inside the Parent card's own dialog
+              (utils/portalPageCatalog.js's sectionsForRole), easy to miss
+              since nothing on the card itself said so. %>
+          <% if (role.key === 'parent') { %>
+            <p class="hint">Also covers Family School Management.</p>
+          <% } %>
           <% if (role.key === 'main_admin') { %>
             <p class="hint">Main Admin always has every permission.</p>
           <% } else if (role.key === 'coop_admin') { %>
@@ -52,7 +64,7 @@
 
             <dialog id="role-permissions-dialog-<%= role.id %>" class="member-picker-dialog role-permissions-dialog">
               <form method="POST" action="/main-admin/roles/<%= role.id %>/permissions">
-                <h3>View <%= role.label %>'s Pages</h3>
+                <h3>View <%= role.key === 'parent' ? 'Parent and Family School Management' : role.label %>'s Pages</h3>
                 <p class="hint">Check a page or subpage to let this portal view it. Unchecking a page hides it from the nav and blocks direct links to it - the content itself isn't deleted, just hidden until checked again.</p>
                 <%- include('partials/permission-checkbox-section', { sections: roleSections[role.id] }) %>
                 <div class="notes-dialog-actions">

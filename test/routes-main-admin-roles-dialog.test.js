@@ -65,8 +65,13 @@ test('Portal Permissions: each non-Main-Admin role has a centered title, portal 
   // management controls. Only admins." Same editable checkboxes/Save as
   // before (only an account with manage_roles can even reach this page)
   // - just worded as viewing a portal's pages rather than "managing
-  // permissions".
-  assert.match(dialogHtml, new RegExp(`<h3>View ${role.label}'s Pages</h3>`));
+  // permissions". Parent's own heading names Family School Management
+  // too (a later real request: "Family school management portal isn't
+  // included in the portal permissions" - it has no DB role of its own,
+  // so its pages are a 2nd section inside this same Parent dialog; the
+  // heading says so instead of just "View Parent's Pages").
+  const expectedHeading = role.key === 'parent' ? 'Parent and Family School Management' : role.label;
+  assert.match(dialogHtml, new RegExp(`<h3>View ${expectedHeading}'s Pages</h3>`));
   assert.match(dialogHtml, /class="permission-checkbox-grid"/);
   assert.match(dialogHtml, new RegExp(`action="/main-admin/roles/${role.id}/permissions"`));
   assert.match(dialogHtml, /<button type="button" class="btn-secondary" onclick="this\.closest\('dialog'\)\.close\(\)">Close<\/button>/);
