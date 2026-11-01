@@ -435,14 +435,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// A real request: "homepage should still be kiosk screen for now" - the
-// site root had briefly moved to the new public marketing homepage
-// (routes/public-site.js), but that's not ready to be the default
-// landing page yet, so / goes back to being the kiosk screen (same
-// render as /kiosk - see kiosk.js's own GET '/' route). The marketing
-// homepage itself isn't gone, just not the default - it's still fully
-// there at /welcome, ready to become the site root again later.
-app.get('/', (req, res) => res.render('kiosk-home', { title: 'Kiosk' }));
+// A real request: "Homepage should now link to homepage" - the site
+// root moves back to the public marketing homepage (routes/public-
+// site.js), reversing the earlier "homepage should still be kiosk
+// screen for now" call (see this file's own prior comment, and git
+// history). The kiosk screen is untouched, just no longer the root -
+// every kiosk page's own "Home"/"Return to Home Screen" link already
+// pointed at /kiosk specifically, not /, so nothing there breaks.
+// /welcome keeps working too (plenty of existing public pages still
+// link back to it by that name) - both URLs render the same page.
+app.use('/', publicSiteRouter);
 app.use('/welcome', publicSiteRouter);
 app.use('/kiosk', kioskRouter);
 app.use('/kiosk', checkoutRouter);
