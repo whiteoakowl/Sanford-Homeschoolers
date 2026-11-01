@@ -1,0 +1,18 @@
+<%
+// A real request: "Make each form have tabs called details, submissions,
+// settings." Shared by the builder (views/admin-custom-forms-builder.ejs,
+// Details/Settings - both the same route, toggled by ?tab=) and the
+// Submissions list (views/admin-custom-forms-submissions.ejs, its own
+// existing separate route/feature - sortable/filterable table, CSV
+// export - kept as its own page rather than rebuilt inline, just styled
+// into this same tab strip for a consistent feel). Same .view-tabs/
+// .view-tab per-record sub-tab convention this app already uses for
+// Member Profile's own Profile/Class Schedule/Attendance tabs and an
+// Event's own builder tabs.
+var cfActiveTab = typeof activeTab !== 'undefined' ? activeTab : 'details';
+%>
+<nav class="view-tabs no-print">
+  <a class="view-tab<%= cfActiveTab === 'details' ? ' active' : '' %>" href="/main-admin/forms/<%= form.id %>/builder">Details</a>
+  <a class="view-tab<%= cfActiveTab === 'submissions' ? ' active' : '' %>" href="/main-admin/forms/<%= form.id %>/submissions">Submissions</a>
+  <a class="view-tab<%= cfActiveTab === 'settings' ? ' active' : '' %>" href="/main-admin/forms/<%= form.id %>/builder?tab=settings">Settings</a>
+</nav>

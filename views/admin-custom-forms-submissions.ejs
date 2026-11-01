@@ -9,11 +9,13 @@
   }) %>
 
   <main id="main-content" tabindex="-1" class="admin-main">
-    <h1>Submissions &mdash; <%= form.title %></h1>
+    <h1><%= form.title %></h1>
+    <p><a href="/main-admin/forms">&larr; All Forms</a></p>
+
+    <%- include('partials/custom-form-tabs', { form: form, activeTab: activeTab }) %>
 
     <div class="roster-toolbar">
       <div class="roster-btn-row">
-        <a class="roster-action-btn" href="/main-admin/forms/<%= form.id %>/builder">&larr; Back to Form</a>
         <a class="roster-action-btn" href="/main-admin/forms/<%= form.id %>/submissions/export">Export CSV</a>
       </div>
       <%# A real submissions experience: filter by respondent name - a

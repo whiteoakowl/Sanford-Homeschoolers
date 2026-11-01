@@ -16092,6 +16092,30 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 .cf-condition-badge { font-size: 0.75rem; color: var(--brand-dark); background: var(--brand-soft); border-radius: 999px; padding: 0.1rem 0.5rem; }
 .cf-theme-swatch { width: 1.4rem; height: 1.4rem; border-radius: 4px; border: 1px solid var(--border); display: inline-block; vertical-align: middle; margin-right: 0.35rem; }
 
+/* A real request: "Add page and add element button top of page, side
+   by side on the same row shrink to fit" (.cf-builder-toolbar reuses
+   .roster-btn-row's own shrink-to-fit flex-row sizing, no new layout
+   rule needed here) and "Edit and trash icons should be inline on the
+   same row as the element title" - one compact row per element
+   (drag handle/type badge/title/status badges/edit+trash icons, all on
+   one line) instead of the stacked multi-line block this reused from
+   Homepage's own .homepage-builder-block. Deliberately its own class,
+   not a reuse of homepage-builder-block/-canvas, since that shared
+   pattern is still exactly right for the Public Homepage builder's own
+   content blocks (and Custom Forms' own Menu-Tabs-shaped lists
+   elsewhere) - only this element list needed the tighter one-line
+   layout. A real request: "Have clear defined lines between sections
+   on page" - a divider between each element row, same rhythm as the
+   page-to-page dividers above, rather than a loose vertical gap. */
+.cf-elements-canvas { display: flex; flex-direction: column; }
+.cf-element-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+.cf-element-row:last-child { border-bottom: none; }
+.cf-element-row .lesson-drag-handle { flex: 0 0 auto; }
+.cf-element-row-type { flex: 0 0 auto; }
+.cf-element-row-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-element-row-badge { flex: 0 0 auto; }
+.cf-element-row-actions { display: flex; gap: 0.35rem; flex-shrink: 0; margin-left: auto; }
+
 /* Composite field types (full_name/address/appointment) - several
    sub-inputs rendered side by side (or stacked, for address's own
    street lines), combined into one stored answer server-side (routes/

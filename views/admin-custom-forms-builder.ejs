@@ -10,6 +10,7 @@
 <%
 var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_button_style === 'square' ? '4px' : '10px';
 var currentThemePreset = themePresets.find(function(p) { return p.key === form.theme_preset; });
+var isSettingsTab = activeTab === 'settings';
 %>
   <%# Every field in the form, flat, for the conditional-logic rule
       builder's own "depends on" dropdown and its value-type lookup
@@ -23,213 +24,52 @@ var currentThemePreset = themePresets.find(function(p) { return p.key === form.t
       <h1><%= form.title %></h1>
       <span class="badge-pill badge-pill-<%= form.status === 'published' ? 'green' : form.status === 'closed' ? 'gray' : 'orange' %>"><%= form.status.charAt(0).toUpperCase() + form.status.slice(1) %></span>
     </div>
+    <p><a href="/main-admin/forms">&larr; All Forms</a></p>
+
+    <%- include('partials/custom-form-tabs', { form: form, activeTab: activeTab }) %>
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
 
-    <div class="roster-toolbar">
-      <div class="roster-btn-row">
-        <a class="roster-action-btn" href="/main-admin/forms">&larr; All Forms</a>
-        <a class="roster-action-btn" href="/main-admin/forms/<%= form.id %>/submissions">Submissions</a>
-        <% if (form.status !== 'published') { %>
-          <form method="POST" action="/main-admin/forms/<%= form.id %>/status" class="inline-block-form">
-            <input type="hidden" name="status" value="published" />
-            <button type="submit" class="roster-action-btn">Publish</button>
-          </form>
-        <% } %>
-        <% if (form.status !== 'closed') { %>
-          <form method="POST" action="/main-admin/forms/<%= form.id %>/status" class="inline-block-form">
-            <input type="hidden" name="status" value="closed" />
-            <button type="submit" class="roster-action-btn roster-action-btn-danger">Close</button>
-          </form>
-        <% } else { %>
-          <form method="POST" action="/main-admin/forms/<%= form.id %>/status" class="inline-block-form">
-            <input type="hidden" name="status" value="draft" />
-            <button type="submit" class="roster-action-btn">Move to Draft</button>
-          </form>
-        <% } %>
-        <form method="POST" action="/main-admin/forms/<%= form.id %>/delete" class="inline-block-form" data-confirm="Delete &quot;<%= form.title %>&quot;? This removes every page, field, assignment, and submission. This cannot be undone.">
-          <button type="submit" class="roster-action-btn roster-action-btn-danger">Delete</button>
-        </form>
-      </div>
-    </div>
-
-    <div class="cf-builder-layout">
-      <%# A real request, with a reference screenshot of a seamless row-
-          list theme editor (the same "no cards" request already applied
-          to the Public Homepage theme editor's own sidebar - see
-          .homepage-theme-sidebar's own comment): "Make the sections and
-          features tight row dropdown menus, no cards spaces... No card
-          design for this page at all." Settings & Theme/Pages/Assign To
-          were each their own floating .manage-section card with a gap
-          between them; cf-builder-sidebar below strips that back to one
-          seamless bordered list, same look as the homepage editor. %>
+    <% if (isSettingsTab) { %>
+      <%# Settings tab - a real request: "Move assigned to and
+          draft/publish under the settings tab" - status controls, Delete,
+          and Assign To live here now, off the Details tab. Settings &
+          Theme (title/description/color/fonts) stays ON the Details tab
+          instead (below) - "Details tab is the form edition and view,"
+          and moving Settings & Theme off onto a separate page would
+          break the live preview sitting right next to it (public/js/
+          custom-form-live-preview.js needs both on the same page to
+          update it with no Save first). %>
       <div class="cf-builder-sidebar">
         <div class="manage-section">
-          <div class="grid-box-header"><h2>Settings &amp; Theme</h2></div>
-          <form method="POST" action="/main-admin/forms/<%= form.id %>" class="member-form-grid" data-cf-settings-form>
-            <label class="member-form-full">Title
-              <input type="text" name="title" value="<%= form.title %>" required data-cf-theme-field />
-            </label>
-            <label class="member-form-full">Description
-              <textarea name="description" rows="2" data-cf-theme-field><%= form.description || '' %></textarea>
-            </label>
-            <%# Per-form appearance - a real request: "full editing
-                features and view just like jotform, exactly" (Jotform's
-                own Theme tab, scoped to primary color + button shape).
-                Applied live on the preview panel to the right (public/
-                js/custom-form-live-preview.js), and on the public
-                fill-out page (custom-forms-fill.ejs) once saved. A
-                later real request: "Be able to add fun visual themes to
-                custom forms, holidays, activities, sports etc." - a
-                preset just pre-fills Primary Color (public/js/custom-
-                form-builder.js) and adds its own decorative emoji next
-                to the form's title; Primary Color stays freely editable
-                after picking one, so it's never a second, conflicting
-                source of truth for color (utils/customForms.js's own
-                THEME_PRESETS). %>
-            <label class="member-form-full">Fun Theme
-              <select name="themePreset" data-cf-theme-preset-select data-cf-theme-field>
-                <% themePresets.forEach(function(p) { %>
-                  <option value="<%= p.key %>" data-primary-color="<%= p.primaryColor %>" data-emoji="<%= p.emoji %>" <%= form.theme_preset === p.key ? 'selected' : '' %>><%= p.emoji ? p.emoji + ' ' : '' %><%= p.label %></option>
-                <% }); %>
-              </select>
-            </label>
-            <label>Primary Color
-              <input type="color" name="themePrimaryColor" value="<%= form.theme_primary_color %>" data-cf-primary-color-input data-cf-theme-field />
-            </label>
-            <label>Button Style
-              <select name="themeButtonStyle" data-cf-theme-field>
-                <% themeButtonStyles.forEach(function(s) { %>
-                  <option value="<%= s %>" <%= form.theme_button_style === s ? 'selected' : '' %>><%= s.charAt(0).toUpperCase() + s.slice(1) %></option>
-                <% }); %>
-              </select>
-            </label>
-            <div class="member-form-full">
-              <button type="submit" class="primary-btn">Save</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="manage-section">
-          <div class="grid-box-header">
-            <h2>Pages (<%= pages.length %>)</h2>
-            <button type="button" class="roster-action-btn" onclick="document.getElementById('add-page-dialog').showModal()">+ Add Page</button>
-          </div>
-          <p class="hint">A form with more than one page shows a progress bar on the fill-out page, and a page can be set to only appear when an earlier answer matches a condition.</p>
-
-          <div class="homepage-builder-canvas cf-pages-canvas" data-homepage-blocks-container data-reorder-url="/main-admin/forms/<%= form.id %>/pages/reorder">
-            <% pages.forEach(function(page, pageIndex) { %>
-              <div class="cf-page-card" data-homepage-block-row="<%= page.id %>">
-                <div class="cf-page-card-header">
-                  <span data-homepage-block-drag-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span>
-                  <h3>Page <%= pageIndex + 1 %><%= page.title ? ': ' + page.title : '' %></h3>
-                  <% if (page.conditionalLogicParsed) { %><span class="cf-condition-badge">Conditional</span><% } %>
-                  <div class="training-lesson-actions">
-                    <button type="button" class="icon-btn" onclick="document.getElementById('edit-page-dialog-<%= page.id %>').showModal()" aria-label="Edit page" title="Edit Page"><svg class="icon"><use href="#icon-edit"/></svg></button>
-                    <% if (pages.length > 1) { %>
-                      <form method="POST" action="/main-admin/forms/<%= form.id %>/pages/<%= page.id %>/delete" class="inline-block-form" data-confirm="Remove this page? Its fields will move to the remaining page.">
-                        <button type="submit" class="icon-btn icon-btn-danger" aria-label="Delete page" title="Delete Page"><svg class="icon"><use href="#icon-trash"/></svg></button>
-                      </form>
-                    <% } %>
-                  </div>
-                </div>
-                <% if (page.description) { %><p class="hint"><%= page.description %></p><% } %>
-
-                <% if (page.fields.length === 0) { %>
-                  <p class="roster-empty">No fields on this page yet.</p>
-                <% } else { %>
-                  <div class="homepage-builder-canvas" data-homepage-blocks-container data-reorder-url="/main-admin/forms/<%= form.id %>/fields/reorder" data-reorder-extra='<%- JSON.stringify({ pageId: page.id }) %>'>
-                    <% page.fields.forEach(function(field) { %>
-                      <div class="homepage-builder-block" data-homepage-block-row="<%= field.id %>">
-                        <span data-homepage-block-drag-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span>
-                        <div class="homepage-builder-block-preview">
-                          <span class="badge-pill badge-pill-gray homepage-builder-block-type"><%= fieldTypes.find(function(t) { return t.key === field.field_type; }).label %></span>
-                          <strong><%= field.label %></strong>
-                          <span class="hint">
-                            <% if (field.is_required == 1) { %>Required<% } %>
-                            <% if (field.options.length) { %> &middot; Options: <%= field.options.map(function(o) { return o.label; }).join(', ') %><% } %>
-                            <% if (field.conditionalLogicParsed) { %> &middot; <span class="cf-condition-badge">Conditional</span><% } %>
-                          </span>
-                        </div>
-                        <div class="homepage-builder-block-actions">
-                          <button type="button" class="icon-btn" onclick="document.getElementById('edit-field-dialog-<%= field.id %>').showModal()" aria-label="Edit <%= field.label %>" title="Edit"><svg class="icon"><use href="#icon-edit"/></svg></button>
-                          <form method="POST" action="/main-admin/forms/<%= form.id %>/fields/<%= field.id %>/delete" class="inline-block-form" data-confirm="Remove field &quot;<%= field.label %>&quot;?">
-                            <button type="submit" class="icon-btn icon-btn-danger" aria-label="Delete <%= field.label %>" title="Delete"><svg class="icon"><use href="#icon-trash"/></svg></button>
-                          </form>
-                        </div>
-                      </div>
-                    <% }); %>
-                  </div>
-                <% } %>
-                <div class="roster-btn-row" style="margin-top: 0.6rem;">
-                  <button type="button" class="roster-action-btn roster-action-btn-small" onclick="document.getElementById('add-field-dialog-<%= page.id %>').showModal()">+ Add Field</button>
-                </div>
-              </div>
-
-              <%# Add-Field dialog for THIS page - pageId is preset
-                  (hidden), so a field added here lands directly on this
-                  page with no extra picker needed. %>
-              <dialog id="add-field-dialog-<%= page.id %>" class="member-picker-dialog">
-                <form method="POST" action="/main-admin/forms/<%= form.id %>/fields" enctype="multipart/form-data">
-                  <h3>Add Field &mdash; Page <%= pageIndex + 1 %></h3>
-                  <input type="hidden" name="pageId" value="<%= page.id %>" />
-                  <%# A real request, with a screenshot of Jotform's own
-                      "Form Elements" flyout: "Add element should be a
-                      dropdown menu of options and should include all of
-                      jotform's basic options and widget options.
-                      However the widgets won't be called widgets it
-                      will just be one grand list of options." Every
-                      entry in utils/customForms.js's own FIELD_TYPES, in
-                      that same order, flat - no Basic/Widgets/Payments
-                      split (this app has no payment-element type at
-                      all). Replaces the old grouped icon-button grid
-                      (.cf-type-palette, now unused). %>
-                  <label>Field Type
-                    <select name="fieldType" data-cf-field-type-select required>
-                      <% fieldTypes.forEach(function(t, i) { %>
-                        <option value="<%= t.key %>" <%= i === 0 ? 'selected' : '' %>><%= t.label %></option>
-                      <% }); %>
-                    </select>
-                  </label>
-                  <label>Label
-                    <input type="text" name="label" required />
-                  </label>
-                  <label>Help Text
-                    <input type="text" name="helpText" />
-                  </label>
-                  <p class="hint" data-cf-row="fillblank-hint" style="display: none;">Write one sentence, with each blank marked by three or more underscores - e.g. "The capital of France is ___ and 2 + 2 = ___."</p>
-                  <label data-cf-row="image">Image
-                    <input type="file" name="image" accept="image/*" />
-                  </label>
-                  <label data-cf-row="matrix-columns">Columns (one per line)
-                    <textarea name="matrixColumns" rows="3"></textarea>
-                  </label>
-                  <p class="hint" data-cf-row="matrix-columns-hint" style="display: none;">Rows go in the Options box below - each becomes one question respondents answer across these columns.</p>
-                  <label data-cf-row="placeholder" data-cf-placeholder-label>Placeholder
-                    <input type="text" name="placeholder" />
-                  </label>
-                  <label data-cf-row="default">Default Value
-                    <input type="text" name="defaultValue" />
-                  </label>
-                  <label data-cf-row="options" style="display: none;">Options (one per line)
-                    <textarea name="options" rows="4"></textarea>
-                  </label>
-                  <label class="grade-pill" data-cf-row="required"><input type="checkbox" name="isRequired" /> Required</label>
-                  <%- include('partials/custom-form-condition-builder', { allFields: allFields, currentRule: null, conditionOperators: conditionOperators, choiceTypes: choiceTypes, excludeFieldId: null }) %>
-                  <div class="notes-dialog-actions">
-                    <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
-                    <button type="submit" class="primary-btn">Add</button>
-                  </div>
-                </form>
-              </dialog>
-            <% }); %>
+          <div class="grid-box-header"><h2>Status</h2></div>
+          <div class="roster-btn-row">
+            <% if (form.status !== 'published') { %>
+              <form method="POST" action="/main-admin/forms/<%= form.id %>/status" class="inline-block-form">
+                <input type="hidden" name="status" value="published" />
+                <button type="submit" class="roster-action-btn">Publish</button>
+              </form>
+            <% } %>
+            <% if (form.status !== 'closed') { %>
+              <form method="POST" action="/main-admin/forms/<%= form.id %>/status" class="inline-block-form">
+                <input type="hidden" name="status" value="closed" />
+                <button type="submit" class="roster-action-btn roster-action-btn-danger">Close</button>
+              </form>
+            <% } else { %>
+              <form method="POST" action="/main-admin/forms/<%= form.id %>/status" class="inline-block-form">
+                <input type="hidden" name="status" value="draft" />
+                <button type="submit" class="roster-action-btn">Move to Draft</button>
+              </form>
+            <% } %>
+            <form method="POST" action="/main-admin/forms/<%= form.id %>/delete" class="inline-block-form" data-confirm="Delete &quot;<%= form.title %>&quot;? This removes every page, element, assignment, and submission. This cannot be undone.">
+              <button type="submit" class="roster-action-btn roster-action-btn-danger">Delete Form</button>
+            </form>
           </div>
         </div>
 
         <div class="manage-section">
           <div class="grid-box-header"><h2>Assign To (<%= assignments.length %>)</h2></div>
-          <p class="hint">Leave unassigned to make this form open to any signed-in member once published.</p>
           <div class="training-lesson-list">
             <% assignments.forEach(function(a) { %>
               <div class="training-lesson-row">
@@ -261,80 +101,181 @@ var currentThemePreset = themePresets.find(function(p) { return p.key === form.t
           </form>
         </div>
       </div>
+    <% } else { %>
+      <%# Details tab - a real request: "Add page and add element button
+          top of page, side by side on the same row shrink to fit." One
+          global Add Element dialog now (with its own Page picker,
+          defaulting to the first page) instead of a separate dialog/
+          button per page. %>
+      <div class="cf-builder-toolbar roster-btn-row no-print">
+        <button type="button" class="roster-action-btn" onclick="document.getElementById('add-page-dialog').showModal()">+ Add Page</button>
+        <button type="button" class="roster-action-btn" onclick="document.getElementById('add-element-dialog').showModal()">+ Add Element</button>
+      </div>
 
-      <%# Live preview - a real request: "Live preview while editing in
-          the builder itself, so an admin sees roughly what the public
-          form will look like as they build it," and a later real
-          request: "Custom forms should have a live preview as you
-          design like the website design page (public homepage)" - the
-          Settings & Theme fields (Title/Description/Primary Color/
-          Button Style/Fun Theme) now update this panel instantly as the
-          admin types/picks (public/js/custom-form-live-preview.js),
-          same "no page reload needed to see it" feel as the Public
-          Homepage theme editor's own color/font pickers
-          (homepage-theme-editor.js's scheduleReload) - just via direct
-          DOM updates here instead of that editor's iframe+query-string
-          round trip, since this preview already renders inline on the
-          same page rather than through a separate /preview route.
-          Pages/fields themselves still need a real Save to appear here
-          (same as the Homepage editor's own content BLOCKS, which are
-          no more "live" there either - only its theme fields are) -
-          rendered from the same partial (partials/custom-form-
-          field.ejs) the public fill-out page itself uses, over the
-          last-saved pages/fields, so it can never drift from what
-          custom-forms-fill.ejs actually renders, and genuinely live for
-          conditional logic and multi-page navigation (public/js/
-          custom-form-runtime.js runs over this panel exactly like it
-          does the real fill-out page). %>
-      <div class="cf-preview-panel no-print">
-        <div class="grid-box-header"><h2>Live Preview</h2></div>
-        <div class="cf-form" data-cf-form style="--cf-primary: <%= form.theme_primary_color %>; --cf-radius: <%= buttonRadius %>;">
-          <h1 style="margin-top:0;" data-cf-preview-title><span data-cf-preview-emoji aria-hidden="true"<%- (currentThemePreset && currentThemePreset.emoji) ? '' : ' style="display:none"' %>><%= currentThemePreset ? currentThemePreset.emoji : '' %></span><span data-cf-preview-emoji-space><%= (currentThemePreset && currentThemePreset.emoji) ? ' ' : '' %></span><span data-cf-preview-title-text><%= form.title %></span></h1>
-          <p class="hint" data-cf-preview-description<%- form.description ? '' : ' style="display:none"' %>><%= form.description || '' %></p>
-          <% if (pages.length > 1) { %>
-            <nav class="cf-progress" aria-label="Form progress" data-cf-progress>
-              <% pages.forEach(function(page, i) { %>
-                <span class="cf-progress-step<%= i === 0 ? ' cf-progress-step-active' : '' %>" data-cf-progress-step="<%= page.id %>">
-                  <span class="cf-progress-dot"><%= i + 1 %></span>
-                  <span class="cf-progress-label"><%= page.title || ('Page ' + (i + 1)) %></span>
-                </span>
-              <% }); %>
-            </nav>
-          <% } %>
-          <div class="member-form-grid">
-            <% pages.forEach(function(page, pageIndex) { %>
-              <section
-                class="cf-page<%= pageIndex === 0 ? ' cf-page-active' : '' %>"
-                data-cf-page="<%= page.id %>"
-                data-cf-page-index="<%= pageIndex %>"
-                <% if (page.conditionalLogicParsed) { %>data-cf-condition='<%- JSON.stringify(page.conditionalLogicParsed) %>'<% } %>
-              >
-                <% if (pages.length > 1 && (page.title || page.description)) { %>
-                  <div class="member-form-full cf-page-heading">
-                    <% if (page.title) { %><h2><%= page.title %></h2><% } %>
-                    <% if (page.description) { %><p class="hint"><%= page.description %></p><% } %>
-                  </div>
-                <% } %>
-                <% if (page.fields.length === 0) { %>
-                  <p class="roster-empty member-form-full">No fields on this page yet.</p>
-                <% } %>
-                <% page.fields.forEach(function(field) { %>
-                  <%- include('partials/custom-form-field', { field: field, ratingMax: ratingMax || { rating: 5, scale: 10 } }) %>
-                <% }); %>
-                <div class="member-form-full cf-page-nav">
-                  <% if (pageIndex > 0) { %><button type="button" class="btn-secondary" data-cf-prev>&larr; Back</button><% } %>
-                  <% if (pageIndex < pages.length - 1) { %>
-                    <button type="button" class="primary-btn cf-btn" data-cf-next>Next &rarr;</button>
-                  <% } else { %>
-                    <button type="button" class="primary-btn cf-btn" disabled title="Preview only - not a real submission">Submit</button>
+      <div class="cf-builder-layout">
+        <div class="cf-builder-sidebar">
+          <div class="manage-section">
+            <div class="grid-box-header"><h2>Settings &amp; Theme</h2></div>
+            <form method="POST" action="/main-admin/forms/<%= form.id %>" class="member-form-grid" data-cf-settings-form>
+              <label class="member-form-full">Title
+                <input type="text" name="title" value="<%= form.title %>" required data-cf-theme-field />
+              </label>
+              <label class="member-form-full">Description
+                <textarea name="description" rows="2" data-cf-theme-field><%= form.description || '' %></textarea>
+              </label>
+              <%# Per-form appearance - a real request: "full editing
+                  features and view just like jotform, exactly" (Jotform's
+                  own Theme tab, scoped to primary color + button shape).
+                  Applied live on the preview panel just to the right
+                  (public/js/custom-form-live-preview.js), and on the
+                  public fill-out page (custom-forms-fill.ejs) once
+                  saved. A later real request: "Be able to add fun
+                  visual themes to custom forms, holidays, activities,
+                  sports etc." - a preset just pre-fills Primary Color
+                  (public/js/custom-form-builder.js) and adds its own
+                  decorative emoji next to the form's title; Primary
+                  Color stays freely editable after picking one, so it's
+                  never a second, conflicting source of truth for color
+                  (utils/customForms.js's own THEME_PRESETS). %>
+              <label class="member-form-full">Fun Theme
+                <select name="themePreset" data-cf-theme-preset-select data-cf-theme-field>
+                  <% themePresets.forEach(function(p) { %>
+                    <option value="<%= p.key %>" data-primary-color="<%= p.primaryColor %>" data-emoji="<%= p.emoji %>" <%= form.theme_preset === p.key ? 'selected' : '' %>><%= p.emoji ? p.emoji + ' ' : '' %><%= p.label %></option>
+                  <% }); %>
+                </select>
+              </label>
+              <label>Primary Color
+                <input type="color" name="themePrimaryColor" value="<%= form.theme_primary_color %>" data-cf-primary-color-input data-cf-theme-field />
+              </label>
+              <label>Button Style
+                <select name="themeButtonStyle" data-cf-theme-field>
+                  <% themeButtonStyles.forEach(function(s) { %>
+                    <option value="<%= s %>" <%= form.theme_button_style === s ? 'selected' : '' %>><%= s.charAt(0).toUpperCase() + s.slice(1) %></option>
+                  <% }); %>
+                </select>
+              </label>
+              <div class="member-form-full">
+                <button type="submit" class="primary-btn">Save</button>
+              </div>
+            </form>
+          </div>
+          <div class="homepage-builder-canvas cf-pages-canvas" data-homepage-blocks-container data-reorder-url="/main-admin/forms/<%= form.id %>/pages/reorder">
+          <% pages.forEach(function(page, pageIndex) { %>
+            <div class="cf-page-card" data-homepage-block-row="<%= page.id %>">
+              <div class="cf-page-card-header">
+                <span data-homepage-block-drag-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span>
+                <h3>Page <%= pageIndex + 1 %><%= page.title ? ': ' + page.title : '' %></h3>
+                <% if (page.conditionalLogicParsed) { %><span class="cf-condition-badge">Conditional</span><% } %>
+                <div class="training-lesson-actions">
+                  <button type="button" class="icon-btn" onclick="document.getElementById('edit-page-dialog-<%= page.id %>').showModal()" aria-label="Edit page" title="Edit Page"><svg class="icon"><use href="#icon-edit"/></svg></button>
+                  <% if (pages.length > 1) { %>
+                    <form method="POST" action="/main-admin/forms/<%= form.id %>/pages/<%= page.id %>/delete" class="inline-block-form" data-confirm="Remove this page? Its elements will move to the remaining page.">
+                      <button type="submit" class="icon-btn icon-btn-danger" aria-label="Delete page" title="Delete Page"><svg class="icon"><use href="#icon-trash"/></svg></button>
+                    </form>
                   <% } %>
                 </div>
-              </section>
-            <% }); %>
+              </div>
+              <% if (page.description) { %><p class="hint"><%= page.description %></p><% } %>
+
+              <% if (page.fields.length === 0) { %>
+                <p class="roster-empty">No elements on this page yet.</p>
+              <% } else { %>
+                <div class="cf-elements-canvas" data-homepage-blocks-container data-reorder-url="/main-admin/forms/<%= form.id %>/fields/reorder" data-reorder-extra='<%- JSON.stringify({ pageId: page.id }) %>'>
+                  <% page.fields.forEach(function(field) { %>
+                    <div class="cf-element-row" data-homepage-block-row="<%= field.id %>">
+                      <span data-homepage-block-drag-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span>
+                      <span class="badge-pill badge-pill-gray cf-element-row-type"><%= fieldTypes.find(function(t) { return t.key === field.field_type; }).label %></span>
+                      <strong class="cf-element-row-title"><%= field.label %></strong>
+                      <% if (field.is_required == 1) { %><span class="badge-pill badge-pill-orange cf-element-row-badge">Required</span><% } %>
+                      <% if (field.conditionalLogicParsed) { %><span class="cf-condition-badge cf-element-row-badge">Conditional</span><% } %>
+                      <div class="cf-element-row-actions">
+                        <button type="button" class="icon-btn" onclick="document.getElementById('edit-field-dialog-<%= field.id %>').showModal()" aria-label="Edit <%= field.label %>" title="Edit"><svg class="icon"><use href="#icon-edit"/></svg></button>
+                        <form method="POST" action="/main-admin/forms/<%= form.id %>/fields/<%= field.id %>/delete" class="inline-block-form" data-confirm="Remove element &quot;<%= field.label %>&quot;?">
+                          <button type="submit" class="icon-btn icon-btn-danger" aria-label="Delete <%= field.label %>" title="Delete"><svg class="icon"><use href="#icon-trash"/></svg></button>
+                        </form>
+                      </div>
+                    </div>
+                  <% }); %>
+                </div>
+              <% } %>
+            </div>
+          <% }); %>
+          </div>
+        </div>
+
+        <%# Live preview - a real request: "Live preview while editing in
+            the builder itself, so an admin sees roughly what the public
+            form will look like as they build it," and later: "Custom
+            forms should have a live preview as you design like the
+            website design page (public homepage)" (the Settings &
+            Theme panel just to the left updates this instantly as you
+            type/pick - public/js/custom-form-live-preview.js - which is
+            also why that panel stayed on this same Details tab rather
+            than moving to Settings with Assign To/Status: it needs to
+            sit next to this preview, not on a separate page) and "Be
+            able to click through the live preview when editing" - fields here are
+            never disabled (no `disabled: true` passed to partials/
+            custom-form-field.ejs) and public/js/custom-form-runtime.js
+            runs the real Next/Back multi-page navigation and
+            conditional-logic hide/show over this panel exactly like it
+            does the real fill-out page - only the Submit button itself
+            is inert (title="Preview only"). Pages/elements themselves
+            still need a real Save to appear here (same as the Homepage
+            editor's own content blocks, which aren't instant there
+            either) - rendered from the same partial the public fill-out
+            page itself uses, over the last-saved pages/fields, so it
+            can never drift from what custom-forms-fill.ejs actually
+            renders. %>
+        <div class="cf-preview-panel no-print">
+          <div class="grid-box-header"><h2>Live Preview</h2></div>
+          <div class="cf-form" data-cf-form style="--cf-primary: <%= form.theme_primary_color %>; --cf-radius: <%= buttonRadius %>;">
+            <h1 style="margin-top:0;" data-cf-preview-title><span data-cf-preview-emoji aria-hidden="true"<%- (currentThemePreset && currentThemePreset.emoji) ? '' : ' style="display:none"' %>><%= currentThemePreset ? currentThemePreset.emoji : '' %></span><span data-cf-preview-emoji-space><%= (currentThemePreset && currentThemePreset.emoji) ? ' ' : '' %></span><span data-cf-preview-title-text><%= form.title %></span></h1>
+            <p class="hint" data-cf-preview-description<%- form.description ? '' : ' style="display:none"' %>><%= form.description || '' %></p>
+            <% if (pages.length > 1) { %>
+              <nav class="cf-progress" aria-label="Form progress" data-cf-progress>
+                <% pages.forEach(function(page, i) { %>
+                  <span class="cf-progress-step<%= i === 0 ? ' cf-progress-step-active' : '' %>" data-cf-progress-step="<%= page.id %>">
+                    <span class="cf-progress-dot"><%= i + 1 %></span>
+                    <span class="cf-progress-label"><%= page.title || ('Page ' + (i + 1)) %></span>
+                  </span>
+                <% }); %>
+              </nav>
+            <% } %>
+            <div class="member-form-grid">
+              <% pages.forEach(function(page, pageIndex) { %>
+                <section
+                  class="cf-page<%= pageIndex === 0 ? ' cf-page-active' : '' %>"
+                  data-cf-page="<%= page.id %>"
+                  data-cf-page-index="<%= pageIndex %>"
+                  <% if (page.conditionalLogicParsed) { %>data-cf-condition='<%- JSON.stringify(page.conditionalLogicParsed) %>'<% } %>
+                >
+                  <% if (pages.length > 1 && (page.title || page.description)) { %>
+                    <div class="member-form-full cf-page-heading">
+                      <% if (page.title) { %><h2><%= page.title %></h2><% } %>
+                      <% if (page.description) { %><p class="hint"><%= page.description %></p><% } %>
+                    </div>
+                  <% } %>
+                  <% if (page.fields.length === 0) { %>
+                    <p class="roster-empty member-form-full">No elements on this page yet.</p>
+                  <% } %>
+                  <% page.fields.forEach(function(field) { %>
+                    <%- include('partials/custom-form-field', { field: field, ratingMax: ratingMax || { rating: 5, scale: 10 } }) %>
+                  <% }); %>
+                  <div class="member-form-full cf-page-nav">
+                    <% if (pageIndex > 0) { %><button type="button" class="btn-secondary" data-cf-prev>&larr; Back</button><% } %>
+                    <% if (pageIndex < pages.length - 1) { %>
+                      <button type="button" class="primary-btn cf-btn" data-cf-next>Next &rarr;</button>
+                    <% } else { %>
+                      <button type="button" class="primary-btn cf-btn" disabled title="Preview only - not a real submission">Submit</button>
+                    <% } %>
+                  </div>
+                </section>
+              <% }); %>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    <% } %>
 
     <dialog id="add-page-dialog" class="member-picker-dialog">
       <form method="POST" action="/main-admin/forms/<%= form.id %>/pages">
@@ -372,11 +313,73 @@ var currentThemePreset = themePresets.find(function(p) { return p.key === form.t
       </dialog>
     <% }); %>
 
+    <%# A real request: "Add page and add element button top of page,
+        side by side on the same row" - one global Add Element dialog
+        now instead of one per page, so it needs its own Page picker
+        (defaulting to the first page) in place of the old per-page
+        hidden pageId input. %>
+    <dialog id="add-element-dialog" class="member-picker-dialog">
+      <form method="POST" action="/main-admin/forms/<%= form.id %>/fields" enctype="multipart/form-data">
+        <h3>Add Element</h3>
+        <label>Page
+          <select name="pageId">
+            <% pages.forEach(function(p, i) { %>
+              <option value="<%= p.id %>"><%= 'Page ' + (i + 1) + (p.title ? ': ' + p.title : '') %></option>
+            <% }); %>
+          </select>
+        </label>
+        <%# A real request, with a screenshot of Jotform's own "Form
+            Elements" flyout: "Add element should be a dropdown menu of
+            options and should include all of jotform's basic options
+            and widget options. However the widgets won't be called
+            widgets it will just be one grand list of options." Every
+            entry in utils/customForms.js's own FIELD_TYPES, in that
+            same order, flat - no Basic/Widgets/Payments split (this app
+            has no payment-element type at all). %>
+        <label>Element Type
+          <select name="fieldType" data-cf-field-type-select required>
+            <% fieldTypes.forEach(function(t, i) { %>
+              <option value="<%= t.key %>" <%= i === 0 ? 'selected' : '' %>><%= t.label %></option>
+            <% }); %>
+          </select>
+        </label>
+        <label>Label
+          <input type="text" name="label" required />
+        </label>
+        <label>Help Text
+          <input type="text" name="helpText" />
+        </label>
+        <p class="hint" data-cf-row="fillblank-hint" style="display: none;">Write one sentence, with each blank marked by three or more underscores - e.g. "The capital of France is ___ and 2 + 2 = ___."</p>
+        <label data-cf-row="image">Image
+          <input type="file" name="image" accept="image/*" />
+        </label>
+        <label data-cf-row="matrix-columns">Columns (one per line)
+          <textarea name="matrixColumns" rows="3"></textarea>
+        </label>
+        <p class="hint" data-cf-row="matrix-columns-hint" style="display: none;">Rows go in the Options box below - each becomes one question respondents answer across these columns.</p>
+        <label data-cf-row="placeholder" data-cf-placeholder-label>Placeholder
+          <input type="text" name="placeholder" />
+        </label>
+        <label data-cf-row="default">Default Value
+          <input type="text" name="defaultValue" />
+        </label>
+        <label data-cf-row="options" style="display: none;">Options (one per line)
+          <textarea name="options" rows="4"></textarea>
+        </label>
+        <label class="grade-pill" data-cf-row="required"><input type="checkbox" name="isRequired" /> Required</label>
+        <%- include('partials/custom-form-condition-builder', { allFields: allFields, currentRule: null, conditionOperators: conditionOperators, choiceTypes: choiceTypes, excludeFieldId: null }) %>
+        <div class="notes-dialog-actions">
+          <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+          <button type="submit" class="primary-btn">Add</button>
+        </div>
+      </form>
+    </dialog>
+
     <% allFields.forEach(function(field) { %>
       <dialog id="edit-field-dialog-<%= field.id %>" class="member-picker-dialog" data-cf-field-type="<%= field.field_type %>">
         <form method="POST" action="/main-admin/forms/<%= form.id %>/fields/<%= field.id %>/update" enctype="multipart/form-data">
-          <h3>Edit Field</h3>
-          <p class="hint">Type: <%= fieldTypes.find(function(t) { return t.key === field.field_type; }).label %></p>
+          <h3>Edit Element</h3>
+          <p class="hint">Element Type: <%= fieldTypes.find(function(t) { return t.key === field.field_type; }).label %></p>
           <label>Page
             <select name="pageId">
               <% pages.forEach(function(p, i) { %>

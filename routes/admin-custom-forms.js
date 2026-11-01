@@ -134,6 +134,17 @@ async function loadBuilder(req, res) {
     ratingMax: customForms.RATING_MAX,
     spinnerRange: customForms.SPINNER_RANGE,
     customFormImageUrl: customForms.customFormImageUrl,
+    // A real request: "Make each form have tabs called details,
+    // submissions, settings... Move assigned to and draft/publish under
+    // the settings tab." Same server-rendered ?tab= convention this
+    // app's other per-record sub-tabs already use (e.g. Member
+    // Profile's own ?tab=schedule) - a real page, not a client-side
+    // toggle, so Settings' own Save/Publish/Assign actions are plain
+    // form POSTs that redirect right back to the tab they came from
+    // (see the routes below, each redirect already appends ?tab=... to
+    // its own notice/error query string - only loadBuilder's own
+    // GET needs to read it).
+    activeTab: req.query.tab === 'settings' ? 'settings' : 'details',
     error: req.query.error || null,
     notice: req.query.notice || null,
   });
@@ -150,14 +161,14 @@ router.post('/:id', async (req, res) => {
     themeButtonStyle: req.body.themeButtonStyle,
     themePreset: req.body.themePreset,
   });
-  res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent('Saved.'));
+  res.redirect(`/main-admin/forms/${req.params.id}/builder?tab=settings&notice=` + encodeURIComponent('Saved.'));
 });
 
 router.post('/:id/status', async (req, res) => {
   const status = req.body.status;
-  if (!['draft', 'published', 'closed'].includes(status)) return res.redirect(`/main-admin/forms/${req.params.id}/builder`);
+  if (!['draft', 'published', 'closed'].includes(status)) return res.redirect(`/main-admin/forms/${req.params.id}/builder?tab=settings`);
   await customForms.setFormStatus(req.params.id, status);
-  res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent(`Marked ${status}.`));
+  res.redirect(`/main-admin/forms/${req.params.id}/builder?tab=settings&notice=` + encodeURIComponent(`Marked ${status}.`));
 });
 
 router.post('/:id/delete', async (req, res) => {
@@ -223,11 +234,11 @@ router.post('/:id/fields', uploadFieldImage, async (req, res) => {
   const label = (req.body.label || '').trim();
   const fieldType = req.body.fieldType;
   if (!label || !customForms.FIELD_TYPES.some((f) => f.key === fieldType)) {
-    return res.redirect(`/main-admin/forms/${req.params.id}/builder?error=` + encodeURIComponent('Label and a valid field type are required.'));
+    return res.redirect(`/main-admin/forms/${req.params.id}/builder?error=` + encodeURIComponent('Label and a valid element type are required.'));
   }
   const imagePath = fieldType === 'image' ? await saveFieldImageIfProvided(req.file, null) : null;
   await customForms.addField(req.params.id, { fieldType, label, imagePath, ...fieldDataFromBody(req.body) }, parseOptionLabels(req.body.options));
-  res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent('Field added.'));
+  res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent('Element added.'));
 });
 
 router.post('/:id/fields/:fieldId/update', uploadFieldImage, async (req, res) => {
@@ -236,12 +247,12 @@ router.post('/:id/fields/:fieldId/update', uploadFieldImage, async (req, res) =>
   const existing = await customForms.getField(req.params.fieldId);
   const imagePath = existing && existing.field_type === 'image' ? await saveFieldImageIfProvided(req.file, existing.image_path) : undefined;
   await customForms.updateField(req.params.fieldId, { label, imagePath, ...fieldDataFromBody(req.body) }, parseOptionLabels(req.body.options));
-  res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent('Field updated.'));
+  res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent('Element updated.'));
 });
 
 router.post('/:id/fields/:fieldId/delete', async (req, res) => {
   await customForms.deleteField(req.params.fieldId);
-  res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent('Field removed.'));
+  res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent('Element removed.'));
 });
 
 // Drag-reorder within one page - the dragged container's own
@@ -257,13 +268,13 @@ router.post('/:id/fields/reorder', express.json(), async (req, res) => {
 router.post('/:id/assignments', async (req, res) => {
   if (req.body.memberId) await customForms.assignToMember(req.params.id, req.body.memberId);
   else if (req.body.roleId) await customForms.assignToRole(req.params.id, req.body.roleId);
-  else return res.redirect(`/main-admin/forms/${req.params.id}/builder?error=` + encodeURIComponent('Choose a person or a role.'));
-  res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent('Assigned.'));
+  else return res.redirect(`/main-admin/forms/${req.params.id}/builder?tab=settings&error=` + encodeURIComponent('Choose a person or a role.'));
+  res.redirect(`/main-admin/forms/${req.params.id}/builder?tab=settings&notice=` + encodeURIComponent('Assigned.'));
 });
 
 router.post('/:id/assignments/:assignmentId/delete', async (req, res) => {
   await customForms.deleteAssignment(req.params.assignmentId);
-  res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent('Assignment removed.'));
+  res.redirect(`/main-admin/forms/${req.params.id}/builder?tab=settings&notice=` + encodeURIComponent('Assignment removed.'));
 });
 
 router.get('/:id/submissions', async (req, res) => {
@@ -282,6 +293,7 @@ router.get('/:id/submissions', async (req, res) => {
   res.render('admin-custom-forms-submissions', {
     title: `Submissions - ${form.title}`,
     form,
+    activeTab: 'submissions',
     submissions: pagination.items,
     pagination,
     viewingAll: pageSize === Infinity,
