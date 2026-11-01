@@ -29,10 +29,12 @@
             <%# Co-op Admin runs on its own, separate single-shared-login
                 system (middleware/requireAdmin.js, req.session.adminId) -
                 not the member_accounts/roles/permissions model every
-                other portal card here controls. Same no-dialog treatment
+                other portal card here controls. A real request: "Co-op
+                admin portal should say, always has every permission.
+                Just like main admin." Same wording/no-dialog treatment
                 as Main Admin's own card above, rather than a dialog whose
                 checkboxes would control nothing real. %>
-            <p class="hint">Co-op Admin uses its own separate login and isn't managed here.</p>
+            <p class="hint">Co-op Admin always has every permission.</p>
           <% } else { %>
             <%# A real request: "when you click it shows all of the pages
                 but it says view, not manage. Portals will not have

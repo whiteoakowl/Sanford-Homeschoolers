@@ -49,6 +49,13 @@ test('GET /main-admin/settings renders a card for every settings-area destinatio
   // permissions."
   assert.match(res.text, /href="\/main-admin\/roles"[^]*?Portal Permissions/);
   assert.match(res.text, /href="\/main-admin\/admins"[^]*?Admins/);
+  // A real request: "Main admin log in settings should be moved from
+  // co-op admin portal to main admin portal" - the shared master admin
+  // account's own username/password (routes/admin.js's ?tab=account,
+  // still the same requireFullAdmin-gated legacy login, just linked to
+  // from here now instead of views/admin-settings.ejs's own card grid,
+  // see test/routes-admin-settings-hub.test.js for that removal).
+  assert.match(res.text, /href="\/admin\/settings\?tab=account"[^]*?Admin Login/);
   // A real request: "settings gear, website. Should say public
   // homepage." Later real request (with a Shopify Themes-page
   // screenshot): "should look and function exactly like Shopify" - the

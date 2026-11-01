@@ -15,17 +15,17 @@
       <%# A real request: "change co-op admin settings gear to cards for
           each tab like main admin portal settings gear." Same
           .team-card-grid/.team-info-card hub component Main Admin's own
-          /main-admin/settings uses - Username/Password, Class Check-In
-          PIN, and Kiosk only show for the full master admin account
-          (same restriction the old tab strip enforced). %>
+          /main-admin/settings uses - Class Check-In PIN and Kiosk only
+          show for the full master admin account (same restriction the
+          old tab strip enforced). A later real request: "Main admin log
+          in settings should be moved from co-op admin portal to main
+          admin portal" - Username/Password (tab=account, the shared
+          master admin account's own login credentials) moved to
+          views/main-admin-settings-hub.ejs's own card grid instead;
+          the underlying route/tab itself (routes/admin.js) is
+          unchanged, just no longer linked to from here. %>
       <div class="team-card-grid settings-hub-card-grid">
         <% if (isFullAdmin) { %>
-          <div class="team-col">
-            <a class="team-info-card" href="/admin/settings?tab=account">
-              <span class="team-info-icon"><svg class="icon"><use href="#icon-user-circle"/></svg></span>
-              <h2 class="team-info-title">Username/Password</h2>
-            </a>
-          </div>
           <div class="team-col">
             <a class="team-info-card" href="/admin/settings?tab=classcheckin">
               <span class="team-info-icon"><svg class="icon"><use href="#icon-badge"/></svg></span>

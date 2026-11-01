@@ -42,7 +42,11 @@ test('GET /admin/settings with no tab renders a card for every settings destinat
   assert.match(res.text, /<h1>Settings<\/h1>/);
   assert.match(res.text, /<div class="team-card-grid settings-hub-card-grid">/);
 
-  assert.match(res.text, /href="\/admin\/settings\?tab=account"[^]*?Username\/Password/);
+  // A real request: "Main admin log in settings should be moved from
+  // co-op admin portal to main admin portal" - Username/Password no
+  // longer has its own card here (see test/routes-main-admin-settings-
+  // hub.test.js for its new home).
+  assert.doesNotMatch(res.text, /Username\/Password/, 'Username/Password should no longer have a card on the Co-op Admin settings hub');
   assert.match(res.text, /href="\/admin\/settings\?tab=classcheckin"[^]*?Class Check-In PIN/);
   assert.match(res.text, /href="\/admin\/settings\?tab=kiosk"[^]*?Kiosk/);
   assert.match(res.text, /href="\/admin\/settings\?tab=quicklinks"[^]*?Quick Links/);
