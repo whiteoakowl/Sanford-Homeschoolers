@@ -216,7 +216,7 @@ router.post('/email-all-invoices', async (req, res) => {
 // same event_accounting_categories table/functions (utils/events.js) the
 // Events Finance tab's own dropdown still reads from). ---
 
-router.get('/categories', async (req, res) => {
+router.get('/categories', requirePortalPermission('view_accounting_categories'), async (req, res) => {
   // A real request: "Fiscal year dates should be 9/20/2026 format."
   const fiscalYears = (await events.listFiscalYears()).map((fy) => ({
     ...fy,
@@ -321,7 +321,7 @@ async function emailFamilyAboutInvoice(memberId, description, amountCents, sentB
 // in by a separate "which member?" dialog beforehand) - memberId is
 // still honored as an optional preselect for a direct link, but is no
 // longer required to load the page at all.
-router.get('/invoices/new', async (req, res) => {
+router.get('/invoices/new', requirePortalPermission('view_accounting_invoices'), async (req, res) => {
   const memberId = Number(req.query.memberId) || null;
   const member = memberId ? await db.prepare('SELECT id, name FROM members WHERE id = ?').get(memberId) : null;
   res.render('admin-accounting-invoice-form', {
@@ -336,7 +336,7 @@ router.get('/invoices/new', async (req, res) => {
   });
 });
 
-router.get('/invoices/:id/edit', async (req, res) => {
+router.get('/invoices/:id/edit', requirePortalPermission('view_accounting_invoices'), async (req, res) => {
   const charge = await payments.getCharge(req.params.id);
   if (!charge) return res.status(404).render('404', { title: 'Not Found' });
   const member = await db.prepare('SELECT id, name FROM members WHERE id = ?').get(charge.member_id);
@@ -374,7 +374,7 @@ function splitLineItems(body) {
 // batch lookup (the exact same server-side-filter-on-select convention
 // routes/admin-members.js's own Grade Level Report ?sectionId= filter
 // already uses) rather than inventing a new members-by-section query.
-router.get('/invoices', async (req, res) => {
+router.get('/invoices', requirePortalPermission('view_accounting_invoices'), async (req, res) => {
   const status = INVOICE_STATUSES.includes(req.query.status) ? req.query.status : '';
   let invoices = await payments.allCharges(status || undefined);
   const memberId = req.query.memberId ? Number(req.query.memberId) : null;
@@ -403,7 +403,7 @@ router.get('/invoices', async (req, res) => {
   });
 });
 
-router.post('/invoices', async (req, res) => {
+router.post('/invoices', requirePortalPermission('view_accounting_invoices'), async (req, res) => {
   const memberId = Number(req.body.memberId);
   const description = (req.body.description || '').trim();
   const amountCents = toCents(req.body.amount);
@@ -437,7 +437,7 @@ router.post('/invoices', async (req, res) => {
   res.redirect('/main-admin/accounting?notice=' + encodeURIComponent(lineItems.length > 1 ? `${lineItems.length} invoices added.` : 'Invoice added.'));
 });
 
-router.post('/invoices/:id/update', async (req, res) => {
+router.post('/invoices/:id/update', requirePortalPermission('view_accounting_invoices'), async (req, res) => {
   const charge = await payments.getCharge(req.params.id);
   if (!charge) return res.status(404).render('404', { title: 'Not Found' });
   const description = (req.body.description || '').trim();
@@ -468,7 +468,7 @@ router.post('/invoices/:id/update', async (req, res) => {
 // A real request: "add a trash icon at the end of each row" (Invoices),
 // also reused by Adjustments' own Cancelled Charges rows (`back`
 // decides which subpage to return to).
-router.post('/invoices/:id/delete', async (req, res) => {
+router.post('/invoices/:id/delete', requirePortalPermission('view_accounting_invoices'), async (req, res) => {
   const charge = await payments.getCharge(req.params.id);
   if (!charge) return res.status(404).render('404', { title: 'Not Found' });
   const memberId = charge.member_id;
@@ -482,7 +482,7 @@ router.post('/invoices/:id/delete', async (req, res) => {
 // --- Payments (payment_payments rows with amount_cents > 0 - money
 // actually received). ---
 
-router.get('/payments', async (req, res) => {
+router.get('/payments', requirePortalPermission('view_accounting_payments'), async (req, res) => {
   const allRows = await payments.allPayments('payment');
   const pageSize = parsePageSize(req.query.pageSize, DEFAULT_PAGE_SIZE);
   const pagination = paginate(allRows, parsePage(req.query.page), pageSize);
@@ -522,7 +522,7 @@ router.get('/payments', async (req, res) => {
 // anywhere else - no raw card data is ever stored, same rule that
 // migration's own header comment states for the whole feature.
 const QUICK_PAYMENT_METHODS = { cash: 'Cash', check: 'Check', credit_card: 'Credit Card' };
-router.post('/payments/quick', async (req, res) => {
+router.post('/payments/quick', requirePortalPermission('view_accounting_payments'), async (req, res) => {
   const memberId = Number(req.body.memberId) || null;
   if (!memberId) return res.redirect('/main-admin/accounting/payments?error=' + encodeURIComponent('Pick a member.'));
   const amountCents = toCents(req.body.amount);
@@ -562,7 +562,7 @@ router.post('/payments/quick', async (req, res) => {
 // exact same page/route as +Payment, same as the per-charge Record
 // Payment dialog (views/admin-accounting-member.ejs) already unifies
 // both under one Direction field.
-router.get('/payments/new', async (req, res) => {
+router.get('/payments/new', requirePortalPermission('view_accounting_payments'), async (req, res) => {
   const memberId = Number(req.query.memberId) || null;
   const member = memberId ? await db.prepare('SELECT id, name FROM members WHERE id = ?').get(memberId) : null;
   const openCharges = member ? (await payments.chargesForMember(member.id)).filter((c) => c.status !== 'paid' && c.status !== 'cancelled') : [];
@@ -580,7 +580,7 @@ router.get('/payments/new', async (req, res) => {
   });
 });
 
-router.post('/payments', async (req, res) => {
+router.post('/payments', requirePortalPermission('view_accounting_payments'), async (req, res) => {
   const memberId = Number(req.body.memberId) || null;
   if (!memberId) return res.redirect('/main-admin/accounting/payments/new?error=' + encodeURIComponent('Pick a member.'));
   const chargeId = Number(req.body.chargeId) || null;
@@ -611,7 +611,7 @@ router.post('/payments', async (req, res) => {
 // A real request: "add a trash button" (Payments), also reused by
 // Adjustments' own Refunds rows (`back` decides which subpage to return
 // to) - both read/write the same payment_payments table.
-router.post('/payments/:id/delete', async (req, res) => {
+router.post('/payments/:id/delete', requirePortalPermission('view_accounting_payments'), async (req, res) => {
   const payment = await payments.getPayment(req.params.id);
   if (!payment) return res.status(404).render('404', { title: 'Not Found' });
   const isRefund = payment.amount_cents < 0;
@@ -636,7 +636,7 @@ router.post('/payments/:id/delete', async (req, res) => {
 // ever has one list per page. Each gets its own pagination object and
 // its own query param names (refundsPage/cancelledPage) so paging
 // through one never resets or collides with the other's own page.
-router.get('/adjustments', async (req, res) => {
+router.get('/adjustments', requirePortalPermission('view_accounting_adjustments'), async (req, res) => {
   const allRefunds = await payments.allPayments('refund');
   const allCancelled = await payments.allCharges('cancelled');
 
@@ -678,7 +678,7 @@ router.get('/adjustments', async (req, res) => {
 // writes - routes/admin-audit-log.js - pre-filtered to this feature's own
 // target_type). ---
 
-router.get('/logs', async (req, res) => {
+router.get('/logs', requirePortalPermission('view_accounting_logs'), async (req, res) => {
   const entries = await auditLog.list({ targetType: 'payment_charge' });
   // A real request: "make sure all accounting dates are 9/12/2026,
   // 12:15pm" - same formatTimestamp label every other Accounting page now
@@ -699,7 +699,7 @@ router.get('/logs', async (req, res) => {
 // --- Settings (Payment Methods - the Record Payment dialog's own method
 // dropdown reads this list instead of a hardcoded 'manual'). ---
 
-router.get('/settings', async (req, res) => {
+router.get('/settings', requirePortalPermission('view_accounting_settings'), async (req, res) => {
   res.render('admin-accounting-settings', {
     title: 'Accounting Settings',
     methods: await paymentMethods(),
@@ -708,7 +708,7 @@ router.get('/settings', async (req, res) => {
   });
 });
 
-router.post('/settings/payment-methods', async (req, res) => {
+router.post('/settings/payment-methods', requirePortalPermission('view_accounting_settings'), async (req, res) => {
   const names = (req.body.methods || '')
     .split('\n')
     .map((s) => s.trim())
@@ -841,7 +841,7 @@ function transactionsFilterFromQuery(req) {
   };
 }
 
-router.get('/transactions', async (req, res) => {
+router.get('/transactions', requirePortalPermission('view_accounting_transactions'), async (req, res) => {
   const filter = transactionsFilterFromQuery(req);
   const rows = (await transactions.listTransactions(filter)).map((t) => ({ ...t, dateLabel: formatDateShort(t.transaction_date) }));
   res.render('admin-accounting-transactions', {
@@ -855,7 +855,7 @@ router.get('/transactions', async (req, res) => {
   });
 });
 
-router.post('/transactions', async (req, res) => {
+router.post('/transactions', requirePortalPermission('view_accounting_transactions'), async (req, res) => {
   const type = req.body.type === 'income' ? 'income' : 'expense';
   const name = (req.body.name || '').trim();
   const transactionDate = (req.body.transactionDate || '').trim();
@@ -871,7 +871,7 @@ router.post('/transactions', async (req, res) => {
 // The payment-category dropdown on each row - auto-submits on change, no
 // separate Save button (same convention as every other inline-dropdown
 // field in this app).
-router.post('/transactions/:id/category', async (req, res) => {
+router.post('/transactions/:id/category', requirePortalPermission('view_accounting_transactions'), async (req, res) => {
   const txn = await transactions.getTransaction(req.params.id);
   if (!txn) return res.status(404).render('404', { title: 'Not Found' });
   const accountingCategoryId = req.body.accountingCategoryId ? parseInt(req.body.accountingCategoryId, 10) : null;
@@ -891,7 +891,7 @@ function uploadReceipt(req, res, next) {
 // A real request: "Purchases have a receipt icon. When you click this
 // icon a popup occurs and allows you to upload an image of your
 // receipt. And save."
-router.post('/transactions/:id/receipt', uploadReceipt, async (req, res) => {
+router.post('/transactions/:id/receipt', requirePortalPermission('view_accounting_transactions'), uploadReceipt, async (req, res) => {
   const txn = await transactions.getTransaction(req.params.id);
   if (!txn) return res.status(404).render('404', { title: 'Not Found' });
   if (!req.file) return res.redirect('/main-admin/accounting/transactions?error=' + encodeURIComponent('Choose an image to upload first.'));
@@ -904,7 +904,7 @@ router.post('/transactions/:id/receipt', uploadReceipt, async (req, res) => {
 // manage_finances-gated router instead of needing a per-family ownership
 // check (every route in this file already requires Main Admin +
 // manage_finances).
-router.get('/transactions/:id/receipt/file', async (req, res) => {
+router.get('/transactions/:id/receipt/file', requirePortalPermission('view_accounting_transactions'), async (req, res) => {
   const txn = await transactions.getTransaction(req.params.id);
   if (!txn || !txn.receipt_key) return res.status(404).render('404', { title: 'Not Found' });
   const buffer = await transactions.receiptBuffer(txn.receipt_key);
@@ -913,7 +913,7 @@ router.get('/transactions/:id/receipt/file', async (req, res) => {
   res.send(buffer);
 });
 
-router.post('/transactions/:id/delete', async (req, res) => {
+router.post('/transactions/:id/delete', requirePortalPermission('view_accounting_transactions'), async (req, res) => {
   const txn = await transactions.getTransaction(req.params.id);
   if (!txn) return res.status(404).render('404', { title: 'Not Found' });
   await transactions.deleteTransaction(txn.id);
@@ -925,7 +925,7 @@ router.post('/transactions/:id/delete', async (req, res) => {
 // it." Same Transactions table/data, just pre-filtered to rows that
 // actually have one. ---
 
-router.get('/receipts', async (req, res) => {
+router.get('/receipts', requirePortalPermission('view_accounting_receipts'), async (req, res) => {
   const filter = { ...transactionsFilterFromQuery(req), receiptOnly: true };
   const rows = (await transactions.listTransactions(filter)).map((t) => ({ ...t, dateLabel: formatDateShort(t.transaction_date) }));
   res.render('admin-accounting-receipts', {
@@ -947,7 +947,7 @@ router.get('/receipts', async (req, res) => {
 // rather than fabricating assets/liabilities/equity data that doesn't
 // exist. ---
 
-router.get('/reports', async (req, res) => {
+router.get('/reports', requirePortalPermission('view_accounting_reports'), async (req, res) => {
   res.render('admin-accounting-reports', { title: 'Reports' });
 });
 
@@ -958,7 +958,7 @@ function reportsDateFilterFromQuery(req) {
   };
 }
 
-router.get('/reports/profit-and-loss', async (req, res) => {
+router.get('/reports/profit-and-loss', requirePortalPermission('view_accounting_reports'), async (req, res) => {
   const filter = reportsDateFilterFromQuery(req);
   const rows = await transactions.listTransactions(filter);
   const byCategory = new Map();
@@ -984,7 +984,7 @@ router.get('/reports/profit-and-loss', async (req, res) => {
   });
 });
 
-router.get('/reports/cash-flow', async (req, res) => {
+router.get('/reports/cash-flow', requirePortalPermission('view_accounting_reports'), async (req, res) => {
   const filter = reportsDateFilterFromQuery(req);
   const rows = await transactions.listTransactions(filter);
   const cashInCents = rows.filter((t) => t.type === 'income').reduce((sum, t) => sum + t.amount_cents, 0);
@@ -1004,7 +1004,7 @@ router.get('/reports/cash-flow', async (req, res) => {
 // transaction up through the chosen end date - rather than inventing
 // assets/liabilities/equity figures with no underlying data to back
 // them.
-router.get('/reports/balance-sheet', async (req, res) => {
+router.get('/reports/balance-sheet', requirePortalPermission('view_accounting_reports'), async (req, res) => {
   const asOfDate = (req.query.asOfDate || '').trim() || null;
   const rows = await transactions.listTransactions(asOfDate ? { endDate: asOfDate } : {});
   const cashCents = rows.reduce((sum, t) => sum + (t.type === 'income' ? t.amount_cents : -t.amount_cents), 0);

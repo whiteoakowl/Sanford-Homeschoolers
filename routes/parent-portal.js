@@ -11,7 +11,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../db');
-const { requirePortalAuth, requirePortal } = require('../middleware/portalAuth');
+const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount, familyForAccount } = require('../utils/portalAuth');
 const {
   roomGridForDay,
@@ -335,7 +335,7 @@ function classesBackUrl(day) {
 // js/parent-class-filters.js, matching on each card's own data-class-
 // grade-list attribute) still works unchanged since it's the identical
 // .class-card markup either way.
-router.get('/classes', async (req, res) => {
+router.get('/classes', requirePortalPermission('view_parent_classes'), async (req, res) => {
   const activeDays = await listActiveClassDays();
   const day = activeDays.includes(req.query.day) ? req.query.day : (activeDays[0] || 'monday');
   const view = req.query.view === 'list' ? 'list' : 'grid';
@@ -418,7 +418,7 @@ async function resolveSemesterId(semesterId) {
   return semesterId !== undefined ? semesterId : await getActiveKioskSemesterId();
 }
 
-router.get('/classes/needing-staff', async (req, res) => {
+router.get('/classes/needing-staff', requirePortalPermission('view_parent_classes'), async (req, res) => {
   const activeDays = await listActiveClassDays();
   const day = activeDays.includes(req.query.day) ? req.query.day : (activeDays[0] || 'monday');
   const combos = await listScheduleCombos();
@@ -447,7 +447,7 @@ router.get('/classes/needing-staff', async (req, res) => {
 // view. Fetched as an HTML fragment (no <html>/<body>) into the shared
 // dialog, same pattern as the Co-op Admin grid's own View popup - see
 // public/js/fragment-dialog.js and public/js/class-schedule-view.js.
-router.get('/classes/:id/fragment', async (req, res) => {
+router.get('/classes/:id/fragment', requirePortalPermission('view_parent_classes'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const cls = await getClass(classId);
   if (!cls) return res.status(404).send('Not found');
@@ -576,7 +576,7 @@ router.get('/classes/:id/fragment', async (req, res) => {
   });
 });
 
-router.post('/classes/:id/join', async (req, res) => {
+router.post('/classes/:id/join', requirePortalPermission('view_parent_classes'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const role = req.body.role === 'assistant' ? 'assistant' : 'teacher';
   const back = classesBackUrl(req.body.day);
@@ -593,7 +593,7 @@ router.post('/classes/:id/join', async (req, res) => {
   res.redirect(back + 'notice=' + encodeURIComponent(result.notice));
 });
 
-router.post('/classes/:id/leave', async (req, res) => {
+router.post('/classes/:id/leave', requirePortalPermission('view_parent_classes'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const back = classesBackUrl(req.body.day);
   const eligible = await staffEligibleFamilyMembers(req.portalAccount);
@@ -604,7 +604,7 @@ router.post('/classes/:id/leave', async (req, res) => {
   res.redirect(back + 'notice=' + encodeURIComponent(result.notice));
 });
 
-router.post('/classes/:id/register', async (req, res) => {
+router.post('/classes/:id/register', requirePortalPermission('view_parent_classes'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const studentId = parseInt(req.body.studentId, 10);
   const back = classesBackUrl(req.body.day);
@@ -635,7 +635,7 @@ function isFetch(req) {
   return req.get('X-Requested-With') === 'fetch';
 }
 
-router.post('/classes/:id/unregister', async (req, res) => {
+router.post('/classes/:id/unregister', requirePortalPermission('view_parent_classes'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const studentId = parseInt(req.body.studentId, 10);
   const back = classesBackUrl(req.body.day);
@@ -662,7 +662,7 @@ router.post('/classes/:id/unregister', async (req, res) => {
 // registrations (utils/events.js's own eventRegistrationsForMembers),
 // reachable as a subpage of the existing Events nav link (views/
 // partials/portal-nav.ejs's PARENT_NAV_LINKS).
-router.get('/events', async (req, res) => {
+router.get('/events', requirePortalPermission('view_parent_events'), async (req, res) => {
   const family = await familyForAccount(req.portalAccount.id);
   const registrations = await events.eventRegistrationsForMembers(family.map((m) => m.id));
   const groups = family
@@ -717,7 +717,7 @@ async function classesStaffedByMember(memberId) {
 // is the new piece: a family-member picker over the same per-day class
 // grouping, with each card linking into the shared read-only class detail
 // route below.
-router.get('/classes/dashboard', async (req, res) => {
+router.get('/classes/dashboard', requirePortalPermission('view_parent_classroom_dashboard'), async (req, res) => {
   const children = await childrenForAccount(req.portalAccount);
   const parents = await parentsForAccount(req.portalAccount);
 
@@ -815,7 +815,7 @@ const STAFF_DASHBOARD_TABS = ['details', 'lessons', 'chat'];
 // one. viewerQuery is the one query-string fragment (studentId=X or
 // viewer=parent-X) every link on the rendered page reuses, so the
 // template never has to branch on which mode it's in just to build a URL.
-router.get('/classes/dashboard/:id', async (req, res) => {
+router.get('/classes/dashboard/:id', requirePortalPermission('view_parent_classroom_dashboard'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const staffViewerMatch = /^parent-(\d+)$/.exec(req.query.viewer || '');
 
@@ -899,7 +899,7 @@ router.get('/classes/dashboard/:id', async (req, res) => {
 // teaching/assisting role) for the same reason - a teacher posting in
 // their own class's chat is just as real as a parent posting in their
 // child's.
-router.post('/classes/dashboard/:id/chat', async (req, res) => {
+router.post('/classes/dashboard/:id/chat', requirePortalPermission('view_parent_classroom_dashboard'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const staffViewerMatch = /^parent-(\d+)$/.exec(req.query.viewer || '');
   const body = (req.body.body || '').trim();
@@ -941,7 +941,7 @@ router.post('/classes/dashboard/:id/chat', async (req, res) => {
 // mode - lessons-view.ejs's own canTakeQuiz: !selectedParent && ...
 // already keeps the completion controls here working out to the same
 // read-only result via partials/lesson-content-detail).
-router.get('/content/:id', async (req, res) => {
+router.get('/content/:id', requirePortalPermission('view_parent_classroom_dashboard'), async (req, res) => {
   const contentItemId = parseInt(req.params.id, 10);
   const contentItem = await getContentItem(contentItemId);
   if (!contentItem) return res.status(404).render('404', { title: 'Not Found' });
@@ -1016,7 +1016,7 @@ async function contentItemForParent(req, contentItemId, { requireQuiz = true } =
   return { contentItem, assignment, cls, selectedChild };
 }
 
-router.get('/content/:id/quiz', async (req, res) => {
+router.get('/content/:id/quiz', requirePortalPermission('view_parent_classroom_dashboard'), async (req, res) => {
   const found = await contentItemForParent(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).render('404', { title: 'Not Found' });
   const { contentItem, assignment, cls, selectedChild } = found;
@@ -1027,7 +1027,7 @@ router.get('/content/:id/quiz', async (req, res) => {
   res.render('parent-quiz-take', { title: contentItem.title || 'Quiz', cls, assignment, contentItem, questions, attempt: attempt || null, selectedChild });
 });
 
-router.post('/content/:id/quiz', async (req, res) => {
+router.post('/content/:id/quiz', requirePortalPermission('view_parent_classroom_dashboard'), async (req, res) => {
   const found = await contentItemForParent(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).render('404', { title: 'Not Found' });
   const { contentItem, assignment, cls, selectedChild } = found;
@@ -1046,7 +1046,7 @@ router.post('/content/:id/quiz', async (req, res) => {
 // the parent-side counterpart to routes/student-portal.js's own
 // /content/:id/complete, same allow_parent_complete_lessons gate the
 // quiz routes above already use.
-router.post('/content/:id/complete', async (req, res) => {
+router.post('/content/:id/complete', requirePortalPermission('view_parent_classroom_dashboard'), async (req, res) => {
   const found = await contentItemForParent(req, parseInt(req.params.id, 10), { requireQuiz: false });
   if (!found) return res.status(404).render('404', { title: 'Not Found' });
   const { contentItem, assignment, cls, selectedChild } = found;
@@ -1062,7 +1062,7 @@ router.post('/content/:id/complete', async (req, res) => {
 const MAX_ASSIGNMENT_SUBMISSION_BYTES = 10 * 1024 * 1024;
 const uploadAssignmentSubmission = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_ASSIGNMENT_SUBMISSION_BYTES }, fileFilter: lessonAttachmentFileFilter });
 
-router.post('/content/:id/submit', uploadAssignmentSubmission.single('submissionFile'), async (req, res) => {
+router.post('/content/:id/submit', requirePortalPermission('view_parent_classroom_dashboard'), uploadAssignmentSubmission.single('submissionFile'), async (req, res) => {
   const found = await contentItemForParent(req, parseInt(req.params.id, 10), { requireQuiz: false });
   if (!found || found.contentItem.type !== 'assignment_submission') return res.status(404).render('404', { title: 'Not Found' });
   const { contentItem, assignment, cls, selectedChild } = found;
@@ -1078,7 +1078,7 @@ router.post('/content/:id/submit', uploadAssignmentSubmission.single('submission
 // account membership application already shows (views/portal-
 // register.ejs), just as a plain read-only page for an already-signed-in
 // parent rather than the scroll-to-agree checkbox flow that page needs.
-router.get('/handbook', async (req, res) => {
+router.get('/handbook', requirePortalPermission('view_parent_handbook'), async (req, res) => {
   res.render('parent-handbook', { title: 'Policy Handbook', handbookHtml: await getHandbookHtml() });
 });
 
@@ -1090,7 +1090,7 @@ router.get('/handbook', async (req, res) => {
 // a read-only catalog browse (checkout itself stays a barcode-scan-only
 // action, same as everywhere else in the app), not a second checkout
 // system.
-router.get('/library', async (req, res) => {
+router.get('/library', requirePortalPermission('view_parent_library'), async (req, res) => {
   const typeFilter = (req.query.type || '').trim();
   const q = (req.query.q || '').trim().toLowerCase();
   const types = await allLibraryTypes();
@@ -1112,7 +1112,7 @@ router.get('/library', async (req, res) => {
 // it's due), plus their history of past checkouts/returns. This is the
 // exact page the bare /library route used to render before it became the
 // catalog browse above.
-router.get('/library/log', async (req, res) => {
+router.get('/library/log', requirePortalPermission('view_parent_library'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const family = member ? [member, ...(await familyOf(member.id))] : [];
   const memberIds = family.map((m) => m.id);
@@ -1132,7 +1132,7 @@ router.get('/library/log', async (req, res) => {
 // existing /training/:id/play etc. routes work for them exactly as they
 // already do for anyone else - only this list page itself needed its own
 // portal-nav-shelled view instead of training-mine.ejs's public/kiosk one.
-router.get('/training', async (req, res) => {
+router.get('/training', requirePortalPermission('view_parent_training'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   if (!member) return res.render('parent-training', { title: 'Training', assignments: [] });
   req.session.trainingMemberId = member.id;
@@ -1144,7 +1144,7 @@ router.get('/training', async (req, res) => {
 // order... resources..."). Read-only, reuses the exact same role-scoped
 // utils/resourceLinks.js list Student Portal already reads (routes/
 // student-portal.js's own /resources) - just for the 'parent' role.
-router.get('/resources', async (req, res) => {
+router.get('/resources', requirePortalPermission('view_parent_resources'), async (req, res) => {
   const links = await resourceLinks.listResourceLinksForRole('parent');
   res.render('parent-resources', {
     title: 'Resource Links',
@@ -1155,7 +1155,7 @@ router.get('/resources', async (req, res) => {
   });
 });
 
-router.post('/resources/submit', async (req, res) => {
+router.post('/resources/submit', requirePortalPermission('view_parent_resources'), async (req, res) => {
   const title = (req.body.title || '').trim();
   const url = (req.body.url || '').trim();
   if (!title || !url) return res.redirect('/parent/resources?error=' + encodeURIComponent('Title and website are required.'));
@@ -1180,7 +1180,7 @@ router.post('/resources/submit', async (req, res) => {
 // the same `documents` table, no separate parent-facing storage/serving
 // code - each card link goes straight to the existing public
 // /documents/<token> page rather than duplicating its file-streaming.
-router.get('/documents', async (req, res) => {
+router.get('/documents', requirePortalPermission('view_parent_documents'), async (req, res) => {
   // A real request: "when clicking edit icon you can control which
   // portals can view the documents" - a document scoped away from
   // 'parent' (utils/documents.js's own document_roles) simply never
@@ -1225,7 +1225,7 @@ function sendPdf(res, filename, pdfBuffer) {
 // WHICH co-op classes the dialog offers to pick from - it isn't
 // itself stored on the saved transcript entry (parent_transcript_
 // entries has no semester column of its own, only school_year).
-router.get('/academics', async (req, res) => {
+router.get('/academics', requirePortalPermission('view_fsm_transcripts'), async (req, res) => {
   const children = await childrenForAccount(req.portalAccount);
   const semesters = await listSemesters();
   const yearOptions = schoolYearOptions(currentSchoolYear());
@@ -1266,7 +1266,7 @@ async function requireOwnChild(req, studentId) {
   return children.some((c) => c.id === studentId);
 }
 
-router.post('/academics/transcripts', async (req, res) => {
+router.post('/academics/transcripts', requirePortalPermission('view_fsm_transcripts'), async (req, res) => {
   const studentId = parseInt(req.body.studentId, 10);
   if (!(await requireOwnChild(req, studentId))) return res.status(404).send('Not found');
   const schoolYear = (req.body.schoolYear || '').trim();
@@ -1287,7 +1287,7 @@ router.post('/academics/transcripts', async (req, res) => {
   res.redirect('/parent/academics?notice=' + encodeURIComponent('Class added to transcript.'));
 });
 
-router.post('/academics/transcripts/:id/edit', async (req, res) => {
+router.post('/academics/transcripts/:id/edit', requirePortalPermission('view_fsm_transcripts'), async (req, res) => {
   const entry = await getTranscriptEntry(parseInt(req.params.id, 10));
   if (!entry || !(await requireOwnChild(req, entry.student_id))) return res.status(404).send('Not found');
   const schoolYear = (req.body.schoolYear || '').trim();
@@ -1301,7 +1301,7 @@ router.post('/academics/transcripts/:id/edit', async (req, res) => {
   res.redirect('/parent/academics?notice=' + encodeURIComponent('Transcript entry updated.'));
 });
 
-router.post('/academics/transcripts/:id/delete', async (req, res) => {
+router.post('/academics/transcripts/:id/delete', requirePortalPermission('view_fsm_transcripts'), async (req, res) => {
   const entry = await getTranscriptEntry(parseInt(req.params.id, 10));
   if (!entry || !(await requireOwnChild(req, entry.student_id))) return res.status(404).send('Not found');
   await deleteTranscriptEntry(entry.id);
@@ -1323,7 +1323,7 @@ async function familySettingsForAccount(account) {
 // "Print full page view of transcript" - a dedicated full-page print
 // route, same no-nav/no-chrome/window.print() shape the Diploma print
 // page below already uses.
-router.get('/academics/transcripts/:studentId/print', async (req, res) => {
+router.get('/academics/transcripts/:studentId/print', requirePortalPermission('view_fsm_transcripts'), async (req, res) => {
   const studentId = parseInt(req.params.studentId, 10);
   if (!(await requireOwnChild(req, studentId))) return res.status(404).send('Not found');
   const children = await childrenForAccount(req.portalAccount);
@@ -1340,7 +1340,7 @@ router.get('/academics/transcripts/:studentId/print', async (req, res) => {
 // would also look when printing" - this child's own transcript, scoped
 // by requireOwnChild exactly like the Print preview above, now a PDF
 // built from that same -print.ejs view.
-router.get('/academics/transcripts/:studentId/download.pdf', async (req, res) => {
+router.get('/academics/transcripts/:studentId/download.pdf', requirePortalPermission('view_fsm_transcripts'), async (req, res) => {
   const studentId = parseInt(req.params.studentId, 10);
   if (!(await requireOwnChild(req, studentId))) return res.status(404).send('Not found');
   const children = await childrenForAccount(req.portalAccount);
@@ -1362,7 +1362,7 @@ router.get('/academics/transcripts/:studentId/download.pdf', async (req, res) =>
 // request ("Main admin portal, remove academics tab and features. Only
 // parent portal has those pages and admin doesn't need to control them
 // with any settings."), so this is the only way a diploma gets made now.
-router.get('/academics/diplomas', async (req, res) => {
+router.get('/academics/diplomas', requirePortalPermission('view_fsm_diplomas'), async (req, res) => {
   const children = await childrenForAccount(req.portalAccount);
   const diplomas = [];
   for (const child of children) {
@@ -1372,7 +1372,7 @@ router.get('/academics/diplomas', async (req, res) => {
   res.render('parent-academics-diplomas', { title: 'Diplomas', diplomas, todayISO: todayISO(), DIPLOMA_TEMPLATES });
 });
 
-router.post('/academics/diplomas', async (req, res) => {
+router.post('/academics/diplomas', requirePortalPermission('view_fsm_diplomas'), async (req, res) => {
   const children = await childrenForAccount(req.portalAccount);
   const studentId = parseInt(req.body.studentId, 10);
   if (!children.some((c) => c.id === studentId)) {
@@ -1398,7 +1398,7 @@ router.post('/academics/diplomas', async (req, res) => {
   res.redirect('/parent/academics/diplomas?notice=' + encodeURIComponent('Diploma saved.'));
 });
 
-router.get('/academics/diplomas/:studentId/print', async (req, res) => {
+router.get('/academics/diplomas/:studentId/print', requirePortalPermission('view_fsm_diplomas'), async (req, res) => {
   const children = await childrenForAccount(req.portalAccount);
   const child = children.find((c) => c.id === parseInt(req.params.studentId, 10));
   if (!child) return res.status(404).render('404', { title: 'Not Found' });
@@ -1411,7 +1411,7 @@ router.get('/academics/diplomas/:studentId/print', async (req, res) => {
 // would also look when printing" - this child's own diploma, scoped to
 // one's own family exactly like the Print preview above, now a PDF
 // built from that same -print.ejs view.
-router.get('/academics/diplomas/:studentId/download.pdf', async (req, res) => {
+router.get('/academics/diplomas/:studentId/download.pdf', requirePortalPermission('view_fsm_diplomas'), async (req, res) => {
   const children = await childrenForAccount(req.portalAccount);
   const child = children.find((c) => c.id === parseInt(req.params.studentId, 10));
   if (!child) return res.status(404).render('404', { title: 'Not Found' });
@@ -1429,12 +1429,12 @@ router.get('/academics/diplomas/:studentId/download.pdf', async (req, res) => {
 // (self + every other active member sharing this account's family_id),
 // enforced server-side the same way every other parent-portal route
 // re-derives its own family list rather than trusting a posted id.
-router.get('/name-tags', async (req, res) => {
+router.get('/name-tags', requirePortalPermission('view_parent_name_tags'), async (req, res) => {
   const family = await familyForAccount(req.portalAccount.id);
   res.render('parent-name-tags', { title: 'Name Tags', family, error: req.query.error || null });
 });
 
-router.post('/name-tags/print', async (req, res) => {
+router.post('/name-tags/print', requirePortalPermission('view_parent_name_tags'), async (req, res) => {
   const family = await familyForAccount(req.portalAccount.id);
   const familyIds = new Set(family.map((m) => m.id));
   const memberIds = [].concat(req.body.memberIds || []).map((id) => parseInt(id, 10)).filter((id) => familyIds.has(id));
@@ -1499,7 +1499,7 @@ router.post('/name-tags/print', async (req, res) => {
 // existing profile fields embedded as JSON (profileDataJson) so
 // public/js/parent-babysitter-form.js can repopulate the form's fields
 // on selection change without a page reload.
-router.get('/babysitters', async (req, res) => {
+router.get('/babysitters', requirePortalPermission('view_parent_babysitters'), async (req, res) => {
   const children = await childrenForAccount(req.portalAccount);
   const profileByChildId = {};
   for (const child of children) profileByChildId[child.id] = await babysitters.profileForMember(child.id);
@@ -1515,7 +1515,7 @@ router.get('/babysitters', async (req, res) => {
   });
 });
 
-router.post('/babysitters/:memberId', uploadBabysitterPhoto.single('photo'), async (req, res) => {
+router.post('/babysitters/:memberId', requirePortalPermission('view_parent_babysitters'), uploadBabysitterPhoto.single('photo'), async (req, res) => {
   const memberId = parseInt(req.params.memberId, 10);
   const children = await childrenForAccount(req.portalAccount);
   if (!children.some((c) => c.id === memberId)) {
@@ -1556,7 +1556,7 @@ router.post('/babysitters/:memberId', uploadBabysitterPhoto.single('photo'), asy
 // does, just keyed off the signed-in parent's own member row instead of
 // a student's. leaderboard()'s memberType param scopes ranking to
 // 'parent' members only, so parents compete with parents.
-router.get('/reading', async (req, res) => {
+router.get('/reading', requirePortalPermission('view_parent_reading'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const dashboard = member ? await reading.dashboardForMember(member.id) : null;
   res.render('parent-reading', {
@@ -1569,13 +1569,13 @@ router.get('/reading', async (req, res) => {
   });
 });
 
-router.get('/achievements', async (req, res) => {
+router.get('/achievements', requirePortalPermission('view_parent_reading'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const dashboard = member ? await reading.dashboardForMember(member.id) : null;
   res.render('parent-achievements', { title: 'Achievements', dashboard });
 });
 
-router.get('/leaderboard', async (req, res) => {
+router.get('/leaderboard', requirePortalPermission('view_parent_reading'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const readingLeaders = await reading.leaderboard(5, 'parent');
   res.render('parent-leaderboard', {
@@ -1591,7 +1591,7 @@ router.get('/leaderboard', async (req, res) => {
 // Portal's identical reading challenge, unaffected by this Parent-Portal-
 // only request), so the two fields are combined into that one decimal
 // right here rather than changing either function's own signature.
-router.post('/reading/log', async (req, res) => {
+router.post('/reading/log', requirePortalPermission('view_parent_reading'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   if (!member) return res.redirect('/parent/reading?error=' + encodeURIComponent('No parent profile found for your account.'));
   const hours = (Number(req.body.hours) || 0) + (Number(req.body.minutes) || 0) / 60;
@@ -1605,7 +1605,7 @@ router.post('/reading/log', async (req, res) => {
   res.redirect('/parent/reading?notice=' + encodeURIComponent(`Logged! You earned ${result.points} points.`));
 });
 
-router.post('/reading/goal', async (req, res) => {
+router.post('/reading/goal', requirePortalPermission('view_parent_reading'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   if (!member) return res.redirect('/parent/reading?error=' + encodeURIComponent('No parent profile found for your account.'));
   const hours = (Number(req.body.weekly_goal_hours) || 0) + (Number(req.body.weekly_goal_minutes) || 0) / 60;

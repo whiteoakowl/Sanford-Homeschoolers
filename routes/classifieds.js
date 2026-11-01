@@ -5,7 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { requirePortalAuth, blockTeacherOnlyAccounts } = require('../middleware/portalAuth');
+const { requirePortalAuth, blockTeacherOnlyAccounts, requireAnyPortalPermission } = require('../middleware/portalAuth');
 const { familyForAccount } = require('../utils/portalAuth');
 const classifieds = require('../utils/classifieds');
 
@@ -13,6 +13,11 @@ const classifieds = require('../utils/classifieds');
 // blockTeacherOnlyAccounts' own comment. Public/logged-out browsing of
 // public-visibility listings stays untouched.
 router.use(blockTeacherOnlyAccounts);
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Only Parent Portal lists Classifieds as its own nav
+// entry today - see routes/directory.js's identical comment.
+router.use(requireAnyPortalPermission([{ role: 'parent', key: 'view_parent_classifieds' }]));
 
 function withImageUrl(listing) {
   return { ...listing, imageUrl: listing.image_key ? `/uploads/classifieds/${listing.image_key}` : null };

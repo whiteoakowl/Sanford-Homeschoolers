@@ -26,8 +26,22 @@ const importUpload = multer({ storage: multer.memoryStorage(), limits: { fileSiz
 
 const TABS = ['committees', 'signup-lists', 'volunteer-lists'];
 
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Sign-Up Lists/Volunteer Lists share this one ?tab=
+// handler (manage_volunteers already gates the whole router) rather
+// than their own route, so each gets its own inline check.
+const VOLUNTEERS_TAB_PERMISSION = {
+  'signup-lists': 'view_volunteers_signup_lists',
+  'volunteer-lists': 'view_volunteers_lists',
+};
+
 router.get('/', async (req, res) => {
   const tab = TABS.includes(req.query.tab) ? req.query.tab : 'committees';
+  const tabPermission = VOLUNTEERS_TAB_PERMISSION[tab];
+  if (tabPermission && !req.portalPermissions.has(tabPermission)) {
+    return res.status(403).render('403', { title: 'Not Authorized', message: "You don't have permission to do that.", backHref: '/main-admin', backLabel: 'Back to Main Admin' });
+  }
   res.render('main-admin-volunteers', {
     title: 'Volunteers',
     activeTab: tab,

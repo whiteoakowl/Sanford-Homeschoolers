@@ -9,7 +9,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { requirePortalAuth, requirePortal } = require('../middleware/portalAuth');
+const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount } = require('../utils/portalAuth');
 const { lessonAttachmentFileFilter } = require('../utils/uploads');
 const { formatDateLabel } = require('../utils/dates');
@@ -44,7 +44,7 @@ router.get('/family-school', async (req, res) => {
   });
 });
 
-router.get('/family-school/grades', async (req, res) => {
+router.get('/family-school/grades', requirePortalPermission('view_student_grades'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   res.render('student-family-school-grades', { title: 'Homeschool Grades', grades: await gradesForStudent(member.id) });
 });
@@ -56,7 +56,7 @@ router.get('/family-school/grades', async (req, res) => {
 // Print/PDF controls (a parent marks attendance; a student just looks
 // at it), same simplification this file's own Grades/Overview pages
 // above already apply to their own Parent Portal counterparts.
-router.get('/family-school/attendance', async (req, res) => {
+router.get('/family-school/attendance', requirePortalPermission('view_student_attendance'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const schoolYear = currentSchoolYear();
   const months = await attendanceForSchoolYear(member.id, parseInt(schoolYear.slice(0, 4), 10));
@@ -73,7 +73,7 @@ router.get('/family-school/attendance', async (req, res) => {
 // called portfolio") retired the separate Homeschool Overview page
 // (GPA/attendance/classes, a plain subset of what this page already
 // shows) in favor of this one.
-router.get('/family-school/portfolio', async (req, res) => {
+router.get('/family-school/portfolio', requirePortalPermission('view_student_portfolio'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const portfolio = await portfolioForStudent(member.id, null);
   res.render('student-family-school-portfolio', { title: 'Portfolio', portfolio, avatarColorFor });
@@ -86,7 +86,7 @@ router.get('/family-school/portfolio', async (req, res) => {
 // that's a parent's own personal planning, not something to show a
 // student. Picking a week shows its grid; nothing here can add,
 // delete, or print one of those - only the parent who created it can.
-router.get('/family-school/weekly-planner', async (req, res) => {
+router.get('/family-school/weekly-planner', requirePortalPermission('view_student_weekly_planner'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const ownWeeks = await weeksForOwner(member.family_id, 'student', member.id);
   const familyWeeks = await weeksForOwner(member.family_id, 'family', null);
@@ -117,7 +117,7 @@ router.get('/family-school/weekly-planner', async (req, res) => {
 // class rather than a second, class-scoped query.
 const FAMILY_CLASS_DETAIL_TABS = ['details', 'lessons', 'grades'];
 
-router.get('/family-school/classes/:id', async (req, res) => {
+router.get('/family-school/classes/:id', requirePortalPermission('view_student_classes_dashboard'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classId = parseInt(req.params.id, 10);
   const classes = await classesForStudent(member.id);
@@ -134,7 +134,7 @@ router.get('/family-school/classes/:id', async (req, res) => {
   });
 });
 
-router.get('/family-school/content/:id', async (req, res) => {
+router.get('/family-school/content/:id', requirePortalPermission('view_student_classes_dashboard'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const contentItemId = parseInt(req.params.id, 10);
   const contentItem = await getContentItem(contentItemId);
@@ -163,7 +163,7 @@ async function ownContentItem(req, contentItemId) {
   return { member, contentItem, lesson, cls };
 }
 
-router.post('/family-school/content/:id/complete', async (req, res) => {
+router.post('/family-school/content/:id/complete', requirePortalPermission('view_student_classes_dashboard'), async (req, res) => {
   const found = await ownContentItem(req, parseInt(req.params.id, 10));
   if (!found || found.contentItem.type === 'assignment_submission') return res.status(404).render('404', { title: 'Not Found' });
   await markLessonItemComplete(found.contentItem.id, found.member.id);
@@ -173,7 +173,7 @@ router.post('/family-school/content/:id/complete', async (req, res) => {
 const MAX_SUBMISSION_BYTES = 10 * 1024 * 1024;
 const uploadSubmission = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_SUBMISSION_BYTES }, fileFilter: lessonAttachmentFileFilter });
 
-router.post('/family-school/content/:id/submit', uploadSubmission.single('submissionFile'), async (req, res) => {
+router.post('/family-school/content/:id/submit', requirePortalPermission('view_student_classes_dashboard'), uploadSubmission.single('submissionFile'), async (req, res) => {
   const found = await ownContentItem(req, parseInt(req.params.id, 10));
   if (!found || found.contentItem.type !== 'assignment_submission') return res.status(404).render('404', { title: 'Not Found' });
   if (!req.file) return res.redirect(`/student/family-school/classes/${found.cls.id}?error=` + encodeURIComponent('Choose a file to upload.'));

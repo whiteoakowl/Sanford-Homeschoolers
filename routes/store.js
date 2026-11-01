@@ -8,7 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const { createStorageClient, publicUrl } = require('../utils/storage');
-const { requirePortalAuth, blockTeacherOnlyAccounts } = require('../middleware/portalAuth');
+const { requirePortalAuth, blockTeacherOnlyAccounts, requireAnyPortalPermission } = require('../middleware/portalAuth');
 const { familyForAccount } = require('../utils/portalAuth');
 const store = require('../utils/store');
 
@@ -27,6 +27,11 @@ router.use(requirePortalAuth);
 // A real request: "Teacher portal... remove ... store..." - see
 // blockTeacherOnlyAccounts' own comment.
 router.use(blockTeacherOnlyAccounts);
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Only Parent Portal lists Store as its own nav entry
+// today - see routes/directory.js's identical comment.
+router.use(requireAnyPortalPermission([{ role: 'parent', key: 'view_parent_store' }]));
 
 // A real request: "change shop product card to look similar [to a
 // reference design: image left, In Stock/Out of Stock badge, price and

@@ -154,15 +154,8 @@
           <p class="hint">Where messages sent to <%= p.title %> through Contact Admins go. Leave blank to deliver to the chosen member's own email above.</p>
 
           <h4>Roles &amp; Permissions</h4>
-          <p class="hint">Shared by everyone currently assigned to <%= p.title %>.</p>
-          <div class="permission-checkbox-grid">
-            <% permissions.forEach(function(perm) { %>
-              <label class="checkbox-option" title="<%= perm.description || '' %>">
-                <input type="checkbox" name="permissionIds" value="<%= perm.id %>" <%= (positionPermissionIds[p.id] || []).indexOf(perm.id) !== -1 ? 'checked' : '' %> />
-                <%= perm.label %>
-              </label>
-            <% }); %>
-          </div>
+          <p class="hint">Shared by everyone currently assigned to <%= p.title %>. Every page and subpage across the site, sectioned by portal - check a box to let this position view that page.</p>
+          <%- include('partials/permission-checkbox-section', { sections: positionSections[p.id] }) %>
 
           <div class="notes-dialog-actions">
             <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Close</button>

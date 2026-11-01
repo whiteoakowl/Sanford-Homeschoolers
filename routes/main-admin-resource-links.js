@@ -27,6 +27,14 @@ const TABS = ['resources', 'approvals'];
 
 router.get('/', async (req, res) => {
   const tab = TABS.includes(req.query.tab) ? req.query.tab : 'resources';
+  // A real request: "permission to view each of these pages and
+  // subpages... unchecking removes the permission and the page
+  // disappears." Approvals shares this one ?tab= handler
+  // (manage_resources already gates the whole router) rather than its
+  // own route, so it gets its own inline check.
+  if (tab === 'approvals' && !req.portalPermissions.has('view_resource_links_approvals')) {
+    return res.status(403).render('403', { title: 'Not Authorized', message: "You don't have permission to do that.", backHref: '/main-admin', backLabel: 'Back to Main Admin' });
+  }
   const roles = await db.prepare('SELECT key, label FROM roles ORDER BY label').all();
   res.render('main-admin-resource-links', {
     title: 'Resource Links',

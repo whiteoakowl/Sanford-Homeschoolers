@@ -13,7 +13,7 @@
 // /main-admin/fun alongside it.
 const express = require('express');
 const router = express.Router();
-const { requirePortalAuth, requirePortal } = require('../middleware/portalAuth');
+const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const db = require('../db');
 const { POINTS_PER_HOUR, GRADE_BANDS, gradeBandForGradeLevel } = require('../utils/reading');
 const gameStats = require('../utils/gameStats');
@@ -35,7 +35,7 @@ router.use(requirePortalAuth, requirePortal('main_admin'));
 // dropped. Rows are already ordered by totalHours DESC, so each band's
 // own list - and therefore its first entry, the band's top student -
 // falls out of that same order for free.
-router.get('/reading-challenge/students', async (req, res) => {
+router.get('/reading-challenge/students', requirePortalPermission('view_fun_student_reading_challenge'), async (req, res) => {
   const rows = await db
     .prepare(
       `SELECT m.id, m.name, m.grade_level AS "gradeLevel", COALESCE(SUM(rl.hours), 0) AS "totalHours", COUNT(rl.id) AS "logCount", COALESCE(rg.weekly_goal_hours, 7) AS "weeklyGoalHours"
@@ -75,7 +75,7 @@ router.get('/reading-challenge/students', async (req, res) => {
 // member privileges as a parent... can complete games, lessons,
 // activities, anything," the same "admin counts as parent" convention
 // every other adult-scoped query in this app already uses.
-router.get('/reading-challenge/parents', async (req, res) => {
+router.get('/reading-challenge/parents', requirePortalPermission('view_fun_parent_reading_challenge'), async (req, res) => {
   const rows = await db
     .prepare(
       `SELECT m.id, m.name, f.name AS "familyName", COALESCE(SUM(rl.hours), 0) AS "totalHours", COUNT(rl.id) AS "logCount", COALESCE(rg.weekly_goal_hours, 7) AS "weeklyGoalHours"
@@ -99,7 +99,7 @@ router.get('/reading-challenge/parents', async (req, res) => {
 // "Games = table of game play/score activity" - the most recent plays
 // (any of the 15 games) plus the current top scorer for each of the 6
 // that report a score (utils/gameStats.js's own SCORING_GAMES).
-router.get('/games', async (req, res) => {
+router.get('/games', requirePortalPermission('view_fun_games'), async (req, res) => {
   const [topScores, recentPlays] = await Promise.all([
     gameStats.topScorePerGame(),
     db
@@ -122,7 +122,7 @@ router.get('/games', async (req, res) => {
 // DB-backed) word lists" - utils/spellingBee.js's own ELEMENTARY_WORDS/
 // MIDDLE_WORDS/HIGH_WORDS are plain constants, not a table, so there's
 // nothing to query for them beyond wordsForLevel() itself.
-router.get('/vocabulary-game', async (req, res) => {
+router.get('/vocabulary-game', requirePortalPermission('view_fun_vocabulary_game'), async (req, res) => {
   const topPlayers = await spellingBee.topPlayers(20);
   const wordLists = Object.keys(spellingBee.LEVEL_LABELS).map((level) => ({
     level,
@@ -136,7 +136,7 @@ router.get('/vocabulary-game', async (req, res) => {
 // one row per student who has created a pet (utils/pets.js's own
 // careStats()/levelInfo() compute the same derived stats the student
 // page itself shows, so there's nothing new to compute here).
-router.get('/pets', async (req, res) => {
+router.get('/pets', requirePortalPermission('view_fun_pets'), async (req, res) => {
   const rows = await db
     .prepare(
       `SELECT sp.*, m.name AS "memberName"

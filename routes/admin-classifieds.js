@@ -50,8 +50,22 @@ function imageUrl(key) {
 
 const CLASSIFIEDS_TABS = ['categories', 'archive', 'requests'];
 
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Requests/Archive share this one ?tab= handler
+// (manage_classifieds already gates the whole router) rather than
+// their own route, so each gets its own inline check.
+const CLASSIFIEDS_TAB_PERMISSION = {
+  archive: 'view_classifieds_archive',
+  requests: 'view_classifieds_requests',
+};
+
 router.get('/', async (req, res) => {
   const activeTab = CLASSIFIEDS_TABS.includes(req.query.tab) ? req.query.tab : 'categories';
+  const tabPermission = CLASSIFIEDS_TAB_PERMISSION[activeTab];
+  if (tabPermission && !req.portalPermissions.has(tabPermission)) {
+    return res.status(403).render('403', { title: 'Not Authorized', message: "You don't have permission to do that.", backHref: '/main-admin', backLabel: 'Back to Main Admin' });
+  }
   const categories = await classifieds.listCategories();
 
   let groups = [];

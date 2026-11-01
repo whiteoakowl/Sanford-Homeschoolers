@@ -9,7 +9,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { requirePortalAuth, blockTeacherOnlyAccounts } = require('../middleware/portalAuth');
+const { requirePortalAuth, blockTeacherOnlyAccounts, requireAnyPortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount } = require('../utils/portalAuth');
 const { primaryParentForBilling } = require('../utils/members');
 const payments = require('../utils/payments');
@@ -25,6 +25,11 @@ router.use(requirePortalAuth);
 // A real request: "Teacher portal... remove ... accounting..." - see
 // blockTeacherOnlyAccounts' own comment.
 router.use(blockTeacherOnlyAccounts);
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Only Parent Portal lists Accounting as its own nav
+// entry today - see routes/directory.js's identical comment.
+router.use(requireAnyPortalPermission([{ role: 'parent', key: 'view_parent_accounting' }]));
 
 // A real request: "this will be the same account view on parent portal
 // too" - same Invoices/Payments/Adjustments tables and year filter as

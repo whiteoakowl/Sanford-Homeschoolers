@@ -1,0 +1,50 @@
+<%
+// locals: sections ([{ title, items: [{ label, permId, description,
+// checked, subpages: [...] }] }]) - see utils/portalPageCatalog.js's
+// own buildSections, which is what every caller uses to build this.
+//
+// A real request: "the check boxes should all be in a single aligned
+// column with the first word of the description lined up with its
+// check box. The first word in each description should also start in
+// its own clean column." Every page AND every one of its own subpages
+// is flattened into this ONE .permission-checkbox-grid per section -
+// not one grid per page - so nothing has to re-align between a page's
+// own row and its own subpages' rows. Each .checkbox-option below is
+// `display: contents` (public/css/styles.css), so its own <input> and
+// <span> become the actual grid cells (column 1 / column 2) rather
+// than the label itself being one cell - every row's checkbox and
+// every row's text line up in those same two columns regardless of
+// label text length or how deep a subpage list runs.
+//
+// A page with no permission of its own (key: null in the catalog - e.g.
+// Parent Portal's "Co-op Classes," whose bare URL is identical to its
+// own first subpage) renders as a plain, non-interactive group heading
+// (.permission-group-label, spanning both columns) instead of a
+// checkbox - its own subpages (indented via .permission-subpage) are
+// still real, independent checkboxes.
+%>
+<% (sections || []).forEach(function(section) { %>
+  <% if (section.items && section.items.length) { %>
+    <div class="permission-section">
+      <p class="permission-section-title"><%= section.title %></p>
+      <div class="permission-checkbox-grid">
+        <% section.items.forEach(function(item) { %>
+          <% if (item.permId) { %>
+            <label class="checkbox-option" title="<%= item.description || '' %>">
+              <input type="checkbox" name="permissionIds" value="<%= item.permId %>" <%= item.checked ? 'checked' : '' %> />
+              <span><%= item.label %></span>
+            </label>
+          <% } else { %>
+            <span class="permission-group-label"><%= item.label %></span>
+          <% } %>
+          <% (item.subpages || []).forEach(function(sp) { %>
+            <label class="checkbox-option permission-subpage" title="<%= sp.description || '' %>">
+              <input type="checkbox" name="permissionIds" value="<%= sp.permId %>" <%= sp.checked ? 'checked' : '' %> />
+              <span><%= sp.label %></span>
+            </label>
+          <% }); %>
+        <% }); %>
+      </div>
+    </div>
+  <% } %>
+<% }); %>

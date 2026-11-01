@@ -8,7 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { requirePortalAuth, blockTeacherOnlyAccounts } = require('../middleware/portalAuth');
+const { requirePortalAuth, blockTeacherOnlyAccounts, requireAnyPortalPermission } = require('../middleware/portalAuth');
 const { familyForAccount } = require('../utils/portalAuth');
 const { formatFriendlyTimestamp, formatFriendlyDateAndTime } = require('../utils/dates');
 const events = require('../utils/events');
@@ -32,6 +32,20 @@ function sendPdf(res, filename, pdfBuffer) {
 // blockTeacherOnlyAccounts' own comment. Public/logged-out browsing of
 // public-visibility events stays untouched.
 router.use(blockTeacherOnlyAccounts);
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Parent Portal and Student Portal each list Events as
+// their own nav entry under their own key (views/partials/portal-nav.ejs)
+// - an account passes if it holds EITHER one through either role, and
+// an account holding neither role at all (main_admin/coop_admin-only,
+// or signed out - public browsing of visibility:'public' events is
+// untouched) is unaffected. Co-op Teacher Portal has no Events entry at
+// all (blockTeacherOnlyAccounts above already blocks a teacher-only
+// account outright), so teacher isn't listed here.
+router.use(requireAnyPortalPermission([
+  { role: 'parent', key: 'view_parent_events' },
+  { role: 'student', key: 'view_student_events' },
+]));
 
 function withImageUrl(event) {
   return { ...event, imageUrl: events.eventImageUrl(event.image_key) };
