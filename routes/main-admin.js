@@ -10,7 +10,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
-const { adminCatalogSections, sectionsForRole, buildSections } = require('../utils/portalPageCatalog');
+const { adminCatalogSections, sectionsForRole, familySchoolSections, buildSections, permissionKeysInSections } = require('../utils/portalPageCatalog');
 const events = require('../utils/events');
 const babysitters = require('../utils/babysitters');
 const photos = require('../utils/photos');
@@ -344,11 +344,28 @@ router.get('/roles', requirePortalPermission('manage_roles'), async (req, res) =
     })
   );
 
-  res.render('main-admin-roles', { title: 'Portal Permissions', roles, roleSections, notice: req.query.notice || null });
+  // A real request: "Family school management is its own portal." No DB
+  // role of its own (see utils/portalPageCatalog.js's own comment) - a
+  // synthetic 2nd card, right after the real Parent role, built from the
+  // same 'parent' role's own grants but a separate, Family-School-only
+  // catalog.
+  const parentRole = roles.find((r) => r.key === 'parent');
+  const parentGranted = parentRole ? grantedByRole.get(parentRole.id) || new Set() : new Set();
+  const familySchoolSection = parentRole ? buildSections(familySchoolSections(), permissionByKey, (permId) => parentGranted.has(permId)) : [];
+
+  res.render('main-admin-roles', {
+    title: 'Portal Permissions',
+    roles,
+    roleSections,
+    parentRoleId: parentRole ? parentRole.id : null,
+    familySchoolSection,
+    notice: req.query.notice || null,
+  });
 });
 
 router.post('/roles/:id/permissions', requirePortalPermission('manage_roles'), async (req, res) => {
   const roleId = parseInt(req.params.id, 10);
+  const role = await db.prepare('SELECT * FROM roles WHERE id = ?').get(roleId);
   // De-duplicated - a page/subpage whose underlying permission is
   // shared by more than one checkbox in the same dialog (see
   // utils/portalPageCatalog.js's own comment on Photos/Publications/
@@ -357,10 +374,32 @@ router.post('/roles/:id/permissions', requirePortalPermission('manage_roles'), a
   // (role_id, permission_id) primary key below.
   const permissionIds = [...new Set([].concat(req.body.permissionIds || []).map((v) => parseInt(v, 10)).filter(Boolean))];
 
+  // A real request: "Family school management is its own portal" - its
+  // own dialog is a SEPARATE form from the Parent role's own (see
+  // views/main-admin-roles.ejs), but both save against this exact same
+  // 'parent' role, since Family School Management has no DB role of its
+  // own. A plain full replace (delete every row this role holds, then
+  // re-insert only whatever THIS form submitted) would silently wipe out
+  // whichever of the two dialogs wasn't the one just saved. This form's
+  // own `scope` field (absent for every other role, and for Parent's own
+  // primary dialog) says which catalog it's allowed to touch - the
+  // delete/insert below only ever reaches permission ids that catalog
+  // actually contains, leaving the other dialog's own grants on this
+  // same role completely untouched.
+  const scopeSections = req.body.scope === 'family_school' ? familySchoolSections() : sectionsForRole(role ? role.key : null);
+  const scopeKeys = permissionKeysInSections(scopeSections);
+  const scopedPermissionIds = scopeKeys.length
+    ? new Set((await db.prepare(`SELECT id FROM permissions WHERE key IN (${scopeKeys.map(() => '?').join(',')})`).all(...scopeKeys)).map((p) => p.id))
+    : new Set();
+  const finalPermissionIds = permissionIds.filter((id) => scopedPermissionIds.has(id));
+
   await db.withTransaction(async (tx) => {
-    await tx.prepare('DELETE FROM role_permissions WHERE role_id = ?').run(roleId);
-    for (const permissionId of permissionIds) {
-      await tx.prepare('INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)').run(roleId, permissionId);
+    if (scopedPermissionIds.size > 0) {
+      const placeholders = [...scopedPermissionIds].map(() => '?').join(',');
+      await tx.prepare(`DELETE FROM role_permissions WHERE role_id = ? AND permission_id IN (${placeholders})`).run(roleId, ...scopedPermissionIds);
+    }
+    for (const permissionId of finalPermissionIds) {
+      await tx.prepare('INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING').run(roleId, permissionId);
     }
   });
 

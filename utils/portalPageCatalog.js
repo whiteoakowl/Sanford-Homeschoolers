@@ -235,12 +235,24 @@ const STUDENT_ACTIVITY_PAGES = [
 // views/main-admin-roles.ejs - each role's dialog scoped to only its own
 // portal(s). main_admin and coop_admin are never looked up here (both
 // keep their own no-dialog treatment in the view itself).
+//
+// A real request: "Family school management is its own portal." It has
+// no DB role of its own (routes/portal-auth.js's own expandPortalRoles -
+// a 2nd Portal Switcher card for the SAME 'parent' role, not a 2nd role),
+// but it IS its own portal everywhere else in the app (its own card, own
+// URL prefix, own nav shell, own settings hub) - this screen now splices
+// in a matching synthetic 2nd card the same way, rather than folding its
+// pages into Parent's own dialog as a 2nd section (what this used to do,
+// and the very thing that real request was complaining about). Parent's
+// own sectionsForRole result is now Parent Portal pages ONLY -
+// familySchoolSections() below is its own separate catalog, with its own
+// separate dialog/form in the view, saved with its own `scope` (see
+// routes/main-admin.js's own POST /roles/:id/permissions) so submitting
+// one of this pair's two forms never wipes out the other's grants, even
+// though both write to the exact same underlying 'parent' role.
 function sectionsForRole(roleKey) {
   if (roleKey === 'parent') {
-    return [
-      { title: 'Parent Portal', pages: PARENT_PAGES },
-      { title: 'Family School Management', pages: FAMILY_SCHOOL_PAGES },
-    ];
+    return [{ title: 'Parent Portal', pages: PARENT_PAGES }];
   }
   if (roleKey === 'student') {
     return [
@@ -252,6 +264,12 @@ function sectionsForRole(roleKey) {
     return [{ title: 'Co-op Teacher Portal', pages: TEACHER_PAGES }];
   }
   return [];
+}
+
+// views/main-admin-roles.ejs's own synthetic Family School Management
+// card - see sectionsForRole's own comment above.
+function familySchoolSections() {
+  return [{ title: 'Family School Management', pages: FAMILY_SCHOOL_PAGES }];
 }
 
 // views/main-admin-admins.ejs - the full combined catalog, every portal
@@ -266,6 +284,22 @@ function adminCatalogSections() {
     { title: 'Activities', pages: STUDENT_ACTIVITY_PAGES },
     { title: 'Co-op Teacher Portal', pages: TEACHER_PAGES },
   ];
+}
+
+// Flattens a sections array (page + every one of its own subpages, same
+// shape buildSections walks) down to just the real permission keys in
+// it - used by routes/main-admin.js's own POST /roles/:id/permissions to
+// scope a save to exactly one dialog's own catalog, so saving Parent's
+// own dialog can never touch Family School Management's own grants (or
+// vice versa) even though they're the same underlying role.
+function permissionKeysInSections(sections) {
+  const keys = [];
+  function walk(entry) {
+    if (entry.key) keys.push(entry.key);
+    (entry.subpages || []).forEach(walk);
+  }
+  sections.forEach((section) => section.pages.forEach(walk));
+  return keys;
 }
 
 // Shared by both main-admin-roles.ejs's and main-admin-admins.ejs's own
@@ -304,6 +338,8 @@ module.exports = {
   STUDENT_PAGES,
   STUDENT_ACTIVITY_PAGES,
   sectionsForRole,
+  familySchoolSections,
   adminCatalogSections,
   buildSections,
+  permissionKeysInSections,
 };

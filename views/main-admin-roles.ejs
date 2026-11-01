@@ -23,18 +23,6 @@
               title, portal key listed stacked underneath in next row." %>
           <h2><%= role.label %></h2>
           <p class="hint">portal key: <%= role.key %></p>
-          <%# A real request: "Family school management portal isn't
-              included in the portal permissions" - Family School
-              Management has no DB role of its own (routes/portal-
-              auth.js's own expandPortalRoles - a 2nd Portal Switcher
-              card for the SAME 'parent' role, not a 2nd role), so it was
-              never going to get its own top-level card here; its pages
-              are a 2nd section inside the Parent card's own dialog
-              (utils/portalPageCatalog.js's sectionsForRole), easy to miss
-              since nothing on the card itself said so. %>
-          <% if (role.key === 'parent') { %>
-            <p class="hint">Also covers Family School Management.</p>
-          <% } %>
           <% if (role.key === 'main_admin') { %>
             <p class="hint">Main Admin always has every permission.</p>
           <% } else if (role.key === 'coop_admin') { %>
@@ -64,7 +52,7 @@
 
             <dialog id="role-permissions-dialog-<%= role.id %>" class="member-picker-dialog role-permissions-dialog">
               <form method="POST" action="/main-admin/roles/<%= role.id %>/permissions">
-                <h3>View <%= role.key === 'parent' ? 'Parent and Family School Management' : role.label %>'s Pages</h3>
+                <h3>View <%= role.label %>'s Pages</h3>
                 <p class="hint">Check a page or subpage to let this portal view it. Unchecking a page hides it from the nav and blocks direct links to it - the content itself isn't deleted, just hidden until checked again.</p>
                 <%- include('partials/permission-checkbox-section', { sections: roleSections[role.id] }) %>
                 <div class="notes-dialog-actions">
@@ -75,6 +63,41 @@
             </dialog>
           <% } %>
         </section>
+
+        <%# A real request: "Family school management is its own
+            portal." It has no DB role of its own (routes/portal-auth.js's
+            own expandPortalRoles - a 2nd Portal Switcher card for the
+            SAME 'parent' role, elsewhere in the app, not a 2nd role) -
+            same synthetic-2nd-card treatment here, right after the real
+            Parent card, instead of folding its pages into Parent's own
+            dialog as just another section (what this page used to do,
+            and what that real request was complaining about). Its own
+            dialog's form posts to the exact same /main-admin/roles/
+            <parentRoleId>/permissions route Parent's own dialog does
+            (same underlying role, no DB role of its own to post to) but
+            tags itself with a hidden `scope` field so saving one of this
+            pair never wipes out the other's grants - see routes/main-
+            admin.js's own POST handler. %>
+        <% if (role.key === 'parent' && familySchoolSection.length) { %>
+          <section class="portal-dashboard-card main-admin-portal-permissions-card">
+            <h2>Family School Management</h2>
+            <p class="hint">portal key: family_school</p>
+            <button type="button" class="roster-action-btn" onclick="document.getElementById('role-permissions-dialog-family-school').showModal()">View</button>
+
+            <dialog id="role-permissions-dialog-family-school" class="member-picker-dialog role-permissions-dialog">
+              <form method="POST" action="/main-admin/roles/<%= parentRoleId %>/permissions">
+                <input type="hidden" name="scope" value="family_school" />
+                <h3>View Family School Management's Pages</h3>
+                <p class="hint">Check a page or subpage to let this portal view it. Unchecking a page hides it from the nav and blocks direct links to it - the content itself isn't deleted, just hidden until checked again.</p>
+                <%- include('partials/permission-checkbox-section', { sections: familySchoolSection }) %>
+                <div class="notes-dialog-actions">
+                  <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Close</button>
+                  <button type="submit" class="primary-btn">Save</button>
+                </div>
+              </form>
+            </dialog>
+          </section>
+        <% } %>
       <% }); %>
     </div>
   </main>
