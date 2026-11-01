@@ -55,15 +55,14 @@
         <% }); %>
       </nav>
     <% } %>
-    <%# A real request: "At the top right of the page there should be two
-        buttons. Become a Member and Log in. Log in goes to the member
-        log in page." Same two destinations as before (/register, /login)
-        - just relabeled and reordered to match. %>
+    <%# A real request: "No we removed the become a member orange button
+        at the top" - the header now only ever offers Log in (/login);
+        joining still happens via the "Ready to join" CTA further down
+        this same page. %>
     <div class="site-header-actions">
       <% if (typeof portalAccount !== 'undefined' && portalAccount) { %>
         <a class="primary-btn" href="/portal">My Portals</a>
       <% } else { %>
-        <a class="primary-btn" href="/register">Become a Member</a>
         <a class="btn-secondary" href="/login">Log in</a>
       <% } %>
     </div>

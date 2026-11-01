@@ -5,7 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { findAccountByEmail, verifyPassword, hashPassword, memberForAccount, familyForAccount } = require('../utils/portalAuth');
+const { findAccountByEmail, verifyPassword, hashPassword, memberForAccount, familyForAccount, rolesForAccount } = require('../utils/portalAuth');
 const { generateMemberCode, setPrimaryParent } = require('../utils/members');
 const { savePhotoFile: saveMemberPhotoFile, deletePhotoFile: deleteMemberPhotoFile } = require('../utils/memberPhoto');
 const { createFailureRateLimiter } = require('../utils/loginRateLimit');
@@ -61,6 +61,28 @@ router.post('/login', async (req, res) => {
   }
   await db.prepare('UPDATE member_accounts SET last_login_at = now_text() WHERE id = ?').run(account.id);
   req.session.portalAccountId = account.id;
+
+  // A real request: "After a member signs in on the homepage, they
+  // should not be asked again to sign into any portal pages. Not even
+  // main admin or co-op admin." The Co-op Admin portal card (PORTAL_HOME_
+  // ROUTES.coop_admin, below) still points at /admin, which is gated by
+  // the single master Admin login (routes/admin.js, req.session.adminId)
+  // - a completely separate, standalone sign-in from this member login.
+  // Bridging the two here, for an account whose profile already carries
+  // the coop_admin role, means that stand-alone login screen is never
+  // shown to them at all - the one master Admin account is the only one
+  // that exists (see README's "Admin access model"), so granting it
+  // alongside their own member session is exactly what "already given
+  // portal access on their profile" is supposed to mean.
+  const roles = await rolesForAccount(account.id);
+  if (roles.some((r) => r.key === 'coop_admin')) {
+    const admin = await db.prepare('SELECT * FROM admins ORDER BY id LIMIT 1').get();
+    if (admin) {
+      req.session.adminId = admin.id;
+      req.session.username = admin.username;
+    }
+  }
+
   // A real request: "be able to lock members and they won't be able to
   // log in, unless to see and pay their account balance" - a 'suspended'
   // (Locked) account now DOES get a session (middleware/portalAuth.js's
@@ -71,6 +93,10 @@ router.post('/login', async (req, res) => {
 
 router.post('/logout', (req, res) => {
   req.session.portalAccountId = null;
+  // Same bridge as POST /login above, undone - a coop_admin-role member
+  // signing out of their own member session shouldn't stay signed into
+  // the separate master Admin dashboard either.
+  req.session.adminId = null;
   res.redirect('/');
 });
 
