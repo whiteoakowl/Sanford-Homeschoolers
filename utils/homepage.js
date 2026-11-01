@@ -37,10 +37,21 @@ async function addBlock(data) {
   const position = Number((await db.prepare('SELECT COALESCE(MAX(position), -1) AS p FROM homepage_blocks').get()).p) + 1;
   const info = await db
     .prepare(
-      `INSERT INTO homepage_blocks (position, block_type, text_body, text_size, image_key, image_size, image_alt, button_label, button_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO homepage_blocks (position, block_type, text_body, text_size, image_key, image_size, image_alt, button_label, button_url, alignment)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(position, data.blockType, data.textBody || null, data.textSize || null, data.imageKey || null, data.imageSize || null, data.imageAlt || null, data.buttonLabel || null, data.buttonUrl || null);
+    .run(
+      position,
+      data.blockType,
+      data.textBody || null,
+      data.textSize || null,
+      data.imageKey || null,
+      data.imageSize || null,
+      data.imageAlt || null,
+      data.buttonLabel || null,
+      data.buttonUrl || null,
+      data.alignment || 'left'
+    );
   return info.lastInsertRowid;
 }
 
@@ -48,11 +59,11 @@ async function updateBlock(id, data) {
   await db
     .prepare(
       `UPDATE homepage_blocks SET
-         text_body = ?, text_size = ?, image_key = ?, image_size = ?, image_alt = ?, button_label = ?, button_url = ?,
+         text_body = ?, text_size = ?, image_key = ?, image_size = ?, image_alt = ?, button_label = ?, button_url = ?, alignment = ?,
          updated_at = now_text()
        WHERE id = ?`
     )
-    .run(data.textBody || null, data.textSize || null, data.imageKey || null, data.imageSize || null, data.imageAlt || null, data.buttonLabel || null, data.buttonUrl || null, id);
+    .run(data.textBody || null, data.textSize || null, data.imageKey || null, data.imageSize || null, data.imageAlt || null, data.buttonLabel || null, data.buttonUrl || null, data.alignment || 'left', id);
 }
 
 async function deleteBlock(id) {
@@ -147,6 +158,7 @@ const THEME_DEFAULTS = {
   fontSizeBase: 'medium',
   announcementEnabled: false,
   announcementText: '',
+  footerText: '',
 };
 
 function fontStack(key) {
@@ -167,8 +179,22 @@ function themeRowToObject(row) {
     logoUrl: homepageImageUrl(row.logo_key),
     faviconKey: row.favicon_key,
     faviconUrl: homepageImageUrl(row.favicon_key),
+    // Header background image - a real request: "Add options to edit
+    // header and footer of website. Be able to upload images for
+    // header." A banner behind the header bar, distinct from the small
+    // round logo above (logoKey/logoUrl) - see views/public-home.ejs's
+    // own inline style on .site-header.
+    headerImageKey: row.header_image_key,
+    headerImageUrl: homepageImageUrl(row.header_image_key),
     announcementEnabled: !!row.announcement_enabled,
     announcementText: row.announcement_text || '',
+    // Footer - a real request, same section: a free-text field (off
+    // until an admin fills it in, same "don't show an empty thing"
+    // pattern announcementText already uses) plus an optional footer
+    // image, same shape as the header image above.
+    footerText: row.footer_text || '',
+    footerImageKey: row.footer_image_key,
+    footerImageUrl: homepageImageUrl(row.footer_image_key),
   };
 }
 
@@ -183,8 +209,9 @@ async function saveThemeSettings(data) {
       `UPDATE homepage_theme_settings SET
          color_primary = ?, color_accent = ?, color_background = ?, color_cards = ?, color_text = ?,
          font_heading = ?, font_body = ?, font_size_base = ?,
-         logo_key = ?, favicon_key = ?,
+         logo_key = ?, favicon_key = ?, header_image_key = ?,
          announcement_enabled = ?, announcement_text = ?,
+         footer_text = ?, footer_image_key = ?,
          updated_at = now_text()
        WHERE id = 1`
     )
@@ -199,28 +226,32 @@ async function saveThemeSettings(data) {
       data.fontSizeBase,
       data.logoKey || null,
       data.faviconKey || null,
+      data.headerImageKey || null,
       data.announcementEnabled ? 1 : 0,
-      data.announcementText || null
+      data.announcementText || null,
+      data.footerText || null,
+      data.footerImageKey || null
     );
 }
 
 // Reset theme to defaults - a real request: a confirm-gated action that
 // "restores the global theme settings (colors/typography/logo/
 // announcement bar) to their shipped defaults, leaving page content
-// blocks untouched." Returns the row's PREVIOUS logo_key/favicon_key so
-// the caller (routes/admin-website.js) can delete those now-orphaned
-// uploaded files, same "caller deletes the file, this module only ever
-// touches the row" split every other image-owning column in this module
-// already uses.
+// blocks untouched." Returns the row's PREVIOUS logo_key/favicon_key/
+// header_image_key/footer_image_key so the caller (routes/admin-
+// website.js) can delete those now-orphaned uploaded files, same
+// "caller deletes the file, this module only ever touches the row"
+// split every other image-owning column in this module already uses.
 async function resetThemeSettings() {
-  const existing = await db.prepare('SELECT logo_key, favicon_key FROM homepage_theme_settings WHERE id = 1').get();
+  const existing = await db.prepare('SELECT logo_key, favicon_key, header_image_key, footer_image_key FROM homepage_theme_settings WHERE id = 1').get();
   await db
     .prepare(
       `UPDATE homepage_theme_settings SET
          color_primary = ?, color_accent = ?, color_background = ?, color_cards = ?, color_text = ?,
          font_heading = ?, font_body = ?, font_size_base = ?,
-         logo_key = NULL, favicon_key = NULL,
+         logo_key = NULL, favicon_key = NULL, header_image_key = NULL,
          announcement_enabled = ?, announcement_text = NULL,
+         footer_text = NULL, footer_image_key = NULL,
          updated_at = now_text()
        WHERE id = 1`
     )
@@ -261,6 +292,11 @@ function withThemeOverrides(theme, query) {
   if (typeof query.fontSizeBase === 'string' && FONT_SIZE_BASE_PX[query.fontSizeBase]) next.fontSizeBase = query.fontSizeBase;
   if (typeof query.announcementEnabled === 'string') next.announcementEnabled = query.announcementEnabled === '1';
   if (typeof query.announcementText === 'string') next.announcementText = query.announcementText;
+  // footerText is a plain value too (not a file upload), same as
+  // announcementText above - headerImage/footerImage can't travel over a
+  // query string (see this function's own header comment), so those two
+  // stay save-only, same limitation logo/favicon already have.
+  if (typeof query.footerText === 'string') next.footerText = query.footerText;
   return next;
 }
 

@@ -161,16 +161,23 @@ router.post('/settings', async (req, res) => {
   res.redirect('/main-admin/website?notice=' + encodeURIComponent('Site info saved.'));
 });
 
-// Theme Settings (Colors/Typography/Logo & Favicon/Announcement Bar) - a
+// Theme Settings (Colors/Typography/Header/Announcement Bar/Footer) - a
 // real request: "Should have the exact webpage editing features as
-// Shopify." logo + favicon share one multipart form with the color/font/
-// announcement fields (both optional - most saves touch neither file),
-// same MAX_IMAGE_BYTES/imageFileFilter guard as uploadBlockImage above.
+// Shopify." logo/header image/favicon/footer image share one multipart
+// form with the color/font/announcement/footer-text fields (all optional
+// - most saves touch no files at all), same MAX_IMAGE_BYTES/
+// imageFileFilter guard as uploadBlockImage above.
 const themeUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES }, fileFilter: imageFileFilter });
 function uploadThemeImages(req, res, next) {
   themeUpload.fields([
     { name: 'logo', maxCount: 1 },
     { name: 'favicon', maxCount: 1 },
+    // Header background image / Footer image - a real request: "Add
+    // options to edit header and footer of website. Be able to upload
+    // images for header." Same saveBlockImageIfProvided plumbing as
+    // logo/favicon above.
+    { name: 'headerImage', maxCount: 1 },
+    { name: 'footerImage', maxCount: 1 },
   ])(req, res, (err) => {
     if (err && err.code === 'LIMIT_FILE_SIZE') {
       return res.redirect('/main-admin/website?error=' + encodeURIComponent(`That image is too large - images are limited to ${MAX_IMAGE_BYTES / (1024 * 1024)}MB.`));
@@ -193,6 +200,7 @@ function themeDataFromBody(body) {
     fontSizeBase: ['small', 'medium', 'large'].includes(body.fontSizeBase) ? body.fontSizeBase : homepage.THEME_DEFAULTS.fontSizeBase,
     announcementEnabled: body.announcementEnabled === 'on' || body.announcementEnabled === '1',
     announcementText: (body.announcementText || '').trim(),
+    footerText: (body.footerText || '').trim(),
   };
 }
 
@@ -201,8 +209,12 @@ router.post('/theme-settings', uploadThemeImages, async (req, res) => {
   const data = themeDataFromBody(req.body);
   const logoFile = req.files && req.files.logo && req.files.logo[0];
   const faviconFile = req.files && req.files.favicon && req.files.favicon[0];
+  const headerImageFile = req.files && req.files.headerImage && req.files.headerImage[0];
+  const footerImageFile = req.files && req.files.footerImage && req.files.footerImage[0];
   data.logoKey = await saveBlockImageIfProvided(logoFile, existing.logoKey);
   data.faviconKey = await saveBlockImageIfProvided(faviconFile, existing.faviconKey);
+  data.headerImageKey = await saveBlockImageIfProvided(headerImageFile, existing.headerImageKey);
+  data.footerImageKey = await saveBlockImageIfProvided(footerImageFile, existing.footerImageKey);
   await homepage.saveThemeSettings(data);
   res.redirect('/main-admin/website?notice=' + encodeURIComponent('Theme settings saved.'));
 });
@@ -217,6 +229,8 @@ router.post('/theme-settings/reset', async (req, res) => {
   if (old) {
     await deleteBlockImageFile(old.logo_key);
     await deleteBlockImageFile(old.favicon_key);
+    await deleteBlockImageFile(old.header_image_key);
+    await deleteBlockImageFile(old.footer_image_key);
   }
   res.redirect('/main-admin/website?notice=' + encodeURIComponent('Theme reset to defaults.'));
 });
@@ -230,6 +244,10 @@ function blockDataFromBody(body) {
     imageAlt: (body.imageAlt || '').trim(),
     buttonLabel: (body.buttonLabel || '').trim(),
     buttonUrl: (body.buttonUrl || '').trim(),
+    // Per-block alignment - a real request: "Add left, right centering to
+    // all page content settings when editing the homepage." Same shape
+    // as textSize/imageSize above, just a 3rd value set.
+    alignment: ['left', 'center', 'right'].includes(body.alignment) ? body.alignment : 'left',
   };
 }
 
