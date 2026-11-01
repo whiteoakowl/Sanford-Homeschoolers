@@ -12886,36 +12886,65 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
    its own clean column." Used to be `repeat(auto-fill, minmax(220px,
    1fr))` - a multi-column auto-wrap where each checkbox+label pair's
    own width decided which column it landed in, so neither checkboxes
-   nor label text ever lined up row to row. A single two-column grid
-   instead (checkboxes always column 1, label text always column 2),
+   nor label text ever lined up row to row. A 3-column grid instead
+   (checkbox always column 1, a fixed-width bullet/dash marker always
+   column 2, each permission's own full description always column 3),
    fed one flattened list of rows - a page and every one of its own
    subpages together - by views/partials/permission-checkbox-section.ejs
    rather than one grid per page, so nothing has to re-align between a
-   page's own row and its subpages' rows. */
-.permission-checkbox-grid { display: grid; grid-template-columns: auto 1fr; column-gap: 0.6rem; row-gap: 0.55rem; margin: 0.5rem 0 1.25rem; align-items: start; }
+   page's own row and its subpages' rows.
+   A later real request: "the check boxes should show the actual
+   description, not just a hover tooltip" plus "bullet points for the
+   main pages and dash lines for subpages" - column 3 is now each
+   permission's own full description text (not the short catalog
+   label), and column 2 holds a plain bullet (top-level page rows) or
+   dash (subpage rows) marker in its own fixed-width column - the SAME
+   width either glyph, so column 3's own text starts at the exact same
+   x position on every single row, main page or subpage, with no
+   separate text-indent needed on subpage rows any more (the dash
+   marker alone signals the nesting now). */
+/* text-align: left - Portal Permissions' own dialog (views/main-admin-
+   roles.ejs) nests inside .main-admin-portal-permissions-card, whose own
+   text-align: center (a real request: "each portal card should have a
+   centered title") otherwise cascades all the way down into this grid's
+   own description text too - invisible back when column 3 only ever
+   held a short label unlikely to wrap, but a real bug once a longer
+   description (task 2 above) actually wraps to a 2nd line: that 2nd
+   line centers under the column instead of starting flush under the
+   first line's own first word, breaking the exact "first word... in its
+   own clean column" alignment this whole grid exists for. */
+.permission-checkbox-grid { display: grid; grid-template-columns: auto 1.1rem 1fr; column-gap: 0.5rem; row-gap: 0.55rem; margin: 0.5rem 0 1.25rem; align-items: start; text-align: left; }
 /* .checkbox-option is normally its own flex row (font-weight/gap/etc. -
    see this file's own base rule); inside this grid it instead
-   contributes no box of its own, so its own <input> and <span> become
-   the actual grid items (column 1 / column 2) - every row's checkbox
-   and every row's text land in those same two columns regardless of
-   label length. Scoped to this one grid, not .checkbox-option
-   everywhere else in the app (every other usage still wants its own
-   normal flex row). */
+   contributes no box of its own, so its own <input> and two <span>s
+   become the actual grid items (column 1 / 2 / 3) - every row's
+   checkbox, marker, and description text land in those same three
+   columns regardless of text length. Scoped to this one grid, not
+   .checkbox-option everywhere else in the app (every other usage still
+   wants its own normal flex row). */
 .permission-checkbox-grid .checkbox-option { display: contents; }
 .permission-checkbox-grid .checkbox-option input[type="checkbox"] { grid-column: 1; margin-top: 0.2rem; }
-.permission-checkbox-grid .checkbox-option span { grid-column: 2; }
-/* A real request: "indent/nest subpages under their parent page
-   visually." Extra left padding on just the TEXT (the checkbox itself
-   stays in column 1, aligned with every other row's checkbox) reads as
-   nested without breaking the one shared checkbox column every other
-   row already lines up in. */
-.permission-checkbox-grid .checkbox-option.permission-subpage span { padding-left: 1.1rem; }
+.permission-checkbox-grid .checkbox-option .permission-marker { grid-column: 2; text-align: center; color: var(--ink-muted, var(--ink)); margin-top: 0.1rem; }
+.permission-checkbox-grid .checkbox-option .permission-text { grid-column: 3; }
 /* A page with no permission of its own (utils/portalPageCatalog.js's
    own key: null entries, e.g. Parent Portal's "Co-op Classes," whose
    bare URL is identical to its own first subpage) - a plain heading
-   spanning both columns, not a checkbox, introducing the real subpage
-   checkboxes nested right under it. */
+   spanning every column, not a checkbox, introducing the real subpage
+   checkboxes nested right under it. Its own leading bullet (added in
+   the EJS, not here) keeps the same "bullet means a main page" signal
+   every real checkbox row's own marker column gives, even though this
+   heading has no checkbox/marker columns of its own to line one up in. */
 .permission-checkbox-grid .permission-group-label { grid-column: 1 / -1; font-weight: 600; font-size: 0.85rem; color: var(--ink-muted, var(--ink)); margin-top: 0.4rem; }
+/* A real request: "creat[e] row lines to separate sections" - one
+   divider between each top-level page's own complete group (the page
+   plus all of its own subpages) and the next, so a long page/subpage
+   list reads as visually separated sections rather than one
+   undifferentiated wall of rows. A plain block (not .checkbox-option,
+   so it's never rewritten by the display:contents rule above) placed
+   directly in the grid's own flow - explicitly spanning every column
+   keeps the line one clean row-width rule rather than a short
+   column-1-only fragment. */
+.permission-checkbox-grid .permission-group-divider { grid-column: 1 / -1; border-top: 1px solid var(--border); margin: 0.15rem 0; }
 /* Groups each portal's own page list under a small heading inside the
    dialog (e.g. "Parent Portal" / "Family School Management") - a real
    request on views/main-admin-admins.ejs's own combined catalog:
