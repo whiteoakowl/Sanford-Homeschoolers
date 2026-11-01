@@ -11543,14 +11543,13 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
    menus are not formatted the same with their lines, buttons and check
    boxes, and widths." Shopify's own editor bar is a plain WHITE bar with
    a thin bottom border (not the dark bar this app's first pass used) -
-   Exit / title / Save, nothing else once the screen is narrow enough
-   that a Desktop/Mobile toggle would crowd it (hidden below at 640px -
-   see .no-mobile two rules down - since there's no reason to preview
-   "desktop width" from an actual phone anyway). */
+   Exit / title / Save. The title truncates first to make room on a
+   narrow screen, same "give the squeeze to whatever can absorb it" idea
+   as this app's other mobile toolbars. */
 .homepage-theme-topbar {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   padding: 0.85rem 1.25rem;
   background: var(--surface);
   color: var(--ink);
@@ -11560,17 +11559,43 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
   top: 0;
   z-index: 15;
 }
-.homepage-theme-exit { color: var(--ink); text-decoration: none; font-weight: 600; opacity: 0.65; }
+.homepage-theme-exit { color: var(--ink); text-decoration: none; font-weight: 600; opacity: 0.65; flex: 0 0 auto; }
 .homepage-theme-exit:hover { opacity: 1; text-decoration: underline; }
-.homepage-theme-topbar-label { font-size: 1rem; margin: 0 auto 0 0; color: var(--ink); }
-.homepage-theme-viewport-toggle { display: flex; border: 1px solid var(--border); border-radius: var(--control-radius); overflow: hidden; }
-.homepage-theme-viewport-btn { background: transparent; color: var(--ink); border: none; padding: 0.4rem 0.85rem; font-size: 0.85rem; cursor: pointer; }
-.homepage-theme-viewport-btn.is-active { background: var(--brand-soft); font-weight: 700; }
-.homepage-theme-save-btn { margin: 0; padding: 0.5rem 1.1rem; }
-@media (max-width: 640px) {
-  .homepage-theme-topbar { margin: -1rem -1rem 1rem; padding: 0.65rem 0.85rem; }
-  .homepage-theme-topbar .no-mobile { display: none; }
+/* Beats .admin-main h1's own (higher-specificity) page-title rule -
+   margin-bottom/padding-bottom/border-bottom meant for a full-width page
+   title pushed this one out of line with the rest of the topbar row. */
+.homepage-theme-topbar .homepage-theme-topbar-label {
+  font-size: 1rem;
+  margin: 0 auto 0 0;
+  padding-bottom: 0;
+  border-bottom: none;
+  color: var(--ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+.homepage-theme-save-btn { margin: 0; padding: 0.5rem 1.1rem; flex: 0 0 auto; }
+@media (max-width: 640px) {
+  .homepage-theme-topbar { margin: -1rem -1rem 1rem; padding: 0.65rem 0.85rem; gap: 0.4rem; }
+  .homepage-theme-topbar-label { margin-right: auto; }
+  .homepage-theme-save-btn { padding: 0.5rem 0.75rem; }
+}
+/* A real request: "Desktop and mobile toggle should be lower on the
+   page just above the website view" - moved out of the topbar (above)
+   to sit right above the live preview frame it controls
+   (.homepage-theme-preview-frame-wrap below), inside the same
+   .homepage-theme-preview-pane. */
+.homepage-theme-viewport-toggle {
+  display: flex;
+  width: fit-content;
+  margin: 0 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--control-radius);
+  overflow: hidden;
+}
+.homepage-theme-viewport-btn { background: transparent; color: var(--ink); border: none; padding: 0.4rem 0.85rem; font-size: 0.85rem; cursor: pointer; white-space: nowrap; }
+.homepage-theme-viewport-btn.is-active { background: var(--brand-soft); font-weight: 700; }
 
 .homepage-theme-shell { display: flex; gap: 1.25rem; align-items: flex-start; }
 .homepage-theme-sidebar {
@@ -11590,9 +11615,31 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
    of the sidebar's earlier loose gap-only stack of separate cards) -
    same "a settings LIST, not a pile of cards" shape the screenshot's own
    Colors/Typography/Logo & favicon/... rows show, including the
-   left-aligned disclosure triangle (▶ closed, ▼ open) every row shares. */
-.homepage-theme-section { border-bottom: 1px solid var(--border); padding: 0.85rem 1.1rem; }
-.homepage-theme-section:last-of-type { border-bottom: none; }
+   left-aligned disclosure triangle (▶ closed, ▼ open) every row shares.
+   A real request, with a reference screenshot of a seamless row-list
+   theme editor on another site: "Make the sections and features tight
+   row dropdown menus, no cards spaces... Seamless and not cards." Each
+   <details> here also carries .manage-section (this app's shared
+   boxed-card convention, used on 92 other pages) - that gave every
+   section its own background/border/radius/shadow/margin-bottom, i.e.
+   exactly the separate-floating-cards look this scoped override now
+   strips back out, leaving only the sidebar's own single outer
+   card (below) and a plain divider between rows. Every section keeps
+   its own border-bottom, including the last one - the one extra line
+   right before "Reset theme to defaults" matches the reference's own
+   rhythm, and sidesteps relying on :last-of-type, which would otherwise
+   need to special-case the <form> that wraps Colors/Typography/Logo &
+   Favicon/Announcement Bar (its own sibling scope, separate from Site
+   Info/Home Page Content/Menu Tabs sitting directly in the sidebar). */
+.homepage-theme-sidebar .homepage-theme-section {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+  margin-bottom: 0;
+  padding: 0.85rem 1.1rem;
+}
 .homepage-theme-section summary {
   cursor: pointer;
   font-weight: 700;
@@ -11608,12 +11655,15 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 /* Colors specifically: each role is its own full-width row with a
    divider between rows (not just a loose vertical gap), swatch/label/hex
    in three fixed-width columns so every row lines up, matching the
-   screenshot's own consistent row widths. */
-.homepage-theme-color-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+   screenshot's own consistent row widths. A real request: "Colors
+   should be spaced out and clean rows like the image" - more vertical
+   air per row and a bigger swatch, same reference as the seamless-list
+   request above. */
+.homepage-theme-color-row { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 0; border-bottom: 1px solid var(--border); }
 .homepage-theme-color-row:last-child { border-bottom: none; }
 .homepage-theme-color-row > span:first-child { flex: 1 1 auto; min-width: 0; }
 .homepage-theme-color-input { display: flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; }
-.homepage-theme-color-input input[type="color"] { width: 2.5rem; height: 1.9rem; padding: 0; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+.homepage-theme-color-input input[type="color"] { width: 3.25rem; height: 2.1rem; padding: 0; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
 .homepage-theme-hex-input {
   width: 6rem;
   border: 1px solid transparent;
@@ -15875,21 +15925,27 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
   .cf-page-nav { flex-wrap: wrap; }
 }
 
-/* Main Admin Forms builder - field-type palette (a fuller palette than
-   the original plain <select>, grouped the way utils/customForms.js's
-   own FIELD_TYPES groups them) and the live preview panel. */
-.cf-type-palette { display: flex; flex-direction: column; gap: 0.75rem; }
-.cf-type-palette-group-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0; }
-.cf-type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.5rem; }
-.cf-type-btn {
-  display: flex; align-items: center; gap: 0.5rem;
-  border: 1px solid var(--border); border-radius: 10px; padding: 0.55rem 0.7rem;
-  background: #fff; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--ink);
-  text-align: left;
+/* Main Admin Forms builder - a real request, with a screenshot of
+   Jotform's own "Form Elements" flyout and a seamless row-list theme
+   editor on another site: "Make the sections and features tight row
+   dropdown menus, no cards spaces... No card design for this page at
+   all." Settings & Theme/Pages/Assign To (views/admin-custom-forms-
+   builder.ejs's own .cf-builder-sidebar) used to each be their own
+   floating .manage-section card (this app's shared boxed-card
+   convention, used on 92 other pages) with a gap between them - this
+   strips that back to one seamless bordered list, exactly the same
+   scoped-override shape (and the same reasoning) as the Public Homepage
+   theme editor's own .homepage-theme-sidebar .homepage-theme-section. */
+.cf-builder-sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.cf-builder-sidebar .manage-section {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+  margin-bottom: 0;
+  padding: 1.1rem 1.25rem;
 }
-.cf-type-btn:hover { border-color: var(--brand); background: var(--brand-soft); }
-.cf-type-btn.cf-type-btn-selected { border-color: var(--brand-dark); background: var(--brand-soft); color: var(--brand-dark); }
-.cf-type-btn .icon { width: 1rem; height: 1rem; flex-shrink: 0; }
 
 .cf-preview-panel { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; background: var(--surface-muted, #f7f9fb); }
 .cf-preview-panel .cf-form { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
@@ -15897,8 +15953,71 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 @media (max-width: 1100px) {
   .cf-builder-layout { grid-template-columns: 1fr; }
 }
-.cf-page-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1rem; margin-bottom: 1rem; }
+/* Each page is a flat divided row-group (not its own floating card) -
+   same "no card design" request as the sidebar above. .cf-pages-canvas
+   zeroes out .homepage-builder-canvas's own gap (shared with the Home
+   Page Content/Menu Tabs lists elsewhere on this page, which keep their
+   normal card-free-but-gapped list look - this is the one canvas usage
+   that needs a plain divider rhythm instead of a gap). */
+.cf-pages-canvas { gap: 0; }
+.cf-page-card { border: none; border-top: 1px solid var(--border); border-radius: 0; padding: 1rem 0; margin-bottom: 0; }
+.cf-page-card:first-child { border-top: none; padding-top: 0.25rem; }
 .cf-page-card-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
 .cf-page-card-header h3 { margin: 0; }
 .cf-condition-badge { font-size: 0.75rem; color: var(--brand-dark); background: var(--brand-soft); border-radius: 999px; padding: 0.1rem 0.5rem; }
 .cf-theme-swatch { width: 1.4rem; height: 1.4rem; border-radius: 4px; border: 1px solid var(--border); display: inline-block; vertical-align: middle; margin-right: 0.35rem; }
+
+/* Composite field types (full_name/address/appointment) - several
+   sub-inputs rendered side by side (or stacked, for address's own
+   street lines), combined into one stored answer server-side (routes/
+   custom-forms.js's own combinedSubfieldValue). */
+.cf-subfield-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.cf-subfield-row input { flex: 1 1 120px; min-width: 0; }
+.cf-subfield-stack { display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* Signature - a drawn (not typed) answer, captured on a canvas by
+   public/js/custom-form-signature-pad.js. The real form value lives in
+   a plain text input (never type="hidden" - see that field's own
+   comment in views/partials/custom-form-field.ejs for why), kept out of
+   sight the same way this app already keeps a few other "real but never
+   shown" inputs out of sight elsewhere (display: none, not the hidden
+   attribute, so there's nothing conditionally re-shown later). */
+.cf-signature-pad-wrap { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; }
+.cf-signature-pad { width: 100%; height: 140px; display: block; cursor: crosshair; touch-action: none; }
+.cf-signature-pad-actions { display: flex; justify-content: flex-end; padding: 0.4rem 0.6rem; border-top: 1px solid var(--border); }
+.cf-signature-value-input { display: none; }
+.cf-signature-answer-preview { max-width: 320px; max-height: 120px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; }
+
+/* Fill in the Blank - the admin's own template (Help Text, split on
+   3+ underscores) rendered back as alternating plain text and small
+   inline inputs, right in the sentence's own reading flow. */
+.cf-fill-blank-template { line-height: 2.2; }
+.cf-fill-blank-input { display: inline-block; width: auto; min-width: 4rem; margin: 0 0.2rem; text-align: center; }
+
+/* The rest of Jotform's own "Basic Elements" this app didn't have yet
+   (a real request, after a web search confirmed Jotform's "Widgets" are
+   an open-ended 300+ item marketplace with no fixed list: "Basics + a
+   few generic layout widgets" - Image, Input Table/Matrix, Divider,
+   Video, Spinner). */
+.cf-divider { border: none; border-top: 1px solid var(--border); margin: 0.5rem 0; }
+.cf-image-block { max-width: 100%; border-radius: var(--radius); display: block; }
+.cf-video-wrap { position: relative; width: 100%; padding-top: 56.25%; border-radius: var(--radius); overflow: hidden; background: #000; }
+.cf-video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+
+/* Input Table/Matrix - rows (field.options, same table single_choice/
+   multiple_choice/dropdown already use) x columns (matrix_columns),
+   one radio per cell. Horizontally scrollable on its own (not the whole
+   page) once a table has more columns than a phone screen can fit. */
+.cf-matrix-scroll { overflow-x: auto; }
+.cf-matrix-table { border-collapse: collapse; width: 100%; }
+.cf-matrix-table th, .cf-matrix-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap; }
+.cf-matrix-table th[scope="row"] { text-align: left; font-weight: 600; white-space: normal; }
+.cf-matrix-table thead th { font-weight: 700; color: var(--muted); font-size: 0.85rem; }
+
+/* Spinner - a number field rendered as a slider (utils/customForms.js's
+   SPINNER_RANGE) with its current value shown alongside, same idea as a
+   native <input type="range"> + <output> pairing elsewhere in this
+   app's own admin forms. */
+.cf-spinner-row { display: flex; align-items: center; gap: 0.75rem; }
+.cf-spinner-input { flex: 1 1 auto; accent-color: var(--cf-primary); }
+.cf-spinner-value { font-weight: 700; min-width: 2.5rem; text-align: right; }

@@ -7,37 +7,110 @@
 // real request: "Main admin portal, forms tab. Should have full
 // editing features and view just like jotform. Exactly."
 const db = require('../db');
+const { createStorageClient, publicUrl } = require('./storage');
 
-// Grouped the way a real Jotform-style field palette presents them
-// (views/admin-custom-forms-builder.ejs renders one button per entry,
-// grouped by `group`) rather than one flat <select> - "a fuller
-// field-type palette" from the handoff. `icon` names a symbol in
-// views/partials/icon-sprite.ejs.
+// The Image field type's own uploaded picture - same local-disk-or-
+// Supabase-Storage key convention as every other image upload in this
+// app (homepage blocks, member photos, etc.). Storage/route wiring
+// lives in routes/admin-custom-forms.js (saveFieldImageIfProvided), not
+// here - this module stays DB-only, same split as the rest of it.
+const CUSTOM_FORM_IMAGES_BUCKET = 'custom-form-images';
+function customFormImageUrl(key) {
+  if (!key) return null;
+  return createStorageClient() ? publicUrl(CUSTOM_FORM_IMAGES_BUCKET, key) : `/uploads/custom-forms/${key}`;
+}
+
+// A real request, with a screenshot of Jotform's own "Form Elements"
+// panel: "Add element should be a dropdown menu of options and should
+// include all of jotform's basic options and widget options. However
+// the widgets won't be called widgets it will just be one grand list of
+// options." This used to be grouped by `group` and rendered as one
+// button grid per group (views/admin-custom-forms-builder.ejs); the Add
+// Field dialog now renders every one of these, in this order, as a
+// single flat <select> instead - `group`/`icon` are kept only for the
+// field-type badge already shown next to each field in the builder's
+// own page/field list, not for any grouping in the picker itself.
+// full_name/address/appointment/signature/fill_blank came from that
+// first pass (supabase/migrations/20261225020000_custom_forms_more_
+// field_types.sql); a follow-up request - "Look at all of the basic and
+// widget list of elements to add on jotform. Include all of them" -
+// asked for the rest of Jotform's own fixed "Basic Elements" (Jotform's
+// "Widgets" category is an open-ended 300+ item third-party
+// marketplace with no fixed list, scoped back to Basics + a few generic
+// widget-style elements with the user's own go-ahead) - image,
+// input_table, divider, video, spinner (supabase/migrations/
+// 20261225030000_custom_forms_more_field_types_and_themes.sql).
 const FIELD_TYPES = [
+  { key: 'heading', label: 'Heading', group: 'Layout', icon: 'type' },
+  { key: 'paragraph', label: 'Paragraph Text Block', group: 'Layout', icon: 'align-left' },
+  { key: 'divider', label: 'Divider', group: 'Layout', icon: 'minus' },
+  { key: 'image', label: 'Image', group: 'Layout', icon: 'image' },
+  { key: 'video', label: 'Video', group: 'Layout', icon: 'video' },
   { key: 'short_text', label: 'Short Text', group: 'Text', icon: 'type' },
   { key: 'long_text', label: 'Paragraph Text', group: 'Text', icon: 'align-left' },
+  { key: 'full_name', label: 'Full Name', group: 'Text', icon: 'user' },
   { key: 'email', label: 'Email', group: 'Text', icon: 'mail' },
   { key: 'phone', label: 'Phone Number', group: 'Text', icon: 'phone' },
+  { key: 'address', label: 'Address', group: 'Text', icon: 'map-pin' },
   { key: 'url', label: 'Website / Link', group: 'Text', icon: 'link' },
   { key: 'number', label: 'Number', group: 'Text', icon: 'sliders' },
+  { key: 'spinner', label: 'Spinner', group: 'Text', icon: 'sliders' },
   { key: 'date', label: 'Date', group: 'Text', icon: 'calendar-check' },
+  { key: 'appointment', label: 'Appointment', group: 'Text', icon: 'calendar-check' },
   { key: 'single_choice', label: 'Single Choice', group: 'Choice', icon: 'circle' },
   { key: 'multiple_choice', label: 'Multiple Choice', group: 'Choice', icon: 'list-check' },
   { key: 'dropdown', label: 'Dropdown', group: 'Choice', icon: 'chevron-down' },
   { key: 'checkbox', label: 'Checkbox (yes/no)', group: 'Choice', icon: 'check-circle' },
+  { key: 'input_table', label: 'Input Table / Matrix', group: 'Choice', icon: 'list-check' },
   { key: 'rating', label: 'Star Rating (1-5)', group: 'Rating', icon: 'star' },
   { key: 'scale', label: 'Opinion Scale (1-10)', group: 'Rating', icon: 'sliders' },
+  { key: 'fill_blank', label: 'Fill in the Blank', group: 'Rating', icon: 'type' },
+  { key: 'signature', label: 'Signature', group: 'File', icon: 'edit' },
   { key: 'file', label: 'File Upload', group: 'File', icon: 'upload' },
-  { key: 'heading', label: 'Heading', group: 'Layout', icon: 'type' },
-  { key: 'paragraph', label: 'Paragraph Text Block', group: 'Layout', icon: 'align-left' },
 ];
 const CHOICE_TYPES = new Set(['single_choice', 'multiple_choice', 'dropdown']);
-// Layout-only elements (Jotform's own "Heading"/"Text" widgets) - never
-// collect an answer, never required, never shown in a submission or the
-// CSV export. Everything else below treats these the same as any other
-// field UNLESS it specifically checks this set first.
-const DISPLAY_ONLY_TYPES = new Set(['heading', 'paragraph']);
+// Layout-only elements (Jotform's own "Heading"/"Text"/"Image"/"Video"/
+// "Divider" widgets) - never collect an answer, never required, never
+// shown in a submission or the CSV export. Everything else below treats
+// these the same as any other field UNLESS it specifically checks this
+// set first.
+const DISPLAY_ONLY_TYPES = new Set(['heading', 'paragraph', 'divider', 'image', 'video']);
+// Composite types - their answer is several inputs on the public form
+// (views/partials/custom-form-field.ejs) combined into ONE stored value
+// (routes/custom-forms.js), so the Add/Edit Field dialogs hide the
+// single-value Placeholder/Default Value rows for these (public/js/
+// custom-form-builder.js) - there's no one placeholder/default that
+// makes sense across "Street, City, State, Zip" (or a whole table of
+// rows/columns) at once.
+const COMPOSITE_TYPES = new Set(['full_name', 'address', 'appointment', 'signature', 'fill_blank', 'input_table']);
 const RATING_MAX = { rating: 5, scale: 10 };
+const SPINNER_RANGE = { min: 0, max: 100, step: 1 };
+
+// A real request: "Be able to add fun visual themes to custom forms,
+// holidays, activities, sports etc." A preset is a starting point, not
+// a locked mode: picking one just pre-fills the existing
+// theme_primary_color field (still freely editable after, same color
+// picker the builder already has) and shows its own decorative emoji
+// next to the form's title (custom-forms-fill.ejs and the builder's own
+// preview panel both read it from here, by key, off the form's stored
+// theme_preset - there's no separate emoji/color column to keep in
+// sync). "None" is the default for every form created before this
+// existed, and renders exactly as it always has - no emoji, whatever
+// primary color was already set.
+const THEME_PRESETS = [
+  { key: 'none', label: 'None (custom)', emoji: '', primaryColor: '#2e6da4' },
+  { key: 'halloween', label: 'Halloween', emoji: '\u{1F383}', primaryColor: '#d2691e' },
+  { key: 'christmas', label: 'Christmas', emoji: '\u{1F384}', primaryColor: '#b42318' },
+  { key: 'valentines', label: "Valentine's Day", emoji: '\u{1F49D}', primaryColor: '#d6336c' },
+  { key: 'back_to_school', label: 'Back to School', emoji: '\u{1F34E}', primaryColor: '#b4281f' },
+  { key: 'sports', label: 'Sports Day', emoji: '\u{1F3C6}', primaryColor: '#1d6f42' },
+  { key: 'summer', label: 'Summer', emoji: '\u{2600}\u{FE0F}', primaryColor: '#f39c12' },
+  { key: 'spring', label: 'Spring', emoji: '\u{1F338}', primaryColor: '#d6336c' },
+];
+const THEME_PRESET_KEYS = new Set(THEME_PRESETS.map((p) => p.key));
+function themePresetByKey(key) {
+  return THEME_PRESETS.find((p) => p.key === key) || THEME_PRESETS[0];
+}
 
 // Conditional logic ("only show this field/section when...") - stored as
 // one JSON column (conditional_logic, on both custom_form_fields and
@@ -82,11 +155,12 @@ async function createForm(title, accountId) {
 async function updateForm(id, data) {
   const buttonStyle = THEME_BUTTON_STYLES.includes(data.themeButtonStyle) ? data.themeButtonStyle : 'rounded';
   const primaryColor = /^#[0-9a-f]{6}$/i.test(data.themePrimaryColor || '') ? data.themePrimaryColor : '#2e6da4';
+  const preset = THEME_PRESET_KEYS.has(data.themePreset) ? data.themePreset : 'none';
   await db
     .prepare(
-      `UPDATE custom_forms SET title = ?, description = ?, theme_primary_color = ?, theme_button_style = ?, updated_at = now_text() WHERE id = ?`
+      `UPDATE custom_forms SET title = ?, description = ?, theme_primary_color = ?, theme_button_style = ?, theme_preset = ?, updated_at = now_text() WHERE id = ?`
     )
-    .run(data.title, data.description || null, primaryColor, buttonStyle, id);
+    .run(data.title, data.description || null, primaryColor, buttonStyle, preset, id);
 }
 
 async function setFormStatus(id, status) {
@@ -166,15 +240,39 @@ async function pagesWithFields(formId) {
   return pages;
 }
 
-// Every field for a form, each with its options (choice-type fields
-// only - empty array for everything else, never null, so a view never
-// needs to guard against a missing array).
+// Every field for a form, each with its options (choice-type fields,
+// plus input_table's own rows, reusing the same table - empty array for
+// everything else, never null, so a view never needs to guard against a
+// missing array).
 async function fieldsForForm(formId) {
   const fields = await db.prepare('SELECT * FROM custom_form_fields WHERE form_id = ? ORDER BY position, id').all(formId);
   for (const field of fields) {
-    field.options = CHOICE_TYPES.has(field.field_type) ? await db.prepare('SELECT * FROM custom_form_field_options WHERE field_id = ? ORDER BY position, id').all(field.id) : [];
+    field.options = CHOICE_TYPES.has(field.field_type) || field.field_type === 'input_table' ? await db.prepare('SELECT * FROM custom_form_field_options WHERE field_id = ? ORDER BY position, id').all(field.id) : [];
   }
   return fields;
+}
+
+// Input Table/Matrix's own column headers - a plain "one per line"
+// textarea, same convention as every options list in this builder
+// (parseOptionLabels in routes/admin-custom-forms.js already splits/
+// trims/drops-blanks the same way for the Add/Edit Field dialog's own
+// submission; this is the read-side counterpart for rendering).
+function parseMatrixColumns(raw) {
+  return (raw || '').split('\n').map((l) => l.trim()).filter(Boolean);
+}
+
+// Input Table/Matrix stores its answer as a JSON object of {rowLabel:
+// selectedColumnLabel} - shared parsing for every place that needs to
+// display it back, same "never throw on malformed/legacy data" shape
+// parseFillBlankAnswer already follows.
+function parseInputTableAnswer(valueText) {
+  if (!valueText) return {};
+  try {
+    const parsed = JSON.parse(valueText);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (err) {
+    return {};
+  }
 }
 
 async function getField(id) {
@@ -189,8 +287,8 @@ async function addField(formId, data, optionLabels) {
   const position = Number((await db.prepare('SELECT COALESCE(MAX(position), -1) AS p FROM custom_form_fields WHERE form_id = ? AND page_id = ?').get(formId, pageId)).p) + 1;
   const info = await db
     .prepare(
-      `INSERT INTO custom_form_fields (form_id, page_id, field_type, label, help_text, placeholder, default_value, is_required, position, conditional_logic)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO custom_form_fields (form_id, page_id, field_type, label, help_text, placeholder, default_value, is_required, position, conditional_logic, image_path, matrix_columns)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       formId,
@@ -202,10 +300,15 @@ async function addField(formId, data, optionLabels) {
       data.defaultValue || null,
       data.isRequired ? 1 : 0,
       position,
-      data.conditionalLogic || null
+      data.conditionalLogic || null,
+      data.imagePath || null,
+      data.matrixColumns || null
     );
   const fieldId = info.lastInsertRowid;
-  if (CHOICE_TYPES.has(data.fieldType)) await setFieldOptions(fieldId, optionLabels);
+  // input_table's own rows reuse the exact same options table/UI
+  // choice-type fields already use for their options - see this
+  // module's own COMPOSITE_TYPES comment.
+  if (CHOICE_TYPES.has(data.fieldType) || data.fieldType === 'input_table') await setFieldOptions(fieldId, optionLabels);
   return fieldId;
 }
 
@@ -230,9 +333,15 @@ async function updateField(id, data, optionLabels) {
   if (pageId !== field.page_id) {
     position = Number((await db.prepare('SELECT COALESCE(MAX(position), -1) AS p FROM custom_form_fields WHERE form_id = ? AND page_id = ?').get(field.form_id, pageId)).p) + 1;
   }
+  // An Image field's own upload is optional on every save (same "only
+  // replace it if a new file was actually chosen" shape every other
+  // image upload in this app already follows) - data.imagePath is only
+  // ever set by the route when a new file came in, so a plain field
+  // edit with no new upload keeps the field's existing image untouched.
+  const imagePath = data.imagePath !== undefined ? data.imagePath : field.image_path;
   await db
     .prepare(
-      `UPDATE custom_form_fields SET label = ?, help_text = ?, placeholder = ?, default_value = ?, is_required = ?, page_id = ?, position = ?, conditional_logic = ? WHERE id = ?`
+      `UPDATE custom_form_fields SET label = ?, help_text = ?, placeholder = ?, default_value = ?, is_required = ?, page_id = ?, position = ?, conditional_logic = ?, image_path = ?, matrix_columns = ? WHERE id = ?`
     )
     .run(
       data.label,
@@ -243,9 +352,26 @@ async function updateField(id, data, optionLabels) {
       pageId,
       position,
       data.conditionalLogic || null,
+      imagePath,
+      data.matrixColumns !== undefined ? data.matrixColumns || null : field.matrix_columns,
       id
     );
-  if (CHOICE_TYPES.has(field.field_type)) await setFieldOptions(id, optionLabels);
+  if (CHOICE_TYPES.has(field.field_type) || field.field_type === 'input_table') await setFieldOptions(id, optionLabels);
+}
+
+// Fill in the Blank stores its answer as a JSON array of blanks
+// (routes/custom-forms.js's own submit handler) - shared parsing for
+// every place that needs to display it back (CSV export, the admin/
+// member submission-detail views) so a malformed or pre-this-feature
+// value never 500s, just renders as no blanks.
+function parseFillBlankAnswer(valueText) {
+  if (!valueText) return [];
+  try {
+    const parsed = JSON.parse(valueText);
+    return Array.isArray(parsed) ? parsed.map((v) => String(v)) : [];
+  } catch (err) {
+    return [];
+  }
 }
 
 async function setFieldOptions(fieldId, optionLabels) {
@@ -482,7 +608,16 @@ module.exports = {
   FIELD_TYPES,
   CHOICE_TYPES,
   DISPLAY_ONLY_TYPES,
+  COMPOSITE_TYPES,
   RATING_MAX,
+  SPINNER_RANGE,
+  THEME_PRESETS,
+  themePresetByKey,
+  CUSTOM_FORM_IMAGES_BUCKET,
+  customFormImageUrl,
+  parseFillBlankAnswer,
+  parseMatrixColumns,
+  parseInputTableAnswer,
   CONDITION_OPERATORS,
   THEME_BUTTON_STYLES,
   listForms,

@@ -380,6 +380,311 @@ test('every new field type (email/phone/url/rating/scale) stores a plain text an
   assert.equal(answers.length, 5, 'heading/paragraph must never get an answer row at all');
 });
 
+// --- Five more field types: a real request, with a Jotform screenshot
+// naming "Full Name", "Address", "Appointment", "Signature", and "Fill
+// in the Blank" as elements this app didn't have yet. Each combines
+// several sub-inputs into one stored plain-text answer except
+// signature (a drawn image, stored as its own data URL) and fill_blank
+// (stored as a JSON array of its blanks) - see routes/custom-forms.js's
+// own combinedSubfieldValue/fillBlankValues and utils/customForms.js's
+// COMPOSITE_TYPES.
+
+test('the Add Field dropdown lists every field type flat, in one list - no Basic/Widgets grouping, and the five new types are in it', async () => {
+  const admin = await loginAsMainAdmin();
+  const formId = await createForm(admin, 'Dropdown Form');
+  const builderHtml = await request(app).get(`/main-admin/forms/${formId}/builder`).set('Cookie', admin.cookie);
+  assert.equal(builderHtml.status, 200);
+  assert.match(builderHtml.text, /<select name="fieldType" data-cf-field-type-select required>/);
+  assert.doesNotMatch(builderHtml.text, /cf-type-palette|cf-type-btn|cf-type-palette-group-label/, 'the old grouped icon-button palette should be gone');
+  for (const label of ['Full Name', 'Address', 'Appointment', 'Signature', 'Fill in the Blank']) {
+    assert.match(builderHtml.text, new RegExp(`<option value="[a-z_]+" ?[^>]*>${label}</option>`));
+  }
+});
+
+test('full_name/address/appointment combine their sub-inputs into one stored answer, and required blocks submission when any required sub-part is blank', async () => {
+  const admin = await loginAsMainAdmin();
+  const formId = await createForm(admin, 'Composite Fields Form');
+  const name = await addField(admin, formId, { fieldType: 'full_name', label: 'Your Name', isRequired: '1' });
+  const address = await addField(admin, formId, { fieldType: 'address', label: 'Your Address' });
+  const appt = await addField(admin, formId, { fieldType: 'appointment', label: 'Pick a time' });
+  await publish(admin, formId);
+  const parent = await createParentAccount();
+
+  // Required full_name, left blank entirely, blocks submission.
+  const blocked = await request(app)
+    .post(`/forms/${formId}/submit`)
+    .set('Cookie', parent.cookie)
+    .type('form')
+    .send({ memberId: String(parent.memberId), _csrf: parent.csrfToken });
+  assert.match(decodeURIComponent(blocked.headers.location), /"Your Name" is required/);
+
+  await request(app)
+    .post(`/forms/${formId}/submit`)
+    .set('Cookie', parent.cookie)
+    .type('form')
+    .send({
+      memberId: String(parent.memberId),
+      [`field_${name.id}[first]`]: 'Jane',
+      [`field_${name.id}[last]`]: 'Doe',
+      [`field_${address.id}[street]`]: '123 Main St',
+      [`field_${address.id}[city]`]: 'Anytown',
+      [`field_${address.id}[state]`]: 'NC',
+      [`field_${address.id}[zip]`]: '27330',
+      [`field_${appt.id}[date]`]: '2026-11-15',
+      [`field_${appt.id}[time]`]: '14:30',
+      _csrf: parent.csrfToken,
+    });
+
+  const submission = await db.prepare('SELECT id FROM custom_form_submissions WHERE form_id = ? AND member_id = ?').get(formId, parent.memberId);
+  const answers = await db.prepare('SELECT field_id, value_text FROM custom_form_answers WHERE submission_id = ?').all(submission.id);
+  const byField = new Map(answers.map((a) => [a.field_id, a.value_text]));
+  assert.equal(byField.get(name.id), 'Jane Doe');
+  assert.equal(byField.get(address.id), '123 Main St, Anytown, NC 27330');
+  assert.equal(byField.get(appt.id), '2026-11-15 14:30');
+});
+
+test('Fill in the Blank stores one value per blank as a JSON array, and required blocks submission when any blank is empty', async () => {
+  const admin = await loginAsMainAdmin();
+  const formId = await createForm(admin, 'Fill Blank Form');
+  const blank = await addField(admin, formId, {
+    fieldType: 'fill_blank',
+    label: 'Pop quiz',
+    helpText: 'The capital of France is ___ and 2 + 2 = ___.',
+    isRequired: '1',
+  });
+  await publish(admin, formId);
+  const parent = await createParentAccount();
+
+  const fillPage = await request(app).get(`/forms/${formId}`).set('Cookie', parent.cookie);
+  assert.match(fillPage.text, /The capital of France is <input[^]*?and 2 \+ 2 = <input/);
+
+  const blocked = await request(app)
+    .post(`/forms/${formId}/submit`)
+    .set('Cookie', parent.cookie)
+    .type('form')
+    .send({ memberId: String(parent.memberId), [`field_${blank.id}[]`]: ['Paris', ''], _csrf: parent.csrfToken });
+  assert.match(decodeURIComponent(blocked.headers.location), /"Pop quiz" is required/);
+
+  await request(app)
+    .post(`/forms/${formId}/submit`)
+    .set('Cookie', parent.cookie)
+    .type('form')
+    .send({ memberId: String(parent.memberId), [`field_${blank.id}[]`]: ['Paris', '4'], _csrf: parent.csrfToken });
+
+  const submission = await db.prepare('SELECT id FROM custom_form_submissions WHERE form_id = ? AND member_id = ?').get(formId, parent.memberId);
+  const answer = await db.prepare('SELECT value_text FROM custom_form_answers WHERE submission_id = ? AND field_id = ?').get(submission.id, blank.id);
+  assert.deepEqual(JSON.parse(answer.value_text), ['Paris', '4']);
+
+  const confirmPage = await request(app).get(`/forms/${formId}/mine/${parent.memberId}`).set('Cookie', parent.cookie);
+  assert.match(confirmPage.text, /Paris, 4/);
+});
+
+test('Signature stores its drawn image, required blocks an empty signature, and it renders as an image (not raw text) on the submission pages', async () => {
+  const admin = await loginAsMainAdmin();
+  const formId = await createForm(admin, 'Signature Form');
+  const sig = await addField(admin, formId, { fieldType: 'signature', label: 'Sign here', isRequired: '1' });
+  await publish(admin, formId);
+  const parent = await createParentAccount();
+
+  const fillPage = await request(app).get(`/forms/${formId}`).set('Cookie', parent.cookie);
+  assert.match(fillPage.text, /cf-signature-pad-wrap/);
+  assert.match(fillPage.text, /class="cf-signature-value-input"/);
+
+  const blocked = await request(app)
+    .post(`/forms/${formId}/submit`)
+    .set('Cookie', parent.cookie)
+    .type('form')
+    .send({ memberId: String(parent.memberId), [`field_${sig.id}`]: '', _csrf: parent.csrfToken });
+  assert.match(decodeURIComponent(blocked.headers.location), /"Sign here" is required/);
+
+  const fakeDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+  await request(app)
+    .post(`/forms/${formId}/submit`)
+    .set('Cookie', parent.cookie)
+    .type('form')
+    .send({ memberId: String(parent.memberId), [`field_${sig.id}`]: fakeDataUrl, _csrf: parent.csrfToken });
+
+  const submission = await db.prepare('SELECT id FROM custom_form_submissions WHERE form_id = ? AND member_id = ?').get(formId, parent.memberId);
+  const answer = await db.prepare('SELECT value_text FROM custom_form_answers WHERE submission_id = ? AND field_id = ?').get(submission.id, sig.id);
+  assert.equal(answer.value_text, fakeDataUrl);
+
+  const confirmPage = await request(app).get(`/forms/${formId}/mine/${parent.memberId}`).set('Cookie', parent.cookie);
+  assert.match(confirmPage.text, new RegExp(`<img src="${fakeDataUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}" alt="Signature"`));
+});
+
+// --- The rest of Jotform's own "Basic Elements" (a real request, after
+// a web search confirmed Jotform's "Widgets" are an open-ended 300+
+// item marketplace with no fixed list: "Basics + a few generic layout
+// widgets" - Image, Input Table/Matrix, Divider, Video, Spinner). ---
+
+test('the Add Field dropdown includes the five newest field types too', async () => {
+  const admin = await loginAsMainAdmin();
+  const formId = await createForm(admin, 'More Types Dropdown Form');
+  const builderHtml = await request(app).get(`/main-admin/forms/${formId}/builder`).set('Cookie', admin.cookie);
+  for (const label of ['Image', 'Input Table / Matrix', 'Divider', 'Video', 'Spinner']) {
+    assert.match(builderHtml.text, new RegExp(`<option value="[a-z_]+" ?[^>]*>${label}</option>`));
+  }
+});
+
+test('Divider/Video are display-only (never an answer, never required, never in the CSV export)', async () => {
+  const admin = await loginAsMainAdmin();
+  const formId = await createForm(admin, 'Divider Video Form');
+  await addField(admin, formId, { fieldType: 'divider', label: 'A divider' });
+  await addField(admin, formId, { fieldType: 'video', label: 'Welcome video', placeholder: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
+  const name = await addField(admin, formId, { fieldType: 'short_text', label: 'Your Name', isRequired: '1' });
+  await publish(admin, formId);
+  const parent = await createParentAccount();
+
+  const fillPage = await request(app).get(`/forms/${formId}`).set('Cookie', parent.cookie);
+  assert.match(fillPage.text, /cf-divider/);
+  assert.match(fillPage.text, /youtube\.com\/embed\/dQw4w9WgXcQ/);
+
+  await request(app)
+    .post(`/forms/${formId}/submit`)
+    .set('Cookie', parent.cookie)
+    .type('form')
+    .send({ memberId: String(parent.memberId), [`field_${name.id}`]: 'Jo', _csrf: parent.csrfToken });
+
+  const submission = await db.prepare('SELECT id FROM custom_form_submissions WHERE form_id = ? AND member_id = ?').get(formId, parent.memberId);
+  const answers = await db.prepare('SELECT field_id FROM custom_form_answers WHERE submission_id = ?').all(submission.id);
+  assert.equal(answers.length, 1, 'only the real Short Text answer should be stored - divider/video never get an answer row');
+  assert.equal(answers[0].field_id, name.id);
+});
+
+test('Image uploads and stores a picture, shown on the fill-out page and never submitted as an answer', async () => {
+  const admin = await loginAsMainAdmin();
+  const formId = await createForm(admin, 'Image Field Form');
+  const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+
+  // Multipart requests carry _csrf in the query string, not the body -
+  // middleware/csrfProtection.js's own comment explains why (it's
+  // mounted ahead of the per-route multer middleware that actually
+  // parses a multipart body, so req.body._csrf isn't populated yet by
+  // the time the CSRF check runs for these).
+  const addRes = await request(app)
+    .post(`/main-admin/forms/${formId}/fields?_csrf=${encodeURIComponent(admin.csrfToken)}`)
+    .set('Cookie', admin.cookie)
+    .field('fieldType', 'image')
+    .field('label', 'Co-op logo')
+    .field('pageId', String((await db.prepare('SELECT id FROM custom_form_pages WHERE form_id = ?').get(formId)).id))
+    .attach('image', PNG_1X1, { filename: 'logo.png', contentType: 'image/png' });
+  assert.equal(addRes.status, 302);
+
+  const field = await db.prepare("SELECT * FROM custom_form_fields WHERE form_id = ? AND field_type = 'image'").get(formId);
+  assert.ok(field.image_path, 'the uploaded image should be saved and its key stored on the field');
+
+  await publish(admin, formId);
+  const parent = await createParentAccount();
+  const fillPage = await request(app).get(`/forms/${formId}`).set('Cookie', parent.cookie);
+  assert.match(fillPage.text, /<img src="[^"]*\/uploads\/custom-forms\/[^"]*\.png" alt="Co-op logo" class="cf-image-block"/);
+});
+
+test('Input Table/Matrix stores {row: column}, required blocks submission until every row has an answer, and CSV/detail pages render it readably', async () => {
+  const admin = await loginAsMainAdmin();
+  const formId = await createForm(admin, 'Matrix Form');
+  const page = await db.prepare('SELECT id FROM custom_form_pages WHERE form_id = ?').get(formId);
+  await request(app)
+    .post(`/main-admin/forms/${formId}/fields`)
+    .set('Cookie', admin.cookie)
+    .type('form')
+    .send({
+      fieldType: 'input_table',
+      label: 'Weekly availability',
+      pageId: String(page.id),
+      options: 'Monday\nWednesday',
+      matrixColumns: 'Can attend\nCannot attend',
+      isRequired: '1',
+      _csrf: admin.csrfToken,
+    });
+  const table = await db.prepare("SELECT * FROM custom_form_fields WHERE form_id = ? AND field_type = 'input_table'").get(formId);
+  await publish(admin, formId);
+  const parent = await createParentAccount();
+
+  const fillPage = await request(app).get(`/forms/${formId}`).set('Cookie', parent.cookie);
+  assert.match(fillPage.text, /cf-matrix-table/);
+  assert.match(fillPage.text, /Monday/);
+  assert.match(fillPage.text, /Can attend/);
+
+  const blocked = await request(app)
+    .post(`/forms/${formId}/submit`)
+    .set('Cookie', parent.cookie)
+    .type('form')
+    .send({ memberId: String(parent.memberId), [`field_${table.id}[Monday]`]: 'Can attend', _csrf: parent.csrfToken });
+  assert.match(decodeURIComponent(blocked.headers.location), /"Weekly availability" is required/);
+
+  await request(app)
+    .post(`/forms/${formId}/submit`)
+    .set('Cookie', parent.cookie)
+    .type('form')
+    .send({
+      memberId: String(parent.memberId),
+      [`field_${table.id}[Monday]`]: 'Can attend',
+      [`field_${table.id}[Wednesday]`]: 'Cannot attend',
+      _csrf: parent.csrfToken,
+    });
+
+  const submission = await db.prepare('SELECT id FROM custom_form_submissions WHERE form_id = ? AND member_id = ?').get(formId, parent.memberId);
+  const answer = await db.prepare('SELECT value_text FROM custom_form_answers WHERE submission_id = ? AND field_id = ?').get(submission.id, table.id);
+  assert.deepEqual(JSON.parse(answer.value_text), { Monday: 'Can attend', Wednesday: 'Cannot attend' });
+
+  const csvRes = await request(app).get(`/main-admin/forms/${formId}/submissions/export`).set('Cookie', admin.cookie);
+  assert.match(csvRes.text, /Monday: Can attend; Wednesday: Cannot attend/);
+
+  const detailRes = await request(app).get(`/main-admin/forms/${formId}/submissions/${submission.id}`).set('Cookie', admin.cookie);
+  assert.match(detailRes.text, /<li>Monday: Can attend<\/li>/);
+});
+
+test('Spinner stores a plain number answer, same as a regular number field', async () => {
+  const admin = await loginAsMainAdmin();
+  const formId = await createForm(admin, 'Spinner Form');
+  const spinner = await addField(admin, formId, { fieldType: 'spinner', label: 'How many kids?', defaultValue: '2' });
+  await publish(admin, formId);
+  const parent = await createParentAccount();
+
+  const fillPage = await request(app).get(`/forms/${formId}`).set('Cookie', parent.cookie);
+  assert.match(fillPage.text, /cf-spinner-input/);
+  assert.match(fillPage.text, /value="2"/);
+
+  await request(app)
+    .post(`/forms/${formId}/submit`)
+    .set('Cookie', parent.cookie)
+    .type('form')
+    .send({ memberId: String(parent.memberId), [`field_${spinner.id}`]: '4', _csrf: parent.csrfToken });
+
+  const submission = await db.prepare('SELECT id FROM custom_form_submissions WHERE form_id = ? AND member_id = ?').get(formId, parent.memberId);
+  const answer = await db.prepare('SELECT value_text FROM custom_form_answers WHERE submission_id = ? AND field_id = ?').get(submission.id, spinner.id);
+  assert.equal(answer.value_text, '4');
+});
+
+// --- "Fun" visual themes - a real request: "Be able to add fun visual
+// themes to custom forms, holidays, activities, sports etc." ---
+
+test('picking a theme preset saves it and shows its emoji on the fill-out page, and "None" shows no emoji', async () => {
+  const admin = await loginAsMainAdmin();
+  const formId = await createForm(admin, 'Themed Form');
+
+  await request(app)
+    .post(`/main-admin/forms/${formId}`)
+    .set('Cookie', admin.cookie)
+    .type('form')
+    .send({ title: 'Themed Form', themePreset: 'halloween', themePrimaryColor: '#d2691e', themeButtonStyle: 'rounded', _csrf: admin.csrfToken });
+
+  const form = await db.prepare('SELECT theme_preset, theme_primary_color FROM custom_forms WHERE id = ?').get(formId);
+  assert.equal(form.theme_preset, 'halloween');
+  assert.equal(form.theme_primary_color, '#d2691e');
+
+  await publish(admin, formId);
+  const parent = await createParentAccount();
+  const fillPage = await request(app).get(`/forms/${formId}`).set('Cookie', parent.cookie);
+  assert.match(fillPage.text, /<h1><span aria-hidden="true">\u{1F383}<\/span> Themed Form<\/h1>/u);
+
+  // An unthemed form (the default "none" preset) shows no emoji at all.
+  const plainFormId = await createForm(admin, 'Plain Form');
+  await publish(admin, plainFormId);
+  const plainFillPage = await request(app).get(`/forms/${plainFormId}`).set('Cookie', parent.cookie);
+  assert.match(plainFillPage.text, /<h1>Plain Form<\/h1>/);
+});
+
 // --- Submissions list: sort, filter, CSV export ---
 
 test('the submissions list can be sorted and filtered by member name, and CSV export lists every real field', async () => {

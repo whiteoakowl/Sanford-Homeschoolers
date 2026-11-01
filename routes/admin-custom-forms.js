@@ -14,6 +14,9 @@
 // for the schema/logic this renders.
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const db = require('../db');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { toCsvRow, sendCsv } = require('../utils/spreadsheet');
@@ -21,8 +24,56 @@ const customForms = require('../utils/customForms');
 const auditLog = require('../utils/auditLog');
 const { byLastName } = require('../utils/members');
 const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('../utils/pagination');
+const { imageFileFilter } = require('../utils/uploads');
+const { createStorageClient, uploadFile, deleteFile, generateKey } = require('../utils/storage');
 
 router.use(requirePortalAuth, requirePortal('main_admin'), requirePortalPermission('manage_forms'));
+
+// The Image field type's own decorative picture - same local-disk-or-
+// Supabase-Storage upload shape as routes/admin-website.js's own
+// saveBlockImageIfProvided (Public Homepage's image blocks).
+const FORM_IMAGE_DIR = path.join(__dirname, '..', 'public', 'uploads', 'custom-forms');
+if (!createStorageClient() && !fs.existsSync(FORM_IMAGE_DIR)) {
+  try {
+    fs.mkdirSync(FORM_IMAGE_DIR, { recursive: true });
+  } catch (err) {
+    console.error(`Could not create local upload directory ${FORM_IMAGE_DIR}:`, err.message);
+  }
+}
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES }, fileFilter: imageFileFilter });
+function uploadFieldImage(req, res, next) {
+  imageUpload.single('image')(req, res, (err) => {
+    if (err && err.code === 'LIMIT_FILE_SIZE') {
+      return res.redirect(`/main-admin/forms/${req.params.id}/builder?error=` + encodeURIComponent(`That image is too large - images are limited to ${MAX_IMAGE_BYTES / (1024 * 1024)}MB.`));
+    }
+    next(err);
+  });
+}
+// Returns the existing key unchanged when no new file was chosen (same
+// shape as routes/admin-website.js's own saveBlockImageIfProvided) -
+// utils/customForms.js's updateField only ever overwrites image_path
+// when this is actually called with a file, via its own data.imagePath
+// !== undefined check below.
+async function saveFieldImageIfProvided(file, existingKey) {
+  if (!file) return existingKey;
+  const client = createStorageClient();
+  let key;
+  if (client) {
+    key = await uploadFile(client, customForms.CUSTOM_FORM_IMAGES_BUCKET, file.buffer, file.originalname, file.mimetype);
+  } else {
+    key = generateKey(file.originalname);
+    fs.writeFileSync(path.join(FORM_IMAGE_DIR, key), file.buffer);
+  }
+  if (existingKey) {
+    if (client) await deleteFile(client, customForms.CUSTOM_FORM_IMAGES_BUCKET, existingKey);
+    else {
+      const oldPath = path.join(FORM_IMAGE_DIR, existingKey);
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+  }
+  return key;
+}
 
 router.get('/', async (req, res) => {
   const forms = await customForms.listForms();
@@ -45,7 +96,10 @@ async function loadBuilder(req, res) {
   // point at a field on any other page, not just its own.
   const allFields = pages.flatMap((p) => p.fields);
   for (const page of pages) {
-    for (const field of page.fields) field.conditionalLogicParsed = customForms.parseConditionalLogic(field.conditional_logic);
+    for (const field of page.fields) {
+      field.conditionalLogicParsed = customForms.parseConditionalLogic(field.conditional_logic);
+      field.matrixColumnsParsed = customForms.parseMatrixColumns(field.matrix_columns);
+    }
     page.conditionalLogicParsed = customForms.parseConditionalLogic(page.conditional_logic);
   }
   const assignments = await customForms.assignmentsForForm(form.id);
@@ -64,7 +118,10 @@ async function loadBuilder(req, res) {
     displayOnlyTypes: [...customForms.DISPLAY_ONLY_TYPES],
     conditionOperators: customForms.CONDITION_OPERATORS,
     themeButtonStyles: customForms.THEME_BUTTON_STYLES,
+    themePresets: customForms.THEME_PRESETS,
     ratingMax: customForms.RATING_MAX,
+    spinnerRange: customForms.SPINNER_RANGE,
+    customFormImageUrl: customForms.customFormImageUrl,
     error: req.query.error || null,
     notice: req.query.notice || null,
   });
@@ -79,6 +136,7 @@ router.post('/:id', async (req, res) => {
     description: (req.body.description || '').trim(),
     themePrimaryColor: req.body.themePrimaryColor,
     themeButtonStyle: req.body.themeButtonStyle,
+    themePreset: req.body.themePreset,
   });
   res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent('Saved.'));
 });
@@ -145,23 +203,27 @@ function fieldDataFromBody(body) {
     isRequired: !!body.isRequired,
     pageId: body.pageId,
     conditionalLogic: customForms.conditionalLogicFromBody(body),
+    matrixColumns: (body.matrixColumns || '').trim(),
   };
 }
 
-router.post('/:id/fields', async (req, res) => {
+router.post('/:id/fields', uploadFieldImage, async (req, res) => {
   const label = (req.body.label || '').trim();
   const fieldType = req.body.fieldType;
   if (!label || !customForms.FIELD_TYPES.some((f) => f.key === fieldType)) {
     return res.redirect(`/main-admin/forms/${req.params.id}/builder?error=` + encodeURIComponent('Label and a valid field type are required.'));
   }
-  await customForms.addField(req.params.id, { fieldType, label, ...fieldDataFromBody(req.body) }, parseOptionLabels(req.body.options));
+  const imagePath = fieldType === 'image' ? await saveFieldImageIfProvided(req.file, null) : null;
+  await customForms.addField(req.params.id, { fieldType, label, imagePath, ...fieldDataFromBody(req.body) }, parseOptionLabels(req.body.options));
   res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent('Field added.'));
 });
 
-router.post('/:id/fields/:fieldId/update', async (req, res) => {
+router.post('/:id/fields/:fieldId/update', uploadFieldImage, async (req, res) => {
   const label = (req.body.label || '').trim();
   if (!label) return res.redirect(`/main-admin/forms/${req.params.id}/builder?error=` + encodeURIComponent('Label is required.'));
-  await customForms.updateField(req.params.fieldId, { label, ...fieldDataFromBody(req.body) }, parseOptionLabels(req.body.options));
+  const existing = await customForms.getField(req.params.fieldId);
+  const imagePath = existing && existing.field_type === 'image' ? await saveFieldImageIfProvided(req.file, existing.image_path) : undefined;
+  await customForms.updateField(req.params.fieldId, { label, imagePath, ...fieldDataFromBody(req.body) }, parseOptionLabels(req.body.options));
   res.redirect(`/main-admin/forms/${req.params.id}/builder?notice=` + encodeURIComponent('Field updated.'));
 });
 
@@ -241,7 +303,12 @@ router.get('/:id/submissions/export', async (req, res) => {
       const a = byField.get(f.id);
       if (!a) row.push('');
       else if (f.field_type === 'multiple_choice') row.push((a.choiceLabels || []).join('; '));
-      else row.push(a.value_text || '');
+      else if (f.field_type === 'signature') row.push(a.value_text ? 'Signed' : '');
+      else if (f.field_type === 'fill_blank') row.push(customForms.parseFillBlankAnswer(a.value_text).join('; '));
+      else if (f.field_type === 'input_table') {
+        const matrix = customForms.parseInputTableAnswer(a.value_text);
+        row.push(Object.entries(matrix).map(([r, c]) => `${r}: ${c}`).join('; '));
+      } else row.push(a.value_text || '');
     }
     lines.push(toCsvRow(row));
   }
@@ -253,7 +320,7 @@ router.get('/:id/submissions/:submissionId', async (req, res) => {
   if (!submission || String(submission.form_id) !== req.params.id) return res.status(404).render('404', { title: 'Not Found' });
   const form = await customForms.getForm(submission.form_id);
   const answers = await customForms.answersForSubmission(submission.id);
-  res.render('admin-custom-forms-submission-detail', { title: `Submission - ${form.title}`, form, submission, answers });
+  res.render('admin-custom-forms-submission-detail', { title: `Submission - ${form.title}`, form, submission, answers, customForms });
 });
 
 module.exports = router;

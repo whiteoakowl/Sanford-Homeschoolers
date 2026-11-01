@@ -22,7 +22,7 @@ var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_but
   }) %>
 
   <main id="main-content" tabindex="-1" class="admin-main">
-    <h1><%= form.title %></h1>
+    <h1><% if (themePreset && themePreset.emoji) { %><span aria-hidden="true"><%= themePreset.emoji %></span> <% } %><%= form.title %></h1>
     <p><a href="/forms">&larr; All Forms</a></p>
     <% if (form.description) { %><p class="hint"><%= form.description %></p><% } %>
 
@@ -81,5 +81,6 @@ var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_but
     </form>
   </main>
   <script src="/js/custom-form-runtime.js"></script>
+  <script src="/js/custom-form-signature-pad.js"></script>
 </body>
 </html>

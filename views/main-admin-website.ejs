@@ -34,10 +34,6 @@
     <div class="homepage-theme-topbar no-print">
       <a class="homepage-theme-exit" href="/main-admin/website/themes">&larr; Exit</a>
       <h1 class="homepage-theme-topbar-label">Public Homepage</h1>
-      <div class="homepage-theme-viewport-toggle no-mobile" role="group" aria-label="Preview size">
-        <button type="button" class="homepage-theme-viewport-btn is-active" data-viewport="desktop">Desktop</button>
-        <button type="button" class="homepage-theme-viewport-btn" data-viewport="mobile">Mobile</button>
-      </div>
       <%# Submits the theme settings form below via HTML's own cross-
           document form="..." attribute - block/menu-tab changes already
           save instantly through their own existing Add/Edit/Delete
@@ -273,8 +269,16 @@
           with any unsaved theme field changes applied via its own query
           string - see public/js/homepage-theme-editor.js). Desktop/
           Mobile just resizes this wrapper, same idea as this app's own
-          responsive CSS breakpoints - no separate mobile markup. %>
+          responsive CSS breakpoints - no separate mobile markup. A real
+          request: "Desktop and mobile toggle should be lower on the
+          page just above the website view" - moved out of the topbar
+          (where it sat next to Exit/Save) to sit right above the
+          preview frame it controls. %>
       <section class="homepage-theme-preview-pane">
+        <div class="homepage-theme-viewport-toggle" role="group" aria-label="Preview size">
+          <button type="button" class="homepage-theme-viewport-btn is-active" data-viewport="desktop">Desktop</button>
+          <button type="button" class="homepage-theme-viewport-btn" data-viewport="mobile">Mobile</button>
+        </div>
         <div class="homepage-theme-preview-frame-wrap" data-viewport="desktop">
           <iframe id="homepage-theme-preview-iframe" data-preview-base="/main-admin/website/preview" title="Public homepage preview" src="/main-admin/website/preview"></iframe>
         </div>

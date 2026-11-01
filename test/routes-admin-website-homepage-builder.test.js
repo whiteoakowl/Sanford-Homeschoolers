@@ -68,6 +68,35 @@ test('migration seeds starting blocks from the old fixed site_settings fields', 
   assert.equal(buttonBlock.button_label, 'Become a Member');
 });
 
+// A real request: "should allow you to view mobile and desktop view of
+// website for editing. Toggle switching from mobile to desktop." The
+// Desktop/Mobile toggle (public/js/homepage-theme-editor.js resizes
+// .homepage-theme-preview-frame-wrap via its own data-viewport attribute
+// - public/css/styles.css) already existed, but used to carry a
+// "no-mobile" class hiding it below 640px - exactly where an admin
+// managing the site FROM their own phone would want it most, to check
+// the desktop view without a second device. It's unconditional markup
+// now. A follow-up real request: "Desktop and mobile toggle should be
+// lower on the page just above the website view" - moved out of the
+// topbar into the preview pane, directly above the preview frame it
+// controls, instead of sitting next to Exit/Save.
+test('the Desktop/Mobile preview toggle sits just above the live preview frame, not in the topbar', async () => {
+  const admin = await loginAsMainAdmin();
+  const page = await request(app).get('/main-admin/website').set('Cookie', admin.cookie);
+  assert.equal(page.status, 200);
+  assert.doesNotMatch(page.text, /homepage-theme-viewport-toggle no-mobile/);
+  assert.match(page.text, /data-viewport="desktop">Desktop<\/button>/);
+  assert.match(page.text, /data-viewport="mobile">Mobile<\/button>/);
+
+  const topbarMatch = /<div class="homepage-theme-topbar no-print">([\s\S]*?)<\/div>\s*<div class="homepage-theme-shell">/.exec(page.text);
+  assert.ok(topbarMatch, 'expected to find the topbar block');
+  assert.doesNotMatch(topbarMatch[1], /homepage-theme-viewport-toggle/, 'the toggle should no longer be in the topbar');
+
+  const previewPaneMatch = /<section class="homepage-theme-preview-pane">([\s\S]*?)<\/section>/.exec(page.text);
+  assert.ok(previewPaneMatch, 'expected to find the preview pane');
+  assert.match(previewPaneMatch[1], /<div class="homepage-theme-viewport-toggle"[^]*?<div class="homepage-theme-preview-frame-wrap"/, 'the toggle should sit directly above the preview frame');
+});
+
 test('the builder page has no top-of-page description and no bottom announcements link', async () => {
   const admin = await loginAsMainAdmin();
   const page = await request(app).get('/main-admin/website').set('Cookie', admin.cookie);

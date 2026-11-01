@@ -22,6 +22,20 @@
           <p><%= a.value_text === '1' ? 'Yes' : 'No' %></p>
         <% } else if (a.fieldType === 'file') { %>
           <% if (a.value_text) { %><p><a href="/forms/files/<%= a.id %>">Download File</a></p><% } else { %><p class="hint">No file uploaded.</p><% } %>
+        <% } else if (a.fieldType === 'signature') { %>
+          <% if (a.value_text) { %><img src="<%= a.value_text %>" alt="Signature" class="cf-signature-answer-preview" /><% } else { %><p class="hint">No signature.</p><% } %>
+        <% } else if (a.fieldType === 'fill_blank') { %>
+          <% var blankAnswers = customForms.parseFillBlankAnswer(a.value_text); %>
+          <p><%= blankAnswers.length ? blankAnswers.join(', ') : '(blank)' %></p>
+        <% } else if (a.fieldType === 'input_table') { %>
+          <% var matrixAnswer = customForms.parseInputTableAnswer(a.value_text); %>
+          <% if (Object.keys(matrixAnswer).length === 0) { %>
+            <p class="hint">(no selections)</p>
+          <% } else { %>
+            <ul>
+              <% Object.entries(matrixAnswer).forEach(function(entry) { %><li><%= entry[0] %>: <%= entry[1] %></li><% }); %>
+            </ul>
+          <% } %>
         <% } else { %>
           <p><%= a.value_text || '(blank)' %></p>
         <% } %>

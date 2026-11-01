@@ -8,17 +8,8 @@
     portalTitle: 'Main Admin',
   }) %>
 <%
-// Grouped field-type palette (utils/customForms.js's own FIELD_TYPES,
-// grouped by .group) - "a fuller field-type palette" than the original
-// plain <select>, rendered as one button grid per group in both the
-// Add Field and Edit Field dialogs below.
-var fieldTypeGroups = [];
-fieldTypes.forEach(function (t) {
-  var group = fieldTypeGroups.find(function (g) { return g.name === t.group; });
-  if (!group) { group = { name: t.group, types: [] }; fieldTypeGroups.push(group); }
-  group.types.push(t);
-});
 var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_button_style === 'square' ? '4px' : '10px';
+var currentThemePreset = themePresets.find(function(p) { return p.key === form.theme_preset; });
 %>
   <%# Every field in the form, flat, for the conditional-logic rule
       builder's own "depends on" dropdown and its value-type lookup
@@ -64,7 +55,16 @@ var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_but
     </div>
 
     <div class="cf-builder-layout">
-      <div>
+      <%# A real request, with a reference screenshot of a seamless row-
+          list theme editor (the same "no cards" request already applied
+          to the Public Homepage theme editor's own sidebar - see
+          .homepage-theme-sidebar's own comment): "Make the sections and
+          features tight row dropdown menus, no cards spaces... No card
+          design for this page at all." Settings & Theme/Pages/Assign To
+          were each their own floating .manage-section card with a gap
+          between them; cf-builder-sidebar below strips that back to one
+          seamless bordered list, same look as the homepage editor. %>
+      <div class="cf-builder-sidebar">
         <div class="manage-section">
           <div class="grid-box-header"><h2>Settings &amp; Theme</h2></div>
           <form method="POST" action="/main-admin/forms/<%= form.id %>" class="member-form-grid">
@@ -78,9 +78,24 @@ var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_but
                 features and view just like jotform, exactly" (Jotform's
                 own Theme tab, scoped to primary color + button shape).
                 Applied live on the preview panel to the right, and on
-                the public fill-out page (custom-forms-fill.ejs). %>
+                the public fill-out page (custom-forms-fill.ejs). A
+                later real request: "Be able to add fun visual themes to
+                custom forms, holidays, activities, sports etc." - a
+                preset just pre-fills Primary Color (public/js/custom-
+                form-builder.js) and adds its own decorative emoji next
+                to the form's title; Primary Color stays freely editable
+                after picking one, so it's never a second, conflicting
+                source of truth for color (utils/customForms.js's own
+                THEME_PRESETS). %>
+            <label class="member-form-full">Fun Theme
+              <select name="themePreset" data-cf-theme-preset-select>
+                <% themePresets.forEach(function(p) { %>
+                  <option value="<%= p.key %>" data-primary-color="<%= p.primaryColor %>" <%= form.theme_preset === p.key ? 'selected' : '' %>><%= p.emoji ? p.emoji + ' ' : '' %><%= p.label %></option>
+                <% }); %>
+              </select>
+            </label>
             <label>Primary Color
-              <input type="color" name="themePrimaryColor" value="<%= form.theme_primary_color %>" />
+              <input type="color" name="themePrimaryColor" value="<%= form.theme_primary_color %>" data-cf-primary-color-input />
             </label>
             <label>Button Style
               <select name="themeButtonStyle">
@@ -102,7 +117,7 @@ var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_but
           </div>
           <p class="hint">A form with more than one page shows a progress bar on the fill-out page, and a page can be set to only appear when an earlier answer matches a condition.</p>
 
-          <div class="homepage-builder-canvas" data-homepage-blocks-container data-reorder-url="/main-admin/forms/<%= form.id %>/pages/reorder">
+          <div class="homepage-builder-canvas cf-pages-canvas" data-homepage-blocks-container data-reorder-url="/main-admin/forms/<%= form.id %>/pages/reorder">
             <% pages.forEach(function(page, pageIndex) { %>
               <div class="cf-page-card" data-homepage-block-row="<%= page.id %>">
                 <div class="cf-page-card-header">
@@ -155,29 +170,42 @@ var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_but
                   (hidden), so a field added here lands directly on this
                   page with no extra picker needed. %>
               <dialog id="add-field-dialog-<%= page.id %>" class="member-picker-dialog">
-                <form method="POST" action="/main-admin/forms/<%= form.id %>/fields">
+                <form method="POST" action="/main-admin/forms/<%= form.id %>/fields" enctype="multipart/form-data">
                   <h3>Add Field &mdash; Page <%= pageIndex + 1 %></h3>
                   <input type="hidden" name="pageId" value="<%= page.id %>" />
-                  <div class="cf-type-palette">
-                    <% fieldTypeGroups.forEach(function(group) { %>
-                      <p class="cf-type-palette-group-label"><%= group.name %></p>
-                      <div class="cf-type-grid">
-                        <% group.types.forEach(function(t, i) { %>
-                          <label class="cf-type-btn">
-                            <input type="radio" name="fieldType" value="<%= t.key %>" style="position:absolute;opacity:0;" <%= (group === fieldTypeGroups[0] && i === 0) ? 'checked' : '' %> required />
-                            <svg class="icon"><use href="#icon-<%= t.icon %>"/></svg> <%= t.label %>
-                          </label>
-                        <% }); %>
-                      </div>
-                    <% }); %>
-                  </div>
+                  <%# A real request, with a screenshot of Jotform's own
+                      "Form Elements" flyout: "Add element should be a
+                      dropdown menu of options and should include all of
+                      jotform's basic options and widget options.
+                      However the widgets won't be called widgets it
+                      will just be one grand list of options." Every
+                      entry in utils/customForms.js's own FIELD_TYPES, in
+                      that same order, flat - no Basic/Widgets/Payments
+                      split (this app has no payment-element type at
+                      all). Replaces the old grouped icon-button grid
+                      (.cf-type-palette, now unused). %>
+                  <label>Field Type
+                    <select name="fieldType" data-cf-field-type-select required>
+                      <% fieldTypes.forEach(function(t, i) { %>
+                        <option value="<%= t.key %>" <%= i === 0 ? 'selected' : '' %>><%= t.label %></option>
+                      <% }); %>
+                    </select>
+                  </label>
                   <label>Label
                     <input type="text" name="label" required />
                   </label>
                   <label>Help Text
                     <input type="text" name="helpText" />
                   </label>
-                  <label data-cf-row="placeholder">Placeholder
+                  <p class="hint" data-cf-row="fillblank-hint" style="display: none;">Write one sentence, with each blank marked by three or more underscores - e.g. "The capital of France is ___ and 2 + 2 = ___."</p>
+                  <label data-cf-row="image">Image
+                    <input type="file" name="image" accept="image/*" />
+                  </label>
+                  <label data-cf-row="matrix-columns">Columns (one per line)
+                    <textarea name="matrixColumns" rows="3"></textarea>
+                  </label>
+                  <p class="hint" data-cf-row="matrix-columns-hint" style="display: none;">Rows go in the Options box below - each becomes one question respondents answer across these columns.</p>
+                  <label data-cf-row="placeholder" data-cf-placeholder-label>Placeholder
                     <input type="text" name="placeholder" />
                   </label>
                   <label data-cf-row="default">Default Value
@@ -250,7 +278,7 @@ var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_but
       <div class="cf-preview-panel no-print">
         <div class="grid-box-header"><h2>Live Preview</h2></div>
         <div class="cf-form" data-cf-form style="--cf-primary: <%= form.theme_primary_color %>; --cf-radius: <%= buttonRadius %>;">
-          <h1 style="margin-top:0;"><%= form.title %></h1>
+          <h1 style="margin-top:0;"><% if (currentThemePreset && currentThemePreset.emoji) { %><span aria-hidden="true"><%= currentThemePreset.emoji %></span> <% } %><%= form.title %></h1>
           <% if (form.description) { %><p class="hint"><%= form.description %></p><% } %>
           <% if (pages.length > 1) { %>
             <nav class="cf-progress" aria-label="Form progress" data-cf-progress>
@@ -335,8 +363,9 @@ var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_but
 
     <% allFields.forEach(function(field) { %>
       <dialog id="edit-field-dialog-<%= field.id %>" class="member-picker-dialog" data-cf-field-type="<%= field.field_type %>">
-        <form method="POST" action="/main-admin/forms/<%= form.id %>/fields/<%= field.id %>/update">
+        <form method="POST" action="/main-admin/forms/<%= form.id %>/fields/<%= field.id %>/update" enctype="multipart/form-data">
           <h3>Edit Field</h3>
+          <p class="hint">Type: <%= fieldTypes.find(function(t) { return t.key === field.field_type; }).label %></p>
           <label>Page
             <select name="pageId">
               <% pages.forEach(function(p, i) { %>
@@ -350,14 +379,28 @@ var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_but
           <label>Help Text
             <input type="text" name="helpText" value="<%= field.help_text || '' %>" />
           </label>
-          <label data-cf-row="placeholder">Placeholder
+          <p class="hint" data-cf-row="fillblank-hint" style="display: none;">Write one sentence, with each blank marked by three or more underscores - e.g. "The capital of France is ___ and 2 + 2 = ___."</p>
+          <% if (field.field_type === 'image') { %>
+            <label data-cf-row="image">
+              <% if (field.image_path && typeof customFormImageUrl === 'function') { %><p class="hint">Current image: <img src="<%= customFormImageUrl(field.image_path) %>" alt="" class="homepage-theme-logo-preview" /></p><% } %>
+              Image <span class="hint">(leave blank to keep the current one)</span>
+              <input type="file" name="image" accept="image/*" />
+            </label>
+          <% } %>
+          <% if (field.field_type === 'input_table') { %>
+            <label data-cf-row="matrix-columns">Columns (one per line)
+              <textarea name="matrixColumns" rows="3"><%= field.matrixColumnsParsed.join('\n') %></textarea>
+            </label>
+            <p class="hint">Rows are set in the Options box below - each becomes one question respondents answer across these columns.</p>
+          <% } %>
+          <label data-cf-row="placeholder" data-cf-placeholder-label>Placeholder
             <input type="text" name="placeholder" value="<%= field.placeholder || '' %>" />
           </label>
           <label data-cf-row="default">Default Value
             <input type="text" name="defaultValue" value="<%= field.default_value || '' %>" />
           </label>
-          <% if (choiceTypes.indexOf(field.field_type) !== -1) { %>
-            <label data-cf-row="options">Options (one per line)
+          <% if (choiceTypes.indexOf(field.field_type) !== -1 || field.field_type === 'input_table') { %>
+            <label data-cf-row="options"><%= field.field_type === 'input_table' ? 'Rows (one per line)' : 'Options (one per line)' %>
               <textarea name="options" rows="4"><%= field.options.map(function(o) { return o.label; }).join('\n') %></textarea>
             </label>
           <% } %>
@@ -374,6 +417,7 @@ var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_but
 
   <script src="/js/homepage-block-reorder.js"></script>
   <script src="/js/custom-form-runtime.js"></script>
+  <script src="/js/custom-form-signature-pad.js"></script>
   <script src="/js/custom-form-builder.js"></script>
 </body>
 </html>

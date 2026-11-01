@@ -44,12 +44,12 @@ test('Settings hub Public Homepage card now links to the Themes page, not straig
   assert.match(hub.text, /<a class="team-info-card" href="\/main-admin\/website\/themes">/);
 });
 
-test('Themes page shows one theme card: live preview, name, fonts, color swatches, Customize, and View your store', async () => {
+test('Themes page shows one theme card: live preview, name, fonts, color swatches, Customize, and View your homepage', async () => {
   const cookie = await loginAsMainAdmin();
   const res = await request(app).get('/main-admin/website/themes').set('Cookie', cookie);
   assert.equal(res.status, 200);
   assert.match(res.text, /<h1>Themes<\/h1>/);
-  assert.match(res.text, /View your store/);
+  assert.match(res.text, /View your homepage/);
   assert.match(res.text, /href="\/" target="_blank"/);
   assert.match(res.text, /Default Theme/);
   assert.match(res.text, /Current theme/);

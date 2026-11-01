@@ -20,13 +20,15 @@
       // swatches, and a Customize button) with "View your store" in its
       // own top-right corner - this app only ever has the one theme for
       // the one co-op homepage, so the list is always exactly one card.
+      // A real request: "View your store button should say view your
+      // homepage" - this app has a homepage, not a storefront.
       var headingFont = fontChoices.find(function(f) { return f.key === theme.fontHeading; }) || fontChoices[0];
       var bodyFont = fontChoices.find(function(f) { return f.key === theme.fontBody; }) || fontChoices[0];
     %>
 
     <div class="homepage-themes-header">
       <h1>Themes</h1>
-      <a class="btn-secondary" href="/" target="_blank" rel="noopener">View your store</a>
+      <a class="btn-secondary" href="/" target="_blank" rel="noopener">View your homepage</a>
     </div>
 
     <div class="homepage-theme-card">

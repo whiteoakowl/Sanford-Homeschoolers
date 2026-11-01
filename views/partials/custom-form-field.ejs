@@ -11,6 +11,19 @@
 var isDisabled = typeof disabled !== 'undefined' && disabled;
 var req = field.is_required == 1;
 var conditionAttr = field.conditionalLogicParsed ? ` data-cf-condition='${JSON.stringify(field.conditionalLogicParsed)}'` : '';
+// Video's own URL lives in `placeholder` (a plain YouTube/Vimeo watch
+// link, not necessarily already an embeddable one) - normalized here,
+// presentation-only, same reason blankSegments below is computed inline
+// rather than in utils/customForms.js.
+function cfVideoEmbedUrl(raw) {
+  var url = (raw || '').trim();
+  if (!url) return null;
+  var yt = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/.exec(url);
+  if (yt) return 'https://www.youtube.com/embed/' + yt[1];
+  var vimeo = /vimeo\.com\/(\d+)/.exec(url);
+  if (vimeo) return 'https://player.vimeo.com/video/' + vimeo[1];
+  return url;
+}
 %>
 <% if (field.field_type === 'heading') { %>
   <div class="member-form-full cf-field" data-cf-field-id="<%= field.id %>"<%- conditionAttr %>>
@@ -21,6 +34,87 @@ var conditionAttr = field.conditionalLogicParsed ? ` data-cf-condition='${JSON.s
   <div class="member-form-full cf-field" data-cf-field-id="<%= field.id %>"<%- conditionAttr %>>
     <p class="cf-paragraph"><%= field.help_text || field.label %></p>
   </div>
+<% } else if (field.field_type === 'divider') { %>
+  <div class="member-form-full cf-field" data-cf-field-id="<%= field.id %>"<%- conditionAttr %>>
+    <hr class="cf-divider" />
+  </div>
+<% } else if (field.field_type === 'image') { %>
+  <div class="member-form-full cf-field" data-cf-field-id="<%= field.id %>"<%- conditionAttr %>>
+    <% if (field.image_path && typeof customFormImageUrl === 'function') { %>
+      <img src="<%= customFormImageUrl(field.image_path) %>" alt="<%= field.label %>" class="cf-image-block" />
+    <% } else { %>
+      <p class="hint">No image chosen yet.</p>
+    <% } %>
+    <% if (field.help_text) { %><p class="hint"><%= field.help_text %></p><% } %>
+  </div>
+<% } else if (field.field_type === 'video') { %>
+  <%
+    var videoEmbedUrl = cfVideoEmbedUrl(field.placeholder);
+  %>
+  <div class="member-form-full cf-field" data-cf-field-id="<%= field.id %>"<%- conditionAttr %>>
+    <% if (videoEmbedUrl) { %>
+      <div class="cf-video-wrap"><iframe src="<%= videoEmbedUrl %>" title="<%= field.label %>" allowfullscreen loading="lazy"></iframe></div>
+    <% } else { %>
+      <p class="hint">No video URL set yet.</p>
+    <% } %>
+    <% if (field.help_text) { %><p class="hint"><%= field.help_text %></p><% } %>
+  </div>
+<% } else if (field.field_type === 'input_table') { %>
+  <%# A grid of rows x columns, one single-select answer per row - rows
+      are field.options (the same "Options" textarea choice-type fields
+      already use), columns are field.matrixColumnsParsed (routes/
+      admin-custom-forms.js and routes/custom-forms.js both pre-parse
+      this the same way, from the field's own matrix_columns column).
+      Each row posts as field_<id>[<row label>] = <selected column
+      label> - combined server-side into one JSON-object answer
+      (routes/custom-forms.js's own combinedMatrixValue). %>
+  <div class="member-form-full cf-field cf-matrix-field" data-cf-field-id="<%= field.id %>"<%- conditionAttr %>>
+    <label><%= field.label %><% if (req) { %> <span class="cf-required-star">*</span><% } %></label>
+    <% if (field.help_text) { %><p class="hint"><%= field.help_text %></p><% } %>
+    <% if (field.options.length === 0 || field.matrixColumnsParsed.length === 0) { %>
+      <p class="hint">This table needs at least one row and one column - add them in Edit Field.</p>
+    <% } else { %>
+      <div class="cf-matrix-scroll">
+        <table class="cf-matrix-table">
+          <thead>
+            <tr>
+              <th></th>
+              <% field.matrixColumnsParsed.forEach(function(col) { %><th><%= col %></th><% }); %>
+            </tr>
+          </thead>
+          <tbody>
+            <% field.options.forEach(function(row) { %>
+              <tr>
+                <th scope="row"><%= row.label %></th>
+                <% field.matrixColumnsParsed.forEach(function(col) { %>
+                  <td><input type="radio" name="field_<%= field.id %>[<%= row.label %>]" value="<%= col %>" aria-label="<%= row.label %>: <%= col %>" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> /></td>
+                <% }); %>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+<% } else if (field.field_type === 'fill_blank') { %>
+  <%# A real request, with a screenshot of Jotform's own "Fill in the
+      Blank" element: the admin writes one sentence with each blank
+      marked by 3+ underscores (Help Text doubles as that template here,
+      same field every other type's hint text already uses - see
+      admin-custom-forms-builder.ejs's own fill-blank-hint row) - split
+      on that marker and rendered back as alternating text/<input>
+      segments, each submitted as one entry of field_<id>[] (collected
+      into a JSON array - utils/customForms.js's own rawValueForField/
+      submit route). No template yet (a freshly-added field, before its
+      first edit) still renders as one single blank, same as a one-
+      sentence template with no surrounding text would. %>
+  <% var blankSegments = (field.help_text || '___').split(/_{3,}/); %>
+  <div class="member-form-full cf-field cf-fill-blank" data-cf-field-id="<%= field.id %>"<%- conditionAttr %>>
+    <label><%= field.label %><% if (req) { %> <span class="cf-required-star">*</span><% } %></label>
+    <p class="cf-fill-blank-template">
+      <% blankSegments.forEach(function(segment, i) { %><%= segment %><% if (i < blankSegments.length - 1) { %><input type="text" class="cf-fill-blank-input" name="field_<%= field.id %>[]" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> size="8" /><% } %><% }); %>
+    </p>
+  </div>
 <% } else { %>
   <div class="member-form-full cf-field" data-cf-field-id="<%= field.id %>"<%- conditionAttr %>>
     <label><%= field.label %><% if (req) { %> <span class="cf-required-star">*</span><% } %></label>
@@ -28,6 +122,58 @@ var conditionAttr = field.conditionalLogicParsed ? ` data-cf-condition='${JSON.s
 
     <% if (field.field_type === 'short_text') { %>
       <input type="text" name="field_<%= field.id %>" placeholder="<%= field.placeholder || '' %>" value="<%= field.default_value || '' %>" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
+    <% } else if (field.field_type === 'full_name') { %>
+      <%# Two sub-inputs, combined server-side into one "First Last"
+          stored answer (utils/customForms.js's rawValueForField) - same
+          single "First Last" string convention every member's own name
+          already uses (utils/memberIntake.js). %>
+      <div class="cf-subfield-row">
+        <input type="text" name="field_<%= field.id %>[first]" placeholder="First Name" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
+        <input type="text" name="field_<%= field.id %>[last]" placeholder="Last Name" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
+      </div>
+    <% } else if (field.field_type === 'address') { %>
+      <%# Sub-inputs combined into one "Street, City, State Zip" stored
+          answer, same combine-at-submit shape as full_name above. %>
+      <div class="cf-subfield-stack">
+        <input type="text" name="field_<%= field.id %>[street]" placeholder="Street Address" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
+        <input type="text" name="field_<%= field.id %>[street2]" placeholder="Apt, Suite, etc. (optional)" <%= isDisabled ? 'disabled' : '' %> />
+        <div class="cf-subfield-row">
+          <input type="text" name="field_<%= field.id %>[city]" placeholder="City" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
+          <input type="text" name="field_<%= field.id %>[state]" placeholder="State" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
+          <input type="text" name="field_<%= field.id %>[zip]" placeholder="Zip" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
+        </div>
+      </div>
+    <% } else if (field.field_type === 'appointment') { %>
+      <%# Date + time, combined into one "YYYY-MM-DD HH:MM" stored
+          answer - a real request's own "Appointment" element, scoped to
+          picking a date/time (no live scheduling/availability system in
+          this app to book against). %>
+      <div class="cf-subfield-row">
+        <input type="date" name="field_<%= field.id %>[date]" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
+        <input type="time" name="field_<%= field.id %>[time]" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
+      </div>
+    <% } else if (field.field_type === 'signature') { %>
+      <%# A drawn (not typed) signature - captured on an HTML canvas
+          (public/js/custom-form-signature-pad.js) and written, as a PNG
+          data URL, into the hidden input below on every stroke; that
+          hidden input is the field's one real form control, so it
+          submits/validates/required-checks exactly like any plain text
+          field with no special-casing needed in routes/custom-forms.js. %>
+      <div class="cf-signature-pad-wrap" data-cf-signature-wrap<%= isDisabled ? ' data-cf-signature-disabled' : '' %>>
+        <canvas class="cf-signature-pad" data-cf-signature-canvas width="400" height="140"></canvas>
+        <div class="cf-signature-pad-actions">
+          <button type="button" class="btn-secondary" data-cf-signature-clear <%= isDisabled ? 'disabled' : '' %>>Clear</button>
+        </div>
+      </div>
+      <%# A plain text input hidden with CSS, not type="hidden" - a
+          type="hidden" input is "barred from constraint validation" by
+          the HTML spec itself (required/reportValidity are silently
+          no-ops on it), which would make an empty required signature
+          slip past both this field's own validity check AND the multi-
+          page Next button's per-page checkValidity() sweep (public/js/
+          custom-form-runtime.js). This stays a real, validatable field -
+          just never shown, since the canvas above is the real UI. %>
+      <input type="text" class="cf-signature-value-input" name="field_<%= field.id %>" data-cf-signature-input <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
     <% } else if (field.field_type === 'email') { %>
       <input type="email" name="field_<%= field.id %>" placeholder="<%= field.placeholder || 'name@example.com' %>" value="<%= field.default_value || '' %>" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
     <% } else if (field.field_type === 'phone') { %>
@@ -38,6 +184,16 @@ var conditionAttr = field.conditionalLogicParsed ? ` data-cf-condition='${JSON.s
       <textarea name="field_<%= field.id %>" rows="3" placeholder="<%= field.placeholder || '' %>" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %>><%= field.default_value || '' %></textarea>
     <% } else if (field.field_type === 'number') { %>
       <input type="number" name="field_<%= field.id %>" placeholder="<%= field.placeholder || '' %>" value="<%= field.default_value || '' %>" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
+    <% } else if (field.field_type === 'spinner') { %>
+      <%# Jotform's own "Spinner" element - a number field with a visual
+          slider instead of a plain text box. Fixed 0-100 range
+          (utils/customForms.js's SPINNER_RANGE) - same plain-number
+          answer as the 'number' type above, no special-casing needed
+          anywhere else. %>
+      <div class="cf-spinner-row">
+        <input type="range" class="cf-spinner-input" name="field_<%= field.id %>" min="<%= spinnerRange ? spinnerRange.min : 0 %>" max="<%= spinnerRange ? spinnerRange.max : 100 %>" step="<%= spinnerRange ? spinnerRange.step : 1 %>" value="<%= field.default_value || (spinnerRange ? spinnerRange.min : 0) %>" <%= isDisabled ? 'disabled' : '' %> oninput="this.nextElementSibling.textContent = this.value" />
+        <output class="cf-spinner-value"><%= field.default_value || (spinnerRange ? spinnerRange.min : 0) %></output>
+      </div>
     <% } else if (field.field_type === 'date') { %>
       <input type="date" name="field_<%= field.id %>" value="<%= field.default_value || '' %>" <%= req ? 'required' : '' %> <%= isDisabled ? 'disabled' : '' %> />
     <% } else if (field.field_type === 'single_choice') { %>

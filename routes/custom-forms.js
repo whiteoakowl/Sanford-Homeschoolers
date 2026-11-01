@@ -108,14 +108,20 @@ router.get('/:id', async (req, res) => {
   const pages = await customForms.pagesWithFields(form.id);
   for (const page of pages) {
     page.conditionalLogicParsed = customForms.parseConditionalLogic(page.conditional_logic);
-    for (const field of page.fields) field.conditionalLogicParsed = customForms.parseConditionalLogic(field.conditional_logic);
+    for (const field of page.fields) {
+      field.conditionalLogicParsed = customForms.parseConditionalLogic(field.conditional_logic);
+      field.matrixColumnsParsed = customForms.parseMatrixColumns(field.matrix_columns);
+    }
   }
   res.render('custom-forms-fill', {
     title: form.title,
     form,
     pages,
     ratingMax: customForms.RATING_MAX,
+    spinnerRange: customForms.SPINNER_RANGE,
     displayOnlyTypes: [...customForms.DISPLAY_ONLY_TYPES],
+    themePreset: customForms.themePresetByKey(form.theme_preset),
+    customFormImageUrl: customForms.customFormImageUrl,
     family,
     error: req.query.error || null,
   });
@@ -131,8 +137,53 @@ router.get('/:id/mine/:memberId', async (req, res) => {
   const submission = await customForms.submissionFor(form.id, req.params.memberId);
   if (!submission) return res.status(404).render('404', { title: 'Not Found' });
   const answers = await customForms.answersForSubmission(submission.id);
-  res.render('custom-forms-submitted', { title: form.title, form, submission, answers });
+  res.render('custom-forms-submitted', { title: form.title, form, submission, answers, customForms });
 });
+
+// A real request, with a Jotform screenshot naming "Full Name", "Address"
+// and "Appointment" as elements this app didn't have yet (see utils/
+// customForms.js's own COMPOSITE_TYPES comment): each is several inputs
+// on the public form (views/partials/custom-form-field.ejs,
+// field_<id>[subkey]) combined here into the ONE plain-text answer this
+// app stores for every field type - full_name as "First Last" (same
+// single-string convention a member's own name already uses), address
+// as a single comma-joined line, appointment as "YYYY-MM-DD HH:MM".
+// Blank sub-parts are simply left out rather than leaving stray
+// separators in the combined string.
+function combinedSubfieldValue(fieldType, raw) {
+  const v = raw && typeof raw === 'object' ? raw : {};
+  if (fieldType === 'full_name') return [v.first, v.last].map((s) => (s || '').trim()).filter(Boolean).join(' ');
+  if (fieldType === 'address') {
+    const cityStateZip = [[v.city, v.state].map((s) => (s || '').trim()).filter(Boolean).join(', '), (v.zip || '').trim()].filter(Boolean).join(' ');
+    return [(v.street || '').trim(), (v.street2 || '').trim(), cityStateZip].filter(Boolean).join(', ');
+  }
+  if (fieldType === 'appointment') return [v.date, v.time].map((s) => (s || '').trim()).filter(Boolean).join(' ');
+  return '';
+}
+
+// Input Table/Matrix's answer is {rowLabel: selectedColumnLabel} - each
+// row posts as its own field_<id>[<row label>] (views/partials/custom-
+// form-field.ejs), so a row nobody picked a column for simply never
+// shows up as a key here, same as any other unanswered radio group.
+function combinedMatrixValue(field, raw) {
+  const v = raw && typeof raw === 'object' ? raw : {};
+  const out = {};
+  for (const row of field.options) {
+    if (v[row.label]) out[row.label] = v[row.label].toString();
+  }
+  return out;
+}
+
+// Fill in the Blank's answer is one value per blank in its template
+// (views/partials/custom-form-field.ejs splits field_<id>[] into that
+// many <input>s) - collected as a plain array here, same shape
+// multiple_choice's own array-of-labels already gives evaluateCondition
+// (it maps over whatever array it's handed), and JSON-stringified only
+// where it's actually stored (the per-type branch below), not here.
+function fillBlankValues(body, fieldId) {
+  const raw = body[`field_${fieldId}`];
+  return (Array.isArray(raw) ? raw : raw ? [raw] : []).map((v) => (v || '').toString().trim());
+}
 
 // The field's submitted value, in whatever shape evaluateCondition
 // expects (a plain string for most types, an array of selected option
@@ -150,6 +201,11 @@ function rawValueForField(field, body, filesByField) {
   }
   if (field.field_type === 'checkbox') return body[`field_${field.id}`] ? '1' : '0';
   if (field.field_type === 'file') return filesByField.has(`field_${field.id}`) ? 'has-file' : '';
+  if (field.field_type === 'full_name' || field.field_type === 'address' || field.field_type === 'appointment') {
+    return combinedSubfieldValue(field.field_type, body[`field_${field.id}`]);
+  }
+  if (field.field_type === 'fill_blank') return fillBlankValues(body, field.id);
+  if (field.field_type === 'input_table') return Object.values(combinedMatrixValue(field, body[`field_${field.id}`]));
   return (body[`field_${field.id}`] || '').toString();
 }
 
@@ -186,11 +242,50 @@ router.post('/:id/submit', upload.any(), async (req, res) => {
   const valuesByFieldId = {};
   for (const field of fields) valuesByFieldId[field.id] = rawValueForField(field, req.body, filesByField);
 
+  // Field types whose own submitted req.body value isn't a plain string
+  // (full_name/address/appointment post an object of sub-keys, fill_blank
+  // posts an array of blanks, input_table posts an object of row->column)
+  // get their own required check below instead of the generic "is this
+  // field's raw body value falsy" one just under it, which would
+  // otherwise treat a submitted-but-still-empty object/array as answered.
+  const COMPOSITE_REQUIRED_TYPES = new Set(['full_name', 'address', 'appointment', 'fill_blank', 'input_table']);
+
   const answers = [];
   for (const field of fields) {
     const visible = customForms.isFieldVisible(field, valuesByFieldId, pages);
-    if (field.is_required && visible && field.field_type !== 'file' && field.field_type !== 'multiple_choice' && !req.body[`field_${field.id}`]) {
+    if (
+      field.is_required &&
+      visible &&
+      field.field_type !== 'file' &&
+      field.field_type !== 'multiple_choice' &&
+      !COMPOSITE_REQUIRED_TYPES.has(field.field_type) &&
+      !req.body[`field_${field.id}`]
+    ) {
       return res.redirect(`/forms/${form.id}?error=` + encodeURIComponent(`"${field.label}" is required.`));
+    }
+    if (field.field_type === 'full_name' || field.field_type === 'address' || field.field_type === 'appointment') {
+      const combined = combinedSubfieldValue(field.field_type, req.body[`field_${field.id}`]);
+      if (field.is_required && visible && !combined) {
+        return res.redirect(`/forms/${form.id}?error=` + encodeURIComponent(`"${field.label}" is required.`));
+      }
+      answers.push({ fieldId: field.id, valueText: combined });
+      continue;
+    }
+    if (field.field_type === 'fill_blank') {
+      const blanks = fillBlankValues(req.body, field.id);
+      if (field.is_required && visible && (blanks.length === 0 || blanks.some((b) => !b))) {
+        return res.redirect(`/forms/${form.id}?error=` + encodeURIComponent(`"${field.label}" is required.`));
+      }
+      answers.push({ fieldId: field.id, valueText: JSON.stringify(blanks) });
+      continue;
+    }
+    if (field.field_type === 'input_table') {
+      const matrix = combinedMatrixValue(field, req.body[`field_${field.id}`]);
+      if (field.is_required && visible && Object.keys(matrix).length < field.options.length) {
+        return res.redirect(`/forms/${form.id}?error=` + encodeURIComponent(`"${field.label}" is required.`));
+      }
+      answers.push({ fieldId: field.id, valueText: JSON.stringify(matrix) });
+      continue;
     }
     if (field.field_type === 'multiple_choice') {
       const raw = req.body[`field_${field.id}`];
