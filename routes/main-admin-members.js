@@ -1303,13 +1303,15 @@ router.get('/:id/edit', async (req, res) => {
   // portals it will list each member in that family with a portal
   // dropdown next to it" - views/partials/member-portal-roles.ejs renders
   // one row per family member (self first) from this, each with its own
-  // portal account/role state.
+  // portal account/role/section state.
   const rolesFamilyRoster = [member, ...(await familyOf(id))];
   const rolesFamilyPortalStatus = await portalStatusForMembers(rolesFamilyRoster.map((m) => m.id));
+  const rolesFamilySectionIds = await sectionIdsForMembers(rolesFamilyRoster.map((m) => m.id));
   const familyPortalRows = rolesFamilyRoster.map((m) => ({
     member: m,
     portalAccount: rolesFamilyPortalStatus[m.id].account,
     roleIds: rolesFamilyPortalStatus[m.id].roleIds,
+    sectionIds: rolesFamilySectionIds[m.id],
   }));
 
   res.render('main-admin-member-edit', {
@@ -1333,8 +1335,13 @@ router.get('/:id/edit', async (req, res) => {
     // mode (routes/main-admin-members.js's own /bulk-permissions route,
     // unaffected) - now also editable per-member right here, alongside
     // the password/role fields this box already had.
+    //
+    // A later real request: "each family member should be listed with a
+    // dropdown menu for portals and dropdown menu for sections under
+    // each member name" - allSections now only feeds the per-family-
+    // member Sections dropdown inside familyPortalRows above, not a
+    // separate single-member control of its own.
     allSections: await db.prepare('SELECT * FROM sections ORDER BY LOWER(name)').all(),
-    memberSectionIds: (await sectionIdsForMembers([id]))[id],
     // A real request: "This page should look exactly like the
     // membership request form. The additional parent sections and
     // information, children sections and information." - see
@@ -1465,9 +1472,19 @@ router.post('/:id/edit', uploadIntakePhotos((req) => `/main-admin/members/${req.
 
   // Sections - unlike Portal Roles, not gated behind having an account:
   // Sections scope what an admin can see/manage regardless of whether
-  // this member ever logs into a portal themselves.
-  const sectionIds = [].concat(req.body.sectionIds || []).map((v) => parseInt(v, 10)).filter(Boolean);
-  await setMemberSections(id, sectionIds);
+  // this member ever logs into a portal themselves. A real request:
+  // "each family member should be listed with a dropdown menu for
+  // portals and dropdown menu for sections under each member name" -
+  // Sections now save per family member (sectionIds_<memberId>, same
+  // naming convention roleIds_<memberId> already uses just above), not
+  // just for the one member being edited - and unlike Portal Roles,
+  // never gated to "self only" for a student (see views/partials/
+  // member-portal-roles.ejs's own comment).
+  const sectionsFamilyIds = [id, ...(await familyOf(id)).map((fm) => fm.id)];
+  for (const fmId of sectionsFamilyIds) {
+    const fmSectionIds = [].concat(req.body['sectionIds_' + fmId] || []).map((v) => parseInt(v, 10)).filter(Boolean);
+    await setMemberSections(fmId, fmSectionIds);
+  }
 
   // A real request: "Don't forget the check box questions. This should
   // look IDENTICAL to the membership request form." - same admin-

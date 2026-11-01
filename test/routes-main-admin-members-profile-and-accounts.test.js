@@ -114,14 +114,19 @@ test('the per-member Edit page manages Sections alongside Portal Roles and passw
 
   const editPage = await request(app).get(`/main-admin/members/${memberId}/edit`).set('Cookie', cookie);
   assert.equal(editPage.status, 200);
-  assert.match(editPage.text, new RegExp(`name="sectionIds" value="${sectionId}"`));
+  // A later real request ("each family member should be listed with a
+  // dropdown menu for portals and dropdown menu for sections under each
+  // member name") moved Sections from a single sectionIds checkbox for
+  // just this member to a per-family-member sectionIds_<memberId>
+  // multi-select (views/partials/member-portal-roles.ejs).
+  assert.match(editPage.text, new RegExp(`name="sectionIds_${memberId}" value="${sectionId}"`));
   const csrfToken = extractCsrf(editPage.text);
 
   await request(app)
     .post(`/main-admin/members/${memberId}/edit`)
     .set('Cookie', cookie)
     .type('form')
-    .send({ name: 'Sections Edit Test', memberType: 'parent', email: 'sectionsedit@example.com', sectionIds: String(sectionId), _csrf: csrfToken });
+    .send({ name: 'Sections Edit Test', memberType: 'parent', email: 'sectionsedit@example.com', [`sectionIds_${memberId}`]: String(sectionId), _csrf: csrfToken });
 
   const profile = await request(app).get(`/main-admin/members/${memberId}`).set('Cookie', cookie);
   assert.match(profile.text, /Test Section/);

@@ -14,7 +14,14 @@
 //
 // Locals:
 //   member, families (with memberCount), memberFamilyId
-//   allSections, memberSectionIds (Set)
+//   allSections - every defined section, now fed straight into
+//     member-portal-roles.ejs's own per-family-member Sections dropdown
+//     below (a real request: "each family member should be listed with
+//     a dropdown menu for portals and dropdown menu for sections under
+//     each member name" - Sections used to be its own single-member
+//     checklist-dropdown control right here; that's gone, replaced by
+//     the per-row Sections dropdown member-portal-roles.ejs now renders
+//     next to Portals for every family member).
 //   allRoles, portalRoleIds (Set) - only rendered when portalAccount is
 //     truthy, same "nothing to grant without an account" reasoning the
 //     box this replaced already used
@@ -39,48 +46,24 @@
   <button type="button" class="btn-secondary member-form-add-family-btn" data-add-family-open>+ Add New Family</button>
 
   <%
-  // A real request: "Sections and portal roles should be a dropdown
-  // menu of check box choices" - same <details data-filter-details>/
-  // .filter-panel popover every other "Filter" dropdown in this app
-  // already uses (public/js/filter-details-dismiss.js closes it on an
-  // outside click), repurposed here to hold a checkbox grid instead of
-  // a <select>, in place of the checkbox grid sitting directly on the
-  // page.
-  const checkedSectionCount = allSections.filter((s) => memberSectionIds.has(s.id)).length;
-  const checkedRoleCount = portalAccount ? allRoles.filter((r) => portalRoleIds.has(r.id)).length : 0;
-  %>
-  <p><strong>Sections</strong></p>
-  <% if (allSections.length === 0) { %>
-    <p class="hint">No sections defined yet.</p>
-  <% } else { %>
-    <details class="filter-details" data-filter-details>
-      <summary class="checklist-dropdown-toggle"><%= checkedSectionCount > 0 ? `${checkedSectionCount} selected` : 'Choose sections' %> <svg class="icon"><use href="#icon-chevron-down"/></svg></summary>
-      <div class="filter-panel">
-        <div class="grade-pill-grid">
-          <% allSections.forEach(function(s) { %>
-            <label class="grade-pill"><input type="checkbox" name="sectionIds" value="<%= s.id %>" <%= memberSectionIds.has(s.id) ? 'checked' : '' %> /> <%= s.name %></label>
-          <% }); %>
-        </div>
-      </div>
-    </details>
-  <% } %>
-
-  <%
   // A real request: "When the box is checked on child for allow student
   // portal. That is all they have access too, the student portal. When
   // editing the paren member, and choosing portals it will list each
-  // member in that family with a portal dropdown next to it." - replaces
-  // this box's own single-member role checkbox-dropdown above with
-  // views/partials/member-portal-roles.ejs, which renders either a
-  // single Allow Student Portal checkbox (editing a student) or one row
-  // + dropdown per family member (editing anyone else). familyPortalRows
-  // comes from the routes' own GET /:id/edit (member + familyOf(id),
-  // each with its own portal account/role state) - falls back to just
-  // this member's own row if a caller hasn't been updated to pass it,
-  // so this partial never crashes on a missing local.
+  // member in that family with a portal dropdown next to it" - and a
+  // later one: "each family member should be listed with a dropdown
+  // menu for portals and dropdown menu for sections under each member
+  // name" - both now live in views/partials/member-portal-roles.ejs,
+  // which renders one row per family member, each with its own Portals
+  // control (single Allow Student Portal checkbox for a student, a
+  // multi-select dropdown for anyone else) and its own Sections
+  // multi-select dropdown right next to it. familyPortalRows comes from
+  // the routes' own GET /:id/edit (member + familyOf(id), each with its
+  // own portal account/role/section state) - falls back to just this
+  // member's own row if a caller hasn't been updated to pass it, so this
+  // partial never crashes on a missing local.
   var portalRolesRows = typeof familyPortalRows !== 'undefined' && familyPortalRows
     ? familyPortalRows
-    : [{ member, portalAccount, roleIds: portalRoleIds }];
+    : [{ member, portalAccount, roleIds: portalRoleIds, sectionIds: (typeof memberSectionIds !== 'undefined' ? memberSectionIds : new Set()) }];
   %>
-  <%- include('member-portal-roles', { member, allRoles, familyPortalRows: portalRolesRows }) %>
+  <%- include('member-portal-roles', { member, allRoles, allSections, familyPortalRows: portalRolesRows }) %>
 </div>

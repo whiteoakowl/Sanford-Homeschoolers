@@ -1,6 +1,6 @@
 <%
-// Shared "Portal Roles" editor block for the Main Admin / Co-op Admin
-// member edit pages. Two real requests drive this:
+// Shared "Portals & Sections" editor block for the Main Admin / Co-op
+// Admin member edit pages. Three real requests drive this:
 //   "When the box is checked on child for allow student portal, that is
 //   all they have access to, the student portal" - a student only ever
 //   gets a single Allow Student Portal checkbox (tied to the Student
@@ -12,49 +12,88 @@
 //   editing any non-student member shows the WHOLE family's portal
 //   access in one place (each row its own name + dropdown), not just the
 //   member being edited.
+//   "each family member should be listed with a dropdown menu for
+//   portals and dropdown menu for sections under each member name. With
+//   check boxes and allow to pick multiple in each dropdown" - Sections
+//   used to be a single dropdown for just the member being edited
+//   (partials/member-edit-admin-section.ejs's own old standalone
+//   control); it's now a second per-row multi-select here, right next to
+//   Portals, reusing the exact same multi-select-checkbox component.
+//   Unlike Portal Roles, Sections is never "self only" for a student -
+//   routes/admin-members.js's own POST /members/:id/edit comment: Sections
+//   scope what an admin can see/manage regardless of whether a member
+//   has (or even can have) a portal login of their own, so every family
+//   member always gets a Sections control, not just whoever can log in.
 //
-// familyPortalRows is [{ member, portalAccount, roleIds }, ...] for the
-// member being edited plus every other member sharing their family (see
-// the routes' own GET /:id/edit) - its first row is always the member
-// being edited. Posts back as roleIds_<memberId> per row (see the
-// routes' own POST /:id/edit) rather than one shared `roleIds` name,
-// since more than one member's selection now travels in the same submit.
+// familyPortalRows is [{ member, portalAccount, roleIds, sectionIds },
+// ...] for the member being edited plus every other member sharing their
+// family (see the routes' own GET /:id/edit) - its first row is always
+// the member being edited. Posts back as roleIds_<memberId>/
+// sectionIds_<memberId> per row (see the routes' own POST /:id/edit)
+// rather than one shared `roleIds`/`sectionIds` name, since more than
+// one member's selections now travel in the same submit.
+//
+// allSections - every defined section (utils 'sections' table); when
+// empty, the Sections control is skipped entirely (nothing to choose
+// from yet) rather than rendering an empty dropdown.
 var studentRole = allRoles.find(function(r) { return r.key === 'student'; });
 var nonStudentRoleOptions = allRoles
   .filter(function(r) { return r.key !== 'student'; })
   .map(function(r) { return { value: r.id, label: r.label }; });
+var sectionOptions = (typeof allSections !== 'undefined' && allSections ? allSections : [])
+  .map(function(s) { return { value: s.id, label: s.name }; });
 var selfIsStudent = member.member_type === 'student';
+// Sections' own "list every family member" rule (see header comment
+// above) still narrows to just this one member on a Student's own edit
+// page - same simplification Portal Roles already applies there, rather
+// than exposing the rest of the family's Sections from a page about one
+// student.
 var portalRows = selfIsStudent
   ? familyPortalRows.filter(function(row) { return row.member.id === member.id; })
   : familyPortalRows;
 %>
-<p><strong>Portal Roles</strong></p>
-<% if (portalRows.every(function(row) { return !row.portalAccount; })) { %>
-  <p class="hint">No portal account yet - an account has to be created from Main Admin &gt; Users before roles can be granted.</p>
-<% } else { %>
-  <% if (!selfIsStudent && portalRows.length > 1) { %>
-    <p class="hint">Manage portal access for everyone in this family.</p>
-  <% } %>
-  <div class="member-family-portal-roles">
-    <% portalRows.forEach(function(row) { %>
-      <div class="member-family-portal-row">
-        <span class="member-family-portal-name"><%= row.member.name %><% if (!selfIsStudent && row.member.id === member.id) { %> <span class="hint">(this profile)</span><% } %></span>
-        <% if (!row.portalAccount) { %>
-          <span class="hint">No portal account</span>
-        <% } else if (row.member.member_type === 'student') { %>
-          <label class="checkbox-option">
-            <input type="checkbox" name="roleIds_<%= row.member.id %>" value="<%= studentRole ? studentRole.id : '' %>" <%= studentRole && row.roleIds.has(studentRole.id) ? 'checked' : '' %> />
-            Allow Student Portal
-          </label>
-        <% } else { %>
-          <%- include('multi-select-checkbox', {
-            name: 'roleIds_' + row.member.id,
-            options: nonStudentRoleOptions,
-            selected: Array.from(row.roleIds).map(String),
-            placeholder: 'Select portal role(s)',
-          }) %>
+<p><strong>Portals &amp; Sections</strong></p>
+<% if (!selfIsStudent && portalRows.length > 1) { %>
+  <p class="hint">Manage portal access and sections for everyone in this family.</p>
+<% } %>
+<div class="member-family-portal-roles">
+  <% portalRows.forEach(function(row) { %>
+    <div class="member-family-portal-row">
+      <span class="member-family-portal-name"><%= row.member.name %><% if (!selfIsStudent && row.member.id === member.id) { %> <span class="hint">(this profile)</span><% } %></span>
+      <div class="member-family-portal-controls">
+        <div class="member-family-portal-control">
+          <span class="member-family-portal-control-label">Portals</span>
+          <% if (!row.portalAccount) { %>
+            <span class="hint">No portal account yet</span>
+          <% } else if (row.member.member_type === 'student') { %>
+            <label class="checkbox-option">
+              <input type="checkbox" name="roleIds_<%= row.member.id %>" value="<%= studentRole ? studentRole.id : '' %>" <%= studentRole && row.roleIds.has(studentRole.id) ? 'checked' : '' %> />
+              Allow Student Portal
+            </label>
+          <% } else { %>
+            <%- include('multi-select-checkbox', {
+              name: 'roleIds_' + row.member.id,
+              options: nonStudentRoleOptions,
+              selected: Array.from(row.roleIds).map(String),
+              placeholder: 'Select portal role(s)',
+            }) %>
+          <% } %>
+        </div>
+        <% if (sectionOptions.length > 0) { %>
+          <div class="member-family-portal-control">
+            <span class="member-family-portal-control-label">Sections</span>
+            <%- include('multi-select-checkbox', {
+              name: 'sectionIds_' + row.member.id,
+              options: sectionOptions,
+              selected: Array.from(row.sectionIds || []).map(String),
+              placeholder: 'Select section(s)',
+            }) %>
+          </div>
         <% } %>
       </div>
-    <% }); %>
-  </div>
+    </div>
+  <% }); %>
+</div>
+<% if (sectionOptions.length === 0) { %>
+  <p class="hint">No sections defined yet.</p>
 <% } %>
