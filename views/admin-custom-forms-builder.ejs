@@ -67,18 +67,19 @@ var currentThemePreset = themePresets.find(function(p) { return p.key === form.t
       <div class="cf-builder-sidebar">
         <div class="manage-section">
           <div class="grid-box-header"><h2>Settings &amp; Theme</h2></div>
-          <form method="POST" action="/main-admin/forms/<%= form.id %>" class="member-form-grid">
+          <form method="POST" action="/main-admin/forms/<%= form.id %>" class="member-form-grid" data-cf-settings-form>
             <label class="member-form-full">Title
-              <input type="text" name="title" value="<%= form.title %>" required />
+              <input type="text" name="title" value="<%= form.title %>" required data-cf-theme-field />
             </label>
             <label class="member-form-full">Description
-              <textarea name="description" rows="2"><%= form.description || '' %></textarea>
+              <textarea name="description" rows="2" data-cf-theme-field><%= form.description || '' %></textarea>
             </label>
             <%# Per-form appearance - a real request: "full editing
                 features and view just like jotform, exactly" (Jotform's
                 own Theme tab, scoped to primary color + button shape).
-                Applied live on the preview panel to the right, and on
-                the public fill-out page (custom-forms-fill.ejs). A
+                Applied live on the preview panel to the right (public/
+                js/custom-form-live-preview.js), and on the public
+                fill-out page (custom-forms-fill.ejs) once saved. A
                 later real request: "Be able to add fun visual themes to
                 custom forms, holidays, activities, sports etc." - a
                 preset just pre-fills Primary Color (public/js/custom-
@@ -88,17 +89,17 @@ var currentThemePreset = themePresets.find(function(p) { return p.key === form.t
                 source of truth for color (utils/customForms.js's own
                 THEME_PRESETS). %>
             <label class="member-form-full">Fun Theme
-              <select name="themePreset" data-cf-theme-preset-select>
+              <select name="themePreset" data-cf-theme-preset-select data-cf-theme-field>
                 <% themePresets.forEach(function(p) { %>
-                  <option value="<%= p.key %>" data-primary-color="<%= p.primaryColor %>" <%= form.theme_preset === p.key ? 'selected' : '' %>><%= p.emoji ? p.emoji + ' ' : '' %><%= p.label %></option>
+                  <option value="<%= p.key %>" data-primary-color="<%= p.primaryColor %>" data-emoji="<%= p.emoji %>" <%= form.theme_preset === p.key ? 'selected' : '' %>><%= p.emoji ? p.emoji + ' ' : '' %><%= p.label %></option>
                 <% }); %>
               </select>
             </label>
             <label>Primary Color
-              <input type="color" name="themePrimaryColor" value="<%= form.theme_primary_color %>" data-cf-primary-color-input />
+              <input type="color" name="themePrimaryColor" value="<%= form.theme_primary_color %>" data-cf-primary-color-input data-cf-theme-field />
             </label>
             <label>Button Style
-              <select name="themeButtonStyle">
+              <select name="themeButtonStyle" data-cf-theme-field>
                 <% themeButtonStyles.forEach(function(s) { %>
                   <option value="<%= s %>" <%= form.theme_button_style === s ? 'selected' : '' %>><%= s.charAt(0).toUpperCase() + s.slice(1) %></option>
                 <% }); %>
@@ -263,23 +264,33 @@ var currentThemePreset = themePresets.find(function(p) { return p.key === form.t
 
       <%# Live preview - a real request: "Live preview while editing in
           the builder itself, so an admin sees roughly what the public
-          form will look like as they build it." Rendered from the same
-          partial (partials/custom-form-field.ejs) the public fill-out
-          page itself uses, over the exact pages/fields/theme just
-          saved, so it can never drift from what custom-forms-fill.ejs
-          actually renders - and it's genuinely live for conditional
-          logic and multi-page navigation (public/js/custom-form-
-          runtime.js runs over this panel exactly like it does the real
-          fill-out page), just not for an unsaved edit still sitting in
-          a closed dialog (every builder action here is still a normal
-          form POST that reloads the page, same as the rest of this
-          admin UI - see this view's own header comment for why that's
-          an intentional scope line, not an oversight). %>
+          form will look like as they build it," and a later real
+          request: "Custom forms should have a live preview as you
+          design like the website design page (public homepage)" - the
+          Settings & Theme fields (Title/Description/Primary Color/
+          Button Style/Fun Theme) now update this panel instantly as the
+          admin types/picks (public/js/custom-form-live-preview.js),
+          same "no page reload needed to see it" feel as the Public
+          Homepage theme editor's own color/font pickers
+          (homepage-theme-editor.js's scheduleReload) - just via direct
+          DOM updates here instead of that editor's iframe+query-string
+          round trip, since this preview already renders inline on the
+          same page rather than through a separate /preview route.
+          Pages/fields themselves still need a real Save to appear here
+          (same as the Homepage editor's own content BLOCKS, which are
+          no more "live" there either - only its theme fields are) -
+          rendered from the same partial (partials/custom-form-
+          field.ejs) the public fill-out page itself uses, over the
+          last-saved pages/fields, so it can never drift from what
+          custom-forms-fill.ejs actually renders, and genuinely live for
+          conditional logic and multi-page navigation (public/js/
+          custom-form-runtime.js runs over this panel exactly like it
+          does the real fill-out page). %>
       <div class="cf-preview-panel no-print">
         <div class="grid-box-header"><h2>Live Preview</h2></div>
         <div class="cf-form" data-cf-form style="--cf-primary: <%= form.theme_primary_color %>; --cf-radius: <%= buttonRadius %>;">
-          <h1 style="margin-top:0;"><% if (currentThemePreset && currentThemePreset.emoji) { %><span aria-hidden="true"><%= currentThemePreset.emoji %></span> <% } %><%= form.title %></h1>
-          <% if (form.description) { %><p class="hint"><%= form.description %></p><% } %>
+          <h1 style="margin-top:0;" data-cf-preview-title><span data-cf-preview-emoji aria-hidden="true"<%- (currentThemePreset && currentThemePreset.emoji) ? '' : ' style="display:none"' %>><%= currentThemePreset ? currentThemePreset.emoji : '' %></span><span data-cf-preview-emoji-space><%= (currentThemePreset && currentThemePreset.emoji) ? ' ' : '' %></span><span data-cf-preview-title-text><%= form.title %></span></h1>
+          <p class="hint" data-cf-preview-description<%- form.description ? '' : ' style="display:none"' %>><%= form.description || '' %></p>
           <% if (pages.length > 1) { %>
             <nav class="cf-progress" aria-label="Form progress" data-cf-progress>
               <% pages.forEach(function(page, i) { %>
@@ -419,5 +430,6 @@ var currentThemePreset = themePresets.find(function(p) { return p.key === form.t
   <script src="/js/custom-form-runtime.js"></script>
   <script src="/js/custom-form-signature-pad.js"></script>
   <script src="/js/custom-form-builder.js"></script>
+  <script src="/js/custom-form-live-preview.js"></script>
 </body>
 </html>

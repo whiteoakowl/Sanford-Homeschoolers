@@ -389,6 +389,37 @@ test('every new field type (email/phone/url/rating/scale) stores a plain text an
 // own combinedSubfieldValue/fillBlankValues and utils/customForms.js's
 // COMPOSITE_TYPES.
 
+// A real request: "Custom forms should have a live preview as you
+// design like the website design page (public homepage)." public/js/
+// custom-form-live-preview.js listens for input/change on the Settings
+// & Theme fields and updates the Live Preview panel directly - that's
+// client-side behavior this server-rendered-HTML test can't execute,
+// but it CAN confirm the markup both sides of that wiring depend on is
+// actually there: the settings fields carry data-cf-theme-field, and
+// the preview panel carries the data-cf-preview-* targets that script
+// reads/writes.
+test('the Settings & Theme fields and the Live Preview panel both carry the data attributes the live-preview script wires together', async () => {
+  const admin = await loginAsMainAdmin();
+  const formId = await createForm(admin, 'Live Preview Markup Form');
+  const builderHtml = await request(app).get(`/main-admin/forms/${formId}/builder`).set('Cookie', admin.cookie);
+  assert.equal(builderHtml.status, 200);
+  assert.match(builderHtml.text, /<script src="\/js\/custom-form-live-preview\.js"><\/script>/);
+
+  const settingsFormMatch = /<form method="POST" action="\/main-admin\/forms\/\d+" class="member-form-grid" data-cf-settings-form>([\s\S]*?)<\/form>/.exec(builderHtml.text);
+  assert.ok(settingsFormMatch, 'expected to find the Settings & Theme form');
+  const settingsFormHtml = settingsFormMatch[1];
+  assert.match(settingsFormHtml, /name="title"[^]*?data-cf-theme-field/);
+  assert.match(settingsFormHtml, /name="description"[^]*?data-cf-theme-field/);
+  assert.match(settingsFormHtml, /data-cf-theme-preset-select data-cf-theme-field/);
+  assert.match(settingsFormHtml, /data-cf-primary-color-input data-cf-theme-field/);
+  assert.match(settingsFormHtml, /name="themeButtonStyle" data-cf-theme-field/);
+
+  assert.match(builderHtml.text, /<span data-cf-preview-emoji /);
+  assert.match(builderHtml.text, /<span data-cf-preview-emoji-space>/);
+  assert.match(builderHtml.text, /<span data-cf-preview-title-text>Live Preview Markup Form<\/span>/);
+  assert.match(builderHtml.text, /<p class="hint" data-cf-preview-description style="display:none">/);
+});
+
 test('the Add Field dropdown lists every field type flat, in one list - no Basic/Widgets grouping, and the five new types are in it', async () => {
   const admin = await loginAsMainAdmin();
   const formId = await createForm(admin, 'Dropdown Form');
