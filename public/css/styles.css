@@ -1953,10 +1953,12 @@ body.public-page .roster-empty {
    Settings/Switch Portal) is already desktop/tablet-only - see its own
    comment above - hidden below the mobile-topbar breakpoint, where
    these same controls fold into that bar's own icon row instead and
-   keep their look untouched. .site-header-actions's own Log In button
-   (views/public-home.ejs, the one other "button at the top of the page"
-   this covers) isn't split by viewport the same way, so it's wrapped in
-   its own min-width guard here. */
+   keep their look untouched. .site-header-utility-bar's own Log In
+   button (views/public-home.ejs, the one other "button at the top of
+   the page" this covers - relocated here from the old
+   .site-header-actions by a later real request, "Log in button should
+   be above header") isn't split by viewport the same way, so it's
+   wrapped in its own min-width guard here. */
 /* A real request: "On desktop the blue buttons at the top for settings,
    portals and profile. The blue should also match the background blue
    of the app" - var(--bg), not var(--brand) (the lighter logo blue). */
@@ -1979,12 +1981,12 @@ body.public-page .roster-empty {
   color: #000;
 }
 @media (min-width: 861px) {
-  .site-header-actions .btn-secondary {
+  .site-header-utility-bar .btn-secondary {
     background: var(--brand);
     color: var(--ink);
     border-color: var(--brand);
   }
-  .site-header-actions .btn-secondary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+  .site-header-utility-bar .btn-secondary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
 }
 
 /* Switch Portal's <details>/<summary> (.portal-switcher-details below)
@@ -11652,6 +11654,23 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 .homepage-block-image.homepage-image-full img { width: 100%; max-width: none; }
 .homepage-block-button { display: flex; }
 
+/* Per-block alignment - a real request: "Add left, right centering to
+   all page content settings when editing the homepage." 'left' is the
+   default/current behavior everywhere, so it needs no rule of its own -
+   only center/right ever override anything. Plain text-align works
+   directly for .homepage-block-text (its text just cascades), and for
+   .homepage-block-button (its own <a> is the text inside) - but a block-
+   level image doesn't respond to its parent's text-align at all, and
+   .homepage-block-button is itself `display: flex` (so its child link
+   needs justify-content, not text-align, to actually move) - each needs
+   its own pairing below instead of one shared rule. */
+.homepage-block.homepage-align-center { text-align: center; }
+.homepage-block.homepage-align-right { text-align: right; }
+.homepage-block-button.homepage-align-center { justify-content: center; }
+.homepage-block-button.homepage-align-right { justify-content: flex-end; }
+.homepage-block-image.homepage-align-center img { margin: 0 auto; }
+.homepage-block-image.homepage-align-right img { margin-left: auto; }
+
 /* Shopify-style theme editor shell (views/main-admin-website.ejs) - a
    real request: "Main admin portal, settings gear, public homepage.
    Should have the exact webpage editing features as Shopify. See
@@ -11804,7 +11823,15 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 .homepage-theme-section-body > form > label:not(:last-child) { border-bottom: 1px solid var(--border); }
 .homepage-theme-logo-preview, .homepage-theme-favicon-preview { max-height: 48px; vertical-align: middle; margin-left: 0.5rem; }
 .homepage-theme-reset-row { padding: 0.85rem 1.1rem; }
-.homepage-theme-reset-row .btn-secondary { color: #b42318; border-color: #f3c7c0; }
+/* A real request: "Reset theme to defaults button should be red with
+   white font." Scoped to just this one button (not .btn-secondary
+   site-wide, which stays the solid-blue secondary-action color every
+   other dialog Cancel/standalone button already uses) - same solid-
+   fill-danger-button shape .roster-action-btn-danger already uses
+   elsewhere, just with .btn-secondary's own padding/radius/size left
+   alone. */
+.homepage-theme-reset-row .btn-secondary { background: var(--red); border-color: var(--red); color: #fff; }
+.homepage-theme-reset-row .btn-secondary:hover { background: var(--red); border-color: var(--red); color: #fff; filter: brightness(0.92); }
 
 .homepage-theme-preview-pane { flex: 1 1 auto; min-width: 0; }
 .homepage-theme-preview-frame-wrap {
@@ -12339,6 +12366,7 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 .public-home-page h2,
 .public-home-page h3 { font-family: var(--hp-font-heading, 'Montserrat', sans-serif); }
 .public-home-page .site-header,
+.public-home-page .site-header-utility-bar,
 .public-home-page .site-footer,
 .public-home-page .site-section-alt,
 .public-home-page .site-class-showcase-card,
@@ -12368,10 +12396,36 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
    the real public /welcome page. */
 .homepage-preview-banner { background: var(--yellow-bg); color: var(--yellow); text-align: center; font-size: 0.8rem; font-weight: 700; padding: 0.3rem; }
 
+/* A real request: "Log in button should be above header." A thin bar
+   above .site-header holding just the signed-in/signed-out action link
+   (Log In, or My Portals once signed in - the same conditional swap
+   .site-header-actions used to hold, before a separate real request
+   removed the signed-out "Become a Member" button from the header
+   entirely). Right-aligned, same place that action link effectively sat
+   before (the far end of .site-header-actions, which used to be the
+   rightmost thing in .site-header itself). */
+.site-header-utility-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 0.4rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+/* A real request: "Header should be centered." Once the action buttons
+   above are the only thing left of .site-header-actions (now relocated
+   into .site-header-utility-bar above), .site-header only has the brand/
+   logo and the Menu Tabs nav as children - centering them as a group
+   (instead of the old justify-content: space-between, which assumed a
+   right-aligned actions column balancing the brand on the left) reads as
+   deliberate even with just the brand alone (no menu tabs configured).
+   Sticky/background/border styling is unchanged - this is a content-
+   alignment change only. */
 .site-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 1rem;
   padding: 1rem 1.5rem;
   background: var(--surface);
@@ -12379,39 +12433,21 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
   position: sticky;
   top: 0;
   z-index: 20;
+  background-size: cover;
+  background-position: center;
 }
 .site-header-brand { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--ink); font-weight: 800; font-size: 1.15rem; }
 .site-header-brand img { height: 42px; width: 42px; border-radius: 50%; }
-.site-header-actions { display: flex; align-items: center; gap: 0.6rem; }
-/* A real request: "Become and member and log in buttons should be the
-   same height and balanced on the same row side by side, font should
-   also be the same size." .primary-btn's own bigger padding/font-size
-   plus a standalone margin-top (meant for a button sitting alone at the
-   end of a form, not one of a pair in a header row) never matched
-   .btn-secondary's own smaller --control-padding-compact/--control-
-   font-size-compact (shared with plain form inputs, not sized for a
-   button) - scoped to just this header row so neither class's own
-   different look everywhere else it's used changes. border: 1px solid
-   transparent on both (not just .btn-secondary's own border) so the
-   rendered box height actually matches - .primary-btn's own base rule
-   sets border: none, which alone would still leave it 2px shorter than
-   .btn-secondary's bordered box even with identical padding. */
-.site-header-actions .primary-btn,
-.site-header-actions .btn-secondary {
-  margin-top: 0;
-  padding: 0.7rem 1.4rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1.3;
-  border: 1px solid transparent;
-  box-sizing: border-box;
-}
 /* Homepage Menu (views/public-home.ejs) - a real request: "Should be
-   able to edit or add menu tabs to the homepage." flex: 1 1 auto fills
-   the space between the brand and the Log In/Register buttons on a wide
-   screen; flex-wrap means an admin adding more tabs than fit on one line
-   never overflows the header, it just wraps onto a second line instead. */
-.site-header-menu { display: flex; align-items: center; gap: 1.25rem; flex: 1 1 auto; flex-wrap: wrap; row-gap: 0.4rem; }
+   able to edit or add menu tabs to the homepage." No longer flex: 1 1
+   auto (that used to fill the space between the brand and the Log In/
+   Register buttons on a wide screen - both now gone from .site-header,
+   see .site-header-utility-bar above) - flex: 0 1 auto so the nav sits
+   next to the brand as part of the same centered group instead of
+   stretching to fill the header's own full width. flex-wrap still means
+   an admin adding more tabs than fit on one line never overflows the
+   header, it just wraps onto a second line instead. */
+.site-header-menu { display: flex; align-items: center; gap: 1.25rem; flex: 0 1 auto; flex-wrap: wrap; row-gap: 0.4rem; justify-content: center; }
 .site-header-menu a { color: var(--ink); font-weight: 600; text-decoration: none; white-space: nowrap; }
 .site-header-menu a:hover { color: var(--brand-dark); text-decoration: underline; }
 
@@ -13034,25 +13070,31 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
 
 .site-footer { padding: 2.5rem 1.5rem; text-align: center; color: var(--muted); font-size: 0.9rem; background: var(--surface); border-top: 1px solid var(--border); }
 .site-footer a { color: var(--muted); }
+/* Footer image/text - a real request: "Add options to edit header and
+   footer of website." Both off by default (views/public-home.ejs only
+   renders either once an admin has actually filled it in). */
+.site-footer-image { display: block; max-height: 56px; margin: 0 auto 0.85rem; }
+.site-footer-text { margin: 0 0 0.75rem; font-size: 0.95rem; }
 
 @media (max-width: 640px) {
   .site-hero { padding: 3rem 1.25rem; }
   .site-section { padding: 2.5rem 1.25rem; }
+  /* .site-header-utility-bar - a real request: "Log in button should be
+     above header" - needs its own tighter mobile padding rather than
+     just assuming desktop, same as every other bar/section here. */
+  .site-header-utility-bar { padding: 0.35rem 1rem; }
   /* Real bug caught by a site-wide audit crawl: .site-header never
-     wrapped, so the brand name plus both "Log In"/"Member Registration"
-     buttons together were wider than a phone screen, pushing the whole
-     page into horizontal overflow (the body's own blue background
-     showing as a sliver down the right edge of every section, not just
-     the header). Wrapping the actions onto their own line under the
-     brand is enough to fit at any width without shrinking the buttons'
-     own text/tap targets. */
+     wrapped, so the brand name plus the Menu Tabs nav together were
+     wider than a phone screen, pushing the whole page into horizontal
+     overflow (the body's own blue background showing as a sliver down
+     the right edge of every section, not just the header). Wrapping the
+     menu onto its own line under the brand is enough to fit at any
+     width without shrinking its own text/tap targets. (The old Log In/
+     Member Registration buttons this comment used to also cover are
+     gone from .site-header entirely now - see .site-header-utility-bar
+     above and public-home.ejs's own header markup.) */
   .site-header { flex-wrap: wrap; }
-  .site-header-actions { flex-basis: 100%; justify-content: flex-end; }
-  /* Same overflow fix as .site-header-actions just above, for the
-     homepage menu - its own full-width row under the brand, rather than
-     fighting the brand/buttons for the same cramped first line. */
-  .site-header-menu { flex-basis: 100%; order: 1; gap: 0.9rem; }
-  .site-header-actions { order: 2; }
+  .site-header-menu { flex-basis: 100%; gap: 0.9rem; }
 }
 
 /* Portal dashboards (Parent/Student/Teacher/Main Admin home pages) -

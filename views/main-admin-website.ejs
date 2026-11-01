@@ -73,7 +73,16 @@
               text input next to it so the live preview below has a
               readable value to put on its iframe's query string - see
               public/js/homepage-theme-editor.js). %>
-          <details class="manage-section homepage-theme-section" open>
+          <%# A real request: "Colors dropdown menu should not stay open
+              everytime you edit the homepage." Every save on this page
+              (block/menu-tab saves, theme saves, all of them) redirects
+              back to a full page reload - a hardcoded `open` here forced
+              this section to re-expand every single time, unlike
+              Typography/Header/Announcement Bar below, which already
+              start collapsed. No new persistence - it just starts
+              collapsed like those, same as any other <details> on this
+              page. %>
+          <details class="manage-section homepage-theme-section">
             <summary><svg class="icon homepage-theme-section-chevron"><use href="#icon-chevron-down"/></svg> Colors</summary>
             <div class="homepage-theme-section-body">
               <label class="homepage-theme-color-row">
@@ -145,16 +154,28 @@
             </div>
           </details>
 
-          <%# Logo & Favicon - reuses the exact same upload plumbing the
-              block builder's own image blocks already use (Supabase
-              Storage when configured, local disk otherwise - see
-              routes/admin-website.js's own saveBlockImageIfProvided). %>
+          <%# Header - a real request: "Add options to edit header and
+              footer of website. Be able to upload images for header."
+              The site header's small round logo (same upload plumbing
+              the block builder's own image blocks already use -
+              Supabase Storage when configured, local disk otherwise, see
+              routes/admin-website.js's own saveBlockImageIfProvided)
+              plus a new Header Background Image - a banner behind the
+              whole header bar, a visually distinct thing from the small
+              logo once rendered (views/public-home.ejs's own inline
+              style on .site-header). Favicon lives here too - it's part
+              of the same "what shows up around the site chrome" family
+              as the logo, not really its own section. %>
           <details class="manage-section homepage-theme-section">
-            <summary><svg class="icon homepage-theme-section-chevron"><use href="#icon-chevron-down"/></svg> Logo &amp; Favicon</summary>
+            <summary><svg class="icon homepage-theme-section-chevron"><use href="#icon-chevron-down"/></svg> Header</summary>
             <div class="homepage-theme-section-body">
               <% if (theme.logoUrl) { %><p class="hint">Current logo: <img src="<%= theme.logoUrl %>" alt="" class="homepage-theme-logo-preview" /></p><% } %>
-              <label>Logo <span class="hint">(replaces the default logo in the site header - leave blank to keep the current one)</span>
+              <label>Logo <span class="hint">(the small round logo in the site header - leave blank to keep the current one)</span>
                 <input type="file" name="logo" accept="image/*" />
+              </label>
+              <% if (theme.headerImageUrl) { %><p class="hint">Current header background: <img src="<%= theme.headerImageUrl %>" alt="" class="homepage-theme-logo-preview" /></p><% } %>
+              <label>Header Background Image <span class="hint">(an optional banner image behind the whole header bar - leave blank to keep the current one, or to use no image at all)</span>
+                <input type="file" name="headerImage" accept="image/*" />
               </label>
               <% if (theme.faviconUrl) { %><p class="hint">Current favicon: <img src="<%= theme.faviconUrl %>" alt="" class="homepage-theme-favicon-preview" /></p><% } %>
               <label>Favicon <span class="hint">(the small browser-tab icon - leave blank to keep the current one)</span>
@@ -173,6 +194,28 @@
               </label>
               <label>Announcement Text
                 <input type="text" name="announcementText" value="<%= theme.announcementText %>" data-theme-field placeholder="e.g. Registration opens March 1st!" />
+              </label>
+            </div>
+          </details>
+
+          <%# Footer - a real request, same as Header above: a free-text
+              field (off until an admin fills it in, same pattern as
+              Announcement Text above) plus an optional footer image,
+              both rendered on the public homepage's own <footer> (views/
+              public-home.ejs). footerText is wired to data-theme-field/
+              withThemeOverrides for the live preview (a plain value, not
+              a file upload); footerImage can't travel over a query
+              string, same documented logo/favicon limitation - it only
+              takes effect after Save. %>
+          <details class="manage-section homepage-theme-section">
+            <summary><svg class="icon homepage-theme-section-chevron"><use href="#icon-chevron-down"/></svg> Footer</summary>
+            <div class="homepage-theme-section-body">
+              <label>Footer Text <span class="hint">(shown above the contact info in the site footer - leave blank for none)</span>
+                <input type="text" name="footerText" value="<%= theme.footerText %>" data-theme-field placeholder="e.g. Thank you for being part of our community!" />
+              </label>
+              <% if (theme.footerImageUrl) { %><p class="hint">Current footer image: <img src="<%= theme.footerImageUrl %>" alt="" class="homepage-theme-favicon-preview" /></p><% } %>
+              <label>Footer Image <span class="hint">(optional - shown above the footer text, leave blank to keep the current one or use none)</span>
+                <input type="file" name="footerImage" accept="image/*" />
               </label>
             </div>
           </details>
@@ -200,6 +243,11 @@
                     <span data-homepage-block-drag-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span>
                     <div class="homepage-builder-block-preview">
                       <span class="badge-pill badge-pill-gray homepage-builder-block-type"><%= BLOCK_TYPE_LABELS[b.block_type] %></span>
+                      <%# Alignment badge - a real request: "Add left,
+                          right centering to all page content settings
+                          when editing the homepage" - "so an admin can
+                          tell at a glance" without opening Edit. %>
+                      <span class="badge-pill badge-pill-gray homepage-builder-block-align"><%= (b.alignment || 'left').charAt(0).toUpperCase() + (b.alignment || 'left').slice(1) %></span>
                       <% if (b.block_type === 'text') { %>
                         <span class="homepage-builder-block-text-preview homepage-text-<%= b.text_size %>"><%= b.text_body || '(empty)' %></span>
                       <% } else if (b.block_type === 'image') { %>
@@ -359,6 +407,16 @@
               <input type="text" name="buttonUrl" value="<%= b.button_url || '' %>" placeholder="https://... or /register" />
             </label>
           <% } %>
+          <%# Alignment - a real request: "Add left, right centering to
+              all page content settings when editing the homepage." Same
+              option across every block type. %>
+          <label>Alignment
+            <select name="alignment">
+              <option value="left" <%= (b.alignment || 'left') === 'left' ? 'selected' : '' %>>Left</option>
+              <option value="center" <%= b.alignment === 'center' ? 'selected' : '' %>>Center</option>
+              <option value="right" <%= b.alignment === 'right' ? 'selected' : '' %>>Right</option>
+            </select>
+          </label>
           <div class="notes-dialog-actions">
             <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
             <button type="submit" class="primary-btn">Save Changes</button>
@@ -382,6 +440,13 @@
             <option value="small">Small</option>
             <option value="medium" selected>Medium</option>
             <option value="large">Large</option>
+          </select>
+        </label>
+        <label>Alignment
+          <select name="alignment">
+            <option value="left" selected>Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
           </select>
         </label>
         <div class="notes-dialog-actions">
@@ -409,6 +474,13 @@
             <option value="full">Full Width</option>
           </select>
         </label>
+        <label>Alignment
+          <select name="alignment">
+            <option value="left" selected>Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
+        </label>
         <div class="notes-dialog-actions">
           <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
           <button type="submit" class="primary-btn">Add Image Block</button>
@@ -425,6 +497,13 @@
         </label>
         <label>Link URL
           <input type="text" name="buttonUrl" placeholder="https://... or /register" required />
+        </label>
+        <label>Alignment
+          <select name="alignment">
+            <option value="left" selected>Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
         </label>
         <div class="notes-dialog-actions">
           <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>

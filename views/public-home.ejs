@@ -3,8 +3,8 @@
 <head>
   <%- include('partials/head', { title }) %>
   <%# A real request: "Should have the exact webpage editing features as
-      Shopify" - Logo & Favicon theme section (Main Admin > Settings >
-      Public Homepage). Placed AFTER partials/head's own default
+      Shopify" - the Header theme section's own Favicon field (Main
+      Admin > Settings > Public Homepage). Placed AFTER partials/head's own default
       <link rel="icon">, so it overrides the favicon on just this page
       (every other page in the app keeps the default owl icon) without
       touching that shared partial. %>
@@ -33,7 +33,29 @@
     <div class="site-announcement-bar"><%= theme.announcementText %></div>
   <% } %>
 
-  <header class="site-header">
+  <%# A real request: "Log in button should be above header." A thin
+      utility bar above the brand/menu header below, holding only the
+      signed-in-state action link - the same conditional signed-in
+      (My Portals)/signed-out (Log In) swap .site-header-actions used to
+      hold, just relocated. The signed-out "Become a Member" button that
+      used to sit next to Log In here is gone entirely (a separate real
+      request - the "Ready to join"/Classes showcase CTAs further down
+      this same page still have their own Member Registration buttons,
+      untouched). %>
+  <div class="site-header-utility-bar">
+    <% if (typeof portalAccount !== 'undefined' && portalAccount) { %>
+      <a class="primary-btn" href="/portal">My Portals</a>
+    <% } else { %>
+      <a class="btn-secondary" href="/login">Log in</a>
+    <% } %>
+  </div>
+
+  <%# Header background image (theme.headerImageUrl) - a real request:
+      "Add options to edit header and footer of website. Be able to
+      upload images for header." Optional - plain themed background
+      otherwise (see public/css/styles.css's own .public-home-page
+      .site-header rule). %>
+  <header class="site-header"<% if (theme.headerImageUrl) { %> style="background-image: url('<%= theme.headerImageUrl %>');"<% } %>>
     <%# A real request: "Homepage should now link to homepage" - / is now
         the site root (server.js), so the brand link uses that instead
         of the old /welcome alias (still works, just no longer the
@@ -55,18 +77,7 @@
         <% }); %>
       </nav>
     <% } %>
-    <%# A real request: "At the top right of the page there should be two
-        buttons. Become a Member and Log in. Log in goes to the member
-        log in page." Same two destinations as before (/register, /login)
-        - just relabeled and reordered to match. %>
-    <div class="site-header-actions">
-      <% if (typeof portalAccount !== 'undefined' && portalAccount) { %>
-        <a class="primary-btn" href="/portal">My Portals</a>
-      <% } else { %>
-        <a class="primary-btn" href="/register">Become a Member</a>
-        <a class="btn-secondary" href="/login">Log in</a>
-      <% } %>
-    </div>
+
   </header>
 
   <main id="main-content" tabindex="-1">
@@ -84,14 +95,26 @@
     <section class="site-section" id="homepage-blocks">
       <div class="site-section-inner">
         <% blocks.forEach(function(b) { %>
+          <%
+            // Per-block alignment - a real request: "Add left, right
+            // centering to all page content settings when editing the
+            // homepage." homepage-align-<alignment> alongside the
+            // existing homepage-block-<type> class - see public/css/
+            // styles.css's own comment on why each block type needs its
+            // own pairing (plain text-align isn't enough for the image/
+            // button blocks). 'left' (the default/current behavior) adds
+            // no override rule at all, so an existing block with no
+            // alignment value renders exactly as it already did.
+            var alignClass = 'homepage-align-' + (b.alignment || 'left');
+          %>
           <% if (b.block_type === 'text') { %>
-            <div class="homepage-block homepage-block-text homepage-text-<%= b.text_size || 'medium' %>"><%= b.text_body %></div>
+            <div class="homepage-block homepage-block-text homepage-text-<%= b.text_size || 'medium' %> <%= alignClass %>"><%= b.text_body %></div>
           <% } else if (b.block_type === 'image' && b.imageUrl) { %>
-            <div class="homepage-block homepage-block-image homepage-image-<%= b.image_size || 'medium' %>">
+            <div class="homepage-block homepage-block-image homepage-image-<%= b.image_size || 'medium' %> <%= alignClass %>">
               <img src="<%= b.imageUrl %>" alt="<%= b.image_alt || '' %>" />
             </div>
           <% } else if (b.block_type === 'button') { %>
-            <div class="homepage-block homepage-block-button">
+            <div class="homepage-block homepage-block-button <%= alignClass %>">
               <a class="primary-btn" href="<%= b.button_url %>"><%= b.button_label %></a>
             </div>
           <% } %>
@@ -164,6 +187,12 @@
   </main>
 
   <footer class="site-footer">
+    <%# Footer image + free text - a real request: "Add options to edit
+        header and footer of website." Both off by default (shown only
+        once an admin fills them in), same pattern as the Announcement
+        Bar above. %>
+    <% if (theme.footerImageUrl) { %><img src="<%= theme.footerImageUrl %>" alt="" class="site-footer-image" /><% } %>
+    <% if (theme.footerText) { %><p class="site-footer-text"><%= theme.footerText %></p><% } %>
     <p>
       <% if (settings.contact_email) { %><a href="mailto:<%= settings.contact_email %>"><%= settings.contact_email %></a><% } %>
       <% if (settings.contact_phone) { %> &middot; <%= settings.contact_phone %><% } %>

@@ -1,0 +1,12 @@
+-- A real request: "Add left, right centering to all page content
+-- settings when editing the homepage." Every homepage_blocks row (text/
+-- image/button - the earlier homepage_builder migration) already has its
+-- own text_size/image_size "how big" column; this is the matching "where
+-- on the line" column, same small fixed-choice-text-with-a-check shape as
+-- those two, just a 3rd value set ('left'/'center'/'right') instead of
+-- small/medium/large(/full). Defaults to 'left' so every block added
+-- before this migration (which has no alignment opinion at all) renders
+-- exactly as it already does today - see views/public-home.ejs's own
+-- homepage-align-<alignment> class and public/css/styles.css's own
+-- comment on why 'left' needs no override rule at all.
+alter table homepage_blocks add column if not exists alignment text not null default 'left' check (alignment in ('left', 'center', 'right'));
