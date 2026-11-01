@@ -12383,6 +12383,29 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 .site-header-brand { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--ink); font-weight: 800; font-size: 1.15rem; }
 .site-header-brand img { height: 42px; width: 42px; border-radius: 50%; }
 .site-header-actions { display: flex; align-items: center; gap: 0.6rem; }
+/* A real request: "Become and member and log in buttons should be the
+   same height and balanced on the same row side by side, font should
+   also be the same size." .primary-btn's own bigger padding/font-size
+   plus a standalone margin-top (meant for a button sitting alone at the
+   end of a form, not one of a pair in a header row) never matched
+   .btn-secondary's own smaller --control-padding-compact/--control-
+   font-size-compact (shared with plain form inputs, not sized for a
+   button) - scoped to just this header row so neither class's own
+   different look everywhere else it's used changes. border: 1px solid
+   transparent on both (not just .btn-secondary's own border) so the
+   rendered box height actually matches - .primary-btn's own base rule
+   sets border: none, which alone would still leave it 2px shorter than
+   .btn-secondary's bordered box even with identical padding. */
+.site-header-actions .primary-btn,
+.site-header-actions .btn-secondary {
+  margin-top: 0;
+  padding: 0.7rem 1.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+}
 /* Homepage Menu (views/public-home.ejs) - a real request: "Should be
    able to edit or add menu tabs to the homepage." flex: 1 1 auto fills
    the space between the brand and the Log In/Register buttons on a wide
