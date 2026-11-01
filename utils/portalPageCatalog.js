@@ -51,11 +51,17 @@ const MAIN_ADMIN_PAGES = [
     { key: 'view_accounting_logs', label: 'Logs' },
     { key: 'view_accounting_settings', label: 'Settings' },
   ] },
+  // Newsletter is nested here, not a separate top-level page, because
+  // that's genuinely where the real nav puts it - views/partials/portal-
+  // nav.ejs's own MAIN_ADMIN_NAV_LINKS lists it as this same
+  // "Communication" group's 4th subpage, not a standing sidebar tab of
+  // its own (a real drift this catalog's own task-4 audit caught and
+  // fixed - it used to sit here as a sibling top-level entry instead).
   { key: 'send_announcements', label: 'Communication (Announcements)', subpages: [
     { key: 'view_announcements_email', label: 'Email' },
     { key: 'view_announcements_text', label: 'Text' },
+    { key: 'manage_communications', label: 'Newsletter' },
   ] },
-  { key: 'manage_communications', label: 'Newsletter' },
   { key: 'manage_events', label: 'Events', subpages: [
     { key: 'view_events_drafts', label: 'Drafts' },
     { key: 'view_events_requests', label: 'Requests' },
@@ -124,8 +130,16 @@ const MAIN_ADMIN_PAGES = [
   { key: 'view_audit_log', label: 'Audit Log' },
   { key: 'manage_users', label: 'Admins & Users' },
   { key: 'manage_roles', label: 'Portal Permissions (Roles)' },
-  { key: 'manage_classes', label: 'Classes' },
-  { key: 'manage_registrations', label: 'Registrations' },
+  // manage_classes/manage_registrations (two of the original 26
+  // permission keys) are deliberately left out of this catalog - a real
+  // task-4 audit against views/partials/portal-nav.ejs found neither one
+  // corresponds to any current Main Admin nav entry, Settings hub card,
+  // or requirePortalPermission(...) call site anywhere in routes/*.js
+  // (there is no main-admin-classes.js/main-admin-registrations.js at
+  // all) - stale rows with nothing left for a checkbox here to actually
+  // control. The permission rows themselves are untouched (removing a
+  // page from this catalog only hides its checkbox, never deletes the
+  // underlying permissions table row or anything already granted on it).
   // Nature News's own bare page reuses manage_publications (see
   // Publications & Photos above) - only its 5 sibling subpages
   // (routes/main-admin-fun.js) ever lacked a permission of their own.
