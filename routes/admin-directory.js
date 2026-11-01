@@ -44,8 +44,22 @@ function imageUrl(key) {
 
 const DIRECTORY_TABS = ['directory', 'requests', 'archive'];
 
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Requests/Archive share this one ?tab= handler
+// (manage_directory already gates the whole router) rather than their
+// own route, so each gets its own inline check.
+const DIRECTORY_TAB_PERMISSION = {
+  requests: 'view_directory_requests',
+  archive: 'view_directory_archive',
+};
+
 router.get('/', async (req, res) => {
   const activeTab = DIRECTORY_TABS.includes(req.query.tab) ? req.query.tab : 'directory';
+  const tabPermission = DIRECTORY_TAB_PERMISSION[activeTab];
+  if (tabPermission && !req.portalPermissions.has(tabPermission)) {
+    return res.status(403).render('403', { title: 'Not Authorized', message: "You don't have permission to do that.", backHref: '/main-admin', backLabel: 'Back to Main Admin' });
+  }
   const categories = await directory.listCategories();
 
   let groups = [];

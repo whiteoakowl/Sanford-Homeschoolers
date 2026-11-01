@@ -107,12 +107,12 @@ const contactAdminsPortalQuery = portalTitle === 'Parent Portal' || portalTitle 
 // hardcoding each route's own default tab name a second time here.
 const MAIN_ADMIN_NAV_LINKS = [
   { href: '/main-admin', icon: 'home', label: 'Home' },
-  { href: '/main-admin/members', icon: 'users', label: 'Members', subpages: [
+  { href: '/main-admin/members', icon: 'users', label: 'Members', perm: 'manage_members', subpages: [
     { href: '/main-admin/members', label: 'Members' },
-    { href: '/main-admin/members?tab=approvals', label: 'Approvals' },
-    { href: '/main-admin/members?tab=archive', label: 'Archive' },
-    { href: '/main-admin/members?tab=locked', label: 'Locked' },
-    { href: '/main-admin/members?tab=settings', label: 'Settings' },
+    { href: '/main-admin/members?tab=approvals', label: 'Approvals', perm: 'view_members_approvals' },
+    { href: '/main-admin/members?tab=archive', label: 'Archive', perm: 'view_members_archive' },
+    { href: '/main-admin/members?tab=locked', label: 'Locked', perm: 'view_members_locked' },
+    { href: '/main-admin/members?tab=settings', label: 'Settings', perm: 'view_members_settings' },
   ] },
   // A real request: "add subpages under accounting - accounts, accounting
   // categories, invoices, payments, adjustments, logs, settings." Real
@@ -121,88 +121,88 @@ const MAIN_ADMIN_NAV_LINKS = [
   // is its own genuinely different listing (members+balances vs. charges
   // vs. payments vs. refunds vs. an audit trail), not shared markup with a
   // few fields swapped the way Members' own subpages are.
-  { href: '/main-admin/accounting', icon: 'file-text', label: 'Accounting', subpages: [
+  { href: '/main-admin/accounting', icon: 'file-text', label: 'Accounting', perm: 'manage_finances', subpages: [
     { href: '/main-admin/accounting', label: 'Accounts' },
-    { href: '/main-admin/accounting/categories', label: 'Category/Fiscal Year' },
-    { href: '/main-admin/accounting/invoices', label: 'Invoices' },
-    { href: '/main-admin/accounting/payments', label: 'Payments' },
-    { href: '/main-admin/accounting/adjustments', label: 'Adjustments' },
-    { href: '/main-admin/accounting/reports', label: 'Reports' },
-    { href: '/main-admin/accounting/transactions', label: 'Transactions' },
-    { href: '/main-admin/accounting/receipts', label: 'Receipts' },
-    { href: '/main-admin/accounting/logs', label: 'Logs' },
-    { href: '/main-admin/accounting/settings', label: 'Settings' },
+    { href: '/main-admin/accounting/categories', label: 'Category/Fiscal Year', perm: 'view_accounting_categories' },
+    { href: '/main-admin/accounting/invoices', label: 'Invoices', perm: 'view_accounting_invoices' },
+    { href: '/main-admin/accounting/payments', label: 'Payments', perm: 'view_accounting_payments' },
+    { href: '/main-admin/accounting/adjustments', label: 'Adjustments', perm: 'view_accounting_adjustments' },
+    { href: '/main-admin/accounting/reports', label: 'Reports', perm: 'view_accounting_reports' },
+    { href: '/main-admin/accounting/transactions', label: 'Transactions', perm: 'view_accounting_transactions' },
+    { href: '/main-admin/accounting/receipts', label: 'Receipts', perm: 'view_accounting_receipts' },
+    { href: '/main-admin/accounting/logs', label: 'Logs', perm: 'view_accounting_logs' },
+    { href: '/main-admin/accounting/settings', label: 'Settings', perm: 'view_accounting_settings' },
   ] },
-  { href: '/main-admin/announcements', icon: 'bell', label: 'Communication', subpages: [
+  { href: '/main-admin/announcements', icon: 'bell', label: 'Communication', perm: 'send_announcements', subpages: [
     { href: '/main-admin/announcements', label: 'Announcements' },
-    { href: '/main-admin/announcements/email', label: 'Email' },
-    { href: '/main-admin/announcements/text', label: 'Text' },
-    { href: '/main-admin/newsletter', label: 'Newsletter' },
+    { href: '/main-admin/announcements/email', label: 'Email', perm: 'view_announcements_email' },
+    { href: '/main-admin/announcements/text', label: 'Text', perm: 'view_announcements_text' },
+    { href: '/main-admin/newsletter', label: 'Newsletter', perm: 'manage_communications' },
   ] },
-  { href: '/main-admin/events', icon: 'calendar-check', label: 'Events', subpages: [
+  { href: '/main-admin/events', icon: 'calendar-check', label: 'Events', perm: 'manage_events', subpages: [
     { href: '/main-admin/events', label: 'Calendar' },
-    { href: '/main-admin/events?tab=drafts', label: 'Drafts' },
-    { href: '/main-admin/events?tab=requests', label: 'Requests' },
-    { href: '/main-admin/events?tab=attendance', label: 'Event Attendance' },
-    { href: '/main-admin/events?tab=registrationlog', label: 'Event Registration Log' },
-    { href: '/main-admin/events?tab=settings', label: 'Settings' },
+    { href: '/main-admin/events?tab=drafts', label: 'Drafts', perm: 'view_events_drafts' },
+    { href: '/main-admin/events?tab=requests', label: 'Requests', perm: 'view_events_requests' },
+    { href: '/main-admin/events?tab=attendance', label: 'Event Attendance', perm: 'view_events_attendance' },
+    { href: '/main-admin/events?tab=registrationlog', label: 'Event Registration Log', perm: 'view_events_registrationlog' },
+    { href: '/main-admin/events?tab=settings', label: 'Settings', perm: 'view_events_settings' },
   ] },
-  { href: '/main-admin/forums', icon: 'users', label: 'Chat', subpages: [
+  { href: '/main-admin/forums', icon: 'users', label: 'Chat', perm: 'manage_forum', subpages: [
     { href: '/main-admin/forums', label: 'Chat Groups' },
-    { href: '/main-admin/forums?tab=rooms', label: 'Chat Rooms' },
-    { href: '/main-admin/forums?tab=archive', label: 'Archive' },
+    { href: '/main-admin/forums?tab=rooms', label: 'Chat Rooms', perm: 'view_forums_rooms' },
+    { href: '/main-admin/forums?tab=archive', label: 'Archive', perm: 'view_forums_archive' },
   ] },
   // A real request: "main admin portal, volunteer tab, sub pages
   // committees, sign up list, volunteer list."
-  { href: '/main-admin/volunteers', icon: 'users', label: 'Volunteers', subpages: [
+  { href: '/main-admin/volunteers', icon: 'users', label: 'Volunteers', perm: 'manage_volunteers', subpages: [
     { href: '/main-admin/volunteers', label: 'Committees' },
-    { href: '/main-admin/volunteers?tab=signup-lists', label: 'Sign-Up Lists' },
-    { href: '/main-admin/volunteers?tab=volunteer-lists', label: 'Volunteer Lists' },
+    { href: '/main-admin/volunteers?tab=signup-lists', label: 'Sign-Up Lists', perm: 'view_volunteers_signup_lists' },
+    { href: '/main-admin/volunteers?tab=volunteer-lists', label: 'Volunteer Lists', perm: 'view_volunteers_lists' },
   ] },
-  { href: '/main-admin/name-tags', icon: 'badge', label: 'Name Tags', subpages: [
+  { href: '/main-admin/name-tags', icon: 'badge', label: 'Name Tags', perm: 'manage_name_tags', subpages: [
     { href: '/main-admin/name-tags', label: 'Design' },
-    { href: '/main-admin/name-tags?tab=print', label: 'Print' },
-    { href: '/main-admin/name-tags?tab=requests', label: 'Requests' },
+    { href: '/main-admin/name-tags?tab=print', label: 'Print', perm: 'view_name_tags_print' },
+    { href: '/main-admin/name-tags?tab=requests', label: 'Requests', perm: 'view_name_tags_requests' },
   ] },
-  { href: '/main-admin/photos', icon: 'image', label: 'Photos', subpages: [
+  { href: '/main-admin/photos', icon: 'image', label: 'Photos', perm: 'manage_publications', subpages: [
     { href: '/main-admin/photos', label: 'Photos' },
-    { href: '/main-admin/photos?tab=archive', label: 'Archive' },
+    { href: '/main-admin/photos?tab=archive', label: 'Archive', perm: 'view_admin_photos_archive' },
   ] },
-  { href: '/main-admin/resource-links', icon: 'book', label: 'Resource Links', subpages: [
+  { href: '/main-admin/resource-links', icon: 'book', label: 'Resource Links', perm: 'manage_resources', subpages: [
     { href: '/main-admin/resource-links', label: 'Resources' },
-    { href: '/main-admin/resource-links?tab=approvals', label: 'Approvals' },
+    { href: '/main-admin/resource-links?tab=approvals', label: 'Approvals', perm: 'view_resource_links_approvals' },
   ] },
-  { href: '/main-admin/directory', icon: 'map-pin', label: 'Business Directory', mobileLabel: 'Business<br>Directory', subpages: [
+  { href: '/main-admin/directory', icon: 'map-pin', label: 'Business Directory', mobileLabel: 'Business<br>Directory', perm: 'manage_directory', subpages: [
     { href: '/main-admin/directory', label: 'Directory' },
-    { href: '/main-admin/directory?tab=requests', label: 'Requests' },
-    { href: '/main-admin/directory?tab=archive', label: 'Archive' },
+    { href: '/main-admin/directory?tab=requests', label: 'Requests', perm: 'view_directory_requests' },
+    { href: '/main-admin/directory?tab=archive', label: 'Archive', perm: 'view_directory_archive' },
   ] },
-  { href: '/main-admin/classifieds', icon: 'tag', label: 'Classifieds', subpages: [
+  { href: '/main-admin/classifieds', icon: 'tag', label: 'Classifieds', perm: 'manage_classifieds', subpages: [
     { href: '/main-admin/classifieds', label: 'Categories' },
-    { href: '/main-admin/classifieds?tab=requests', label: 'Requests' },
-    { href: '/main-admin/classifieds?tab=archive', label: 'Archive' },
+    { href: '/main-admin/classifieds?tab=requests', label: 'Requests', perm: 'view_classifieds_requests' },
+    { href: '/main-admin/classifieds?tab=archive', label: 'Archive', perm: 'view_classifieds_archive' },
   ] },
-  { href: '/main-admin/store', icon: 'tag', label: 'Shop', subpages: [
+  { href: '/main-admin/store', icon: 'tag', label: 'Shop', perm: 'manage_store', subpages: [
     { href: '/main-admin/store', label: 'Products' },
-    { href: '/main-admin/store?tab=orders', label: 'Orders' },
-    { href: '/main-admin/store?tab=archived', label: 'Archived' },
-    { href: '/main-admin/store?tab=analytics', label: 'Analytics' },
-    { href: '/main-admin/store?tab=settings', label: 'Settings' },
+    { href: '/main-admin/store?tab=orders', label: 'Orders', perm: 'view_store_orders' },
+    { href: '/main-admin/store?tab=archived', label: 'Archived', perm: 'view_store_archived' },
+    { href: '/main-admin/store?tab=analytics', label: 'Analytics', perm: 'view_store_analytics' },
+    { href: '/main-admin/store?tab=settings', label: 'Settings', perm: 'view_store_settings' },
   ] },
-  { href: '/main-admin/forms', icon: 'clipboard-list', label: 'Custom Forms' },
-  { href: '/main-admin/babysitters', icon: 'user', label: 'Babysitters', subpages: [
+  { href: '/main-admin/forms', icon: 'clipboard-list', label: 'Custom Forms', perm: 'manage_forms' },
+  { href: '/main-admin/babysitters', icon: 'user', label: 'Babysitters', perm: 'manage_babysitters', subpages: [
     { href: '/main-admin/babysitters', label: 'Babysitter' },
-    { href: '/main-admin/babysitters?tab=approvals', label: 'Approvals' },
-    { href: '/main-admin/babysitters?tab=settings', label: 'Settings' },
+    { href: '/main-admin/babysitters?tab=approvals', label: 'Approvals', perm: 'view_babysitters_approvals' },
+    { href: '/main-admin/babysitters?tab=settings', label: 'Settings', perm: 'view_babysitters_settings' },
   ] },
-  { href: '/main-admin/publications', icon: 'book', label: 'Publications' },
+  { href: '/main-admin/publications', icon: 'book', label: 'Publications', perm: 'manage_publications' },
   // A real request: "Main admin portal, add a tab called annual
   // calendar... Dropdown menu for each fiscal year created in the
   // system." routes/main-admin-annual-calendar.js - no subpages, the
   // fiscal year picker lives on the page itself (same ?fiscalYearId=
   // query param convention Accounting's own Category/Fiscal Year
   // subpage already reads fiscal years from).
-  { href: '/main-admin/annual-calendar', icon: 'calendar-check', label: 'Annual Calendar' },
+  { href: '/main-admin/annual-calendar', icon: 'calendar-check', label: 'Annual Calendar', perm: 'manage_annual_calendar' },
   // A real request: "Main admin portal, remove academics tab and
   // features. Only parent portal has those pages and admin doesn't need
   // to control them with any settings." Diplomas/transcripts used to be
@@ -224,9 +224,9 @@ const MAIN_ADMIN_NAV_LINKS = [
   // the co-op via a student picker - see routes/main-admin-family-
   // school.js's own header comment for how the actual builder/designer
   // markup is shared with Parent Portal's pages rather than re-copied.
-  { href: '/main-admin/family-school', icon: 'home-heart', label: 'Family School Management', mobileLabel: 'Family School<br>Management', subpages: [
+  { href: '/main-admin/family-school', icon: 'home-heart', label: 'Family School Management', mobileLabel: 'Family School<br>Management', perm: 'view_family_school_main_admin', subpages: [
     { href: '/main-admin/family-school', label: 'Transcripts' },
-    { href: '/main-admin/family-school/diplomas', label: 'Diplomas' },
+    { href: '/main-admin/family-school/diplomas', label: 'Diplomas', perm: 'view_family_school_diplomas_main_admin' },
   ] },
   // Same Training & Learning module as Co-op Admin's own Training tab
   // (routes/main-admin-training.js, shared utils/training.js data) - a
@@ -234,7 +234,7 @@ const MAIN_ADMIN_NAV_LINKS = [
   // portal. the features should be exactly the same." No data-match
   // needed - public/js/admin-nav.js already prefix-matches every sub-page
   // under /main-admin/training/... against this link's own href.
-  { href: '/main-admin/training', icon: 'graduation-cap', label: 'Training' },
+  { href: '/main-admin/training', icon: 'graduation-cap', label: 'Training', perm: 'manage_training' },
   // A real request: "there should not be a student portal section. the
   // fun tab should be part of the rest of the dashboard." This used to be
   // its own labeled 2nd section (a separate #class-nav-links group titled
@@ -244,12 +244,12 @@ const MAIN_ADMIN_NAV_LINKS = [
   // flat list like every other tab, same subpages shape (a details/
   // summary group on desktop, a mobile-subpages-tab.ejs popup on mobile).
   { href: '/main-admin/nature-news', icon: 'sprout', label: 'Fun', subpages: [
-    { href: '/main-admin/nature-news', label: 'Nature News' },
-    { href: '/main-admin/fun/reading-challenge/students', label: 'Student Reading Challenge' },
-    { href: '/main-admin/fun/reading-challenge/parents', label: 'Parent Reading Challenge' },
-    { href: '/main-admin/fun/games', label: 'Games' },
-    { href: '/main-admin/fun/vocabulary-game', label: 'Vocabulary Game' },
-    { href: '/main-admin/fun/pets', label: 'Pets' },
+    { href: '/main-admin/nature-news', label: 'Nature News', perm: 'manage_publications' },
+    { href: '/main-admin/fun/reading-challenge/students', label: 'Student Reading Challenge', perm: 'view_fun_student_reading_challenge' },
+    { href: '/main-admin/fun/reading-challenge/parents', label: 'Parent Reading Challenge', perm: 'view_fun_parent_reading_challenge' },
+    { href: '/main-admin/fun/games', label: 'Games', perm: 'view_fun_games' },
+    { href: '/main-admin/fun/vocabulary-game', label: 'Vocabulary Game', perm: 'view_fun_vocabulary_game' },
+    { href: '/main-admin/fun/pets', label: 'Pets', perm: 'view_fun_pets' },
   ] },
 ];
 // Parent Portal's own primary nav - a real request: "Parent portal is not
@@ -283,13 +283,13 @@ const PARENT_NAV_LINKS = [
   // entry's own subpages array; events-list.ejs's own "My Event
   // Registrations" button (its toolbar, Parent Portal only) is the only
   // way there now.
-  { href: '/events?view=calendar&portal=parent', icon: 'calendar-check', label: 'Events' },
+  { href: '/events?view=calendar&portal=parent', icon: 'calendar-check', label: 'Events', perm: 'view_parent_events' },
   { href: '/parent/classes', icon: 'graduation-cap', label: 'Co-op Classes', mobileLabel: 'Co-op<br>Classes', subpages: [
-    { href: '/parent/classes', label: 'Class Registration' },
-    { href: '/parent/classes/dashboard', label: 'Classroom Dashboard' },
-    { href: '/name-tag', label: 'Name Tag Form' },
-    { href: '/absence', label: 'Absence/Late Form' },
-    { href: '/parent/handbook', label: 'Policy Handbook' },
+    { href: '/parent/classes', label: 'Class Registration', perm: 'view_parent_classes' },
+    { href: '/parent/classes/dashboard', label: 'Classroom Dashboard', perm: 'view_parent_classroom_dashboard' },
+    { href: '/name-tag', label: 'Name Tag Form', perm: 'view_parent_name_tag_form' },
+    { href: '/absence', label: 'Absence/Late Form', perm: 'view_parent_absence_form' },
+    { href: '/parent/handbook', label: 'Policy Handbook', perm: 'view_parent_handbook' },
   ] },
   // A real request: "Homeschool family management tab on parent
   // portal. It needs to become its own portal and all the subpages
@@ -301,23 +301,23 @@ const PARENT_NAV_LINKS = [
   // each their own portal rather than a Parent Portal tab. See
   // FAMILY_SCHOOL_NAV_LINKS below for its own flat nav, one entry per
   // page that used to be a subpage here.
-  { href: '/forums?portal=parent', icon: 'users', label: 'Chat' },
-  { href: '/parent/training', icon: 'graduation-cap', label: 'Training' },
-  { href: '/directory', icon: 'map-pin', label: 'Business Directory', mobileLabel: 'Business<br>Directory' },
-  { href: '/classifieds', icon: 'tag', label: 'Classifieds' },
-  { href: '/parent/resources', icon: 'book', label: 'Resources' },
-  { href: '/parent/documents', icon: 'file-text', label: 'Documents' },
-  { href: '/store', icon: 'grid', label: 'Store' },
-  { href: '/photos?portal=parent', icon: 'camera', label: 'Photos' },
-  { href: '/parent/name-tags', icon: 'badge', label: 'Name Tags' },
-  { href: '/parent/babysitters', icon: 'user', label: 'Babysitters' },
+  { href: '/forums?portal=parent', icon: 'users', label: 'Chat', perm: 'view_parent_chat' },
+  { href: '/parent/training', icon: 'graduation-cap', label: 'Training', perm: 'view_parent_training' },
+  { href: '/directory', icon: 'map-pin', label: 'Business Directory', mobileLabel: 'Business<br>Directory', perm: 'view_parent_directory' },
+  { href: '/classifieds', icon: 'tag', label: 'Classifieds', perm: 'view_parent_classifieds' },
+  { href: '/parent/resources', icon: 'book', label: 'Resources', perm: 'view_parent_resources' },
+  { href: '/parent/documents', icon: 'file-text', label: 'Documents', perm: 'view_parent_documents' },
+  { href: '/store', icon: 'grid', label: 'Store', perm: 'view_parent_store' },
+  { href: '/photos?portal=parent', icon: 'camera', label: 'Photos', perm: 'view_parent_photos' },
+  { href: '/parent/name-tags', icon: 'badge', label: 'Name Tags', perm: 'view_parent_name_tags' },
+  { href: '/parent/babysitters', icon: 'user', label: 'Babysitters', perm: 'view_parent_babysitters' },
   // A real request: "remove library log sub page. It is now a button on
   // the library page" - My Library Log dropped back out of this nav
   // entry's own subpages array; parent-library.ejs's own "My Library
   // Log" button (right next to its <h1>) is the only way there now.
-  { href: '/parent/library', icon: 'book', label: 'Library' },
-  { href: '/parent/reading', icon: 'book', label: 'Reading Challenge', mobileLabel: 'Reading<br>Challenge' },
-  { href: '/accounting', icon: 'check-circle', label: 'Accounting' },
+  { href: '/parent/library', icon: 'book', label: 'Library', perm: 'view_parent_library' },
+  { href: '/parent/reading', icon: 'book', label: 'Reading Challenge', mobileLabel: 'Reading<br>Challenge', perm: 'view_parent_reading' },
+  { href: '/accounting', icon: 'check-circle', label: 'Accounting', perm: 'view_parent_accounting' },
 ];
 // Family School Management's own primary nav - a real request:
 // "Homeschool family management tab on parent portal. It needs to
@@ -331,16 +331,16 @@ const PARENT_NAV_LINKS = [
 // every /parent/family-school/* URL is completely unchanged.
 const FAMILY_SCHOOL_NAV_LINKS = [
   { href: '/parent/family-school', icon: 'home', label: 'Home' },
-  { href: '/parent/family-school/classes', icon: 'graduation-cap', label: 'Family Classes' },
-  { href: '/parent/family-school/grades', icon: 'clipboard-list', label: 'Family Grades' },
-  { href: '/parent/family-school/attendance', icon: 'calendar-check', label: 'Family Attendance' },
-  { href: '/parent/family-school/journal', icon: 'book', label: 'Daily Learning Log', mobileLabel: 'Learning<br>Log' },
-  { href: '/parent/family-school/volunteer-hours', icon: 'clock', label: 'Volunteer Hours', mobileLabel: 'Volunteer<br>Hours' },
-  { href: '/parent/family-school/annual-planner', icon: 'calendar-check', label: 'Annual Planner', mobileLabel: 'Annual<br>Planner' },
-  { href: '/parent/family-school/weekly-planner', icon: 'calendar-check', label: 'Weekly Planner', mobileLabel: 'Weekly<br>Planner' },
-  { href: '/parent/academics', icon: 'graduation-cap', label: 'Transcripts' },
-  { href: '/parent/academics/diplomas', icon: 'graduation-cap', label: 'Diplomas' },
-  { href: '/parent/family-school/portfolio', icon: 'file-text', label: 'Portfolio' },
+  { href: '/parent/family-school/classes', icon: 'graduation-cap', label: 'Family Classes', perm: 'view_fsm_classes' },
+  { href: '/parent/family-school/grades', icon: 'clipboard-list', label: 'Family Grades', perm: 'view_fsm_grades' },
+  { href: '/parent/family-school/attendance', icon: 'calendar-check', label: 'Family Attendance', perm: 'view_fsm_attendance' },
+  { href: '/parent/family-school/journal', icon: 'book', label: 'Daily Learning Log', mobileLabel: 'Learning<br>Log', perm: 'view_fsm_journal' },
+  { href: '/parent/family-school/volunteer-hours', icon: 'clock', label: 'Volunteer Hours', mobileLabel: 'Volunteer<br>Hours', perm: 'view_fsm_volunteer_hours' },
+  { href: '/parent/family-school/annual-planner', icon: 'calendar-check', label: 'Annual Planner', mobileLabel: 'Annual<br>Planner', perm: 'view_fsm_annual_planner' },
+  { href: '/parent/family-school/weekly-planner', icon: 'calendar-check', label: 'Weekly Planner', mobileLabel: 'Weekly<br>Planner', perm: 'view_fsm_weekly_planner' },
+  { href: '/parent/academics', icon: 'graduation-cap', label: 'Transcripts', perm: 'view_fsm_transcripts' },
+  { href: '/parent/academics/diplomas', icon: 'graduation-cap', label: 'Diplomas', perm: 'view_fsm_diplomas' },
+  { href: '/parent/family-school/portfolio', icon: 'file-text', label: 'Portfolio', perm: 'view_fsm_portfolio' },
   // Settings used to be a tab here too - moved behind the gear icon (see
   // settingsHref above) per a later real request.
 ];
@@ -378,12 +378,12 @@ const FAMILY_SCHOOL_NAV_LINKS = [
 // routes/teacher-portal.js) already linking straight to each class.
 const TEACHER_NAV_LINKS = [
   { href: '/teacher', icon: 'home', label: 'Home' },
-  { href: '/teacher/attendance', icon: 'calendar-check', label: 'Attendance' },
-  { href: '/teacher/classes', icon: 'graduation-cap', label: 'Class Schedule' },
-  { href: '/teacher/training', icon: 'graduation-cap', label: 'Training' },
-  { href: '/teacher/assignments', icon: 'clipboard-list', label: 'Assignments' },
-  { href: '/forums?portal=teacher', icon: 'users', label: 'Chat' },
-  { href: '/photos?portal=teacher', icon: 'camera', label: 'Photos' },
+  { href: '/teacher/attendance', icon: 'calendar-check', label: 'Attendance', perm: 'view_teacher_attendance' },
+  { href: '/teacher/classes', icon: 'graduation-cap', label: 'Class Schedule', perm: 'view_teacher_classes' },
+  { href: '/teacher/training', icon: 'graduation-cap', label: 'Training', perm: 'view_teacher_training' },
+  { href: '/teacher/assignments', icon: 'clipboard-list', label: 'Assignments', perm: 'view_teacher_assignments' },
+  { href: '/forums?portal=teacher', icon: 'users', label: 'Chat', perm: 'view_teacher_chat' },
+  { href: '/photos?portal=teacher', icon: 'camera', label: 'Photos', perm: 'view_teacher_photos' },
   // A real request: "Teachers can edit their instructor profile on the
   // teacher portal if they are given permission to view that portal and
   // if their profile has been enabled" - the link is always offered to
@@ -392,7 +392,7 @@ const TEACHER_NAV_LINKS = [
   // teacher-portal.js's own GET /instructor-profile), which shows a
   // plain "not enabled yet" message instead of the edit form rather than
   // this nav conditionally disappearing.
-  { href: '/teacher/instructor-profile', icon: 'user-check', label: 'Instructor Profile', mobileLabel: 'Instructor<br>Profile' },
+  { href: '/teacher/instructor-profile', icon: 'user-check', label: 'Instructor Profile', mobileLabel: 'Instructor<br>Profile', perm: 'view_teacher_instructor_profile' },
 ];
 // Student Portal's own primary nav - a real request: "dashboard panel
 // tabs. They should be these titles and in this order," plus a labeled
@@ -470,23 +470,23 @@ const TEACHER_NAV_LINKS = [
 const STUDENT_NAV_LINKS = [
   { href: '/student', icon: 'home', label: 'Home' },
   { href: '/events?view=calendar&portal=student', icon: 'calendar-check', label: 'Events', subpages: [
-    { href: '/events?view=calendar&portal=student', label: 'Calendar' },
-    { href: '/student/events', label: 'My Event Registrations' },
+    { href: '/events?view=calendar&portal=student', label: 'Calendar', perm: 'view_student_events' },
+    { href: '/student/events', label: 'My Event Registrations', perm: 'view_student_event_registrations' },
   ] },
-  { href: '/student/classes', icon: 'graduation-cap', label: 'Co-op Schedule', mobileLabel: 'Co-op<br>Schedule' },
+  { href: '/student/classes', icon: 'graduation-cap', label: 'Co-op Schedule', mobileLabel: 'Co-op<br>Schedule', perm: 'view_student_classes' },
   { href: '/student/family-school/portfolio', icon: 'grid', label: 'Classroom Dashboard', desktopAsSection: true, subpages: [
-    { href: '/student/classes/dashboard', icon: 'graduation-cap', label: 'Classes' },
-    { href: '/student/family-school/grades', icon: 'clipboard-list', label: 'Grades' },
-    { href: '/student/family-school/attendance', icon: 'calendar-check', label: 'Attendance' },
-    { href: '/student/family-school/weekly-planner', icon: 'calendar-check', label: 'Weekly Planner' },
-    { href: '/forums?portal=student', icon: 'users', label: 'Chat' },
-    { href: '/student/family-school/portfolio', icon: 'file-text', label: 'Portfolio' },
-    { href: '/student/transcript', icon: 'file-text', label: 'Transcripts' },
+    { href: '/student/classes/dashboard', icon: 'graduation-cap', label: 'Classes', perm: 'view_student_classes_dashboard' },
+    { href: '/student/family-school/grades', icon: 'clipboard-list', label: 'Grades', perm: 'view_student_grades' },
+    { href: '/student/family-school/attendance', icon: 'calendar-check', label: 'Attendance', perm: 'view_student_attendance' },
+    { href: '/student/family-school/weekly-planner', icon: 'calendar-check', label: 'Weekly Planner', perm: 'view_student_weekly_planner' },
+    { href: '/forums?portal=student', icon: 'users', label: 'Chat', perm: 'view_student_chat' },
+    { href: '/student/family-school/portfolio', icon: 'file-text', label: 'Portfolio', perm: 'view_student_portfolio' },
+    { href: '/student/transcript', icon: 'file-text', label: 'Transcripts', perm: 'view_student_transcript' },
   ] },
-  { href: '/forums?portal=student', icon: 'users', label: 'Chat' },
-  { href: '/student/resources', icon: 'book', label: 'Resources' },
-  { href: '/photos?portal=student', icon: 'camera', label: 'Photos' },
-  { href: '/student/babysitter', icon: 'user', label: 'Babysitter Profile' },
+  { href: '/forums?portal=student', icon: 'users', label: 'Chat', perm: 'view_student_chat' },
+  { href: '/student/resources', icon: 'book', label: 'Resources', perm: 'view_student_resources' },
+  { href: '/photos?portal=student', icon: 'camera', label: 'Photos', perm: 'view_student_photos' },
+  { href: '/student/babysitter', icon: 'user', label: 'Babysitter Profile', perm: 'view_student_babysitter_profile' },
 ];
 // Section 2, labeled "Activities" (classLinksTitle below) - Achievements
 // and Leaderboard used to be sections embedded inside the Reading
@@ -494,21 +494,61 @@ const STUDENT_NAV_LINKS = [
 // here split them into their own routes/views (routes/student-portal.js's
 // own /student/achievements, /student/leaderboard).
 const STUDENT_ACTIVITY_LINKS = [
-  { href: '/student/games', icon: 'gamepad', label: 'Games' },
-  { href: '/student/pets', icon: 'paw', label: 'Pet' },
-  { href: '/student/reading', icon: 'book', label: 'Reading Challenge', mobileLabel: 'Reading<br>Challenge' },
-  { href: '/student/achievements', icon: 'star', label: 'Achievements' },
-  { href: '/student/leaderboard', icon: 'trophy', label: 'Leaderboard' },
-  { href: '/student/nature-news', icon: 'sprout', label: 'Nature News' },
-  { href: '/student/vocabulary', icon: 'type', label: 'Vocabulary' },
+  { href: '/student/games', icon: 'gamepad', label: 'Games', perm: 'view_student_games' },
+  { href: '/student/pets', icon: 'paw', label: 'Pet', perm: 'view_student_pets' },
+  { href: '/student/reading', icon: 'book', label: 'Reading Challenge', mobileLabel: 'Reading<br>Challenge', perm: 'view_student_reading' },
+  { href: '/student/achievements', icon: 'star', label: 'Achievements', perm: 'view_student_achievements' },
+  { href: '/student/leaderboard', icon: 'trophy', label: 'Leaderboard', perm: 'view_student_leaderboard' },
+  { href: '/student/nature-news', icon: 'sprout', label: 'Nature News', perm: 'view_student_nature_news' },
+  { href: '/student/vocabulary', icon: 'type', label: 'Vocabulary', perm: 'view_student_vocabulary' },
 ];
-const primaryNavLinks =
+// A real request: "admin can check the boxes if that portal is allowed
+// to view that page or subpage. Unchecking removes the permission and
+// the page disappears." Every nav link/subpage object above that has
+// something new gating it now carries its own `perm` key (matching
+// utils/portalPageCatalog.js and the permission rows the seeding
+// migration adds); a link with no `perm` at all (every portal's own
+// Home, and everything this pass didn't add a permission for) always
+// renders, unaffected. portalPermissions comes from res.locals
+// (middleware/portalAuth.js's loadPortalSession) the same way
+// portalRoles already does above - an empty Set for a signed-out
+// visitor, so `isAllowed` below is always safe to call.
+const effectivePortalPermissions = typeof portalPermissions !== 'undefined' ? portalPermissions : new Set();
+function isAllowed(permKey) {
+  return !permKey || effectivePortalPermissions.has(permKey);
+}
+// Filters a flat nav list AND each entry's own `subpages` array. A
+// group whose EVERY subpage got filtered out is dropped entirely
+// (never an empty, unclickable `<details>`/mobile-subpages shell) -
+// "if EVERY subpage of a group is filtered out, skip rendering the
+// whole group entirely." A group that still has at least one visible
+// subpage is itself kept regardless of the group's own `perm` (most of
+// these groups have none - the group is just a visual container, e.g.
+// Parent Portal's "Co-op Classes" - see utils/portalPageCatalog.js's
+// own comment on key: null entries); the rare group that DOES carry its
+// own `perm` (e.g. Main Admin's "Members") still has to pass that check
+// too, same as any plain link.
+function filterLinks(links) {
+  return (links || [])
+    .map(function (link) {
+      if (link.subpages && link.subpages.length) {
+        const subpages = link.subpages.filter(function (sp) { return isAllowed(sp.perm); });
+        if (subpages.length === 0) return null;
+        if (!isAllowed(link.perm)) return null;
+        return Object.assign({}, link, { subpages: subpages });
+      }
+      return isAllowed(link.perm) ? link : null;
+    })
+    .filter(Boolean);
+}
+const primaryNavLinks = filterLinks(
   portalTitle === 'Main Admin' ? MAIN_ADMIN_NAV_LINKS
     : portalTitle === 'Student Portal' ? STUDENT_NAV_LINKS
     : portalTitle === 'Parent Portal' ? PARENT_NAV_LINKS
     : portalTitle === 'Family School Management' ? FAMILY_SCHOOL_NAV_LINKS
     : portalTitle === 'Co-op Teacher Portal' ? TEACHER_NAV_LINKS
-    : navLinks;
+    : navLinks
+);
 
 // Optional - only a caller with no forced primaryNavLinks override above
 // still gets to pass this (see their own comment). locals.classLinks, not
@@ -524,7 +564,7 @@ const primaryNavLinks =
 // into MAIN_ADMIN_NAV_LINKS above; Parent Portal's old "Co-op Classes"
 // group folded into PARENT_NAV_LINKS above per a later real request
 // ("Parent portal is not divided into sections").
-const classLinks = portalTitle === 'Student Portal' ? STUDENT_ACTIVITY_LINKS : (portalTitle === 'Main Admin' || portalTitle === 'Parent Portal' || portalTitle === 'Family School Management') ? null : (typeof locals.classLinks !== 'undefined' ? locals.classLinks : null);
+const classLinks = filterLinks(portalTitle === 'Student Portal' ? STUDENT_ACTIVITY_LINKS : (portalTitle === 'Main Admin' || portalTitle === 'Parent Portal' || portalTitle === 'Family School Management') ? null : (typeof locals.classLinks !== 'undefined' ? locals.classLinks : null));
 // A real request: "Teacher portal dashboard add section for my classes
 // tab. Each tab after that should be each class that teacher is signed
 // up for to teach." Co-op Teacher Portal's own classLinks (above) is the one
@@ -628,13 +668,24 @@ const COMMUNITY_LINKS_STUDENT = [];
 // never trimmed down to a short "core" set with Community picking up the
 // rest - they already ARE the full set, so there's nothing left for a
 // second section to add.
-const communityLinks =
+// filterLinks here is a no-op today for the one list that ever actually
+// renders through this branch (the full COMMUNITY_LINKS fallback,
+// below) - it's shown only on a handful of generic, not-tied-to-one-
+// portal pages (Member Directory/Newsletter/Forms/Notifications/
+// Publications, each a standing link in none of PARENT_NAV_LINKS/
+// TEACHER_NAV_LINKS/STUDENT_NAV_LINKS/MAIN_ADMIN_NAV_LINKS today - see
+// those arrays' own comments), so there's no single portal's `perm` set
+// to filter it against; wrapped anyway so a future portal-specific
+// COMMUNITY_LINKS_* override (or new `perm` keys added to the shared
+// list itself) is filtered automatically without this line changing.
+const communityLinks = filterLinks(
   portalTitle === 'Main Admin' ? []
     : portalTitle === 'Parent Portal' ? COMMUNITY_LINKS_PARENT
     : portalTitle === 'Family School Management' ? []
     : portalTitle === 'Co-op Teacher Portal' ? COMMUNITY_LINKS_TEACHER
     : portalTitle === 'Student Portal' ? COMMUNITY_LINKS_STUDENT
-    : COMMUNITY_LINKS;
+    : COMMUNITY_LINKS
+);
 // This 3rd section's own heading - just "Community" everywhere; kept as
 // its own variable (rather than reverting the template below to a
 // hardcoded string) in case a future portal needs its own label here.
@@ -677,7 +728,7 @@ const communityLinksTitle = 'Community';
       </nav>
     <% } %>
   <% }); %>
-  <% if (classLinks) { %>
+  <% if (classLinks && classLinks.length) { %>
     <p class="portal-nav-title"><%= classLinksTitle %></p>
     <nav id="class-nav-links">
       <% classLinks.forEach(function(link) { %>
@@ -789,7 +840,7 @@ const communityLinksTitle = 'Community';
       Registration/Manage Classes/Name Tag Request/Absence-Late Form/
       Policy Handbook - a real request), so this needs the same
       subpages-or-plain-link branch primaryNavLinks above has. %>
-  <% if (classLinks) { %>
+  <% if (classLinks && classLinks.length) { %>
     <% classLinks.forEach(function(link) { %>
       <% if (link.subpages && link.subpages.length) { %>
         <%- include('mobile-subpages-tab', { link: link }) %>
@@ -818,7 +869,7 @@ const communityLinksTitle = 'Community';
     <%- include('mobile-subpages-dialog', { link: link }) %>
   <% } %>
 <% }); %>
-<% if (classLinks) { %>
+<% if (classLinks && classLinks.length) { %>
   <% classLinks.forEach(function(link) { %>
     <% if (link.subpages && link.subpages.length) { %>
       <%- include('mobile-subpages-dialog', { link: link }) %>

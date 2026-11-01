@@ -70,8 +70,24 @@ const ANALYTICS_RANGES = [
   { key: 'all', label: 'All Time' },
 ];
 
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Orders/Archived/Analytics/Settings share this one
+// ?tab= handler (manage_store already gates the whole router) rather
+// than their own route, so each gets its own inline check.
+const STORE_TAB_PERMISSION = {
+  orders: 'view_store_orders',
+  archived: 'view_store_archived',
+  analytics: 'view_store_analytics',
+  settings: 'view_store_settings',
+};
+
 router.get('/', async (req, res) => {
   const activeTab = STORE_TABS.includes(req.query.tab) ? req.query.tab : 'products';
+  const tabPermission = STORE_TAB_PERMISSION[activeTab];
+  if (tabPermission && !req.portalPermissions.has(tabPermission)) {
+    return res.status(403).render('403', { title: 'Not Authorized', message: "You don't have permission to do that.", backHref: '/main-admin', backLabel: 'Back to Main Admin' });
+  }
   const categories = await store.listCategories();
   const selectedCategory = req.query.category ? parseInt(req.query.category, 10) : null;
 

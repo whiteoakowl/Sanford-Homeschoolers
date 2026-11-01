@@ -23,6 +23,15 @@ async function loadPortalSession(req, res, next) {
   // one place this had already gone unguarded.
   res.locals.portalAccount = null;
   res.locals.portalRoles = [];
+  // A real request: "admin can check the boxes if that portal is
+  // allowed to view that page... unchecking removes the permission and
+  // the page disappears" - views/partials/portal-nav.ejs needs to read
+  // this to filter nav links, but nothing below ever set
+  // res.locals.portalPermissions (only req.portalPermissions, view-
+  // inaccessible) - a signed-out visitor gets the same empty Set as a
+  // signed-in account with no roles, so a view can test
+  // `portalPermissions.has('key')` unconditionally either way.
+  res.locals.portalPermissions = new Set();
 
   // A whole family of real bug reports - "Parent portal, clicking on
   // chat/store/account takes you somewhere else" - turned out to be the
@@ -94,6 +103,7 @@ async function loadPortalSession(req, res, next) {
   req.portalPermissions = await permissionsForAccount(account.id);
   res.locals.portalAccount = account;
   res.locals.portalRoles = req.portalRoles;
+  res.locals.portalPermissions = req.portalPermissions;
   next();
 }
 
@@ -169,6 +179,37 @@ function requirePortalPermission(permissionKey) {
   };
 }
 
+// A real request: "Portal permissions... permission to view each of
+// these pages and subpages... unchecking removes the permission and the
+// page disappears" - for a shared Community & Commerce page reached from
+// more than one portal's own nav under the SAME URL (Events, Chat,
+// Business Directory, Classifieds, Store, Photos, Accounting - see
+// views/partials/portal-nav.ejs's own comment on this), each portal that
+// lists it gets its own independent permission key rather than one
+// shared key, so a Main Admin can hide it from Students without also
+// hiding it from Parents. `entries` is [{role, key}, ...] - one pair per
+// portal role that actually has a nav entry for this page. An account
+// passes if it holds ANY of those keys through ANY role it has; an
+// account whose roles don't include ANY of the roles listed here at all
+// (e.g. a Main-Admin-only or Co-op-Admin-only account, or signed out) is
+// entirely unaffected - this feature's enforcement only ever narrows
+// access for a role that's actually being offered a view/hide choice
+// over this exact page, never a role nothing here was ever written for,
+// so this stays purely additive (zero behavior change) until a Main
+// Admin deliberately unchecks one of these for a role that currently
+// has it granted.
+function requireAnyPortalPermission(entries) {
+  return function (req, res, next) {
+    if (!req.portalAccount) return next();
+    const applicable = entries.filter((e) => req.portalRoles.some((r) => r.key === e.role));
+    if (applicable.length === 0) return next();
+    if (applicable.some((e) => req.portalPermissions.has(e.key))) return next();
+    return res
+      .status(403)
+      .render('403', { title: 'Not Authorized', message: "You don't have permission to do that.", backHref: '/portal', backLabel: 'Back to My Portals' });
+  };
+}
+
 // A real request: "Teacher portal, remove the following tabs and
 // features. Business directory, classifieds, resources, store,
 // academics, babysitters, reading challenge, store, accounting and
@@ -198,4 +239,4 @@ function blockTeacherOnlyAccounts(req, res, next) {
   next();
 }
 
-module.exports = { loadPortalSession, requirePortalAuth, requirePortal, requirePortalPermission, blockTeacherOnlyAccounts };
+module.exports = { loadPortalSession, requirePortalAuth, requirePortal, requirePortalPermission, requireAnyPortalPermission, blockTeacherOnlyAccounts };

@@ -431,8 +431,26 @@ async function buildAttendanceList() {
   });
 }
 
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Drafts/Requests/Event Attendance/Event Registration
+// Log/Settings all share this one ?tab= handler (manage_events already
+// gates the whole router) rather than their own route, so each gets its
+// own inline check instead of a 2nd router-level requirePortalPermission.
+const EVENTS_TAB_PERMISSION = {
+  drafts: 'view_events_drafts',
+  requests: 'view_events_requests',
+  attendance: 'view_events_attendance',
+  registrationlog: 'view_events_registrationlog',
+  settings: 'view_events_settings',
+};
+
 router.get('/', async (req, res) => {
   const activeTab = EVENTS_TABS.includes(req.query.tab) ? req.query.tab : 'calendar';
+  const tabPermission = EVENTS_TAB_PERMISSION[activeTab];
+  if (tabPermission && !req.portalPermissions.has(tabPermission)) {
+    return res.status(403).render('403', { title: 'Not Authorized', message: "You don't have permission to do that.", backHref: '/main-admin', backLabel: 'Back to Main Admin' });
+  }
   const dateFilter = req.query.date || '';
   const pending = await events.listEvents({ approvalStatus: 'pending' });
   const pendingCount = pending.length;

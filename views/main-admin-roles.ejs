@@ -25,6 +25,14 @@
           <p class="hint">portal key: <%= role.key %></p>
           <% if (role.key === 'main_admin') { %>
             <p class="hint">Main Admin always has every permission.</p>
+          <% } else if (role.key === 'coop_admin') { %>
+            <%# Co-op Admin runs on its own, separate single-shared-login
+                system (middleware/requireAdmin.js, req.session.adminId) -
+                not the member_accounts/roles/permissions model every
+                other portal card here controls. Same no-dialog treatment
+                as Main Admin's own card above, rather than a dialog whose
+                checkboxes would control nothing real. %>
+            <p class="hint">Co-op Admin uses its own separate login and isn't managed here.</p>
           <% } else { %>
             <%# A real request: "when you click it shows all of the pages
                 but it says view, not manage. Portals will not have
@@ -32,20 +40,21 @@
                 editable checkbox grid + Save (only Main Admin can even
                 reach this page at all, via the manage_roles permission
                 gate) - just worded as viewing/checking which pages a
-                portal can reach rather than "managing permissions". %>
+                portal can reach rather than "managing permissions".
+                A later real request: "these permissions should not be
+                about being able to manage these different pages and
+                elements. It should be permission to view each of these
+                pages and subpages" - roleSections (routes/main-admin.js,
+                utils/portalPageCatalog.js's sectionsForRole) scopes this
+                dialog to ONLY this role's own portal(s) instead of
+                every permission in the system. %>
             <button type="button" class="roster-action-btn" onclick="document.getElementById('role-permissions-dialog-<%= role.id %>').showModal()">View</button>
 
             <dialog id="role-permissions-dialog-<%= role.id %>" class="member-picker-dialog role-permissions-dialog">
               <form method="POST" action="/main-admin/roles/<%= role.id %>/permissions">
                 <h3>View <%= role.label %>'s Pages</h3>
-                <div class="permission-checkbox-grid">
-                  <% permissions.forEach(function(perm) { %>
-                    <label class="checkbox-option" title="<%= perm.description || '' %>">
-                      <input type="checkbox" name="permissionIds" value="<%= perm.id %>" <%= grantedKey.indexOf(role.id + ':' + perm.id) !== -1 ? 'checked' : '' %> />
-                      <%= perm.label %>
-                    </label>
-                  <% }); %>
-                </div>
+                <p class="hint">Check a page or subpage to let this portal view it. Unchecking a page hides it from the nav and blocks direct links to it - the content itself isn't deleted, just hidden until checked again.</p>
+                <%- include('partials/permission-checkbox-section', { sections: roleSections[role.id] }) %>
                 <div class="notes-dialog-actions">
                   <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Close</button>
                   <button type="submit" class="primary-btn">Save</button>

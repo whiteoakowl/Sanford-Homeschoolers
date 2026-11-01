@@ -56,8 +56,22 @@ router.use(requirePortalAuth, requirePortal('main_admin'), requirePortalPermissi
 // Chat Room dialog, absent entirely on Add Chat Group's).
 const FORUMS_TABS = ['new', 'rooms', 'archive'];
 
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Chat Rooms/Archive share this one ?tab= handler
+// (manage_forum already gates the whole router) rather than their own
+// route, so each gets its own inline check.
+const FORUMS_TAB_PERMISSION = {
+  rooms: 'view_forums_rooms',
+  archive: 'view_forums_archive',
+};
+
 router.get('/', async (req, res) => {
   const activeTab = FORUMS_TABS.includes(req.query.tab) ? req.query.tab : 'new';
+  const tabPermission = FORUMS_TAB_PERMISSION[activeTab];
+  if (tabPermission && !req.portalPermissions.has(tabPermission)) {
+    return res.status(403).render('403', { title: 'Not Authorized', message: "You don't have permission to do that.", backHref: '/main-admin', backLabel: 'Back to Main Admin' });
+  }
   const notice = req.query.notice || null;
   const error = req.query.error || null;
 

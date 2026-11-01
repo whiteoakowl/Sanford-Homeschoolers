@@ -14,7 +14,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../db');
-const { requirePortalAuth, requirePortal } = require('../middleware/portalAuth');
+const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount } = require('../utils/portalAuth');
 const { allClassesList, attendanceHistoryForRoster, CLASS_DAY_LABELS_FULL, primaryClassScheduleForClass } = require('../utils/classSchedule');
 const { CLASS_DAY_ORDER } = require('../utils/classDays');
@@ -213,7 +213,7 @@ router.get('/', async (req, res) => {
 // shape as Parent Portal's own /parent/events, just for a single member
 // instead of the whole family (utils/events.js's own
 // eventRegistrationsForMembers).
-router.get('/events', async (req, res) => {
+router.get('/events', requirePortalPermission('view_student_event_registrations'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const registrations = member ? await events.eventRegistrationsForMembers([member.id]) : [];
   res.render('student-event-registrations', {
@@ -224,7 +224,7 @@ router.get('/events', async (req, res) => {
   });
 });
 
-router.get('/classes', async (req, res) => {
+router.get('/classes', requirePortalPermission('view_student_classes'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForStudent(member);
   const enrolledIds = new Set(classes.map((c) => c.id));
@@ -314,7 +314,7 @@ router.get('/classes', async (req, res) => {
 // of its own, see that table's own migration comment) get their own
 // section below it. The Filter narrows to just one category instead of
 // hiding either section's own markup conditionally in the view.
-router.get('/classes/dashboard', async (req, res) => {
+router.get('/classes/dashboard', requirePortalPermission('view_student_classes_dashboard'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForStudent(member);
   const byHourPosition = (a, b) => a.hour_position - b.hour_position;
@@ -339,7 +339,7 @@ router.get('/classes/dashboard', async (req, res) => {
   });
 });
 
-router.post('/classes/:id/register', async (req, res) => {
+router.post('/classes/:id/register', requirePortalPermission('view_student_classes'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const back = '/student/classes';
   const member = await memberForAccount(req.portalAccount.id);
@@ -356,7 +356,7 @@ router.post('/classes/:id/register', async (req, res) => {
   res.redirect(back + '?notice=' + encodeURIComponent(result.notice));
 });
 
-router.post('/classes/:id/unregister', async (req, res) => {
+router.post('/classes/:id/unregister', requirePortalPermission('view_student_classes'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const back = '/student/classes';
   const member = await memberForAccount(req.portalAccount.id);
@@ -390,7 +390,7 @@ const CLASS_DETAIL_TABS = ['details', 'assignments', 'lessons', 'forum', 'resour
 // at /forums. Only ever shows a class this student is actually enrolled
 // in - re-derived from classesForStudent on every request, same
 // never-trust-a-passed-id rule every other route in this file follows.
-router.get('/classes/:id', async (req, res) => {
+router.get('/classes/:id', requirePortalPermission('view_student_classes'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForStudent(member);
@@ -415,7 +415,7 @@ router.get('/classes/:id', async (req, res) => {
 // state (dueDateLabel/completed/submission/attempt) instead of
 // re-deriving it here, so this page can never show a different
 // "complete" answer than the Lessons tab it was reached from.
-router.get('/content/:id', async (req, res) => {
+router.get('/content/:id', requirePortalPermission('view_student_classes_dashboard'), async (req, res) => {
   const contentItemId = parseInt(req.params.id, 10);
   const member = await memberForAccount(req.portalAccount.id);
   const contentItem = await getContentItem(contentItemId);
@@ -461,7 +461,7 @@ async function contentItemForStudent(req, contentItemId) {
   return { member, contentItem, assignment, cls };
 }
 
-router.get('/content/:id/quiz', async (req, res) => {
+router.get('/content/:id/quiz', requirePortalPermission('view_student_classes_dashboard'), async (req, res) => {
   const found = await contentItemForStudent(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).render('404', { title: 'Not Found' });
   const { member, contentItem, assignment, cls } = found;
@@ -472,7 +472,7 @@ router.get('/content/:id/quiz', async (req, res) => {
   res.render('student-quiz-take', { title: contentItem.title || 'Quiz', cls, assignment, contentItem, questions, attempt: attempt || null });
 });
 
-router.post('/content/:id/quiz', async (req, res) => {
+router.post('/content/:id/quiz', requirePortalPermission('view_student_classes_dashboard'), async (req, res) => {
   const found = await contentItemForStudent(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).render('404', { title: 'Not Found' });
   const { member, contentItem, assignment, cls } = found;
@@ -494,7 +494,7 @@ router.post('/content/:id/quiz', async (req, res) => {
 // student's own classes from scratch same as the quiz routes above, so a
 // student can't mark complete a lesson that isn't even in one of their
 // own classes.
-router.post('/content/:id/complete', async (req, res) => {
+router.post('/content/:id/complete', requirePortalPermission('view_student_classes_dashboard'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const contentItem = await getContentItem(parseInt(req.params.id, 10));
   if (!contentItem || contentItem.type === 'quiz') return res.status(404).render('404', { title: 'Not Found' });
@@ -514,7 +514,7 @@ router.post('/content/:id/complete', async (req, res) => {
 const MAX_ASSIGNMENT_SUBMISSION_BYTES = 10 * 1024 * 1024;
 const uploadAssignmentSubmission = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_ASSIGNMENT_SUBMISSION_BYTES }, fileFilter: lessonAttachmentFileFilter });
 
-router.post('/content/:id/submit', uploadAssignmentSubmission.single('submissionFile'), async (req, res) => {
+router.post('/content/:id/submit', requirePortalPermission('view_student_classes_dashboard'), uploadAssignmentSubmission.single('submissionFile'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const contentItem = await getContentItem(parseInt(req.params.id, 10));
   if (!contentItem || contentItem.type !== 'assignment_submission') return res.status(404).render('404', { title: 'Not Found' });
@@ -544,7 +544,7 @@ router.get('/assignments', async (req, res) => {
 // request, so the lazy backfill moves here instead, the same "run it on
 // whichever read route actually needs fresh data" pattern Main Admin's
 // own route used.
-router.get('/transcript', async (req, res) => {
+router.get('/transcript', requirePortalPermission('view_student_transcript'), async (req, res) => {
   await generateTranscriptsForEndedClasses();
   const member = await memberForAccount(req.portalAccount.id);
   const { current, history } = member ? await transcriptForStudent(member.id) : { current: [], history: [] };
@@ -595,7 +595,7 @@ router.get('/diploma/download.pdf', async (req, res) => {
 // Resource Links - a real request: Student Portal should have "resource
 // links". Read-only: reuses utils/resourceLinks.js's role-scoped list
 // exactly as Main/Co-op Admin curate it, no student-side editing.
-router.get('/resources', async (req, res) => {
+router.get('/resources', requirePortalPermission('view_student_resources'), async (req, res) => {
   const links = await resourceLinks.listResourceLinksForRole('student');
   res.render('student-resources', {
     title: 'Resource Links',
@@ -610,7 +610,7 @@ router.get('/resources', async (req, res) => {
 // Always lands as status 'pending' (resourceLinks.submitResourceLink) -
 // it shows up nowhere on any member's own list until a Main Admin
 // approves it from the Resource Links > Approvals tab.
-router.post('/resources/submit', async (req, res) => {
+router.post('/resources/submit', requirePortalPermission('view_student_resources'), async (req, res) => {
   const title = (req.body.title || '').trim();
   const url = (req.body.url || '').trim();
   if (!title || !url) return res.redirect('/student/resources?error=' + encodeURIComponent('Title and website are required.'));
@@ -665,13 +665,13 @@ router.post('/name-tag/print', async (req, res) => {
 // own baby sitter profile on the student portal, submit for approval for
 // any changes or submissions." Own member record only - no picker, since
 // a student portal account has exactly one member to submit for.
-router.get('/babysitter', async (req, res) => {
+router.get('/babysitter', requirePortalPermission('view_student_babysitter_profile'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const profile = member ? await babysitters.profileForMember(member.id) : null;
   res.render('student-babysitter', { title: 'Babysitter Profile', member, profile, error: req.query.error || null, notice: req.query.notice || null });
 });
 
-router.post('/babysitter', uploadBabysitterPhoto.single('photo'), async (req, res) => {
+router.post('/babysitter', requirePortalPermission('view_student_babysitter_profile'), uploadBabysitterPhoto.single('photo'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   if (!member) return res.redirect('/student/babysitter?error=' + encodeURIComponent('No student profile found for your account.'));
 
@@ -709,13 +709,13 @@ router.post('/babysitter', uploadBabysitterPhoto.single('photo'), async (req, re
 // photo file (mounted separately at /nature-news since it needs to be
 // reachable from Main Admin's own portal too, not just this
 // student-only router).
-router.get('/nature-news', async (req, res) => {
+router.get('/nature-news', requirePortalPermission('view_student_nature_news'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const posts = member ? await natureNews.postsForMember(member.id) : [];
   res.render('student-nature-news', { title: 'Nature News', posts, error: req.query.error || null, notice: req.query.notice || null });
 });
 
-router.post('/nature-news', uploadNatureNewsPhoto.single('image'), async (req, res) => {
+router.post('/nature-news', requirePortalPermission('view_student_nature_news'), uploadNatureNewsPhoto.single('image'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   if (!member) return res.redirect('/student/nature-news?error=' + encodeURIComponent('No student profile found for your account.'));
   if (!req.file) return res.redirect('/student/nature-news?error=' + encodeURIComponent('Please attach a photo.'));
@@ -741,7 +741,7 @@ router.post('/nature-news', uploadNatureNewsPhoto.single('image'), async (req, r
 // screen; a saved pet -> the dashboard.
 const PET_CARE_ACTIONS = new Set(['feed', 'play', 'bathe']);
 
-router.get('/pets', async (req, res) => {
+router.get('/pets', requirePortalPermission('view_student_pets'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const pet = member ? await pets.getPetForMember(member.id) : null;
   if (!pet) return res.redirect('/student/pets/customize');
@@ -762,7 +762,7 @@ router.get('/pets', async (req, res) => {
   });
 });
 
-router.get('/pets/customize', async (req, res) => {
+router.get('/pets/customize', requirePortalPermission('view_student_pets'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const existing = member ? await pets.getPetForMember(member.id) : null;
   res.render('student-pets-customize', {
@@ -774,7 +774,7 @@ router.get('/pets/customize', async (req, res) => {
   });
 });
 
-router.post('/pets/customize', async (req, res) => {
+router.post('/pets/customize', requirePortalPermission('view_student_pets'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   if (!member) return res.redirect('/student/pets/customize?error=' + encodeURIComponent('No student profile found for your account.'));
   await pets.savePet(member.id, {
@@ -784,7 +784,7 @@ router.post('/pets/customize', async (req, res) => {
   res.redirect('/student/pets?notice=' + encodeURIComponent('Pet saved!'));
 });
 
-router.post('/pets/name', async (req, res) => {
+router.post('/pets/name', requirePortalPermission('view_student_pets'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   if (!member) return res.redirect('/student/pets?error=' + encodeURIComponent('No student profile found for your account.'));
   await pets.renamePet(member.id, req.body.name);
@@ -799,16 +799,16 @@ async function careAction(kind, notice, req, res) {
   res.redirect('/student/pets?notice=' + encodeURIComponent(notice) + '&action=' + kind);
 }
 
-router.post('/pets/feed', (req, res) => careAction('feed', 'Yum! Your pet is happily fed.', req, res));
-router.post('/pets/play', (req, res) => careAction('play', 'You played with your pet!', req, res));
-router.post('/pets/bathe', (req, res) => careAction('bathe', 'Squeaky clean!', req, res));
+router.post('/pets/feed', requirePortalPermission('view_student_pets'), (req, res) => careAction('feed', 'Yum! Your pet is happily fed.', req, res));
+router.post('/pets/play', requirePortalPermission('view_student_pets'), (req, res) => careAction('play', 'You played with your pet!', req, res));
+router.post('/pets/bathe', requirePortalPermission('view_student_pets'), (req, res) => careAction('bathe', 'Squeaky clean!', req, res));
 
 // Reading Competition - a real request: "there will be a reading log on
 // this page for students to fill out and earn points. students will be
 // compete with other students." See utils/reading.js's own header
 // comment for how points/streak/level/achievements/leaderboard are all
 // derived from the raw reading_logs rows.
-router.get('/reading', async (req, res) => {
+router.get('/reading', requirePortalPermission('view_student_reading'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const dashboard = member ? await reading.dashboardForMember(member.id) : null;
   res.render('student-reading', {
@@ -825,7 +825,7 @@ router.get('/reading', async (req, res) => {
 // same Reading Challenge page - a real request to list them as their
 // own tabs in the Activities nav section (views/partials/portal-nav.ejs's
 // own STUDENT_ACTIVITY_LINKS) split them into their own routes/views.
-router.get('/achievements', async (req, res) => {
+router.get('/achievements', requirePortalPermission('view_student_achievements'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const dashboard = member ? await reading.dashboardForMember(member.id) : null;
   res.render('student-achievements', { title: 'Achievements', dashboard });
@@ -838,7 +838,7 @@ router.get('/achievements', async (req, res) => {
 // leaderboard() already orders by hours, and points is a strict
 // multiple of hours, so the two rankings are always identical order -
 // just a different displayed unit per section).
-router.get('/leaderboard', async (req, res) => {
+router.get('/leaderboard', requirePortalPermission('view_student_leaderboard'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const readingLeaders = await reading.leaderboard(5);
   const gameLeaders = await gameStats.topScorePerGame();
@@ -852,7 +852,7 @@ router.get('/leaderboard', async (req, res) => {
   });
 });
 
-router.post('/reading/log', async (req, res) => {
+router.post('/reading/log', requirePortalPermission('view_student_reading'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   if (!member) return res.redirect('/student/reading?error=' + encodeURIComponent('No student profile found for your account.'));
   const result = await reading.addLog(member.id, {
@@ -865,7 +865,7 @@ router.post('/reading/log', async (req, res) => {
   res.redirect('/student/reading?notice=' + encodeURIComponent(`Logged! You earned ${result.points} points.`));
 });
 
-router.post('/reading/goal', async (req, res) => {
+router.post('/reading/goal', requirePortalPermission('view_student_reading'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   if (!member) return res.redirect('/student/reading?error=' + encodeURIComponent('No student profile found for your account.'));
   const result = await reading.setWeeklyGoal(member.id, req.body.weekly_goal_hours);
@@ -894,13 +894,13 @@ function gameOfTheDay() {
   return GAMES[dayNumber % GAMES.length];
 }
 
-router.get('/games', async (req, res) => {
+router.get('/games', requirePortalPermission('view_student_games'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const stats = member ? await gameStats.statsForMember(member.id) : { gamesPlayed: 0, streak: 0, highScore: null };
   res.render('student-games', { title: 'Games', games: GAMES, categoryLabels: CATEGORY_LABELS, stats, dailyGame: gameOfTheDay() });
 });
 
-router.get('/games/play/:key', async (req, res) => {
+router.get('/games/play/:key', requirePortalPermission('view_student_games'), async (req, res) => {
   const game = gameByKey(req.params.key);
   if (!game) return res.redirect('/student/games');
   const member = await memberForAccount(req.portalAccount.id);
@@ -913,7 +913,7 @@ router.get('/games/play/:key', async (req, res) => {
 // the games with a genuinely comparable numeric result (see
 // utils/gameStats.js's own SCORING_GAMES comment for why the rest never
 // call this).
-router.post('/games/score', async (req, res) => {
+router.post('/games/score', requirePortalPermission('view_student_games'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   if (!member) return res.status(401).json({ ok: false });
   const result = await gameStats.logScore(member.id, req.body.key, req.body.score);
@@ -939,7 +939,7 @@ function shuffle(arr) {
   return copy;
 }
 
-router.get('/vocabulary', async (req, res) => {
+router.get('/vocabulary', requirePortalPermission('view_student_vocabulary'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const level = spellingBee.levelForMember(member);
   const round = shuffle(spellingBee.wordsForLevel(level)).slice(0, 8);
@@ -953,7 +953,7 @@ router.get('/vocabulary', async (req, res) => {
   });
 });
 
-router.post('/vocabulary/score', async (req, res) => {
+router.post('/vocabulary/score', requirePortalPermission('view_student_vocabulary'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   if (!member) return res.status(401).json({ ok: false });
   const correctCount = Math.max(0, Math.min(50, parseInt(req.body.correctCount, 10) || 0));

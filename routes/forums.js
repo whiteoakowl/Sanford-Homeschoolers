@@ -22,13 +22,25 @@
 // instead.
 const express = require('express');
 const router = express.Router();
-const { requirePortalAuth } = require('../middleware/portalAuth');
+const { requirePortalAuth, requireAnyPortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount, familyForAccount } = require('../utils/portalAuth');
 const forums = require('../utils/forums');
 const notifications = require('../utils/notifications');
 const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('../utils/pagination');
 
 router.use(requirePortalAuth);
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Parent/Student/Co-op Teacher Portal each list Chat as
+// their own nav entry under their own key (views/partials/portal-nav.ejs)
+// - an account passes if it holds ANY one through any role it has, and
+// an account holding none of those three roles (main_admin/coop_admin-
+// only) is unaffected.
+router.use(requireAnyPortalPermission([
+  { role: 'parent', key: 'view_parent_chat' },
+  { role: 'student', key: 'view_student_chat' },
+  { role: 'teacher', key: 'view_teacher_chat' },
+]));
 
 // Same convention routes/events.js's own AJAX endpoints use - an
 // Accept: application/json header, not a bespoke flag - so the chat room

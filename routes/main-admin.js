@@ -10,6 +10,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
+const { adminCatalogSections, sectionsForRole, buildSections } = require('../utils/portalPageCatalog');
 const events = require('../utils/events');
 const babysitters = require('../utils/babysitters');
 const photos = require('../utils/photos');
@@ -206,13 +207,28 @@ async function renderAdmins(req, res, error, notice) {
     adminPositions.map(async (p) => [p.id, await permissionIdsForPosition(p.id)])
   );
   const positionPermissionIds = Object.fromEntries(positionPermissionIdsEntries);
+  const permissionByKey = new Map(permissions.map((p) => [p.key, p]));
+
+  // A real request: "this list [on Admins] should include all pages and
+  // subpages across the website, sectioned by portal for easy finding" -
+  // one combined catalog (Main Admin + every member portal except Co-op
+  // Admin, which runs on a separate legacy login) shared by every
+  // position's own edit dialog, built once per request rather than once
+  // per position (the grant set is the only thing that differs between
+  // them - see positionSections below).
+  const sections = adminCatalogSections();
+  const positionSections = Object.fromEntries(
+    adminPositions.map((p) => {
+      const granted = new Set(positionPermissionIds[p.id] || []);
+      return [p.id, buildSections(sections, permissionByKey, (permId) => granted.has(permId))];
+    })
+  );
 
   res.render('main-admin-admins', {
     title: 'Admins',
     adminPositions,
     rows,
-    permissions,
-    positionPermissionIds,
+    positionSections,
     memberOptions: await activeMemberOptions(),
     error,
     notice,
@@ -278,7 +294,9 @@ router.post('/admins/positions/:id/delete', requirePortalPermission('manage_user
 // separate control. Permissions replace the position's whole set.
 router.post('/admins/positions/:id/update', requirePortalPermission('manage_users'), async (req, res) => {
   const positionId = parseInt(req.params.id, 10);
-  const permissionIds = [].concat(req.body.permissionIds || []).map((v) => parseInt(v, 10)).filter(Boolean);
+  // De-duplicated - see the identical fix and comment on POST
+  // /roles/:id/permissions above.
+  const permissionIds = [...new Set([].concat(req.body.permissionIds || []).map((v) => parseInt(v, 10)).filter(Boolean))];
   await setPositionPermissions(positionId, permissionIds);
 
   const memberId = req.body.memberId ? parseInt(req.body.memberId, 10) : null;
@@ -304,15 +322,40 @@ router.post('/admins/positions/:positionId/members/:memberId/remove', requirePor
 router.get('/roles', requirePortalPermission('manage_roles'), async (req, res) => {
   const roles = await db.prepare('SELECT * FROM roles ORDER BY label').all();
   const permissions = await db.prepare('SELECT * FROM permissions ORDER BY label').all();
+  const permissionByKey = new Map(permissions.map((p) => [p.key, p]));
   const grants = await db.prepare('SELECT role_id, permission_id FROM role_permissions').all();
-  const grantedKey = new Set(grants.map((g) => `${g.role_id}:${g.permission_id}`));
+  const grantedByRole = new Map();
+  grants.forEach((g) => {
+    if (!grantedByRole.has(g.role_id)) grantedByRole.set(g.role_id, new Set());
+    grantedByRole.get(g.role_id).add(g.permission_id);
+  });
 
-  res.render('main-admin-roles', { title: 'Portal Permissions', roles, permissions, grantedKey: [...grantedKey], notice: req.query.notice || null });
+  // A real request: "these permissions should not be about being able
+  // to manage these different pages and elements. It should be
+  // permission to view each of these pages and subpages" - each role's
+  // own dialog is now scoped to ONLY that role's own portal page
+  // catalog (utils/portalPageCatalog.js's sectionsForRole), instead of
+  // the same flat, every-permission list every role used to show
+  // regardless of relevance.
+  const roleSections = Object.fromEntries(
+    roles.map((role) => {
+      const granted = grantedByRole.get(role.id) || new Set();
+      return [role.id, buildSections(sectionsForRole(role.key), permissionByKey, (permId) => granted.has(permId))];
+    })
+  );
+
+  res.render('main-admin-roles', { title: 'Portal Permissions', roles, roleSections, notice: req.query.notice || null });
 });
 
 router.post('/roles/:id/permissions', requirePortalPermission('manage_roles'), async (req, res) => {
   const roleId = parseInt(req.params.id, 10);
-  const permissionIds = [].concat(req.body.permissionIds || []).map((v) => parseInt(v, 10)).filter(Boolean);
+  // De-duplicated - a page/subpage whose underlying permission is
+  // shared by more than one checkbox in the same dialog (see
+  // utils/portalPageCatalog.js's own comment on Photos/Publications/
+  // Nature News and Business/Member Directory) can otherwise submit the
+  // same permissionId twice, which would violate role_permissions' own
+  // (role_id, permission_id) primary key below.
+  const permissionIds = [...new Set([].concat(req.body.permissionIds || []).map((v) => parseInt(v, 10)).filter(Boolean))];
 
   await db.withTransaction(async (tx) => {
     await tx.prepare('DELETE FROM role_permissions WHERE role_id = ?').run(roleId);

@@ -13,7 +13,7 @@ const fs = require('fs');
 const multer = require('multer');
 const archiver = require('archiver');
 const db = require('../db');
-const { requirePortalAuth } = require('../middleware/portalAuth');
+const { requirePortalAuth, requireAnyPortalPermission } = require('../middleware/portalAuth');
 const { createStorageClient, downloadFile, uploadFile, generateKey } = require('../utils/storage');
 const { imageFileFilter } = require('../utils/uploads');
 const photos = require('../utils/photos');
@@ -36,6 +36,20 @@ if (!storageClient && !fs.existsSync(PHOTOS_DIR)) {
 // true by construction; this is the other half.
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES }, fileFilter: imageFileFilter });
+
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Parent/Student/Co-op Teacher Portal each list Photos as
+// their own nav entry under their own key (views/partials/portal-nav.ejs)
+// - an account passes if it holds ANY one through any role it has;
+// signed out or holding none of those three roles is unaffected (a
+// public album stays browsable signed-out either way - see canView
+// below, a separate, per-album concern from this page-level gate).
+router.use(requireAnyPortalPermission([
+  { role: 'parent', key: 'view_parent_photos' },
+  { role: 'student', key: 'view_student_photos' },
+  { role: 'teacher', key: 'view_teacher_photos' },
+]));
 
 async function canView(req, album) {
   if (!album) return false;

@@ -24,7 +24,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { requirePortalAuth, requirePortal } = require('../middleware/portalAuth');
+const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { byLastName } = require('../utils/members');
 const { listSemesters } = require('../utils/classSchedule');
 const { todayISO } = require('../utils/dates');
@@ -72,7 +72,7 @@ function sendPdf(res, filename, pdfBuffer) {
 
 // --- Transcripts ---
 
-router.get('/family-school', async (req, res) => {
+router.get('/family-school', requirePortalPermission('view_family_school_main_admin'), async (req, res) => {
   const students = await allActiveStudents();
   const selectedStudent = (await requireStudent(parseInt(req.query.studentId, 10))) || null;
   const semesters = await listSemesters();
@@ -101,7 +101,7 @@ router.get('/family-school', async (req, res) => {
   });
 });
 
-router.post('/family-school/transcripts', async (req, res) => {
+router.post('/family-school/transcripts', requirePortalPermission('view_family_school_main_admin'), async (req, res) => {
   const studentId = parseInt(req.body.studentId, 10);
   const student = await requireStudent(studentId);
   if (!student) return res.status(404).send('Not found');
@@ -123,7 +123,7 @@ router.post('/family-school/transcripts', async (req, res) => {
   res.redirect(`/main-admin/family-school?studentId=${studentId}&notice=` + encodeURIComponent('Class added to transcript.'));
 });
 
-router.post('/family-school/transcripts/:id/edit', async (req, res) => {
+router.post('/family-school/transcripts/:id/edit', requirePortalPermission('view_family_school_main_admin'), async (req, res) => {
   const entry = await getTranscriptEntry(parseInt(req.params.id, 10));
   if (!entry) return res.status(404).send('Not found');
   const schoolYear = (req.body.schoolYear || '').trim();
@@ -137,7 +137,7 @@ router.post('/family-school/transcripts/:id/edit', async (req, res) => {
   res.redirect(`/main-admin/family-school?studentId=${entry.student_id}&notice=` + encodeURIComponent('Transcript entry updated.'));
 });
 
-router.post('/family-school/transcripts/:id/delete', async (req, res) => {
+router.post('/family-school/transcripts/:id/delete', requirePortalPermission('view_family_school_main_admin'), async (req, res) => {
   const entry = await getTranscriptEntry(parseInt(req.params.id, 10));
   if (!entry) return res.status(404).send('Not found');
   const studentId = entry.student_id;
@@ -145,7 +145,7 @@ router.post('/family-school/transcripts/:id/delete', async (req, res) => {
   res.redirect(`/main-admin/family-school?studentId=${studentId}&notice=` + encodeURIComponent('Entry removed.'));
 });
 
-router.get('/family-school/transcripts/:studentId/print', async (req, res) => {
+router.get('/family-school/transcripts/:studentId/print', requirePortalPermission('view_family_school_main_admin'), async (req, res) => {
   const studentId = parseInt(req.params.studentId, 10);
   const student = await requireStudent(studentId);
   if (!student) return res.status(404).render('404', { title: 'Not Found' });
@@ -159,7 +159,7 @@ router.get('/family-school/transcripts/:studentId/print', async (req, res) => {
   });
 });
 
-router.get('/family-school/transcripts/:studentId/download.pdf', async (req, res) => {
+router.get('/family-school/transcripts/:studentId/download.pdf', requirePortalPermission('view_family_school_main_admin'), async (req, res) => {
   const studentId = parseInt(req.params.studentId, 10);
   const student = await requireStudent(studentId);
   if (!student) return res.status(404).send('Not found');
@@ -176,7 +176,7 @@ router.get('/family-school/transcripts/:studentId/download.pdf', async (req, res
 
 // --- Diplomas ---
 
-router.get('/family-school/diplomas', async (req, res) => {
+router.get('/family-school/diplomas', requirePortalPermission('view_family_school_diplomas_main_admin'), async (req, res) => {
   const students = await allActiveStudents();
   const selectedStudent = (await requireStudent(parseInt(req.query.studentId, 10))) || null;
   const diploma = selectedStudent ? await diplomaForStudent(selectedStudent.id) : null;
@@ -192,7 +192,7 @@ router.get('/family-school/diplomas', async (req, res) => {
   });
 });
 
-router.post('/family-school/diplomas', async (req, res) => {
+router.post('/family-school/diplomas', requirePortalPermission('view_family_school_diplomas_main_admin'), async (req, res) => {
   const studentId = parseInt(req.body.studentId, 10);
   const student = await requireStudent(studentId);
   if (!student) return res.redirect('/main-admin/family-school/diplomas?error=' + encodeURIComponent('Choose a student.'));
@@ -216,7 +216,7 @@ router.post('/family-school/diplomas', async (req, res) => {
   res.redirect(`/main-admin/family-school/diplomas?studentId=${studentId}&notice=` + encodeURIComponent('Diploma saved.'));
 });
 
-router.get('/family-school/diplomas/:studentId/print', async (req, res) => {
+router.get('/family-school/diplomas/:studentId/print', requirePortalPermission('view_family_school_diplomas_main_admin'), async (req, res) => {
   const studentId = parseInt(req.params.studentId, 10);
   const student = await requireStudent(studentId);
   if (!student) return res.status(404).render('404', { title: 'Not Found' });
@@ -231,7 +231,7 @@ router.get('/family-school/diplomas/:studentId/print', async (req, res) => {
   });
 });
 
-router.get('/family-school/diplomas/:studentId/download.pdf', async (req, res) => {
+router.get('/family-school/diplomas/:studentId/download.pdf', requirePortalPermission('view_family_school_diplomas_main_admin'), async (req, res) => {
   const studentId = parseInt(req.params.studentId, 10);
   const student = await requireStudent(studentId);
   if (!student) return res.status(404).send('Not found');

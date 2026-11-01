@@ -182,8 +182,27 @@ const MEMBERS_TABS = ['members', 'approvals', 'settings', 'archive', 'locked'];
 // order the request listed them.
 const SETTINGS_SUBTABS = ['grade-levels', 'fee-payment', 'form-fields', 'approval-denial', 'handbook'];
 
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." The whole router is already gated by manage_members
+// (router.use above) - this adds an independent permission per TAB,
+// since Approvals/Archive/Locked/Settings all share this one ?tab=
+// handler rather than their own route (see the handoff notes this repo
+// was given for why this file in particular needs an inline check
+// instead of a 2nd requirePortalPermission(...) router-level call).
+const MEMBERS_TAB_PERMISSION = {
+  approvals: 'view_members_approvals',
+  archive: 'view_members_archive',
+  locked: 'view_members_locked',
+  settings: 'view_members_settings',
+};
+
 router.get('/', async (req, res) => {
   const activeTab = MEMBERS_TABS.includes(req.query.tab) ? req.query.tab : 'members';
+  const tabPermission = MEMBERS_TAB_PERMISSION[activeTab];
+  if (tabPermission && !req.portalPermissions.has(tabPermission)) {
+    return res.status(403).render('403', { title: 'Not Authorized', message: "You don't have permission to do that.", backHref: '/main-admin', backLabel: 'Back to Main Admin' });
+  }
 
   if (activeTab === 'approvals') {
     return res.render('main-admin-members', {
@@ -469,17 +488,17 @@ async function lockedMembersList() {
     .all();
 }
 
-router.get('/locked/export.csv', async (req, res) => {
+router.get('/locked/export.csv', requirePortalPermission('view_members_locked'), async (req, res) => {
   const members = await lockedMembersList();
   const lines = [toCsvRow(['Name', 'Email']), ...members.map((m) => toCsvRow([m.name, m.accountEmail]))];
   sendCsv(res, 'locked.csv', lines);
 });
 
-router.get('/locked/print', async (req, res) => {
+router.get('/locked/print', requirePortalPermission('view_members_locked'), async (req, res) => {
   res.render('main-admin-members-locked-print', { title: 'Locked Print Preview', members: await lockedMembersList() });
 });
 
-router.get('/locked/download.pdf', async (req, res) => {
+router.get('/locked/download.pdf', requirePortalPermission('view_members_locked'), async (req, res) => {
   const pdf = await renderViewToPdf(req, 'main-admin-members-locked-print', { title: 'Locked Print Preview', members: await lockedMembersList() });
   sendPdf(res, 'locked.pdf', pdf);
 });

@@ -121,7 +121,7 @@ router.post('/', async (req, res) => {
 // own client-side JS already did when it lived on its own separate
 // /text-email/filter page. See routes/admin-announcements.js's
 // identical tab for the Co-op Admin side.
-router.get('/email', async (req, res) => {
+router.get('/email', requirePortalPermission('view_announcements_email'), async (req, res) => {
   const [roles, sections, gradeLevels, candidates, emailCampaigns] = await Promise.all([
     emailComposer.listRoles(),
     emailComposer.listSections(),
@@ -145,7 +145,7 @@ router.get('/email', async (req, res) => {
 // recipientIds (Email tab's own candidate checkboxes) or memberIds
 // (Members page's own "Bulk Action > Email" - see emailComposer.js's
 // own resolveRecipients() comment) - either lands here.
-router.post('/email/compose', async (req, res) => {
+router.post('/email/compose', requirePortalPermission('view_announcements_email'), async (req, res) => {
   const recipients = await emailComposer.resolveRecipients(req.body);
   if (recipients.length === 0) return res.redirect('/main-admin/announcements/email?error=' + encodeURIComponent('Select at least one recipient.'));
   res.render('main-admin-email-compose', {
@@ -155,7 +155,7 @@ router.post('/email/compose', async (req, res) => {
   });
 });
 
-router.post('/email/send', async (req, res) => {
+router.post('/email/send', requirePortalPermission('view_announcements_email'), async (req, res) => {
   const recipientIds = [].concat(req.body.recipientIds || []).map((id) => parseInt(id, 10)).filter(Boolean);
   const subject = (req.body.subject || '').trim();
   const body = sanitizePostBody(req.body.body || '');
@@ -189,7 +189,7 @@ router.post('/email/send', async (req, res) => {
   res.redirect('/main-admin/announcements/email?notice=' + encodeURIComponent(`Sent to ${recipientCount} member(s).`));
 });
 
-router.post('/email/:id/send', async (req, res) => {
+router.post('/email/:id/send', requirePortalPermission('view_announcements_email'), async (req, res) => {
   const campaign = await emailComposer.sendScheduled(req.params.id);
   if (!campaign) return res.redirect('/main-admin/announcements/email?error=' + encodeURIComponent('That email was already sent or does not exist.'));
   res.redirect('/main-admin/announcements/email?notice=' + encodeURIComponent(`Sent to ${campaign.recipient_count} member(s).`));
@@ -200,7 +200,7 @@ router.post('/email/:id/send', async (req, res) => {
 // instead of email_campaigns/emailComposer - "separate text and email
 // subpages again. Because they have their own past messages list at the
 // bottom of the page."
-router.get('/text', async (req, res) => {
+router.get('/text', requirePortalPermission('view_announcements_text'), async (req, res) => {
   const [roles, sections, gradeLevels, candidates, textCampaigns] = await Promise.all([
     emailComposer.listRoles(),
     emailComposer.listSections(),
@@ -224,7 +224,7 @@ router.get('/text', async (req, res) => {
 // recipientIds (Text tab's own candidate checkboxes) or memberIds
 // (Members page's own "Bulk Action > Text" - see emailComposer.js's own
 // resolveRecipients() comment) - either lands here.
-router.post('/text/compose', async (req, res) => {
+router.post('/text/compose', requirePortalPermission('view_announcements_text'), async (req, res) => {
   const recipients = await emailComposer.resolveRecipients(req.body);
   if (recipients.length === 0) return res.redirect('/main-admin/announcements/text?error=' + encodeURIComponent('Select at least one recipient.'));
   res.render('main-admin-text-compose', {
@@ -235,7 +235,7 @@ router.post('/text/compose', async (req, res) => {
   });
 });
 
-router.post('/text/send', textCampaignImageUpload.single('image'), async (req, res) => {
+router.post('/text/send', requirePortalPermission('view_announcements_text'), textCampaignImageUpload.single('image'), async (req, res) => {
   const recipientIds = [].concat(req.body.recipientIds || []).map((id) => parseInt(id, 10)).filter(Boolean);
   const body = (req.body.body || '').trim();
   const sendOption = req.body.sendOption === 'schedule' ? 'schedule' : 'now';
@@ -280,7 +280,7 @@ router.post('/text/send', textCampaignImageUpload.single('image'), async (req, r
   res.redirect('/main-admin/announcements/text?notice=' + encodeURIComponent(`Sent to ${recipientCount} member(s).`));
 });
 
-router.post('/text/:id/send', async (req, res) => {
+router.post('/text/:id/send', requirePortalPermission('view_announcements_text'), async (req, res) => {
   const campaign = await textComposer.sendScheduled(req.params.id);
   if (!campaign) return res.redirect('/main-admin/announcements/text?error=' + encodeURIComponent('That text was already sent or does not exist.'));
   res.redirect('/main-admin/announcements/text?notice=' + encodeURIComponent(`Sent to ${campaign.recipient_count} member(s).`));

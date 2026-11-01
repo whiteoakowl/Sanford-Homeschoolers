@@ -12880,7 +12880,48 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
    list (not .portal-dashboard-card itself, shared by every portal's own
    home dashboard, left/top-aligned there by design). */
 .main-admin-portal-permissions-card { align-items: center; text-align: center; }
-.permission-checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem 1rem; margin: 0.75rem 0 1rem; }
+/* A real request: "the check boxes should all be in a single aligned
+   column with the first word of the description lined up with its
+   check box. The first word in each description should also start in
+   its own clean column." Used to be `repeat(auto-fill, minmax(220px,
+   1fr))` - a multi-column auto-wrap where each checkbox+label pair's
+   own width decided which column it landed in, so neither checkboxes
+   nor label text ever lined up row to row. A single two-column grid
+   instead (checkboxes always column 1, label text always column 2),
+   fed one flattened list of rows - a page and every one of its own
+   subpages together - by views/partials/permission-checkbox-section.ejs
+   rather than one grid per page, so nothing has to re-align between a
+   page's own row and its subpages' rows. */
+.permission-checkbox-grid { display: grid; grid-template-columns: auto 1fr; column-gap: 0.6rem; row-gap: 0.55rem; margin: 0.5rem 0 1.25rem; align-items: start; }
+/* .checkbox-option is normally its own flex row (font-weight/gap/etc. -
+   see this file's own base rule); inside this grid it instead
+   contributes no box of its own, so its own <input> and <span> become
+   the actual grid items (column 1 / column 2) - every row's checkbox
+   and every row's text land in those same two columns regardless of
+   label length. Scoped to this one grid, not .checkbox-option
+   everywhere else in the app (every other usage still wants its own
+   normal flex row). */
+.permission-checkbox-grid .checkbox-option { display: contents; }
+.permission-checkbox-grid .checkbox-option input[type="checkbox"] { grid-column: 1; margin-top: 0.2rem; }
+.permission-checkbox-grid .checkbox-option span { grid-column: 2; }
+/* A real request: "indent/nest subpages under their parent page
+   visually." Extra left padding on just the TEXT (the checkbox itself
+   stays in column 1, aligned with every other row's checkbox) reads as
+   nested without breaking the one shared checkbox column every other
+   row already lines up in. */
+.permission-checkbox-grid .checkbox-option.permission-subpage span { padding-left: 1.1rem; }
+/* A page with no permission of its own (utils/portalPageCatalog.js's
+   own key: null entries, e.g. Parent Portal's "Co-op Classes," whose
+   bare URL is identical to its own first subpage) - a plain heading
+   spanning both columns, not a checkbox, introducing the real subpage
+   checkboxes nested right under it. */
+.permission-checkbox-grid .permission-group-label { grid-column: 1 / -1; font-weight: 600; font-size: 0.85rem; color: var(--ink-muted, var(--ink)); margin-top: 0.4rem; }
+/* Groups each portal's own page list under a small heading inside the
+   dialog (e.g. "Parent Portal" / "Family School Management") - a real
+   request on views/main-admin-admins.ejs's own combined catalog:
+   "sectioned by portal for easy finding." */
+.permission-section-title { font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted, var(--ink)); margin: 1rem 0 0.3rem; }
+.permission-section:first-child .permission-section-title { margin-top: 0.25rem; }
 /* A real request: "click on each admin title and then there will be a
    popup to check which permissions that admin may have." At
    .member-picker-dialog's own capped width (420px), the permission

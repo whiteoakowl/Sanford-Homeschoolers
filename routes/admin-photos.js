@@ -41,6 +41,14 @@ const PHOTOS_TABS = ['photos', 'archive'];
 
 router.get('/', async (req, res) => {
   const activeTab = PHOTOS_TABS.includes(req.query.tab) ? req.query.tab : 'photos';
+  // A real request: "permission to view each of these pages and
+  // subpages... unchecking removes the permission and the page
+  // disappears." Archive shares this one ?tab= handler
+  // (manage_publications already gates the whole router) rather than
+  // its own route, so it gets its own inline check.
+  if (activeTab === 'archive' && !req.portalPermissions.has('view_admin_photos_archive')) {
+    return res.status(403).render('403', { title: 'Not Authorized', message: "You don't have permission to do that.", backHref: '/main-admin', backLabel: 'Back to Main Admin' });
+  }
   const albums = await photos.listAlbums({ status: activeTab === 'archive' ? 'archived' : 'active' });
   const pendingPhotos = activeTab === 'photos' ? await photos.listPendingPhotos() : [];
   res.render('admin-photos-list', { title: 'Photos', activeTab, albums, pendingPhotos, notice: req.query.notice || null });

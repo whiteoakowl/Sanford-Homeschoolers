@@ -160,8 +160,22 @@ async function nameTagSubmissions(showArchived, dateFilter) {
   return db.prepare(sql).all(...params);
 }
 
+// A real request: "permission to view each of these pages and
+// subpages... unchecking removes the permission and the page
+// disappears." Print/Requests share this one ?tab= handler
+// (manage_name_tags already gates the whole router) rather than their
+// own route, so each gets its own inline check.
+const NAME_TAGS_TAB_PERMISSION = {
+  print: 'view_name_tags_print',
+  requests: 'view_name_tags_requests',
+};
+
 router.get('/', async (req, res) => {
   const tab = TABS.includes(req.query.tab) ? req.query.tab : 'design';
+  const tabPermission = NAME_TAGS_TAB_PERMISSION[tab];
+  if (tabPermission && !req.portalPermissions.has(tabPermission)) {
+    return res.status(403).render('403', { title: 'Not Authorized', message: "You don't have permission to do that.", backHref: '/main-admin', backLabel: 'Back to Main Admin' });
+  }
   const initialType = DESIGN_TYPES.includes(req.query.type) ? req.query.type : 'student';
 
   const members = (await membersWithDetails()).filter((m) => m.active);

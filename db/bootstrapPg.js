@@ -139,34 +139,187 @@ const PORTAL_ROLES = [
   { key: 'main_admin', label: 'Main Admin', description: 'Group management, events, chat groups, approvals, website settings etc.', isSystem: true },
 ];
 
+// A real request: "these permissions should not be about being able to
+// manage these different pages and elements. It should be permission to
+// view each of these pages and subpages." Every one of Main Admin's own
+// existing keys below keeps its exact name (every main-admin-*.js/
+// admin-*.js route file already calls requirePortalPermission with it by
+// name - renaming any of them would break that gate) - only their own
+// label/description text was reworded toward "view this page," and each
+// now carries a `portal` tag (used by utils/portalPageCatalog.js to
+// group views/main-admin-admins.ejs's combined catalog by portal).
+// Everything from view_parent_events onward is new - one key per page/
+// subpage a Parent/Family School/Co-op Teacher/Student portal account
+// can view, added alongside the existing Main-Admin-only keys rather
+// than replacing them. See utils/portalPageCatalog.js's own header
+// comment for the full page catalog these keys back, and
+// supabase/migrations/20261226010000_portal_page_permissions.sql for how
+// an already-deployed database gets these same rows (this array only
+// ever runs against a brand-new one - see seedPortalPlatform below).
 const PORTAL_PERMISSIONS = [
-  { key: 'manage_users', label: 'Manage Users', description: 'Approve accounts, assign roles and portal access.' },
-  { key: 'manage_roles', label: 'Manage Roles & Permissions', description: 'Create/edit roles and control which permissions they grant.' },
-  { key: 'manage_website', label: 'Manage Website', description: 'Edit the public homepage, announcements, and FAQs.' },
-  { key: 'manage_classes', label: 'Manage Classes', description: 'Create/edit classes, capacity, and registration windows.' },
-  { key: 'manage_registrations', label: 'Manage Registrations', description: "Review and adjust members' class registrations." },
-  { key: 'manage_events', label: 'Manage Events', description: 'Create/edit events, volunteer signups, and donation requests.' },
-  { key: 'manage_volunteers', label: 'Manage Volunteers', description: 'Manage committees, sign-up lists, and volunteer lists (Main Admin > Volunteers).' },
-  { key: 'manage_classifieds', label: 'Manage Classifieds', description: 'Approve, archive, and moderate classifieds listings.' },
-  { key: 'manage_finances', label: 'Manage Finances', description: 'View and record accounting charges, payments, and refunds.' },
-  { key: 'manage_store', label: 'Manage Store', description: 'Manage products, inventory, and orders.' },
-  { key: 'manage_forum', label: 'Manage Chat', description: 'Moderate chat categories, threads, and posts.' },
-  { key: 'manage_forms', label: 'Manage Forms', description: 'Build and publish custom forms, and view submissions.' },
-  { key: 'manage_training', label: 'Manage Training', description: 'Create courses/lessons and assign training.' },
-  { key: 'manage_documents', label: 'Manage Documents', description: 'Upload and organize shared documents.' },
-  { key: 'manage_publications', label: 'Manage Publications', description: 'Write and publish articles, publications, and photo albums.' },
-  { key: 'manage_directory', label: 'Manage Directory', description: 'Manage the member and business directories.' },
-  { key: 'manage_communications', label: 'Manage Communications', description: 'Assemble/send the weekly newsletter and control SMS/notification settings.' },
-  { key: 'view_audit_log', label: 'View Audit Log', description: 'View the record of financial changes, moderation, and deletions across the app.' },
-  { key: 'manage_members', label: 'Manage Members', description: 'Add, edit, archive, and organize the member/family roster.' },
-  { key: 'send_announcements', label: 'Send Announcements', description: 'Compose and send announcements to members, shown on their portal home page.' },
-  { key: 'manage_resources', label: 'Manage Resource Links', description: 'Add and remove the curated resource links shown on member portals.' },
-  { key: 'manage_babysitters', label: 'Manage Babysitter Directory', description: 'Approve or reject babysitter profile submissions and edits.' },
-  { key: 'manage_sections', label: 'Manage Sections', description: 'Create sections and assign members to them, for restricting events/classes to specific groups.' },
-  { key: 'manage_name_tags', label: 'Manage Name Tags', description: 'Design and print name tags, schedule cards, badges, and barcode sheets for any member.' },
-  { key: 'register_guests', label: 'Register Guests', description: 'Register a non-member guest for an event.' },
-  { key: 'manage_annual_calendar', label: 'Manage Annual Calendar', description: 'Create fiscal-year calendars, keys, and color-code calendar dates.' },
+  { key: 'manage_users', label: 'View Users', description: 'View the Users & Approvals page: member accounts, role assignments, and the approval queue.', portal: 'main_admin' },
+  { key: 'manage_roles', label: 'View Roles & Permissions', description: 'View the Portal Permissions page and control which permissions each role grants.', portal: 'main_admin' },
+  { key: 'manage_website', label: 'View Website Settings', description: 'View and edit the public homepage, announcements, and FAQs pages.', portal: 'main_admin' },
+  { key: 'manage_classes', label: 'View Classes', description: 'View the Classes page: capacity, registration windows, and class details.', portal: 'main_admin' },
+  { key: 'manage_registrations', label: 'View Registrations', description: "View and adjust members' class registrations.", portal: 'main_admin' },
+  { key: 'manage_events', label: 'View Events', description: 'View the Events page: event details, volunteer signups, and donation requests.', portal: 'main_admin' },
+  { key: 'manage_volunteers', label: 'View Volunteers', description: 'View the Volunteers page: committees, sign-up lists, and volunteer lists.', portal: 'main_admin' },
+  { key: 'manage_classifieds', label: 'View Classifieds', description: 'View the Classifieds page: listing approvals, archive, and moderation.', portal: 'main_admin' },
+  { key: 'manage_finances', label: 'View Accounting', description: 'View the Accounting page: charges, payments, and refunds.', portal: 'main_admin' },
+  { key: 'manage_store', label: 'View Shop', description: 'View the Shop page: products, inventory, and orders.', portal: 'main_admin' },
+  { key: 'manage_forum', label: 'View Chat', description: 'View the Chat page: categories, threads, and posts.', portal: 'main_admin' },
+  { key: 'manage_forms', label: 'View Custom Forms', description: 'View the Custom Forms page: form builder and submissions.', portal: 'main_admin' },
+  { key: 'manage_training', label: 'View Training', description: 'View the Training page: courses, lessons, and assignments.', portal: 'main_admin' },
+  { key: 'manage_documents', label: 'View Documents', description: 'View the Documents page: uploaded and organized shared documents.', portal: 'main_admin' },
+  { key: 'manage_publications', label: 'View Publications & Photos', description: 'View the Publications and Photos pages: articles, publications, and photo albums.', portal: 'main_admin' },
+  { key: 'manage_directory', label: 'View Business & Member Directory', description: 'View the Business Directory and Member Directory pages.', portal: 'main_admin' },
+  { key: 'manage_communications', label: 'View Communications', description: 'View the Communications page: the newsletter and notification settings.', portal: 'main_admin' },
+  { key: 'view_audit_log', label: 'View Audit Log', description: 'View the record of financial changes, moderation, and deletions across the app.', portal: 'main_admin' },
+  { key: 'manage_members', label: 'View Members', description: 'View the Members page: the member/family roster.', portal: 'main_admin' },
+  { key: 'send_announcements', label: 'View Announcements', description: 'View the Announcements page and compose/send announcements to members.', portal: 'main_admin' },
+  { key: 'manage_resources', label: 'View Resource Links', description: 'View the Resource Links page shown on member portals.', portal: 'main_admin' },
+  { key: 'manage_babysitters', label: 'View Babysitters', description: 'View the Babysitters page: profile submissions and edits.', portal: 'main_admin' },
+  { key: 'manage_sections', label: 'View Sections', description: 'View the Sections page used to restrict events/classes to specific groups.', portal: 'main_admin' },
+  { key: 'manage_name_tags', label: 'View Name Tags', description: 'View the Name Tags page: design, print, and requests.', portal: 'main_admin' },
+  { key: 'register_guests', label: 'Register Guests', description: 'Register a non-member guest for an event.', portal: 'main_admin' },
+  { key: 'manage_annual_calendar', label: 'View Annual Calendar', description: 'View the Annual Calendar page: fiscal-year calendars and color-coded dates.', portal: 'main_admin' },
+
+  // Main Admin subpages/tabs that had no permission of their own before
+  // this pass (only the one blanket page-level key above gated the
+  // whole feature) - see utils/portalPageCatalog.js's MAIN_ADMIN_PAGES.
+  { key: 'view_members_approvals', label: 'View Members: Approvals', description: 'View the Members page’s Approvals tab.', portal: 'main_admin' },
+  { key: 'view_members_archive', label: 'View Members: Archive', description: 'View the Members page’s Archive tab.', portal: 'main_admin' },
+  { key: 'view_members_locked', label: 'View Members: Locked', description: 'View the Members page’s Locked tab.', portal: 'main_admin' },
+  { key: 'view_members_settings', label: 'View Members: Settings', description: 'View the Members page’s Settings tab.', portal: 'main_admin' },
+  { key: 'view_accounting_categories', label: 'View Accounting: Category/Fiscal Year', description: 'View the Accounting page’s Category/Fiscal Year tab.', portal: 'main_admin' },
+  { key: 'view_accounting_invoices', label: 'View Accounting: Invoices', description: 'View the Accounting page’s Invoices tab.', portal: 'main_admin' },
+  { key: 'view_accounting_payments', label: 'View Accounting: Payments', description: 'View the Accounting page’s Payments tab.', portal: 'main_admin' },
+  { key: 'view_accounting_adjustments', label: 'View Accounting: Adjustments', description: 'View the Accounting page’s Adjustments tab.', portal: 'main_admin' },
+  { key: 'view_accounting_reports', label: 'View Accounting: Reports', description: 'View the Accounting page’s Reports tab.', portal: 'main_admin' },
+  { key: 'view_accounting_transactions', label: 'View Accounting: Transactions', description: 'View the Accounting page’s Transactions tab.', portal: 'main_admin' },
+  { key: 'view_accounting_receipts', label: 'View Accounting: Receipts', description: 'View the Accounting page’s Receipts tab.', portal: 'main_admin' },
+  { key: 'view_accounting_logs', label: 'View Accounting: Logs', description: 'View the Accounting page’s Logs tab.', portal: 'main_admin' },
+  { key: 'view_accounting_settings', label: 'View Accounting: Settings', description: 'View the Accounting page’s Settings tab.', portal: 'main_admin' },
+  { key: 'view_announcements_email', label: 'View Communication: Email', description: 'View the Communication page’s Email tab.', portal: 'main_admin' },
+  { key: 'view_announcements_text', label: 'View Communication: Text', description: 'View the Communication page’s Text tab.', portal: 'main_admin' },
+  { key: 'view_events_drafts', label: 'View Events: Drafts', description: 'View the Events page’s Drafts tab.', portal: 'main_admin' },
+  { key: 'view_events_requests', label: 'View Events: Requests', description: 'View the Events page’s Requests tab.', portal: 'main_admin' },
+  { key: 'view_events_attendance', label: 'View Events: Event Attendance', description: 'View the Events page’s Event Attendance tab.', portal: 'main_admin' },
+  { key: 'view_events_registrationlog', label: 'View Events: Event Registration Log', description: 'View the Events page’s Event Registration Log tab.', portal: 'main_admin' },
+  { key: 'view_events_settings', label: 'View Events: Settings', description: 'View the Events page’s Settings tab.', portal: 'main_admin' },
+  { key: 'view_forums_rooms', label: 'View Chat: Chat Rooms', description: 'View the Chat page’s Chat Rooms tab.', portal: 'main_admin' },
+  { key: 'view_forums_archive', label: 'View Chat: Archive', description: 'View the Chat page’s Archive tab.', portal: 'main_admin' },
+  { key: 'view_volunteers_signup_lists', label: 'View Volunteers: Sign-Up Lists', description: 'View the Volunteers page’s Sign-Up Lists tab.', portal: 'main_admin' },
+  { key: 'view_volunteers_lists', label: 'View Volunteers: Volunteer Lists', description: 'View the Volunteers page’s Volunteer Lists tab.', portal: 'main_admin' },
+  { key: 'view_name_tags_print', label: 'View Name Tags: Print', description: 'View the Name Tags page’s Print tab.', portal: 'main_admin' },
+  { key: 'view_name_tags_requests', label: 'View Name Tags: Requests', description: 'View the Name Tags page’s Requests tab.', portal: 'main_admin' },
+  { key: 'view_admin_photos_archive', label: 'View Photos: Archive', description: 'View the Photos page’s Archive tab.', portal: 'main_admin' },
+  { key: 'view_resource_links_approvals', label: 'View Resource Links: Approvals', description: 'View the Resource Links page’s Approvals tab.', portal: 'main_admin' },
+  { key: 'view_directory_requests', label: 'View Business Directory: Requests', description: 'View the Business Directory page’s Requests tab.', portal: 'main_admin' },
+  { key: 'view_directory_archive', label: 'View Business Directory: Archive', description: 'View the Business Directory page’s Archive tab.', portal: 'main_admin' },
+  { key: 'view_classifieds_requests', label: 'View Classifieds: Requests', description: 'View the Classifieds page’s Requests tab.', portal: 'main_admin' },
+  { key: 'view_classifieds_archive', label: 'View Classifieds: Archive', description: 'View the Classifieds page’s Archive tab.', portal: 'main_admin' },
+  { key: 'view_store_orders', label: 'View Shop: Orders', description: 'View the Shop page’s Orders tab.', portal: 'main_admin' },
+  { key: 'view_store_archived', label: 'View Shop: Archived', description: 'View the Shop page’s Archived tab.', portal: 'main_admin' },
+  { key: 'view_store_analytics', label: 'View Shop: Analytics', description: 'View the Shop page’s Analytics tab.', portal: 'main_admin' },
+  { key: 'view_store_settings', label: 'View Shop: Settings', description: 'View the Shop page’s Settings tab.', portal: 'main_admin' },
+  { key: 'view_babysitters_approvals', label: 'View Babysitters: Approvals', description: 'View the Babysitters page’s Approvals tab.', portal: 'main_admin' },
+  { key: 'view_babysitters_settings', label: 'View Babysitters: Settings', description: 'View the Babysitters page’s Settings tab.', portal: 'main_admin' },
+  // Had no permission at all before this pass - routes/main-admin-
+  // family-school.js only ever checked requirePortal('main_admin').
+  { key: 'view_family_school_main_admin', label: 'View Family School Management (Transcripts)', description: 'View Main Admin’s own Family School Management page (transcript creation).', portal: 'main_admin' },
+  { key: 'view_family_school_diplomas_main_admin', label: 'View Family School Management: Diplomas', description: 'View Main Admin’s own Family School Management Diplomas subpage.', portal: 'main_admin' },
+  // routes/main-admin-fun.js's own 5 subpages - same "had no permission
+  // at all" situation as Family School Management above.
+  { key: 'view_fun_student_reading_challenge', label: 'View Fun: Student Reading Challenge', description: 'View the Fun page’s Student Reading Challenge subpage.', portal: 'main_admin' },
+  { key: 'view_fun_parent_reading_challenge', label: 'View Fun: Parent Reading Challenge', description: 'View the Fun page’s Parent Reading Challenge subpage.', portal: 'main_admin' },
+  { key: 'view_fun_games', label: 'View Fun: Games', description: 'View the Fun page’s Games subpage.', portal: 'main_admin' },
+  { key: 'view_fun_vocabulary_game', label: 'View Fun: Vocabulary Game', description: 'View the Fun page’s Vocabulary Game subpage.', portal: 'main_admin' },
+  { key: 'view_fun_pets', label: 'View Fun: Pets', description: 'View the Fun page’s Pets subpage.', portal: 'main_admin' },
+
+  // Parent Portal - see utils/portalPageCatalog.js's PARENT_PAGES.
+  { key: 'view_parent_events', label: 'View Events', description: 'View the Events page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_classes', label: 'View Class Registration', description: 'View the Co-op Classes page’s Class Registration subpage.', portal: 'parent' },
+  { key: 'view_parent_classroom_dashboard', label: 'View Classroom Dashboard', description: 'View the Co-op Classes page’s Classroom Dashboard subpage.', portal: 'parent' },
+  { key: 'view_parent_name_tag_form', label: 'View Name Tag Form', description: 'View the Co-op Classes page’s Name Tag Form subpage.', portal: 'parent' },
+  { key: 'view_parent_absence_form', label: 'View Absence/Late Form', description: 'View the Co-op Classes page’s Absence/Late Form subpage.', portal: 'parent' },
+  { key: 'view_parent_handbook', label: 'View Policy Handbook', description: 'View the Co-op Classes page’s Policy Handbook subpage.', portal: 'parent' },
+  { key: 'view_parent_chat', label: 'View Chat', description: 'View the Chat page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_training', label: 'View Training', description: 'View the Training page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_directory', label: 'View Business Directory', description: 'View the Business Directory page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_classifieds', label: 'View Classifieds', description: 'View the Classifieds page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_resources', label: 'View Resources', description: 'View the Resources page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_documents', label: 'View Documents', description: 'View the Documents page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_store', label: 'View Store', description: 'View the Store page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_photos', label: 'View Photos', description: 'View the Photos page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_name_tags', label: 'View Name Tags', description: 'View the Name Tags page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_babysitters', label: 'View Babysitters', description: 'View the Babysitters page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_library', label: 'View Library', description: 'View the Library page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_reading', label: 'View Reading Challenge', description: 'View the Reading Challenge page from Parent Portal.', portal: 'parent' },
+  { key: 'view_parent_accounting', label: 'View Accounting', description: 'View the Accounting page from Parent Portal.', portal: 'parent' },
+
+  // Family School Management - see utils/portalPageCatalog.js's
+  // FAMILY_SCHOOL_PAGES. Its own portal card is reached via the SAME
+  // 'parent' role as Parent Portal above (routes/portal-auth.js's
+  // expandPortalRoles), not a separate DB role.
+  { key: 'view_fsm_classes', label: 'View Family Classes', description: 'View the Family Classes page.', portal: 'family_school' },
+  { key: 'view_fsm_grades', label: 'View Family Grades', description: 'View the Family Grades page.', portal: 'family_school' },
+  { key: 'view_fsm_attendance', label: 'View Family Attendance', description: 'View the Family Attendance page.', portal: 'family_school' },
+  { key: 'view_fsm_journal', label: 'View Daily Learning Log', description: 'View the Daily Learning Log page.', portal: 'family_school' },
+  { key: 'view_fsm_volunteer_hours', label: 'View Volunteer Hours', description: 'View the Volunteer Hours page.', portal: 'family_school' },
+  { key: 'view_fsm_annual_planner', label: 'View Annual Planner', description: 'View the Annual Planner page.', portal: 'family_school' },
+  { key: 'view_fsm_weekly_planner', label: 'View Weekly Planner', description: 'View the Weekly Planner page.', portal: 'family_school' },
+  { key: 'view_fsm_transcripts', label: 'View Transcripts', description: 'View the Transcripts page.', portal: 'family_school' },
+  { key: 'view_fsm_diplomas', label: 'View Diplomas', description: 'View the Diplomas page.', portal: 'family_school' },
+  { key: 'view_fsm_portfolio', label: 'View Portfolio', description: 'View the Portfolio page.', portal: 'family_school' },
+
+  // Co-op Teacher Portal - see utils/portalPageCatalog.js's
+  // TEACHER_PAGES.
+  { key: 'view_teacher_attendance', label: 'View Attendance', description: 'View the Attendance page from Co-op Teacher Portal.', portal: 'teacher' },
+  { key: 'view_teacher_classes', label: 'View Class Schedule', description: 'View the Class Schedule page from Co-op Teacher Portal.', portal: 'teacher' },
+  { key: 'view_teacher_training', label: 'View Training', description: 'View the Training page from Co-op Teacher Portal.', portal: 'teacher' },
+  { key: 'view_teacher_assignments', label: 'View Assignments', description: 'View the Assignments page from Co-op Teacher Portal.', portal: 'teacher' },
+  { key: 'view_teacher_chat', label: 'View Chat', description: 'View the Chat page from Co-op Teacher Portal.', portal: 'teacher' },
+  { key: 'view_teacher_photos', label: 'View Photos', description: 'View the Photos page from Co-op Teacher Portal.', portal: 'teacher' },
+  { key: 'view_teacher_instructor_profile', label: 'View Instructor Profile', description: 'View the Instructor Profile page.', portal: 'teacher' },
+
+  // Student Portal - see utils/portalPageCatalog.js's STUDENT_PAGES.
+  { key: 'view_student_events', label: 'View Calendar', description: 'View the Events page’s Calendar subpage from Student Portal.', portal: 'student' },
+  { key: 'view_student_event_registrations', label: 'View My Event Registrations', description: 'View the Events page’s My Event Registrations subpage.', portal: 'student' },
+  { key: 'view_student_classes', label: 'View Co-op Schedule', description: 'View the Co-op Schedule page.', portal: 'student' },
+  { key: 'view_student_classes_dashboard', label: 'View Classroom Dashboard: Classes', description: 'View the Classroom Dashboard page’s Classes subpage.', portal: 'student' },
+  { key: 'view_student_grades', label: 'View Classroom Dashboard: Grades', description: 'View the Classroom Dashboard page’s Grades subpage.', portal: 'student' },
+  { key: 'view_student_attendance', label: 'View Classroom Dashboard: Attendance', description: 'View the Classroom Dashboard page’s Attendance subpage.', portal: 'student' },
+  { key: 'view_student_weekly_planner', label: 'View Classroom Dashboard: Weekly Planner', description: 'View the Classroom Dashboard page’s Weekly Planner subpage.', portal: 'student' },
+  { key: 'view_student_chat', label: 'View Chat', description: 'View the Chat page from Student Portal.', portal: 'student' },
+  { key: 'view_student_portfolio', label: 'View Portfolio', description: 'View the Classroom Dashboard page’s Portfolio subpage.', portal: 'student' },
+  { key: 'view_student_transcript', label: 'View Transcripts', description: 'View the Classroom Dashboard page’s Transcripts subpage.', portal: 'student' },
+  { key: 'view_student_resources', label: 'View Resources', description: 'View the Resources page from Student Portal.', portal: 'student' },
+  { key: 'view_student_photos', label: 'View Photos', description: 'View the Photos page from Student Portal.', portal: 'student' },
+  { key: 'view_student_babysitter_profile', label: 'View Babysitter Profile', description: 'View the Babysitter Profile page.', portal: 'student' },
+
+  // Student Portal's own "Activities" section - see
+  // utils/portalPageCatalog.js's STUDENT_ACTIVITY_PAGES.
+  { key: 'view_student_games', label: 'View Games', description: 'View the Games page.', portal: 'student' },
+  { key: 'view_student_pets', label: 'View Pet', description: 'View the Pet page.', portal: 'student' },
+  { key: 'view_student_reading', label: 'View Reading Challenge', description: 'View the Reading Challenge page from Student Portal.', portal: 'student' },
+  { key: 'view_student_achievements', label: 'View Achievements', description: 'View the Achievements page.', portal: 'student' },
+  { key: 'view_student_leaderboard', label: 'View Leaderboard', description: 'View the Leaderboard page.', portal: 'student' },
+  { key: 'view_student_nature_news', label: 'View Nature News', description: 'View the Nature News page from Student Portal.', portal: 'student' },
+  { key: 'view_student_vocabulary', label: 'View Vocabulary', description: 'View the Vocabulary page.', portal: 'student' },
 ];
+
+// Beyond Main Admin (which gets every permission below, unchanged - see
+// the mainAdminRoleId loop below), each portal-scoped permission above
+// is granted by default to whichever role already has unrestricted
+// access to that page today, so this ships as a purely additive, zero-
+// behavior-change upgrade - nothing newly disappears or 403s for any
+// existing account until a Main Admin deliberately unchecks something.
+const DEFAULT_GRANT_PORTALS_BY_ROLE = {
+  parent: ['parent', 'family_school'],
+  teacher: ['teacher'],
+  student: ['student'],
+};
 
 async function seedPortalPlatform(db) {
   const roleIdByKey = {};
@@ -189,18 +342,31 @@ async function seedPortalPlatform(db) {
       permissionIdByKey[perm.key] = existing.id;
       continue;
     }
-    const info = await db.prepare('INSERT INTO permissions (key, label, description) VALUES (?, ?, ?)').run(perm.key, perm.label, perm.description);
+    const info = await db.prepare('INSERT INTO permissions (key, label, description, portal) VALUES (?, ?, ?, ?)').run(perm.key, perm.label, perm.description, perm.portal || null);
     permissionIdByKey[perm.key] = info.lastInsertRowid;
   }
 
-  // Main Admin gets every permission by default - every other role starts
-  // with none, left for a Main Admin to grant deliberately from the Roles
-  // & Permissions screen.
+  // Main Admin gets every permission by default (including every
+  // portal-scoped one below - harmless, Main Admin doesn't route through
+  // those checks, see middleware/portalAuth.js) - every other role starts
+  // with only its own portal(s)' default grants (DEFAULT_GRANT_PORTALS_BY_
+  // ROLE above), left for a Main Admin to narrow deliberately from the
+  // Portal Permissions screen.
   const mainAdminRoleId = roleIdByKey.main_admin;
   for (const key of Object.keys(permissionIdByKey)) {
     await db
       .prepare('INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT (role_id, permission_id) DO NOTHING')
       .run(mainAdminRoleId, permissionIdByKey[key]);
+  }
+  for (const [roleKey, portals] of Object.entries(DEFAULT_GRANT_PORTALS_BY_ROLE)) {
+    const roleId = roleIdByKey[roleKey];
+    if (!roleId) continue;
+    for (const perm of PORTAL_PERMISSIONS) {
+      if (!portals.includes(perm.portal)) continue;
+      await db
+        .prepare('INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT (role_id, permission_id) DO NOTHING')
+        .run(roleId, permissionIdByKey[perm.key]);
+    }
   }
 
   const anyMainAdmin = await db

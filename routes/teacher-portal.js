@@ -8,7 +8,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const db = require('../db');
-const { requirePortalAuth, requirePortal } = require('../middleware/portalAuth');
+const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount } = require('../utils/portalAuth');
 const {
   allClassesList,
@@ -183,7 +183,7 @@ router.get('/', async (req, res) => {
 // above, which means "no filter") - the "All Semesters" dropdown option
 // (selectedSemesterId === null) is passed through as undefined here so
 // it keeps meaning "every semester", not "only untagged classes".
-router.get('/classes', async (req, res) => {
+router.get('/classes', requirePortalPermission('view_teacher_classes'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const semesters = await listSemesters();
   const selectedSemesterId = req.query.semesterId ? parseInt(req.query.semesterId, 10) : null;
@@ -216,7 +216,7 @@ router.get('/classes', async (req, res) => {
   });
 });
 
-router.get('/classes/print', async (req, res) => {
+router.get('/classes/print', requirePortalPermission('view_teacher_classes'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const selectedSemesterId = req.query.semesterId ? parseInt(req.query.semesterId, 10) : null;
   const gridSemesterId = selectedSemesterId === null ? undefined : selectedSemesterId;
@@ -246,7 +246,7 @@ router.get('/classes/print', async (req, res) => {
 // A real request: "the download should be a pdf of exactly how it would
 // also look when printing" - same data the Print preview above renders,
 // now a PDF built from the exact same -print.ejs view.
-router.get('/classes/download.pdf', async (req, res) => {
+router.get('/classes/download.pdf', requirePortalPermission('view_teacher_classes'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const selectedSemesterId = req.query.semesterId ? parseInt(req.query.semesterId, 10) : null;
   const gridSemesterId = selectedSemesterId === null ? undefined : selectedSemesterId;
@@ -302,7 +302,7 @@ const TEACHER_CLASS_DETAIL_TABS = ['details', 'lessons', 'chat'];
 // isn't gated to "already registered" either. No register/join/leave
 // controls here at all - a teacher browsing the whole schedule isn't
 // signing up for anything, just looking up what a class actually is.
-router.get('/classes/:id/fragment', async (req, res) => {
+router.get('/classes/:id/fragment', requirePortalPermission('view_teacher_classes'), async (req, res) => {
   const cls = await getClass(parseInt(req.params.id, 10));
   if (!cls) return res.status(404).send('Not found');
   const staff = cls.staff || [];
@@ -318,7 +318,7 @@ router.get('/classes/:id/fragment', async (req, res) => {
   });
 });
 
-router.get('/classes/:id', async (req, res) => {
+router.get('/classes/:id', requirePortalPermission('view_teacher_classes'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const cls = classes.find((c) => c.id === parseInt(req.params.id, 10));
@@ -338,7 +338,7 @@ router.get('/classes/:id', async (req, res) => {
   res.render('teacher-class-detail', { title: cls.class_name, cls, tab, lessons, chatMessages, notice: req.query.notice || null });
 });
 
-router.post('/classes/:id/chat', async (req, res) => {
+router.post('/classes/:id/chat', requirePortalPermission('view_teacher_classes'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const cls = classes.find((c) => c.id === parseInt(req.params.id, 10));
@@ -354,7 +354,7 @@ router.post('/classes/:id/chat', async (req, res) => {
 // /content/:id, "it won't let me click on class lessons under classroom
 // dashboard") - the teacher-side counterpart, always the no-child/no-quiz
 // read-only mode (there's no specific student to complete anything for).
-router.get('/content/:id', async (req, res) => {
+router.get('/content/:id', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const contentItemId = parseInt(req.params.id, 10);
   const member = await memberForAccount(req.portalAccount.id);
   const contentItem = await getContentItem(contentItemId);
@@ -382,7 +382,7 @@ router.get('/content/:id', async (req, res) => {
 
 // The old roster + assignment-management page, now reached via its own
 // "Edit Class" button instead of being what clicking a class lands on.
-router.get('/classes/:id/edit', async (req, res) => {
+router.get('/classes/:id/edit', requirePortalPermission('view_teacher_classes'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const cls = classes.find((c) => c.id === parseInt(req.params.id, 10));
@@ -396,7 +396,7 @@ router.get('/classes/:id/edit', async (req, res) => {
   res.render('teacher-roster', { title: cls.class_name, cls, students, assignments, error: req.query.error || null, notice: req.query.notice || null });
 });
 
-router.post('/classes/:id/assignments', async (req, res) => {
+router.post('/classes/:id/assignments', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const cls = classes.find((c) => c.id === parseInt(req.params.id, 10));
@@ -419,7 +419,7 @@ router.post('/classes/:id/assignments', async (req, res) => {
   res.redirect(back + '?notice=' + encodeURIComponent(`"${title}" added.`));
 });
 
-router.post('/classes/:id/assignments/reorder', async (req, res) => {
+router.post('/classes/:id/assignments/reorder', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const classId = parseInt(req.params.id, 10);
@@ -429,7 +429,7 @@ router.post('/classes/:id/assignments/reorder', async (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/assignments/:id', async (req, res) => {
+router.get('/assignments/:id', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const assignment = await getAssignment(parseInt(req.params.id, 10));
@@ -449,7 +449,7 @@ router.get('/assignments/:id', async (req, res) => {
   res.render('teacher-gradebook', { title: assignment.title, cls, assignment, rows, contentItems, notice: req.query.notice || null, error: req.query.error || null });
 });
 
-router.post('/assignments/:id/edit', async (req, res) => {
+router.post('/assignments/:id/edit', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const assignmentId = parseInt(req.params.id, 10);
@@ -511,7 +511,7 @@ function uploadLessonAttachment(req, res, next) {
 }
 const LESSON_CONTENT_TYPES = ['video', 'text', 'file', 'quiz', 'assignment_upload', 'assignment_submission'];
 
-router.post('/assignments/:id/content', uploadLessonAttachment, async (req, res) => {
+router.post('/assignments/:id/content', requirePortalPermission('view_teacher_assignments'), uploadLessonAttachment, async (req, res) => {
   const assignmentId = parseInt(req.params.id, 10);
   const found = await assignmentForTeacher(req, assignmentId);
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
@@ -568,7 +568,7 @@ router.post('/assignments/:id/content', uploadLessonAttachment, async (req, res)
 // real bug report: "I have zero way of managing the quizzes or any other
 // created assignments" applied here too, since this page shares the same
 // views/partials/lesson-content-manage.ejs form.
-router.post('/content/:id/edit', uploadLessonAttachment, async (req, res) => {
+router.post('/content/:id/edit', requirePortalPermission('view_teacher_assignments'), uploadLessonAttachment, async (req, res) => {
   const found = await contentItemForTeacher(req, parseInt(req.params.id, 10));
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
   const contentItem = found.contentItem;
@@ -603,7 +603,7 @@ router.post('/content/:id/edit', uploadLessonAttachment, async (req, res) => {
   res.redirect(back + '?notice=' + encodeURIComponent('Assignment updated.'));
 });
 
-router.post('/content/:id/delete', async (req, res) => {
+router.post('/content/:id/delete', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const found = await contentItemForTeacher(req, parseInt(req.params.id, 10));
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
   await deleteContentItem(found.contentItem.id);
@@ -614,7 +614,7 @@ router.post('/content/:id/delete', async (req, res) => {
 // pair - a real request: "the student will see an upload link," which
 // needs somewhere for a teacher to see what was uploaded and enter
 // points + a letter/percentage grade + feedback.
-router.get('/content/:id/submissions', async (req, res) => {
+router.get('/content/:id/submissions', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const found = await contentItemForTeacher(req, parseInt(req.params.id, 10));
   if (!found || found.contentItem.type !== 'assignment_submission') return res.status(404).send('Not found');
   const submissions = await submissionsForContentItem(found.contentItem.id);
@@ -628,7 +628,7 @@ router.get('/content/:id/submissions', async (req, res) => {
   });
 });
 
-router.post('/content/:id/submissions', async (req, res) => {
+router.post('/content/:id/submissions', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const contentItemId = parseInt(req.params.id, 10);
   const found = await contentItemForTeacher(req, contentItemId);
   if (!found || found.contentItem.type !== 'assignment_submission') return res.status(404).send('Not found');
@@ -647,7 +647,7 @@ router.post('/content/:id/submissions', async (req, res) => {
   res.redirect(`/teacher/content/${contentItemId}/submissions?notice=` + encodeURIComponent('Grades saved.'));
 });
 
-router.post('/assignments/:id/content/reorder', async (req, res) => {
+router.post('/assignments/:id/content/reorder', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const assignmentId = parseInt(req.params.id, 10);
   const found = await assignmentForTeacher(req, assignmentId);
   if (!found) return res.status(403).json({ error: 'not your class' });
@@ -656,7 +656,7 @@ router.post('/assignments/:id/content/reorder', async (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/content/:id/questions', async (req, res) => {
+router.get('/content/:id/questions', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const found = await contentItemForTeacher(req, parseInt(req.params.id, 10));
   if (!found || found.contentItem.type !== 'quiz') return res.status(404).send('Not found');
   const items = await contentItemsForAssignment(found.assignment.id, { includeAnswerKey: true });
@@ -672,7 +672,7 @@ router.get('/content/:id/questions', async (req, res) => {
   });
 });
 
-router.post('/content/:id/questions', async (req, res) => {
+router.post('/content/:id/questions', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const found = await contentItemForTeacher(req, parseInt(req.params.id, 10));
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
   const back = `/teacher/assignments/${found.assignment.id}`;
@@ -694,7 +694,7 @@ router.post('/content/:id/questions', async (req, res) => {
   res.redirect(back + '?notice=' + encodeURIComponent('Question added.'));
 });
 
-router.post('/questions/:id/delete', async (req, res) => {
+router.post('/questions/:id/delete', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const questionId = parseInt(req.params.id, 10);
   const question = await db.prepare('SELECT q.*, lci.assignment_id FROM quiz_questions q JOIN lesson_content_items lci ON lci.id = q.content_item_id WHERE q.id = ?').get(questionId);
   if (!question) return res.status(404).send('Not found');
@@ -704,14 +704,14 @@ router.post('/questions/:id/delete', async (req, res) => {
   res.redirect(`/teacher/assignments/${found.assignment.id}?notice=` + encodeURIComponent('Question removed.'));
 });
 
-router.get('/quiz-review', async (req, res) => {
+router.get('/quiz-review', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const pending = await pendingReviewAnswers(classes.map((c) => c.id));
   res.render('teacher-quiz-review', { title: 'Quiz Review', pending, notice: req.query.notice || null });
 });
 
-router.post('/quiz-answers/:id/score', async (req, res) => {
+router.post('/quiz-answers/:id/score', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const answerId = parseInt(req.params.id, 10);
   const answer = await db
     .prepare(
@@ -729,7 +729,7 @@ router.post('/quiz-answers/:id/score', async (req, res) => {
   res.redirect('/teacher/quiz-review?notice=' + encodeURIComponent('Answer scored.'));
 });
 
-router.post('/assignments/:id/grades', async (req, res) => {
+router.post('/assignments/:id/grades', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const assignmentId = parseInt(req.params.id, 10);
@@ -757,13 +757,13 @@ router.post('/assignments/:id/grades', async (req, res) => {
 // attendance for today is the same trust level as a staff member running
 // that class at the kiosk, just reached through the portal instead.
 
-router.get('/attendance', async (req, res) => {
+router.get('/attendance', requirePortalPermission('view_teacher_attendance'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   res.render('teacher-attendance', { title: 'Attendance', classes });
 });
 
-router.get('/classes/:id/attendance', async (req, res) => {
+router.get('/classes/:id/attendance', requirePortalPermission('view_teacher_attendance'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const cls = classes.find((c) => c.id === parseInt(req.params.id, 10));
@@ -789,7 +789,7 @@ router.get('/classes/:id/attendance', async (req, res) => {
 // attendance-grid.js consumer (admin-rosters.js, kiosk-class-checkin.js) -
 // public/js/attendance-grid.js drives this endpoint unmodified, just
 // pointed here via data-endpoint.
-router.post('/classes/:id/attendance', async (req, res) => {
+router.post('/classes/:id/attendance', requirePortalPermission('view_teacher_attendance'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const cls = classes.find((c) => c.id === parseInt(req.params.id, 10));
@@ -841,7 +841,7 @@ router.post('/classes/:id/attendance', async (req, res) => {
 // isn't theirs to begin with.
 const SCAN_MODES = ['checkin', 'checkout'];
 
-router.get('/classes/:id/scan', async (req, res) => {
+router.get('/classes/:id/scan', requirePortalPermission('view_teacher_attendance'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const cls = classes.find((c) => c.id === parseInt(req.params.id, 10));
@@ -911,7 +911,7 @@ async function resolveTeacherScan(req, res, member) {
   return { cls, member: scannedMember, today };
 }
 
-router.post('/classes/:id/scan/checkin', async (req, res) => {
+router.post('/classes/:id/scan/checkin', requirePortalPermission('view_teacher_attendance'), async (req, res) => {
   if (teacherScanLimiter.isLimited(req.ip)) {
     return res.json({ ok: false, message: 'Too many check-ins from this device right now. Please wait a moment and try again.' });
   }
@@ -941,7 +941,7 @@ router.post('/classes/:id/scan/checkin', async (req, res) => {
   res.json({ ok: true, name: scannedMember.name, message: `Welcome, ${scannedMember.name}!` });
 });
 
-router.post('/classes/:id/scan/checkout', async (req, res) => {
+router.post('/classes/:id/scan/checkout', requirePortalPermission('view_teacher_attendance'), async (req, res) => {
   if (teacherScanLimiter.isLimited(req.ip)) {
     return res.json({ ok: false, message: 'Too many check-outs from this device right now. Please wait a moment and try again.' });
   }
@@ -973,7 +973,7 @@ router.post('/classes/:id/scan/checkout', async (req, res) => {
 
 // --- Assignments tab (across every class this teacher is staffed on) ---
 
-router.get('/assignments', async (req, res) => {
+router.get('/assignments', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const assignmentsByClass = [];
@@ -1016,7 +1016,7 @@ router.get('/reports', async (req, res) => {
 // checked here on every request rather than trusted from a stale page
 // render, same as every other "is this actually still allowed" check
 // elsewhere in this app.
-router.get('/instructor-profile', async (req, res) => {
+router.get('/instructor-profile', requirePortalPermission('view_teacher_instructor_profile'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const profile = await instructorProfile(member.id);
   res.render('teacher-instructor-profile', {
@@ -1027,7 +1027,7 @@ router.get('/instructor-profile', async (req, res) => {
   });
 });
 
-router.post('/instructor-profile', async (req, res) => {
+router.post('/instructor-profile', requirePortalPermission('view_teacher_instructor_profile'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const profile = await instructorProfile(member.id);
   // A direct POST replay after an admin disables the profile mid-session
@@ -1058,7 +1058,7 @@ router.post('/instructor-profile', async (req, res) => {
 // req.session.trainingMemberId, skipping the picker entirely, the same
 // way the parent one does - the shared /training/:id/play etc. routes
 // then keep working unchanged afterward.
-router.get('/training', async (req, res) => {
+router.get('/training', requirePortalPermission('view_teacher_training'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   if (!member) return res.render('teacher-training', { title: 'Training', assignments: [] });
   req.session.trainingMemberId = member.id;

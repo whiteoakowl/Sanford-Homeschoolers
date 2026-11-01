@@ -16,7 +16,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const db = require('../db');
-const { requirePortalAuth, requirePortal } = require('../middleware/portalAuth');
+const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount } = require('../utils/portalAuth');
 const { avatarColorFor } = require('../utils/members');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
@@ -285,7 +285,7 @@ router.get('/family-school/print', async (req, res) => {
 // own tab branches), rather than a new standing nav entry - Parent
 // Portal's own Family School Management nav deliberately has no
 // subpages of its own (see portal-nav.ejs's own comment on that).
-router.get('/family-school/classes', async (req, res) => {
+router.get('/family-school/classes', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const activeTab = req.query.tab === 'availableLessonPlans' ? 'availableLessonPlans' : 'classes';
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
@@ -304,7 +304,7 @@ router.get('/family-school/classes', async (req, res) => {
   });
 });
 
-router.post('/family-school/classes', async (req, res) => {
+router.post('/family-school/classes', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const className = (req.body.className || '').trim();
   if (!className) return res.redirect('/parent/family-school/classes?error=' + encodeURIComponent('A class name is required.'));
@@ -316,7 +316,7 @@ router.post('/family-school/classes', async (req, res) => {
 // from the admin's own Lesson Plans library instead of a fixed built-in
 // template set - see utils/familySchool.js's own createClassFromLessonPlan
 // comment.
-router.post('/family-school/classes/from-lesson-plan', async (req, res) => {
+router.post('/family-school/classes/from-lesson-plan', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const lessonPlanId = parseInt(req.body.lessonPlanId, 10);
   const id = await createClassFromLessonPlan(lessonPlanId, familyId, req.portalAccount.id);
@@ -324,14 +324,14 @@ router.post('/family-school/classes/from-lesson-plan', async (req, res) => {
   res.redirect(`/parent/family-school/classes/${id}?notice=` + encodeURIComponent('Class created from the Lesson Plans library.'));
 });
 
-router.post('/family-school/classes/:id/delete', async (req, res) => {
+router.post('/family-school/classes/:id/delete', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const cls = await requireOwnClass(req);
   if (!cls) return res.status(404).send('Not found');
   await deleteClass(cls.id);
   res.redirect('/parent/family-school/classes?notice=' + encodeURIComponent(`Deleted "${cls.class_name}".`));
 });
 
-router.get('/family-school/classes/:id', async (req, res) => {
+router.get('/family-school/classes/:id', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const cls = await requireOwnClass(req);
   if (!cls) return res.status(404).send('Not found');
   res.render('parent-family-school-class-manage', {
@@ -346,7 +346,7 @@ router.get('/family-school/classes/:id', async (req, res) => {
   });
 });
 
-router.post('/family-school/classes/:id/edit', async (req, res) => {
+router.post('/family-school/classes/:id/edit', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const cls = await requireOwnClass(req);
   if (!cls) return res.status(404).send('Not found');
   const className = (req.body.className || '').trim();
@@ -355,7 +355,7 @@ router.post('/family-school/classes/:id/edit', async (req, res) => {
   res.redirect(`/parent/family-school/classes/${cls.id}?notice=` + encodeURIComponent('Class updated.'));
 });
 
-router.post('/family-school/classes/:id/students', async (req, res) => {
+router.post('/family-school/classes/:id/students', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const cls = await requireOwnClass(req);
   if (!cls) return res.status(404).send('Not found');
   const familyStudentIds = (await studentsForFamily(cls.family_id)).map((s) => s.id);
@@ -373,7 +373,7 @@ router.post('/family-school/classes/:id/students', async (req, res) => {
 // manage.ejs) picks between this and the plain "write my own" path -
 // title/description come from the chosen plan itself, not the form's
 // own (hidden, in that mode) Title/Description fields.
-router.post('/family-school/classes/:id/lessons', async (req, res) => {
+router.post('/family-school/classes/:id/lessons', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const cls = await requireOwnClass(req);
   if (!cls) return res.status(404).send('Not found');
   const back = `/parent/family-school/classes/${cls.id}`;
@@ -407,7 +407,7 @@ router.post('/family-school/classes/:id/lessons', async (req, res) => {
 // list) always posts its lesson-list body as { assignmentIds: [...] } -
 // a holdover from "class_assignments IS lessons now" there, hardcoded in
 // that shared script rather than customizable per caller.
-router.post('/family-school/classes/:id/lessons/reorder', async (req, res) => {
+router.post('/family-school/classes/:id/lessons/reorder', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const cls = await requireOwnClass(req);
   if (!cls) return res.status(404).send('Not found');
   const lessonIds = [].concat(req.body.assignmentIds || []).map((v) => parseInt(v, 10));
@@ -415,14 +415,14 @@ router.post('/family-school/classes/:id/lessons/reorder', async (req, res) => {
   res.json({ ok: true });
 });
 
-router.post('/family-school/lessons/:id/delete', async (req, res) => {
+router.post('/family-school/lessons/:id/delete', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const found = await requireOwnLesson(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).send('Not found');
   await deleteLesson(found.lesson.id);
   res.redirect(`/parent/family-school/classes/${found.cls.id}?notice=` + encodeURIComponent(`Deleted "${found.lesson.title}".`));
 });
 
-router.get('/family-school/lessons/:id', async (req, res) => {
+router.get('/family-school/lessons/:id', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const found = await requireOwnLesson(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).send('Not found');
   const sourcePlan = found.lesson.source_lesson_plan_id ? await getLessonPlan(found.lesson.source_lesson_plan_id) : null;
@@ -441,7 +441,7 @@ router.get('/family-school/lessons/:id', async (req, res) => {
 
 // "They can still, say, remove the reference or unassign it from their
 // own class" - utils/familySchool.js's own unlinkLessonFromPlan.
-router.post('/family-school/lessons/:id/unlink-plan', async (req, res) => {
+router.post('/family-school/lessons/:id/unlink-plan', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const found = await requireOwnLesson(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).send('Not found');
   await unlinkLessonFromPlan(found.lesson.id);
@@ -450,7 +450,7 @@ router.post('/family-school/lessons/:id/unlink-plan', async (req, res) => {
   );
 });
 
-router.post('/family-school/lessons/:id/edit', async (req, res) => {
+router.post('/family-school/lessons/:id/edit', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const found = await requireOwnLesson(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).send('Not found');
   const title = (req.body.title || '').trim();
@@ -492,7 +492,7 @@ function uploadWeekAssignmentFile(req, res, next) {
   });
 }
 
-router.post('/family-school/lessons/:id/content', uploadAttachment, async (req, res) => {
+router.post('/family-school/lessons/:id/content', requirePortalPermission('view_fsm_classes'), uploadAttachment, async (req, res) => {
   const found = await requireOwnLesson(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).send('Not found');
   const back = `/parent/family-school/lessons/${found.lesson.id}`;
@@ -549,7 +549,7 @@ async function requireOwnContentItem(req) {
   return { contentItem, lesson, cls };
 }
 
-router.post('/family-school/content/:id/edit', uploadAttachment, async (req, res) => {
+router.post('/family-school/content/:id/edit', requirePortalPermission('view_fsm_classes'), uploadAttachment, async (req, res) => {
   const found = await requireOwnContentItem(req);
   if (!found) return res.status(404).send('Not found');
   const { contentItem } = found;
@@ -587,14 +587,14 @@ router.post('/family-school/content/:id/edit', uploadAttachment, async (req, res
   res.redirect(back + '?notice=' + encodeURIComponent('Updated.'));
 });
 
-router.post('/family-school/content/:id/delete', async (req, res) => {
+router.post('/family-school/content/:id/delete', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const found = await requireOwnContentItem(req);
   if (!found) return res.status(404).send('Not found');
   await deleteContentItem(found.contentItem.id);
   res.redirect(`/parent/family-school/lessons/${found.contentItem.lesson_id}?notice=` + encodeURIComponent('Removed.'));
 });
 
-router.post('/family-school/lessons/:id/content/reorder', async (req, res) => {
+router.post('/family-school/lessons/:id/content/reorder', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const found = await requireOwnLesson(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).json({ ok: false });
   const contentItemIds = [].concat(req.body.contentItemIds || []).map((v) => parseInt(v, 10));
@@ -618,7 +618,7 @@ function filterGradesBySchoolYear(grades, schoolYearFilter) {
   return grades.filter((g) => schoolYearForDate(g.due_date) === schoolYearFilter);
 }
 
-router.get('/family-school/grades', async (req, res) => {
+router.get('/family-school/grades', requirePortalPermission('view_fsm_grades'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const selectedStudentId = req.query.studentId ? parseInt(req.query.studentId, 10) : familyStudents[0] ? familyStudents[0].id : null;
@@ -638,7 +638,7 @@ router.get('/family-school/grades', async (req, res) => {
   });
 });
 
-router.get('/family-school/grades/export.csv', async (req, res) => {
+router.get('/family-school/grades/export.csv', requirePortalPermission('view_fsm_grades'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const selectedStudentId = req.query.studentId ? parseInt(req.query.studentId, 10) : familyStudents[0] ? familyStudents[0].id : null;
@@ -657,7 +657,7 @@ router.get('/family-school/grades/export.csv', async (req, res) => {
 // would also look when printing" - every family student's own grades,
 // the same scope the old download.csv route used, now a PDF built from
 // the exact same -print.ejs view the Print button opens.
-router.get('/family-school/grades/download.pdf', async (req, res) => {
+router.get('/family-school/grades/download.pdf', requirePortalPermission('view_fsm_grades'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const schoolYearFilter = req.query.schoolYear || 'all';
@@ -674,7 +674,7 @@ router.get('/family-school/grades/download.pdf', async (req, res) => {
 
 // A real request: "All print button should show a print preview full
 // real page on a page with a print button."
-router.get('/family-school/grades/print', async (req, res) => {
+router.get('/family-school/grades/print', requirePortalPermission('view_fsm_grades'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const selectedStudentId = req.query.studentId ? parseInt(req.query.studentId, 10) : familyStudents[0] ? familyStudents[0].id : null;
@@ -687,7 +687,7 @@ router.get('/family-school/grades/print', async (req, res) => {
   });
 });
 
-router.post('/family-school/grades/:contentItemId/:studentId', async (req, res) => {
+router.post('/family-school/grades/:contentItemId/:studentId', requirePortalPermission('view_fsm_grades'), async (req, res) => {
   const contentItemId = parseInt(req.params.contentItemId, 10);
   const studentId = parseInt(req.params.studentId, 10);
   const familyId = await familyIdForAccount(req.portalAccount);
@@ -723,7 +723,7 @@ router.post('/family-school/grades/:contentItemId/:studentId', async (req, res) 
 // shows the exact same 12-month grid the Print/Download routes below
 // already build via attendanceForSchoolYear/familyAttendanceForSchoolYear,
 // just clickable instead of static.
-router.get('/family-school/attendance', async (req, res) => {
+router.get('/family-school/attendance', requirePortalPermission('view_fsm_attendance'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   // A real request: "attendance drop down to choose one of your
@@ -768,7 +768,7 @@ router.get('/family-school/attendance', async (req, res) => {
 // registered before the single-student toggle route below, since
 // Express would otherwise match "family" as that route's own
 // :studentId param.
-router.post('/family-school/attendance/family/toggle', async (req, res) => {
+router.post('/family-school/attendance/family/toggle', requirePortalPermission('view_fsm_attendance'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   if (familyStudents.length === 0) return res.status(404).json({ ok: false });
@@ -781,7 +781,7 @@ router.post('/family-school/attendance/family/toggle', async (req, res) => {
 // AJAX endpoint (public/js/family-school-attendance.js) - cycles one
 // date's own mark and reports back the new state so the calendar cell
 // can recolor itself without a full page reload.
-router.post('/family-school/attendance/:studentId/toggle', async (req, res) => {
+router.post('/family-school/attendance/:studentId/toggle', requirePortalPermission('view_fsm_attendance'), async (req, res) => {
   const studentId = parseInt(req.params.studentId, 10);
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
@@ -792,7 +792,7 @@ router.post('/family-school/attendance/:studentId/toggle', async (req, res) => {
   res.json({ ok: true, status });
 });
 
-router.get('/family-school/attendance/export.csv', async (req, res) => {
+router.get('/family-school/attendance/export.csv', requirePortalPermission('view_fsm_attendance'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   // "Whole Family" has no single student to export, so Export CSV
@@ -840,7 +840,7 @@ function schoolYearStartFromQuery(req) {
 // school year, the same Aug-Jul span the Print preview below covers,
 // now a PDF built from the exact same -print.ejs view the Print button
 // opens.
-router.get('/family-school/attendance/download.pdf', async (req, res) => {
+router.get('/family-school/attendance/download.pdf', requirePortalPermission('view_fsm_attendance'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const schoolYearStart = schoolYearStartFromQuery(req);
@@ -862,7 +862,7 @@ router.get('/family-school/attendance/download.pdf', async (req, res) => {
 // print should show all 12 months, August-July 2026-2027" - same
 // student/family selection the live calendar shows, but every month of
 // that selection's own school year, not just the one currently open.
-router.get('/family-school/attendance/print', async (req, res) => {
+router.get('/family-school/attendance/print', requirePortalPermission('view_fsm_attendance'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const isFamilyMode = req.query.studentId === 'family';
@@ -915,7 +915,7 @@ function filterJournalEntriesBySchoolYear(entries, schoolYearFilter) {
   return entries.filter((e) => schoolYearForDate(e.entry_date) === schoolYearFilter);
 }
 
-router.get('/family-school/journal', async (req, res) => {
+router.get('/family-school/journal', requirePortalPermission('view_fsm_journal'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const selectedStudentId = req.query.studentId ? parseInt(req.query.studentId, 10) : familyStudents[0] ? familyStudents[0].id : null;
@@ -943,7 +943,7 @@ router.get('/family-school/journal', async (req, res) => {
   });
 });
 
-router.get('/family-school/journal/export.csv', async (req, res) => {
+router.get('/family-school/journal/export.csv', requirePortalPermission('view_fsm_journal'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const selectedStudentId = req.query.studentId ? parseInt(req.query.studentId, 10) : familyStudents[0] ? familyStudents[0].id : null;
@@ -958,7 +958,7 @@ router.get('/family-school/journal/export.csv', async (req, res) => {
 // would also look when printing" - every family student's own
 // entries, the same scope the old download.csv route used, now a PDF
 // built from the exact same -print.ejs view the Print button opens.
-router.get('/family-school/journal/download.pdf', async (req, res) => {
+router.get('/family-school/journal/download.pdf', requirePortalPermission('view_fsm_journal'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const schoolYearFilter = req.query.schoolYear || 'all';
@@ -982,7 +982,7 @@ router.get('/family-school/journal/download.pdf', async (req, res) => {
 
 // A real request: "All print button should show a print preview full
 // real page on a page with a print button."
-router.get('/family-school/journal/print', async (req, res) => {
+router.get('/family-school/journal/print', requirePortalPermission('view_fsm_journal'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const selectedStudentId = req.query.studentId ? parseInt(req.query.studentId, 10) : familyStudents[0] ? familyStudents[0].id : null;
@@ -1024,7 +1024,7 @@ function uploadJournalAttachments(req, res, next) {
   });
 }
 
-router.post('/family-school/journal', uploadJournalAttachments, async (req, res) => {
+router.post('/family-school/journal', requirePortalPermission('view_fsm_journal'), uploadJournalAttachments, async (req, res) => {
   const studentId = parseInt(req.body.studentId, 10);
   if (!(await requireOwnStudent(req, studentId))) return res.status(404).send('Not found');
   const entryDate = (req.body.entryDate || '').trim();
@@ -1038,14 +1038,14 @@ router.post('/family-school/journal', uploadJournalAttachments, async (req, res)
   res.redirect(`/parent/family-school/journal?studentId=${studentId}&notice=` + encodeURIComponent('Journal entry added.'));
 });
 
-router.post('/family-school/journal/:id/delete', async (req, res) => {
+router.post('/family-school/journal/:id/delete', requirePortalPermission('view_fsm_journal'), async (req, res) => {
   const entry = await getJournalEntry(parseInt(req.params.id, 10));
   if (!entry || !(await requireOwnStudent(req, entry.student_id))) return res.status(404).send('Not found');
   await deleteJournalEntry(entry.id);
   res.redirect(`/parent/family-school/journal?studentId=${entry.student_id}&notice=` + encodeURIComponent('Entry removed.'));
 });
 
-router.post('/family-school/journal/:id/attachments/:attachmentId/delete', async (req, res) => {
+router.post('/family-school/journal/:id/attachments/:attachmentId/delete', requirePortalPermission('view_fsm_journal'), async (req, res) => {
   const entry = await getJournalEntry(parseInt(req.params.id, 10));
   if (!entry || !(await requireOwnStudent(req, entry.student_id))) return res.status(404).send('Not found');
   const attachment = await getJournalAttachment(parseInt(req.params.attachmentId, 10));
@@ -1068,7 +1068,7 @@ function filterVolunteerHoursBySchoolYear(entries, schoolYearFilter) {
   return entries.filter((e) => schoolYearForDate(e.hour_date) === schoolYearFilter);
 }
 
-router.get('/family-school/volunteer-hours', async (req, res) => {
+router.get('/family-school/volunteer-hours', requirePortalPermission('view_fsm_volunteer_hours'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const selectedStudentId = req.query.studentId ? parseInt(req.query.studentId, 10) : familyStudents[0] ? familyStudents[0].id : null;
@@ -1091,7 +1091,7 @@ router.get('/family-school/volunteer-hours', async (req, res) => {
   });
 });
 
-router.get('/family-school/volunteer-hours/export.csv', async (req, res) => {
+router.get('/family-school/volunteer-hours/export.csv', requirePortalPermission('view_fsm_volunteer_hours'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const selectedStudentId = req.query.studentId ? parseInt(req.query.studentId, 10) : familyStudents[0] ? familyStudents[0].id : null;
@@ -1104,7 +1104,7 @@ router.get('/family-school/volunteer-hours/export.csv', async (req, res) => {
 // A real request: "Volunteer hours... Add export, pdf and print icons."
 // Same single-student-preview/whole-family-download split as every
 // other Family School Management page's own Print/Download pair.
-router.get('/family-school/volunteer-hours/print', async (req, res) => {
+router.get('/family-school/volunteer-hours/print', requirePortalPermission('view_fsm_volunteer_hours'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const selectedStudentId = req.query.studentId ? parseInt(req.query.studentId, 10) : familyStudents[0] ? familyStudents[0].id : null;
@@ -1119,7 +1119,7 @@ router.get('/family-school/volunteer-hours/print', async (req, res) => {
   });
 });
 
-router.get('/family-school/volunteer-hours/download.pdf', async (req, res) => {
+router.get('/family-school/volunteer-hours/download.pdf', requirePortalPermission('view_fsm_volunteer_hours'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const schoolYearFilter = req.query.schoolYear || 'all';
@@ -1137,7 +1137,7 @@ router.get('/family-school/volunteer-hours/download.pdf', async (req, res) => {
   sendPdf(res, 'volunteer-hours-all.pdf', pdf);
 });
 
-router.post('/family-school/volunteer-hours', async (req, res) => {
+router.post('/family-school/volunteer-hours', requirePortalPermission('view_fsm_volunteer_hours'), async (req, res) => {
   const studentId = parseInt(req.body.studentId, 10);
   if (!(await requireOwnStudent(req, studentId))) return res.status(404).send('Not found');
   const hourDate = (req.body.hourDate || '').trim();
@@ -1150,7 +1150,7 @@ router.post('/family-school/volunteer-hours', async (req, res) => {
   res.redirect(`${backUrl}&notice=` + encodeURIComponent('Volunteer hours added.'));
 });
 
-router.post('/family-school/volunteer-hours/:id/delete', async (req, res) => {
+router.post('/family-school/volunteer-hours/:id/delete', requirePortalPermission('view_fsm_volunteer_hours'), async (req, res) => {
   const entry = await getVolunteerHourEntry(parseInt(req.params.id, 10));
   if (!entry || !(await requireOwnStudent(req, entry.student_id))) return res.status(404).send('Not found');
   await deleteVolunteerHourEntry(entry.id);
@@ -1190,7 +1190,7 @@ function resolveStudentOrAllFilter(req, familyStudents) {
   return familyStudents.some((s) => s.id === id) ? id : 'all';
 }
 
-router.get('/family-school/annual-planner', async (req, res) => {
+router.get('/family-school/annual-planner', requirePortalPermission('view_fsm_annual_planner'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const schoolYear = resolveSchoolYearFilter(req);
@@ -1210,7 +1210,7 @@ router.get('/family-school/annual-planner', async (req, res) => {
   });
 });
 
-router.post('/family-school/annual-planner', async (req, res) => {
+router.post('/family-school/annual-planner', requirePortalPermission('view_fsm_annual_planner'), async (req, res) => {
   const studentId = parseInt(req.body.studentId, 10);
   if (!(await requireOwnStudent(req, studentId))) return res.status(404).send('Not found');
   const name = (req.body.name || '').trim();
@@ -1233,7 +1233,7 @@ router.post('/family-school/annual-planner', async (req, res) => {
 // route above, just an UPDATE instead of an INSERT - studentId/school
 // year move with it like the Add dialog's own fields, so re-assigning
 // either still works from the same Edit dialog.
-router.post('/family-school/annual-planner/:id/edit', async (req, res) => {
+router.post('/family-school/annual-planner/:id/edit', requirePortalPermission('view_fsm_annual_planner'), async (req, res) => {
   const item = await getCurriculumItem(parseInt(req.params.id, 10));
   if (!item || !(await requireOwnStudent(req, item.student_id))) return res.status(404).send('Not found');
   const name = (req.body.name || '').trim();
@@ -1253,7 +1253,7 @@ router.post('/family-school/annual-planner/:id/edit', async (req, res) => {
 // and you can keep viewing the same page and same spot." JSON in/out,
 // same fetch-based shape as the drag-and-drop move route above, instead
 // of the old full-page-redirect form submit.
-router.post('/family-school/annual-planner/:id/delete', async (req, res) => {
+router.post('/family-school/annual-planner/:id/delete', requirePortalPermission('view_fsm_annual_planner'), async (req, res) => {
   const item = await getCurriculumItem(parseInt(req.params.id, 10));
   if (!item || !(await requireOwnStudent(req, item.student_id))) return res.json({ ok: false, message: 'Not found.' });
   await deleteCurriculumItem(item.id);
@@ -1275,7 +1275,7 @@ function curriculumCsvRows(curriculumByStudent, familyStudents) {
   return lines;
 }
 
-router.get('/family-school/annual-planner/export.csv', async (req, res) => {
+router.get('/family-school/annual-planner/export.csv', requirePortalPermission('view_fsm_annual_planner'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const schoolYear = resolveSchoolYearFilter(req);
@@ -1284,7 +1284,7 @@ router.get('/family-school/annual-planner/export.csv', async (req, res) => {
   sendCsv(res, 'annual-planner.csv', curriculumCsvRows(await curriculumByStudentFor(familyStudents, schoolYear), displayedStudents));
 });
 
-router.get('/family-school/annual-planner/download.pdf', async (req, res) => {
+router.get('/family-school/annual-planner/download.pdf', requirePortalPermission('view_fsm_annual_planner'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const schoolYear = resolveSchoolYearFilter(req);
@@ -1300,7 +1300,7 @@ router.get('/family-school/annual-planner/download.pdf', async (req, res) => {
   sendPdf(res, 'annual-planner.pdf', pdf);
 });
 
-router.get('/family-school/annual-planner/print', async (req, res) => {
+router.get('/family-school/annual-planner/print', requirePortalPermission('view_fsm_annual_planner'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const schoolYear = resolveSchoolYearFilter(req);
@@ -1371,7 +1371,7 @@ async function requireOwnWeek(req, weekId) {
 // familySchool.js) and Week itself (so the filter alone can jump
 // straight to a week, instead of needing the separate tab row below it
 // for that).
-router.get('/family-school/weekly-planner', async (req, res) => {
+router.get('/family-school/weekly-planner', requirePortalPermission('view_fsm_weekly_planner'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const owner = resolveWeekOwner(req, familyStudents);
@@ -1406,7 +1406,7 @@ router.get('/family-school/weekly-planner', async (req, res) => {
   });
 });
 
-router.post('/family-school/weekly-planner', async (req, res) => {
+router.post('/family-school/weekly-planner', requirePortalPermission('view_fsm_weekly_planner'), async (req, res) => {
   const familyId = await familyIdForAccount(req.portalAccount);
   const familyStudents = await studentsForFamily(familyId);
   const ownerTypeRaw = (req.body.ownerType || '').trim();
@@ -1430,7 +1430,7 @@ router.post('/family-school/weekly-planner', async (req, res) => {
 // such as the dates, title, description or delete the week completely."
 // Same up-to-7-dates convention as the Add Week dialog this mirrors -
 // blanks are dropped, at least one real date is required.
-router.post('/family-school/weekly-planner/:id/edit', async (req, res) => {
+router.post('/family-school/weekly-planner/:id/edit', requirePortalPermission('view_fsm_weekly_planner'), async (req, res) => {
   const week = await requireOwnWeek(req, parseInt(req.params.id, 10));
   if (!week) return res.status(404).send('Not found');
   const owner = week.owner_type === 'student' ? week.student_id : week.owner_type;
@@ -1443,7 +1443,7 @@ router.post('/family-school/weekly-planner/:id/edit', async (req, res) => {
   res.redirect(`${backUrl}&notice=` + encodeURIComponent('Week updated.'));
 });
 
-router.post('/family-school/weekly-planner/:id/delete', async (req, res) => {
+router.post('/family-school/weekly-planner/:id/delete', requirePortalPermission('view_fsm_weekly_planner'), async (req, res) => {
   const week = await requireOwnWeek(req, parseInt(req.params.id, 10));
   if (!week) return res.status(404).send('Not found');
   await deleteWeek(week.id);
@@ -1464,7 +1464,7 @@ router.post('/family-school/weekly-planner/:id/delete', async (req, res) => {
 // own plain (non-multipart) form posts here instead - multer only reads
 // multipart bodies, and silently leaves req.body/req.file alone for a
 // normal urlencoded POST.
-router.post('/family-school/weekly-planner/dates/:dateId/assignments', uploadWeekAssignmentFile, async (req, res) => {
+router.post('/family-school/weekly-planner/dates/:dateId/assignments', requirePortalPermission('view_fsm_weekly_planner'), uploadWeekAssignmentFile, async (req, res) => {
   const weekDate = await getWeekDate(parseInt(req.params.dateId, 10));
   const week = weekDate && (await requireOwnWeek(req, weekDate.week_id));
   if (!week) return res.status(404).send('Not found');
@@ -1512,7 +1512,7 @@ router.post('/family-school/weekly-planner/dates/:dateId/assignments', uploadWee
 // A real request: "Add edit icon and delete to all weekly planner
 // assignments." Same editable fields as the "Add New Assignment"
 // dialog (minus the upload - see updateWeekAssignment's own comment).
-router.post('/family-school/weekly-planner/assignments/:id/edit', async (req, res) => {
+router.post('/family-school/weekly-planner/assignments/:id/edit', requirePortalPermission('view_fsm_weekly_planner'), async (req, res) => {
   const assignment = await getWeekAssignment(parseInt(req.params.id, 10));
   const weekDate = assignment && (await getWeekDate(assignment.week_date_id));
   const week = weekDate && (await requireOwnWeek(req, weekDate.week_id));
@@ -1535,7 +1535,7 @@ router.post('/family-school/weekly-planner/assignments/:id/edit', async (req, re
 // and you can keep view the same page and same spot." JSON in/out, same
 // fetch-based shape as the drag-and-drop move route below, instead of
 // the old full-page-redirect form submit.
-router.post('/family-school/weekly-planner/assignments/:id/delete', async (req, res) => {
+router.post('/family-school/weekly-planner/assignments/:id/delete', requirePortalPermission('view_fsm_weekly_planner'), async (req, res) => {
   const assignment = await getWeekAssignment(parseInt(req.params.id, 10));
   const weekDate = assignment && (await getWeekDate(assignment.week_date_id));
   const week = weekDate && (await requireOwnWeek(req, weekDate.week_id));
@@ -1552,7 +1552,7 @@ router.post('/family-school/weekly-planner/assignments/:id/delete', async (req, 
 // ever originate from (and the client-side JS only ever offers) a date
 // column already rendered as part of the one selectedWeek on this page,
 // but the request body is still never trusted blindly.
-router.post('/family-school/weekly-planner/assignments/:id/move', async (req, res) => {
+router.post('/family-school/weekly-planner/assignments/:id/move', requirePortalPermission('view_fsm_weekly_planner'), async (req, res) => {
   const assignment = await getWeekAssignment(parseInt(req.params.id, 10));
   const weekDate = assignment && (await getWeekDate(assignment.week_date_id));
   const week = weekDate && (await requireOwnWeek(req, weekDate.week_id));
@@ -1570,7 +1570,7 @@ router.post('/family-school/weekly-planner/assignments/:id/move', async (req, re
 // to mark an assignment done, and the page reload keeps the checkbox's
 // own visual state (strikethrough) in sync with the DB without a second
 // round of client-side bookkeeping.
-router.post('/family-school/weekly-planner/assignments/:id/toggle-complete', async (req, res) => {
+router.post('/family-school/weekly-planner/assignments/:id/toggle-complete', requirePortalPermission('view_fsm_weekly_planner'), async (req, res) => {
   const assignment = await getWeekAssignment(parseInt(req.params.id, 10));
   const weekDate = assignment && (await getWeekDate(assignment.week_date_id));
   const week = weekDate && (await requireOwnWeek(req, weekDate.week_id));
@@ -1581,7 +1581,7 @@ router.post('/family-school/weekly-planner/assignments/:id/toggle-complete', asy
 });
 
 // "Check box on each day for teacher to confirm the day is complete."
-router.post('/family-school/weekly-planner/dates/:dateId/toggle-complete', async (req, res) => {
+router.post('/family-school/weekly-planner/dates/:dateId/toggle-complete', requirePortalPermission('view_fsm_weekly_planner'), async (req, res) => {
   const weekDate = await getWeekDate(parseInt(req.params.dateId, 10));
   const week = weekDate && (await requireOwnWeek(req, weekDate.week_id));
   if (!week) return res.status(404).send('Not found');
@@ -1593,7 +1593,7 @@ router.post('/family-school/weekly-planner/dates/:dateId/toggle-complete', async
 // "Print, pdf and export icon to the left" - Weekly Planner's own
 // toolbar gained a third icon alongside the existing Print/PDF ones:
 // one row per assignment in the selected week.
-router.get('/family-school/weekly-planner/export.csv', async (req, res) => {
+router.get('/family-school/weekly-planner/export.csv', requirePortalPermission('view_fsm_weekly_planner'), async (req, res) => {
   const week = await requireOwnWeek(req, parseInt(req.query.weekId, 10));
   if (!week) return res.status(404).send('Not found');
   const dates = await weekGrid(week.id);
@@ -1626,13 +1626,13 @@ async function weeklyPlannerPrintLocals(req) {
   };
 }
 
-router.get('/family-school/weekly-planner/print', async (req, res) => {
+router.get('/family-school/weekly-planner/print', requirePortalPermission('view_fsm_weekly_planner'), async (req, res) => {
   const locals = await weeklyPlannerPrintLocals(req);
   if (!locals) return res.status(404).send('Not found');
   res.render('parent-family-school-weekly-planner-print', locals);
 });
 
-router.get('/family-school/weekly-planner/download.pdf', async (req, res) => {
+router.get('/family-school/weekly-planner/download.pdf', requirePortalPermission('view_fsm_weekly_planner'), async (req, res) => {
   const locals = await weeklyPlannerPrintLocals(req);
   if (!locals) return res.status(404).send('Not found');
   const pdf = await renderViewToPdf(req, 'parent-family-school-weekly-planner-print', { ...locals, familySettings: await familySettingsForPdf(res.locals.familySettings) });
@@ -1664,7 +1664,7 @@ async function resolvePortfolioStudent(req) {
   return { familyStudents, studentId, portfolio, schoolYear, yearOptions: schoolYearOptions(schoolYear === 'all' ? null : schoolYear) };
 }
 
-router.get('/family-school/portfolio', async (req, res) => {
+router.get('/family-school/portfolio', requirePortalPermission('view_fsm_portfolio'), async (req, res) => {
   const { familyStudents, studentId, portfolio, schoolYear, yearOptions } = await resolvePortfolioStudent(req);
   res.render('parent-family-school-portfolio', {
     title: 'Portfolio',
@@ -1677,13 +1677,13 @@ router.get('/family-school/portfolio', async (req, res) => {
   });
 });
 
-router.get('/family-school/portfolio/print', async (req, res) => {
+router.get('/family-school/portfolio/print', requirePortalPermission('view_fsm_portfolio'), async (req, res) => {
   const { familyStudents, studentId, portfolio } = await resolvePortfolioStudent(req);
   if (!portfolio) return res.status(404).send('Not found');
   res.render('parent-family-school-portfolio-print', { title: 'Portfolio', familyStudents, studentId, portfolio, avatarColorFor });
 });
 
-router.get('/family-school/portfolio/download.pdf', async (req, res) => {
+router.get('/family-school/portfolio/download.pdf', requirePortalPermission('view_fsm_portfolio'), async (req, res) => {
   const { familyStudents, studentId, portfolio } = await resolvePortfolioStudent(req);
   if (!portfolio) return res.status(404).send('Not found');
   const pdf = await renderViewToPdf(req, 'parent-family-school-portfolio-print', { title: 'Portfolio', familyStudents, studentId, portfolio, avatarColorFor, familySettings: await familySettingsForPdf(res.locals.familySettings) });
