@@ -26,6 +26,26 @@ function hashPassword(password) {
   return bcrypt.hashSync(password, 10);
 }
 
+// A real request: "Portal Choosing page. Change order. Parent portal,
+// Co-op Teacher, Family School Management Portal, Main Admin Portal,
+// Co-op Admin Portal, Student Portal." Originally just the Portal
+// Switcher's own display-only re-sort (routes/portal-auth.js's
+// sortForPortalSwitcher) - moved here so a later real request ("Portal
+// permissions page order should be the same as portal choosing order")
+// could reuse the exact same order for views/main-admin-roles.ejs's own
+// role-card list (routes/main-admin.js) without duplicating it. Any role
+// key not listed here (there isn't one today) just keeps falling in
+// after every key that is, in whatever order it was in.
+const PORTAL_SWITCHER_CARD_ORDER = ['parent', 'teacher', 'family_school', 'main_admin', 'coop_admin', 'student'];
+function sortByPortalSwitcherOrder(items, keyOf) {
+  const order = PORTAL_SWITCHER_CARD_ORDER;
+  return [...items].sort((a, b) => {
+    const ai = order.indexOf(keyOf(a));
+    const bi = order.indexOf(keyOf(b));
+    return (ai === -1 ? order.length : ai) - (bi === -1 ? order.length : bi);
+  });
+}
+
 // Every role a member account currently holds, e.g. [{key:'parent',...},
 // {key:'teacher',...}] - the source of truth for both the portal
 // switcher (one entry per role whose key is a real portal) and every
@@ -133,4 +153,6 @@ module.exports = {
   memberForAccount,
   familyForAccount,
   ensurePortalAccountForMember,
+  PORTAL_SWITCHER_CARD_ORDER,
+  sortByPortalSwitcherOrder,
 };

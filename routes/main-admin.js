@@ -11,6 +11,7 @@ const router = express.Router();
 const db = require('../db');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { adminCatalogSections, sectionsForRole, familySchoolSections, buildSections, permissionKeysInSections } = require('../utils/portalPageCatalog');
+const { sortByPortalSwitcherOrder } = require('../utils/portalAuth');
 const events = require('../utils/events');
 const babysitters = require('../utils/babysitters');
 const photos = require('../utils/photos');
@@ -346,16 +347,28 @@ router.get('/roles', requirePortalPermission('manage_roles'), async (req, res) =
 
   // A real request: "Family school management is its own portal." No DB
   // role of its own (see utils/portalPageCatalog.js's own comment) - a
-  // synthetic 2nd card, right after the real Parent role, built from the
-  // same 'parent' role's own grants but a separate, Family-School-only
-  // catalog.
+  // synthetic card built from the same 'parent' role's own grants but a
+  // separate, Family-School-only catalog.
   const parentRole = roles.find((r) => r.key === 'parent');
   const parentGranted = parentRole ? grantedByRole.get(parentRole.id) || new Set() : new Set();
   const familySchoolSection = parentRole ? buildSections(familySchoolSections(), permissionByKey, (permId) => parentGranted.has(permId)) : [];
 
+  // A real request: "Portal permissions page order should be the same
+  // as portal choosing order." Same order the Portal Switcher itself
+  // uses (utils/portalAuth.js's own PORTAL_SWITCHER_CARD_ORDER/
+  // sortByPortalSwitcherOrder) - family_school has no DB role to sort
+  // alongside the real ones, so it's spliced in here as its own display
+  // item first, then the whole list is sorted together by that one
+  // shared order (parent, teacher, family_school, main_admin,
+  // coop_admin, student), rather than hardcoding "right after Parent"
+  // the way this screen used to.
+  const displayItems = roles.map((role) => ({ kind: 'role', role, key: role.key }));
+  if (parentRole) displayItems.push({ kind: 'family_school', key: 'family_school' });
+  const orderedDisplayItems = sortByPortalSwitcherOrder(displayItems, (item) => item.key);
+
   res.render('main-admin-roles', {
     title: 'Portal Permissions',
-    roles,
+    displayItems: orderedDisplayItems,
     roleSections,
     parentRoleId: parentRole ? parentRole.id : null,
     familySchoolSection,

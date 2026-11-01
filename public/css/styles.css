@@ -1968,14 +1968,11 @@ body.public-page .roster-empty {
    real request above), the same literal black text .admin-corner-link-
    green already uses for the same reason (filled color button, not a
    tinted-text pairing with its own named token). */
-.admin-page-corner-actions .admin-corner-link,
-.admin-page-corner-actions .portal-switcher-details summary {
+.admin-page-corner-actions .admin-corner-link {
   background: var(--bg);
   color: #000;
 }
-.admin-page-corner-actions .admin-corner-link:hover,
-.admin-page-corner-actions .portal-switcher-details summary:hover,
-.admin-page-corner-actions .portal-switcher-details[open] summary {
+.admin-page-corner-actions .admin-corner-link:hover {
   background: var(--bg);
   filter: brightness(0.88);
   color: #000;
@@ -1989,33 +1986,6 @@ body.public-page .roster-empty {
   .site-header-utility-bar .btn-secondary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
 }
 
-/* Switch Portal's <details>/<summary> (.portal-switcher-details below)
-   defaults to white text for the dark sidebar it used to live in - a
-   real request ("Switch portal, profile icon, settings icon should all
-   be top right of screen") moved it up into this orange corner header
-   alongside My Profile/Settings, so it needs the same white-pill look as
-   .admin-corner-link right above, not the sidebar's transparent-on-dark
-   style. */
-.admin-page-corner-actions .portal-switcher-details summary {
-  background: rgba(255,255,255,0.95);
-  color: var(--muted);
-  padding: 0.35rem 0.9rem;
-  font-size: 0.8rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-}
-.admin-page-corner-actions .portal-switcher-details summary:hover,
-.admin-page-corner-actions .portal-switcher-details[open] summary { background: #fff; }
-.admin-page-corner-actions .portal-switcher-menu {
-  position: absolute;
-  right: 0;
-  min-width: 160px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-lg);
-  z-index: 10;
-}
-.admin-page-corner-actions .portal-switcher-menu a { color: var(--ink); }
-.admin-page-corner-actions .portal-switcher-menu a:hover { background: rgba(0,0,0,0.05); }
 
 /* Log out is the only control still pinned to the bottom of the sidebar
    on desktop, via margin-top:auto; folded into the mobile topbar's right
@@ -12254,12 +12224,16 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 .training-lesson-content { white-space: pre-wrap; line-height: 1.5; }
 
 /* ---------------------------------------------------------------------
-   Portal platform: shared chrome (portal-nav.ejs's switcher) and the
-   portal-picker grid (portal-switcher.ejs). Reuses .admin-sidebar/
-   .admin-mobile-topbar/.admin-mobile-tabs as-is (same shell every
-   portal, including the existing Co-op Admin Portal, already shares) -
-   this block only adds what's actually new: the portal title under the
-   logo and the "Switch Portal" disclosure.
+   Portal platform: shared chrome (portal-nav.ejs) and the portal-picker
+   grid (portal-switcher.ejs). Reuses .admin-sidebar/.admin-mobile-topbar/
+   .admin-mobile-tabs as-is (same shell every portal, including the
+   existing Co-op Admin Portal, already shares) - this block only adds
+   what's actually new: the portal title under the logo. The "Switch
+   Portal" link itself used to be its own <details>/<summary> disclosure
+   here (a real request: "On desktop... clicking the portal button
+   should simply take you to the portal page" - it's now a plain
+   .admin-corner-link, same as My Profile/Settings right next to it, no
+   dropdown markup/styling of its own left to keep).
    --------------------------------------------------------------------- */
 .portal-nav-title {
   margin: 0.3rem 0 0.2rem;
@@ -12270,37 +12244,6 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.75);
 }
-.portal-switcher-details { position: relative; }
-.portal-switcher-details summary {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  border-radius: 10px;
-  cursor: pointer;
-  color: #fff;
-  font-size: 0.8rem;
-  font-weight: 600;
-  list-style: none;
-}
-.portal-switcher-details summary::-webkit-details-marker { display: none; }
-.portal-switcher-details summary:hover { background: rgba(255, 255, 255, 0.12); }
-.portal-switcher-details[open] summary { background: rgba(255, 255, 255, 0.16); }
-.portal-switcher-menu {
-  margin-top: 0.3rem;
-  padding: 0.3rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-}
-.portal-switcher-menu a {
-  display: block;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 0.9rem;
-  text-decoration: none;
-}
-.portal-switcher-menu a:hover { background: rgba(255, 255, 255, 0.14); }
 
 .portal-picker-grid {
   display: grid;

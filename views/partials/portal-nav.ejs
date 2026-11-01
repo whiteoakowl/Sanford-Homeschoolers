@@ -793,13 +793,20 @@ const communityLinksTitle = 'Community';
     <svg class="icon"><use href="#icon-gear"/></svg>
     Settings
   </a>
+  <%# A real request: "On desktop when you click the portal button at the
+      top of every portal there should not be a dropdown to click choose
+      portals. Clicking the portal button should simply take you to the
+      portal page." Was a <details>/<summary> dropdown whose only item
+      was this exact same /portal link - two clicks to get there instead
+      of one, and the only one of these three corner links that worked
+      that way (My Profile/Settings above are already plain links, and
+      the mobile topbar's own Switch Portal icon right below was already
+      a plain link too - this now matches both). %>
   <% if (showSwitcher) { %>
-    <details class="portal-switcher-details">
-      <summary><svg class="icon"><use href="#icon-monitor"/></svg> Switch Portal</summary>
-      <div class="portal-switcher-menu">
-        <a href="/portal">All My Portals</a>
-      </div>
-    </details>
+    <a class="admin-corner-link" href="/portal">
+      <svg class="icon"><use href="#icon-monitor"/></svg>
+      Switch Portal
+    </a>
   <% } %>
 </header>
 

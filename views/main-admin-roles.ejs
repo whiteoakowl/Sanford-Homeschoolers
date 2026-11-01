@@ -16,88 +16,99 @@
 
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
 
+    <%# A real request: "Portal permissions page order should be the same
+        as portal choosing order." displayItems (routes/main-admin.js)
+        is already in that exact order (utils/portalAuth.js's own
+        PORTAL_SWITCHER_CARD_ORDER/sortByPortalSwitcherOrder, the same
+        list the Portal Switcher itself sorts by) - family_school has no
+        DB role of its own to carry that order on, so it's its own kind
+        of display item here rather than a hardcoded "right after
+        Parent" position the way this screen used to place it. %>
     <div class="main-admin-role-list">
-      <% roles.forEach(function(role) { %>
-        <section class="portal-dashboard-card main-admin-portal-permissions-card">
-          <%# A real request: "each portal card should have a centered
-              title, portal key listed stacked underneath in next row." %>
-          <h2><%= role.label %></h2>
-          <p class="hint">portal key: <%= role.key %></p>
-          <% if (role.key === 'main_admin') { %>
-            <p class="hint">Main Admin always has every permission.</p>
-          <% } else if (role.key === 'coop_admin') { %>
-            <%# Co-op Admin runs on its own, separate single-shared-login
-                system (middleware/requireAdmin.js, req.session.adminId) -
-                not the member_accounts/roles/permissions model every
-                other portal card here controls. A real request: "Co-op
-                admin portal should say, always has every permission.
-                Just like main admin." Same wording/no-dialog treatment
-                as Main Admin's own card above, rather than a dialog whose
-                checkboxes would control nothing real. %>
-            <p class="hint">Co-op Admin always has every permission.</p>
-          <% } else { %>
-            <%# A real request: "when you click it shows all of the pages
-                but it says view, not manage. Portals will not have
-                management controls. Only admins." Still the exact same
-                editable checkbox grid + Save (only Main Admin can even
-                reach this page at all, via the manage_roles permission
-                gate) - just worded as viewing/checking which pages a
-                portal can reach rather than "managing permissions".
-                A later real request: "these permissions should not be
-                about being able to manage these different pages and
-                elements. It should be permission to view each of these
-                pages and subpages" - roleSections (routes/main-admin.js,
-                utils/portalPageCatalog.js's sectionsForRole) scopes this
-                dialog to ONLY this role's own portal(s) instead of
-                every permission in the system. %>
-            <button type="button" class="roster-action-btn" onclick="document.getElementById('role-permissions-dialog-<%= role.id %>').showModal()">View</button>
+      <% displayItems.forEach(function(item) { %>
+        <% if (item.kind === 'family_school') { %>
+          <%# A real request: "Family school management is its own
+              portal." It has no DB role of its own (routes/portal-
+              auth.js's own expandPortalRoles - a 2nd Portal Switcher
+              card for the SAME 'parent' role, elsewhere in the app, not
+              a 2nd role) - same synthetic-card treatment here, instead
+              of folding its pages into Parent's own dialog as just
+              another section (what this page used to do, and what that
+              real request was complaining about). Its own dialog's form
+              posts to the exact same /main-admin/roles/<parentRoleId>/
+              permissions route Parent's own dialog does (same
+              underlying role, no DB role of its own to post to) but
+              tags itself with a hidden `scope` field so saving one of
+              this pair never wipes out the other's grants - see
+              routes/main-admin.js's own POST handler. %>
+          <% if (familySchoolSection.length) { %>
+            <section class="portal-dashboard-card main-admin-portal-permissions-card">
+              <h2>Family School Management</h2>
+              <p class="hint">portal key: family_school</p>
+              <button type="button" class="roster-action-btn" onclick="document.getElementById('role-permissions-dialog-family-school').showModal()">View</button>
 
-            <dialog id="role-permissions-dialog-<%= role.id %>" class="member-picker-dialog role-permissions-dialog">
-              <form method="POST" action="/main-admin/roles/<%= role.id %>/permissions">
-                <h3>View <%= role.label %>'s Pages</h3>
-                <p class="hint">Check a page or subpage to let this portal view it. Unchecking a page hides it from the nav and blocks direct links to it - the content itself isn't deleted, just hidden until checked again.</p>
-                <%- include('partials/permission-checkbox-section', { sections: roleSections[role.id] }) %>
-                <div class="notes-dialog-actions">
-                  <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Close</button>
-                  <button type="submit" class="primary-btn">Save</button>
-                </div>
-              </form>
-            </dialog>
+              <dialog id="role-permissions-dialog-family-school" class="member-picker-dialog role-permissions-dialog">
+                <form method="POST" action="/main-admin/roles/<%= parentRoleId %>/permissions">
+                  <input type="hidden" name="scope" value="family_school" />
+                  <h3>View Family School Management's Pages</h3>
+                  <p class="hint">Check a page or subpage to let this portal view it. Unchecking a page hides it from the nav and blocks direct links to it - the content itself isn't deleted, just hidden until checked again.</p>
+                  <%- include('partials/permission-checkbox-section', { sections: familySchoolSection }) %>
+                  <div class="notes-dialog-actions">
+                    <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Close</button>
+                    <button type="submit" class="primary-btn">Save</button>
+                  </div>
+                </form>
+              </dialog>
+            </section>
           <% } %>
-        </section>
-
-        <%# A real request: "Family school management is its own
-            portal." It has no DB role of its own (routes/portal-auth.js's
-            own expandPortalRoles - a 2nd Portal Switcher card for the
-            SAME 'parent' role, elsewhere in the app, not a 2nd role) -
-            same synthetic-2nd-card treatment here, right after the real
-            Parent card, instead of folding its pages into Parent's own
-            dialog as just another section (what this page used to do,
-            and what that real request was complaining about). Its own
-            dialog's form posts to the exact same /main-admin/roles/
-            <parentRoleId>/permissions route Parent's own dialog does
-            (same underlying role, no DB role of its own to post to) but
-            tags itself with a hidden `scope` field so saving one of this
-            pair never wipes out the other's grants - see routes/main-
-            admin.js's own POST handler. %>
-        <% if (role.key === 'parent' && familySchoolSection.length) { %>
+        <% } else { %>
+          <% var role = item.role; %>
           <section class="portal-dashboard-card main-admin-portal-permissions-card">
-            <h2>Family School Management</h2>
-            <p class="hint">portal key: family_school</p>
-            <button type="button" class="roster-action-btn" onclick="document.getElementById('role-permissions-dialog-family-school').showModal()">View</button>
+            <%# A real request: "each portal card should have a centered
+                title, portal key listed stacked underneath in next row." %>
+            <h2><%= role.label %></h2>
+            <p class="hint">portal key: <%= role.key %></p>
+            <% if (role.key === 'main_admin') { %>
+              <p class="hint">Main Admin always has every permission.</p>
+            <% } else if (role.key === 'coop_admin') { %>
+              <%# Co-op Admin runs on its own, separate single-shared-login
+                  system (middleware/requireAdmin.js, req.session.adminId) -
+                  not the member_accounts/roles/permissions model every
+                  other portal card here controls. A real request: "Co-op
+                  admin portal should say, always has every permission.
+                  Just like main admin." Same wording/no-dialog treatment
+                  as Main Admin's own card above, rather than a dialog whose
+                  checkboxes would control nothing real. %>
+              <p class="hint">Co-op Admin always has every permission.</p>
+            <% } else { %>
+              <%# A real request: "when you click it shows all of the pages
+                  but it says view, not manage. Portals will not have
+                  management controls. Only admins." Still the exact same
+                  editable checkbox grid + Save (only Main Admin can even
+                  reach this page at all, via the manage_roles permission
+                  gate) - just worded as viewing/checking which pages a
+                  portal can reach rather than "managing permissions".
+                  A later real request: "these permissions should not be
+                  about being able to manage these different pages and
+                  elements. It should be permission to view each of these
+                  pages and subpages" - roleSections (routes/main-admin.js,
+                  utils/portalPageCatalog.js's sectionsForRole) scopes this
+                  dialog to ONLY this role's own portal(s) instead of
+                  every permission in the system. %>
+              <button type="button" class="roster-action-btn" onclick="document.getElementById('role-permissions-dialog-<%= role.id %>').showModal()">View</button>
 
-            <dialog id="role-permissions-dialog-family-school" class="member-picker-dialog role-permissions-dialog">
-              <form method="POST" action="/main-admin/roles/<%= parentRoleId %>/permissions">
-                <input type="hidden" name="scope" value="family_school" />
-                <h3>View Family School Management's Pages</h3>
-                <p class="hint">Check a page or subpage to let this portal view it. Unchecking a page hides it from the nav and blocks direct links to it - the content itself isn't deleted, just hidden until checked again.</p>
-                <%- include('partials/permission-checkbox-section', { sections: familySchoolSection }) %>
-                <div class="notes-dialog-actions">
-                  <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Close</button>
-                  <button type="submit" class="primary-btn">Save</button>
-                </div>
-              </form>
-            </dialog>
+              <dialog id="role-permissions-dialog-<%= role.id %>" class="member-picker-dialog role-permissions-dialog">
+                <form method="POST" action="/main-admin/roles/<%= role.id %>/permissions">
+                  <h3>View <%= role.label %>'s Pages</h3>
+                  <p class="hint">Check a page or subpage to let this portal view it. Unchecking a page hides it from the nav and blocks direct links to it - the content itself isn't deleted, just hidden until checked again.</p>
+                  <%- include('partials/permission-checkbox-section', { sections: roleSections[role.id] }) %>
+                  <div class="notes-dialog-actions">
+                    <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Close</button>
+                    <button type="submit" class="primary-btn">Save</button>
+                  </div>
+                </form>
+              </dialog>
+            <% } %>
           </section>
         <% } %>
       <% }); %>

@@ -5,7 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { findAccountByEmail, verifyPassword, hashPassword, memberForAccount, familyForAccount } = require('../utils/portalAuth');
+const { findAccountByEmail, verifyPassword, hashPassword, memberForAccount, familyForAccount, sortByPortalSwitcherOrder } = require('../utils/portalAuth');
 const { generateMemberCode, setPrimaryParent } = require('../utils/members');
 const { savePhotoFile: saveMemberPhotoFile, deletePhotoFile: deleteMemberPhotoFile } = require('../utils/memberPhoto');
 const { createFailureRateLimiter } = require('../utils/loginRateLimit');
@@ -519,15 +519,13 @@ function expandPortalRoles(roles) {
 // callers of that same function rely on it just being "every role this
 // account holds" with no particular order promised - so this is a
 // display-only re-sort of the switcher's own card list, not a change to
-// that query. Any role key not listed here (there isn't one today) just
-// keeps falling in after every key that is, in whatever order it was in.
-const PORTAL_SWITCHER_CARD_ORDER = ['parent', 'teacher', 'family_school', 'main_admin', 'coop_admin', 'student'];
+// that query. The order itself now lives in utils/portalAuth.js's own
+// PORTAL_SWITCHER_CARD_ORDER/sortByPortalSwitcherOrder - a later real
+// request ("Portal permissions page order should be the same as portal
+// choosing order") reuses the exact same order for views/main-admin-
+// roles.ejs's own role-card list (routes/main-admin.js).
 function sortForPortalSwitcher(roles) {
-  return [...roles].sort((a, b) => {
-    const ai = PORTAL_SWITCHER_CARD_ORDER.indexOf(a.key);
-    const bi = PORTAL_SWITCHER_CARD_ORDER.indexOf(b.key);
-    return (ai === -1 ? PORTAL_SWITCHER_CARD_ORDER.length : ai) - (bi === -1 ? PORTAL_SWITCHER_CARD_ORDER.length : bi);
-  });
+  return sortByPortalSwitcherOrder(roles, (r) => r.key);
 }
 
 router.get('/portal', async (req, res) => {

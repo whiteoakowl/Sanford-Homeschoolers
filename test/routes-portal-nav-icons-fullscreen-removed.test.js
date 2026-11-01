@@ -114,7 +114,10 @@ test('Main Admin (portal-nav.ejs, multi-role account): Switch Portal link uses a
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/parent').set('Cookie', cookie);
   assert.equal(page.status, 200);
-  assert.match(page.text, /<summary><svg class="icon"><use href="#icon-monitor"\/><\/svg> Switch Portal<\/summary>/);
+  // A later real request: "On desktop... clicking the portal button
+  // should simply take you to the portal page" - Switch Portal is now a
+  // plain .admin-corner-link (no more <details>/<summary> dropdown).
+  assert.match(page.text, /<a class="admin-corner-link" href="\/portal">\s*<svg class="icon"><use href="#icon-monitor"\/><\/svg>\s*Switch Portal/);
   assert.match(page.text, /aria-label="Switch Portal"><svg class="icon"><use href="#icon-monitor"\/>/);
 });
 
