@@ -15902,3 +15902,46 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 .cf-page-card-header h3 { margin: 0; }
 .cf-condition-badge { font-size: 0.75rem; color: var(--brand-dark); background: var(--brand-soft); border-radius: 999px; padding: 0.1rem 0.5rem; }
 .cf-theme-swatch { width: 1.4rem; height: 1.4rem; border-radius: 4px; border: 1px solid var(--border); display: inline-block; vertical-align: middle; margin-right: 0.35rem; }
+
+/* ---------- Custom Forms list (Main Admin) ---------- */
+/* A real request: "Custom forms page should be a list of rows showing
+   forms, not cards." Replaces the old one-card-per-form .team-card-grid/
+   .team-info-card (admin-custom-forms-list.ejs) with a single seamless
+   list - one outer bordered/rounded container, the same "a LIST, not a
+   pile of cards" shape .homepage-theme-sidebar/.homepage-theme-section
+   already established for the Homepage Theme builder's own sidebar,
+   where each row gets its own bottom divider instead of a separate
+   floating card. */
+.cf-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.cf-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.85rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+}
+.cf-list-row:last-child { border-bottom: none; }
+.cf-list-row-main { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; min-width: 0; flex: 1 1 auto; }
+.cf-list-row-title { font-weight: 700; color: var(--ink); text-decoration: none; }
+.cf-list-row-title:hover { color: var(--brand-dark); text-decoration: underline; }
+.cf-list-row-count { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+/* Edit/Copy Link/Submissions/Delete icons - same "the action icons get
+   their own full-width line below the name on a narrow phone, instead of
+   the row forcing horizontal scrolling" convention the Members list's
+   own .member-row-actions already uses for a near-identical name +
+   status + action-icons row (see that rule's own comment, styles.css
+   above). */
+.cf-list-row-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; flex-shrink: 0; }
+/* The Share icon's own data-copy-link swap (public/js/copy-link.js)
+   briefly replaces its icon with the word "Copied!" - every other
+   data-copy-link button in the app is a wide text button with room to
+   spare for that, but this one is otherwise a fixed 2rem square
+   .icon-btn, so it needs room to grow for those 2 seconds instead of the
+   word spilling out past its own border. */
+.cf-list-row-actions [data-copy-link] { width: auto; min-width: 2rem; padding: 0 0.4rem; }
+
+@media (max-width: 640px) {
+  .cf-list-row-actions { flex-basis: 100%; justify-content: flex-start; margin-top: 0.25rem; }
+}

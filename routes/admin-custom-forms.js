@@ -26,7 +26,19 @@ router.use(requirePortalAuth, requirePortal('main_admin'), requirePortalPermissi
 
 router.get('/', async (req, res) => {
   const forms = await customForms.listForms();
-  res.render('admin-custom-forms-list', { title: 'Custom Forms', forms, notice: req.query.notice || null });
+  res.render('admin-custom-forms-list', {
+    title: 'Custom Forms',
+    forms,
+    notice: req.query.notice || null,
+    // Each row's Share icon copies the form's own direct /forms/:id
+    // link (the member-facing fill-out page, still gated by
+    // requirePortalAuth there - this is just "the link to paste in an
+    // email/text", not a public URL) - same req.protocol/req.get('host')
+    // convention as memberLink/eventLink/publicOrigin elsewhere
+    // (routes/main-admin-volunteers.js, routes/admin-events.js,
+    // routes/main-admin-documents.js).
+    baseUrl: `${req.protocol}://${req.get('host')}`,
+  });
 });
 
 router.post('/', async (req, res) => {
