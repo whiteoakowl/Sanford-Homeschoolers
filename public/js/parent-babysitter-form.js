@@ -16,6 +16,16 @@
     certifications: 'certifications',
     hourlyRate: 'hourly_rate',
     contactMethod: 'contact_method',
+    email: 'email',
+  };
+
+  // "how can a parent contact you" - three independent checkboxes, not
+  // plain text/select fields, so they're repopulated via `checked`
+  // rather than `value` like FIELDS above.
+  const CHECKBOX_FIELDS = {
+    contactText: 'contact_text',
+    contactCall: 'contact_call',
+    contactEmail: 'contact_email',
   };
 
   function fillForSelectedStudent() {
@@ -23,6 +33,10 @@
     for (const [fieldName, column] of Object.entries(FIELDS)) {
       const el = document.getElementById('babysitter-field-' + fieldName);
       if (el) el.value = profile ? profile[column] || '' : '';
+    }
+    for (const [fieldName, column] of Object.entries(CHECKBOX_FIELDS)) {
+      const el = document.getElementById('babysitter-field-' + fieldName);
+      if (el) el.checked = !!(profile && profile[column]);
     }
   }
 

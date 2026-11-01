@@ -85,20 +85,53 @@ async function submitProfile(memberId, data, accountId) {
     await db
       .prepare(
         `UPDATE babysitter_profiles
-         SET age_grade = ?, availability = ?, experience = ?, certifications = ?, hourly_rate = ?, contact_method = ?, contact_preference = ?,
+         SET age_grade = ?, availability = ?, experience = ?, certifications = ?, hourly_rate = ?, contact_method = ?, email = ?, contact_preference = ?,
+             contact_text = ?, contact_call = ?, contact_email = ?,
              photo_key = COALESCE(?, photo_key), status = ?, submitted_by_account_id = ?, decided_at = ${decidedAt || 'NULL'}, updated_at = now_text()
          WHERE member_id = ?`
       )
-      .run(data.ageGrade, data.availability, data.experience, data.certifications, data.hourlyRate, data.contactMethod, data.contactPreference || null, data.photoKey || null, status, accountId, memberId);
+      .run(
+        data.ageGrade,
+        data.availability,
+        data.experience,
+        data.certifications,
+        data.hourlyRate,
+        data.contactMethod,
+        data.email || null,
+        data.contactPreference || null,
+        !!data.contactText,
+        !!data.contactCall,
+        !!data.contactEmail,
+        data.photoKey || null,
+        status,
+        accountId,
+        memberId
+      );
     return existing.id;
   }
   const info = await db
     .prepare(
       `INSERT INTO babysitter_profiles
-         (member_id, age_grade, availability, experience, certifications, hourly_rate, contact_method, contact_preference, photo_key, status, submitted_by_account_id, decided_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${decidedAt || 'NULL'}) RETURNING id`
+         (member_id, age_grade, availability, experience, certifications, hourly_rate, contact_method, email, contact_preference, contact_text, contact_call, contact_email, photo_key, status, submitted_by_account_id, decided_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${decidedAt || 'NULL'}) RETURNING id`
     )
-    .get(memberId, data.ageGrade, data.availability, data.experience, data.certifications, data.hourlyRate, data.contactMethod, data.contactPreference || null, data.photoKey || null, status, accountId);
+    .get(
+      memberId,
+      data.ageGrade,
+      data.availability,
+      data.experience,
+      data.certifications,
+      data.hourlyRate,
+      data.contactMethod,
+      data.email || null,
+      data.contactPreference || null,
+      !!data.contactText,
+      !!data.contactCall,
+      !!data.contactEmail,
+      data.photoKey || null,
+      status,
+      accountId
+    );
   return info.id;
 }
 
@@ -112,20 +145,51 @@ async function createProfileByAdmin(memberId, data, accountId) {
     await db
       .prepare(
         `UPDATE babysitter_profiles
-         SET age_grade = ?, availability = ?, experience = ?, certifications = ?, hourly_rate = ?, contact_method = ?, contact_preference = ?,
+         SET age_grade = ?, availability = ?, experience = ?, certifications = ?, hourly_rate = ?, contact_method = ?, email = ?, contact_preference = ?,
+             contact_text = ?, contact_call = ?, contact_email = ?,
              photo_key = COALESCE(?, photo_key), status = 'approved', submitted_by_account_id = ?, decided_at = now_text(), updated_at = now_text()
          WHERE member_id = ?`
       )
-      .run(data.ageGrade, data.availability, data.experience, data.certifications, data.hourlyRate, data.contactMethod, data.contactPreference || null, data.photoKey || null, accountId, memberId);
+      .run(
+        data.ageGrade,
+        data.availability,
+        data.experience,
+        data.certifications,
+        data.hourlyRate,
+        data.contactMethod,
+        data.email || null,
+        data.contactPreference || null,
+        !!data.contactText,
+        !!data.contactCall,
+        !!data.contactEmail,
+        data.photoKey || null,
+        accountId,
+        memberId
+      );
     return existing.id;
   }
   const info = await db
     .prepare(
       `INSERT INTO babysitter_profiles
-         (member_id, age_grade, availability, experience, certifications, hourly_rate, contact_method, contact_preference, photo_key, status, submitted_by_account_id, decided_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, now_text()) RETURNING id`
+         (member_id, age_grade, availability, experience, certifications, hourly_rate, contact_method, email, contact_preference, contact_text, contact_call, contact_email, photo_key, status, submitted_by_account_id, decided_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, now_text()) RETURNING id`
     )
-    .get(memberId, data.ageGrade, data.availability, data.experience, data.certifications, data.hourlyRate, data.contactMethod, data.contactPreference || null, data.photoKey || null, accountId);
+    .get(
+      memberId,
+      data.ageGrade,
+      data.availability,
+      data.experience,
+      data.certifications,
+      data.hourlyRate,
+      data.contactMethod,
+      data.email || null,
+      data.contactPreference || null,
+      !!data.contactText,
+      !!data.contactCall,
+      !!data.contactEmail,
+      data.photoKey || null,
+      accountId
+    );
   return info.id;
 }
 

@@ -43,9 +43,20 @@
         <label class="member-form-full">Hourly Rate
           <input type="text" name="hourlyRate" value="<%= profile ? profile.hourly_rate || '' : '' %>" placeholder="e.g. $12/hr" />
         </label>
-        <label class="member-form-full">Contact Method
-          <input type="text" name="contactMethod" value="<%= profile ? profile.contact_method || '' : '' %>" placeholder="e.g. Text (555) 555-1234" />
+        <label class="member-form-full">Phone Number
+          <input type="text" name="contactMethod" value="<%= profile ? profile.contact_method || '' : '' %>" placeholder="e.g. (555) 555-1234" />
         </label>
+        <label class="member-form-full">Email Address
+          <input type="email" name="email" value="<%= profile ? profile.email || '' : '' %>" placeholder="e.g. sitter@example.com" />
+        </label>
+        <div class="member-form-full">
+          <span class="checkbox-group-label">How can a parent contact you?</span>
+          <div class="checkbox-group checkbox-group-stack">
+            <label class="checkbox-option"><input type="checkbox" name="contactText" value="1" <%= profile && profile.contact_text ? 'checked' : '' %> /> Text</label>
+            <label class="checkbox-option"><input type="checkbox" name="contactCall" value="1" <%= profile && profile.contact_call ? 'checked' : '' %> /> Call</label>
+            <label class="checkbox-option"><input type="checkbox" name="contactEmail" value="1" <%= profile && profile.contact_email ? 'checked' : '' %> /> Email</label>
+          </div>
+        </div>
         <label class="member-form-full">Photo
           <% if (profile && profile.photo_key) { %>
             <img src="/babysitters/<%= profile.id %>/photo" alt="" class="babysitter-photo-preview" />

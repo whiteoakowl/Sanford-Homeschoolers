@@ -48,7 +48,17 @@
               <% if (p.experience) { %><p><strong>Experience:</strong> <%= p.experience %></p><% } %>
               <% if (p.certifications) { %><p><strong>Certifications:</strong> <%= p.certifications %></p><% } %>
               <% if (p.hourly_rate) { %><p><strong>Rate:</strong> <%= p.hourly_rate %></p><% } %>
-              <% if (p.contact_method) { %><p><strong>Contact:</strong> <%= p.contact_method %></p><% } %>
+              <% if (p.contact_method) { %><p><strong>Phone Number:</strong> <%= p.contact_method %></p><% } %>
+              <% if (p.email) { %><p><strong>Email:</strong> <%= p.email %></p><% } %>
+              <%
+                // Same ".join(', ')" short-summary convention as
+                // views/parent-babysitters.ejs's own directory card.
+                const contactWays = [];
+                if (p.contact_text) contactWays.push('Text');
+                if (p.contact_call) contactWays.push('Call');
+                if (p.contact_email) contactWays.push('Email');
+              %>
+              <% if (contactWays.length > 0) { %><p><strong>Can Be Contacted By:</strong> <%= contactWays.join(', ') %></p><% } %>
             </section>
           <% }); %>
         </div>
@@ -124,9 +134,20 @@
       <label for="add-babysitter-rate">Hourly Rate
         <input id="add-babysitter-rate" type="text" name="hourlyRate" placeholder="e.g. $12/hr" />
       </label>
-      <label for="add-babysitter-contact-method">Contact Method
-        <input id="add-babysitter-contact-method" type="text" name="contactMethod" placeholder="e.g. Text (555) 555-1234" />
+      <label for="add-babysitter-contact-method">Phone Number
+        <input id="add-babysitter-contact-method" type="text" name="contactMethod" placeholder="e.g. (555) 555-1234" />
       </label>
+      <label for="add-babysitter-email">Email Address
+        <input id="add-babysitter-email" type="email" name="email" placeholder="e.g. sitter@example.com" />
+      </label>
+      <div>
+        <span class="checkbox-group-label">How can a parent contact you?</span>
+        <div class="checkbox-group checkbox-group-stack">
+          <label class="checkbox-option"><input type="checkbox" name="contactText" value="1" /> Text</label>
+          <label class="checkbox-option"><input type="checkbox" name="contactCall" value="1" /> Call</label>
+          <label class="checkbox-option"><input type="checkbox" name="contactEmail" value="1" /> Email</label>
+        </div>
+      </div>
       <label for="add-babysitter-contact-preference">Prefers
         <select id="add-babysitter-contact-preference" name="contactPreference">
           <option value="">No preference set</option>

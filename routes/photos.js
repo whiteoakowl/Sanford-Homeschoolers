@@ -61,6 +61,18 @@ router.get('/', async (req, res) => {
   res.render('photos-list', { title: 'Photos', settings, albums });
 });
 
+// A real request: "Add photo button should also allow you to upload
+// multiple photos at once. This should not be a pop up. It should be an
+// page with a back button." Multi-photo upload already worked (see
+// upload.array below); this route just gives the picker its own page
+// instead of the <dialog> that used to live on photos-list.ejs. Must be
+// registered before GET /:id or "add" would be swallowed as an album id.
+router.get('/add', requirePortalAuth, async (req, res) => {
+  const albums = await photos.listAlbums(req.portalAccount ? {} : { visibility: 'public' });
+  const settings = await db.prepare('SELECT * FROM site_settings WHERE id = 1').get();
+  res.render('photos-add', { title: 'Add Photo', settings, albums });
+});
+
 router.get('/:id', async (req, res) => {
   const album = await photos.getAlbum(req.params.id);
   if (!(await canView(req, album))) {
