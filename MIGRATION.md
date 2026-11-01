@@ -508,6 +508,24 @@ requests to Supabase both fail/reset). This means:
        | `uploads/schedule-cards`      | `schedule-card-images`      | yes     |
        | `uploads/documents`           | `documents`                 | **no**  |
 
+       **This table is now stale** - it only ever listed the 5 buckets
+       that existed when this script was first written. Every feature
+       added since then (Public Homepage images, Custom Forms images/
+       files, Accounting receipts, Training resources, Classifieds/
+       Directory/Store/Class images, name tag/floater/text-campaign/
+       setup-cleanup notification images, Family School attachments,
+       Lesson attachments, private Photos/Babysitter-photos/Nature-News)
+       introduced its own new bucket in code with nobody ever told to go
+       create it for real - a real bug report ("Website homepage editing
+       won't allow me to save adding an image") traced straight back to
+       this gap. `supabase/migrations/20261227010000_storage_buckets.sql`
+       is now the actual, complete, current bucket list (23 buckets, each
+       tagged public/private) and the one to run - it creates every
+       bucket via a plain `insert into storage.buckets`, which works from
+       the SQL Editor same as any other migration here, no dashboard
+       click-through needed. Keep that file (not this table) up to date
+       the next time a feature introduces another new bucket.
+
        `documents` is private on purpose:
        `routes/admin-documents.js` gates every document behind
        `requireFullAdmin`, and a public bucket would make that gate
