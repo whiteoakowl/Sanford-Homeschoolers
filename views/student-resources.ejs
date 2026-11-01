@@ -7,7 +7,9 @@
   <%- include('partials/portal-nav', { portalTitle: 'Student Portal' }) %>
 
   <main id="main-content" tabindex="-1" class="admin-main">
-    <div class="roster-toolbar">
+    <%# A real request: "Add resource button should be fit to text" - see
+        this page's own .student-resources-toolbar rule in styles.css. %>
+    <div class="roster-toolbar student-resources-toolbar">
       <h1>Resources</h1>
       <button type="button" class="roster-action-btn" onclick="document.getElementById('submit-resource-dialog').showModal()">+ Submit a Resource</button>
     </div>

@@ -1,13 +1,26 @@
 <%# Shared class card, used by both parent-classes.ejs's grid view (one
     per grid cell) and its list view (one per flattened, time-sorted row)
     - a real request: "add icons at the top for grid view vs list view
-    of classes". locals: cls, day, view, enrolledClassIds. %>
-<button
-  type="button"
-  class="class-card class-card-clickable"
+    of classes". locals: cls, day, view, enrolledClassIds, clickable
+    (optional, default true - Student Portal's own read-only Co-op
+    Schedule page, views/student-classes.ejs, passes false: a real
+    request - "this is not the page to view the classes the student is
+    registered for... no Register buttons/actions" - so this card has
+    nothing of its own to open there; a plain <div>, not a <button> wired
+    to public/js/parent-class-view.js's click-to-register popup, which is
+    Parent Portal's own /parent/classes/:id/fragment route anyway). %>
+<%
+  var cardClickable = typeof clickable === 'undefined' || clickable;
+  var CardTag = cardClickable ? 'button' : 'div';
+%>
+<<%= CardTag %>
+  <% if (cardClickable) { %>type="button"<% } %>
+  class="class-card<% if (cardClickable) { %> class-card-clickable<% } %>"
   style="border-left-color: <%= cls.color %>; background: color-mix(in srgb, <%= cls.color %> 42%, white);"
-  data-view-class="<%= cls.id %>"
-  data-view-class-day="<%= day %>"
+  <% if (cardClickable) { %>
+    data-view-class="<%= cls.id %>"
+    data-view-class-day="<%= day %>"
+  <% } %>
   data-class-grade-list="<%= (cls.age_group || '').split(',').map(function(g) { return g.trim(); }).filter(Boolean).join(',') %>"
 >
   <%# A real request: "the class image should show on
@@ -34,7 +47,7 @@
       <div class="class-card-header">
         <h3 title="<%= cls.class_name %>"><%= cls.class_name %></h3>
         <% if (enrolledClassIds.indexOf(cls.id) !== -1) { %>
-          <span class="badge-pill badge-pill-present" title="One of your children is enrolled">Registered</span>
+          <span class="badge-pill badge-pill-present" title="<%= typeof registeredTitle !== 'undefined' ? registeredTitle : 'One of your children is enrolled' %>">Registered</span>
         <% } %>
       </div>
       <div class="class-card-info">
@@ -52,4 +65,4 @@
       </div>
     </div>
   </div>
-</button>
+</<%= CardTag %>>

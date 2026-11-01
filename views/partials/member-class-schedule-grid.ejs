@@ -1,0 +1,63 @@
+<%
+// The member-facing Room x Hour class schedule grid (plus its flattened
+// List view) - shared by Parent Portal's own Class Registration page
+// (views/parent-classes.ejs) and Student Portal's own read-only Co-op
+// Schedule page (views/student-classes.ejs). Used to be inline markup
+// only in parent-classes.ejs - factored out here once Student Portal's
+// own real request ("this page should show the entire schedules that
+// are listed on parent portal... the full room x hour grid") needed the
+// exact same table, so the two never drift apart from each other later.
+//
+// locals: roomGrid, classList (view === 'list''s own flattened/sorted
+// rows), day, view, enrolledClassIds, clickable (optional, passed
+// straight through to partials/parent-class-card - see that file's own
+// comment; default true, Parent Portal's own click-to-register cards),
+// registeredTitle (optional, also passed straight through).
+var clickable = typeof locals.clickable !== 'undefined' ? locals.clickable : undefined;
+var registeredTitle = typeof locals.registeredTitle !== 'undefined' ? locals.registeredTitle : undefined;
+%>
+<% if (view === 'list') { %>
+  <div class="parent-class-list">
+    <% if (classList.length === 0) { %>
+      <p class="roster-empty">No classes have been scheduled yet.</p>
+    <% } else { %>
+      <% classList.forEach(function(cls) { %>
+        <%- include('parent-class-card', { cls, day, view, enrolledClassIds, clickable, registeredTitle }) %>
+      <% }); %>
+    <% } %>
+  </div>
+<% } else { %>
+  <div class="roster-scroll">
+    <table class="roster-table class-schedule-room-grid">
+      <thead>
+        <tr>
+          <th class="class-schedule-room-col">Room</th>
+          <% roomGrid.hours.forEach(function(h) { %>
+            <th><%= h.label %></th>
+          <% }); %>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (roomGrid.rows.length === 0) { %>
+          <tr><td colspan="<%= roomGrid.hours.length + 1 %>" class="roster-empty">No classes have been scheduled yet.</td></tr>
+        <% } %>
+        <% roomGrid.rows.forEach(function(row) { %>
+          <tr>
+            <td class="class-schedule-room-col"><span class="class-schedule-room-name" title="<%= row.room %>"><%= row.room %></span></td>
+            <% row.cells.forEach(function(cell) { %>
+              <td colspan="<%= cell.span %>" class="class-schedule-cell">
+                <% if (cell.classes.length === 0) { %>
+                  &nbsp;
+                <% } else { %>
+                  <% cell.classes.forEach(function(cls) { %>
+                    <%- include('parent-class-card', { cls, day, view, enrolledClassIds, clickable, registeredTitle }) %>
+                  <% }); %>
+                <% } %>
+              </td>
+            <% }); %>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

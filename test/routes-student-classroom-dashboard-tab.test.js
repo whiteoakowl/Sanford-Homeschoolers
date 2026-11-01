@@ -78,10 +78,19 @@ test('Student Portal nav: Classroom Dashboard is a tab with one Classes subpage 
   assert.match(page.text, /href="\/student\/family-school\/grades">Grades</);
   assert.match(page.text, /href="\/student\/family-school\/attendance">Attendance</);
   assert.match(page.text, /href="\/student\/family-school\/weekly-planner">Weekly Planner</);
-  assert.match(page.text, /href="\/forums\?portal=student">Chat</);
   assert.match(page.text, /href="\/student\/family-school\/portfolio">Portfolio</);
   assert.match(page.text, /href="\/student\/transcript">Transcripts</);
   assert.doesNotMatch(page.text, /href="\/student\/family-school\/overview">Overview</);
+
+  // A later real request ("remove chat tab from classroom dashboard
+  // section") dropped the redundant nested Chat subpage here - Chat is
+  // still fully reachable from its own standalone top-level tab (the
+  // mobile bottom bar's plain, non-subpages link), just never listed
+  // twice.
+  const dashboardDialogMatch = /<dialog class="view-tabs page-tabs-dialog no-print" id="mobile-subpages-classroom-dashboard">([\s\S]*?)<\/dialog>/.exec(page.text);
+  assert.ok(dashboardDialogMatch, 'expected a Classroom Dashboard subpages dialog');
+  assert.doesNotMatch(dashboardDialogMatch[1], />Chat</, 'Chat should no longer be nested under Classroom Dashboard');
+  assert.match(page.text, /<span>Chat<\/span>/, 'Chat should still be its own standalone top-level tab');
 });
 
 // A still later real request: "Co-op class schedule there should be no

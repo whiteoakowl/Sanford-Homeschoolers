@@ -64,17 +64,37 @@ async function createClassWithTeacher(day, className, teacherName) {
   return classId;
 }
 
-test('My Classes shows only this student\'s own enrolled classes', async () => {
+// A later real request ("this is not the page to view the classes the
+// student is registered for. It is for viewing the current class
+// schedules of classes available") reworked /student/classes from a
+// filtered "My Classes" list into the exact same read-only Room x Hour
+// schedule grid as Parent Portal's own Class Registration page (views/
+// partials/member-class-schedule-grid.ejs, shared by both) - every class
+// scheduled that day shows now, not just this student's own; a passive
+// "Registered" badge (not a button/action) marks this student's own
+// enrolled class.
+test('Co-op Schedule page shows every class scheduled that day, badging this student\'s own enrolled class as "Registered"', async () => {
   const { memberId, cookie } = await createStudent('Classes Card Student');
-  const enrolledId = await createClassWithTeacher('monday', 'Enrolled Art Class', 'Ms. Art');
-  const otherId = await createClassWithTeacher('wednesday', 'Not Enrolled Science Class', 'Mr. Science');
+  const enrolledId = await classSchedule.createClass({ day: 'monday', hourPosition: 1, className: 'Enrolled Art Class', room: 'Room 1' });
+  const otherId = await classSchedule.createClass({ day: 'monday', hourPosition: 1, className: 'Not Enrolled Science Class', room: 'Room 2' });
   await classSchedule.setEnrollment(enrolledId, [memberId]);
 
-  const res = await request(app).get('/student/classes').set('Cookie', cookie);
+  const res = await request(app).get('/student/classes?day=monday').set('Cookie', cookie);
   assert.equal(res.status, 200);
   assert.match(res.text, /Enrolled Art Class/);
-  assert.doesNotMatch(res.text, /Not Enrolled Science Class/);
-  assert.match(res.text, new RegExp(`data-day="monday"[\\s\\S]*?Enrolled Art Class`));
+  assert.match(res.text, /Not Enrolled Science Class/, 'every class scheduled this day should show, not just this student\'s own');
+
+  const enrolledNameIndex = res.text.indexOf('Enrolled Art Class');
+  const enrolledCardStart = res.text.lastIndexOf('class="class-card"', enrolledNameIndex);
+  assert.match(res.text.slice(enrolledCardStart, enrolledNameIndex + 400), /badge-pill-present" title="You are enrolled in this class">Registered</);
+
+  const otherNameIndex = res.text.indexOf('Not Enrolled Science Class');
+  const otherCardStart = res.text.lastIndexOf('class="class-card"', otherNameIndex);
+  assert.doesNotMatch(res.text.slice(otherCardStart, otherNameIndex + 400), />Registered</);
+
+  // Students don't self-register from this page - no Register control, no
+  // click-to-open behavior (a plain, non-interactive card).
+  assert.doesNotMatch(res.text, /data-view-class=/);
   void otherId;
 });
 

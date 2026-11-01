@@ -69,7 +69,7 @@
   </header>
   <% } %>
 
-  <main id="main-content" tabindex="-1"<% if (usesPortalNavShell) { %> class="admin-main"<% } %>>
+  <main id="main-content" tabindex="-1"<% if (usesPortalNavShell) { %> class="admin-main<%= effectivePortal === 'student' ? ' student-events-portal' : '' %>"<% } %>>
     <section class="site-section">
       <div class="site-section-inner">
         <h1><%= effectivePortal === 'parent' ? 'Event Calendar' : effectivePortal === 'student' ? 'Calendar' : 'Events' %></h1>
@@ -79,11 +79,14 @@
             <div class="roster-btn-row">
               <%# A real request: "my event registrations should be a
                   button on the event calendar page. No subpages" - dropped
-                  back out of portal-nav.ejs's own Events subpages array;
-                  this button (Parent Portal only) is the only way there
-                  now. %>
+                  back out of portal-nav.ejs's own Events subpages array
+                  for both Parent AND (a later, identical request) Student
+                  Portal; this button is the only way to either portal's
+                  own registrations list now. %>
               <% if (effectivePortal === 'parent') { %>
                 <a class="roster-action-btn" href="/parent/events">My Event Registrations</a>
+              <% } else if (effectivePortal === 'student') { %>
+                <a class="roster-action-btn" href="/student/events">My Event Registrations</a>
               <% } %>
               <% if (typeof portalAccount !== 'undefined' && portalAccount) { %>
                 <a class="roster-action-btn" href="/events/submit">+ Submit an Event</a>
@@ -97,10 +100,21 @@
             </div>
             <%# A real request: "all pages/subpages with print, export,
                 import, or download buttons should be changed to
-                icons... and have all four" - this page only had Print. %>
-            <a class="icon-btn" href="/events/export.csv" aria-label="Export CSV" title="Export CSV"><svg class="icon"><use href="#icon-download"/></svg></a>
-            <a class="icon-btn" href="/events/print" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
-            <a class="icon-btn" href="/events/download.pdf" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
+                icons... and have all four" - this page only had Print.
+                A later real request, Student Portal + desktop only
+                ("export, pdf and print icons should be on the same row
+                as the month and year selection... calendar view and list
+                view icons should be top right of the calendar"): this
+                exact trio and the view toggle above get a second,
+                differently-positioned copy at desktop width, scoped to
+                .student-events-portal (see styles.css) - these original
+                three keep the class name events-toolbar-file-icon so
+                that scoped rule can hide just them, without touching
+                Parent Portal/public, which never asked for this and keep
+                this original layout untouched at every width. %>
+            <a class="icon-btn events-toolbar-file-icon" href="/events/export.csv" aria-label="Export CSV" title="Export CSV"><svg class="icon"><use href="#icon-download"/></svg></a>
+            <a class="icon-btn events-toolbar-file-icon" href="/events/print" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
+            <a class="icon-btn events-toolbar-file-icon" href="/events/download.pdf" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
           </div>
         </div>
 
@@ -117,6 +131,16 @@
             calendar: calendar,
             monthLinkBase: `/events?view=calendar${portalQuerySuffix}`,
             eventHref: function (e) { return `/events/${e.id}${effectivePortal ? '?portal=' + effectivePortal : ''}`; },
+            // Student Portal, desktop-only duplicate controls - see this
+            // file's own .roster-btn-row/.events-toolbar-file-icon comment
+            // above and partials/event-calendar-grid's own comment on
+            // these two locals.
+            desktopTrailingIcons: effectivePortal === 'student' ? [
+              { href: '/events/export.csv', icon: 'icon-download', label: 'Export CSV' },
+              { href: '/events/print', icon: 'icon-printer', label: 'Print', target: '_blank' },
+              { href: '/events/download.pdf', icon: 'icon-pdf', label: 'Download PDF' },
+            ] : null,
+            desktopTopRightToggle: effectivePortal === 'student' ? { view: view, portalQuerySuffix: portalQuerySuffix } : null,
           }) %>
         <% } else { %>
           <%

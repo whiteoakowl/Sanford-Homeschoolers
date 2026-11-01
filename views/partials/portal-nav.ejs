@@ -59,6 +59,14 @@ const settingsHref = portalTitle === 'Main Admin' ? '/main-admin/settings'
 // instead, the exact "always guess Parent first" bug class this whole
 // query-tagging mechanism exists to prevent.
 const cornerPortalQuery = portalTitle === 'Parent Portal' ? '?portal=parent' : portalTitle === 'Student Portal' ? '?portal=student' : portalTitle === 'Co-op Teacher Portal' ? '?portal=teacher' : '';
+// A real request: "Student Portal should not have a settings gear." -
+// settingsHref above (/portal/settings-hub for Student) only ever opens
+// a card linking to the generic account-settings page (views/portal-
+// settings-hub.ejs's own My Privacy card) - no content unique to a
+// student, purely the same shared scaffolding Co-op Teacher Portal still
+// uses that same hub for, so hiding just this nav entry (both corner
+// links below) leaves nothing orphaned.
+const showSettingsGear = portalTitle !== 'Student Portal';
 
 // A real request: "On parent, student and teacher portal on mobile add an
 // email icon at the top for contacting group leaders. On desktop it says
@@ -469,17 +477,24 @@ const TEACHER_NAV_LINKS = [
 // subpages-dialog it always has, exactly as before this request.
 const STUDENT_NAV_LINKS = [
   { href: '/student', icon: 'home', label: 'Home' },
-  { href: '/events?view=calendar&portal=student', icon: 'calendar-check', label: 'Events', subpages: [
-    { href: '/events?view=calendar&portal=student', label: 'Calendar', perm: 'view_student_events' },
-    { href: '/student/events', label: 'My Event Registrations', perm: 'view_student_event_registrations' },
-  ] },
+  // A real request: "events tab should just be the event calendar. My
+  // event signups should be a button on the calendar page. No subpages
+  // under the events tab" - dropped back out of this nav entry's own
+  // subpages array, same fix as PARENT_NAV_LINKS's own Events entry
+  // above; events-list.ejs's own "My Event Registrations" button (its
+  // toolbar, now Parent AND Student Portal) is the only way there now.
+  // Tagged with the exact permission that used to gate just its own
+  // "Calendar" subpage (view_student_events) now that this link is the
+  // whole Events tab, not a group - the other permission that used to
+  // live here, view_student_event_registrations, now only matters for
+  // the My Event Registrations button itself, not nav visibility.
+  { href: '/events?view=calendar&portal=student', icon: 'calendar-check', label: 'Events', perm: 'view_student_events' },
   { href: '/student/classes', icon: 'graduation-cap', label: 'Co-op Schedule', mobileLabel: 'Co-op<br>Schedule', perm: 'view_student_classes' },
   { href: '/student/family-school/portfolio', icon: 'grid', label: 'Classroom Dashboard', desktopAsSection: true, subpages: [
     { href: '/student/classes/dashboard', icon: 'graduation-cap', label: 'Classes', perm: 'view_student_classes_dashboard' },
     { href: '/student/family-school/grades', icon: 'clipboard-list', label: 'Grades', perm: 'view_student_grades' },
     { href: '/student/family-school/attendance', icon: 'calendar-check', label: 'Attendance', perm: 'view_student_attendance' },
     { href: '/student/family-school/weekly-planner', icon: 'calendar-check', label: 'Weekly Planner', perm: 'view_student_weekly_planner' },
-    { href: '/forums?portal=student', icon: 'users', label: 'Chat', perm: 'view_student_chat' },
     { href: '/student/family-school/portfolio', icon: 'file-text', label: 'Portfolio', perm: 'view_student_portfolio' },
     { href: '/student/transcript', icon: 'file-text', label: 'Transcripts', perm: 'view_student_transcript' },
   ] },
@@ -493,14 +508,17 @@ const STUDENT_NAV_LINKS = [
 // Challenge page itself; a real request to list them as their own tabs
 // here split them into their own routes/views (routes/student-portal.js's
 // own /student/achievements, /student/leaderboard).
+// A real request: "Dashboard, activities section. Reorder tabs. Reading
+// challenge, Nature news, vocabulary, games, pets, achievements,
+// leaderboard."
 const STUDENT_ACTIVITY_LINKS = [
-  { href: '/student/games', icon: 'gamepad', label: 'Games', perm: 'view_student_games' },
-  { href: '/student/pets', icon: 'paw', label: 'Pet', perm: 'view_student_pets' },
   { href: '/student/reading', icon: 'book', label: 'Reading Challenge', mobileLabel: 'Reading<br>Challenge', perm: 'view_student_reading' },
-  { href: '/student/achievements', icon: 'star', label: 'Achievements', perm: 'view_student_achievements' },
-  { href: '/student/leaderboard', icon: 'trophy', label: 'Leaderboard', perm: 'view_student_leaderboard' },
   { href: '/student/nature-news', icon: 'sprout', label: 'Nature News', perm: 'view_student_nature_news' },
   { href: '/student/vocabulary', icon: 'type', label: 'Vocabulary', perm: 'view_student_vocabulary' },
+  { href: '/student/games', icon: 'gamepad', label: 'Games', perm: 'view_student_games' },
+  { href: '/student/pets', icon: 'paw', label: 'Pet', perm: 'view_student_pets' },
+  { href: '/student/achievements', icon: 'star', label: 'Achievements', perm: 'view_student_achievements' },
+  { href: '/student/leaderboard', icon: 'trophy', label: 'Leaderboard', perm: 'view_student_leaderboard' },
 ];
 // A real request: "admin can check the boxes if that portal is allowed
 // to view that page or subpage. Unchecking removes the permission and
@@ -789,10 +807,15 @@ const communityLinksTitle = 'Community';
     <svg class="icon"><use href="#icon-user-circle"/></svg>
     My Profile
   </a>
-  <a class="admin-corner-link" href="<%= settingsHref %><%= cornerPortalQuery %>">
-    <svg class="icon"><use href="#icon-gear"/></svg>
-    Settings
-  </a>
+  <%# A real request: "Student Portal should not have a settings gear." -
+      showSettingsGear is false only for Student Portal; Co-op Teacher
+      Portal, which shares the same settingsHref branch, is unaffected. %>
+  <% if (showSettingsGear) { %>
+    <a class="admin-corner-link" href="<%= settingsHref %><%= cornerPortalQuery %>">
+      <svg class="icon"><use href="#icon-gear"/></svg>
+      Settings
+    </a>
+  <% } %>
   <%# A real request: "On desktop when you click the portal button at the
       top of every portal there should not be a dropdown to click choose
       portals. Clicking the portal button should simply take you to the
@@ -821,7 +844,9 @@ const communityLinksTitle = 'Community';
         <a class="admin-nav-right-link" href="/contact-admins<%= contactAdminsPortalQuery %>" aria-label="Contact Admins"><svg class="icon"><use href="#icon-mail"/></svg></a>
       <% } %>
       <a class="admin-nav-right-link" href="/portal/profile<%= cornerPortalQuery %>" aria-label="My Profile"><svg class="icon"><use href="#icon-user-circle"/></svg></a>
-      <a class="admin-nav-right-link" href="<%= settingsHref %><%= cornerPortalQuery %>" aria-label="Settings"><svg class="icon"><use href="#icon-gear"/></svg></a>
+      <% if (showSettingsGear) { %>
+        <a class="admin-nav-right-link" href="<%= settingsHref %><%= cornerPortalQuery %>" aria-label="Settings"><svg class="icon"><use href="#icon-gear"/></svg></a>
+      <% } %>
       <% if (showSwitcher) { %>
         <a class="admin-nav-right-link" href="/portal" aria-label="Switch Portal"><svg class="icon"><use href="#icon-monitor"/></svg></a>
       <% } %>
