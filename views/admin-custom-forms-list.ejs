@@ -20,26 +20,44 @@
       <p class="roster-empty">No forms yet &mdash; create one above.</p>
     <% } %>
 
-    <div class="team-card-grid">
+    <%# A real request: "Custom forms page should be a list of rows
+        showing forms, not cards." Replaces the old one-card-per-form
+        .team-card-grid/.team-info-card with a single seamless list -
+        one outer bordered/rounded container (.cf-list, same "a LIST,
+        not a pile of cards" shape .homepage-theme-sidebar/
+        .homepage-theme-section already established for the Homepage
+        Theme builder's sidebar), each form its own full-width row with
+        a bottom divider instead of a separate floating card. %>
+    <% if (forms.length > 0) { %>
+    <div class="cf-list">
       <% forms.forEach(function(f) { %>
-        <div class="team-col">
-          <div class="team-info-card">
-            <span class="team-info-icon"><svg class="icon"><use href="#icon-clipboard-list"/></svg></span>
-            <h3 class="team-info-title"><a href="/main-admin/forms/<%= f.id %>/builder"><%= f.title %></a></h3>
+        <div class="cf-list-row">
+          <div class="cf-list-row-main">
+            <a class="cf-list-row-title" href="/main-admin/forms/<%= f.id %>/builder"><%= f.title %></a>
             <span class="badge-pill badge-pill-<%= f.status === 'published' ? 'green' : f.status === 'closed' ? 'gray' : 'orange' %>"><%= f.status.charAt(0).toUpperCase() + f.status.slice(1) %></span>
-            <%# A quick visual reminder of each form's own theme (set in
-                the builder's Settings & Theme panel) right on its card,
-                so an admin juggling several forms doesn't have to open
-                each one just to tell them apart. %>
-            <p class="hint"><span class="cf-theme-swatch" style="background: <%= f.theme_primary_color %>;" title="Primary color"></span><%= f.submissionCount %> submission<%= f.submissionCount == 1 ? '' : 's' %></p>
-            <div class="roster-btn-row">
-              <a class="roster-action-btn" href="/main-admin/forms/<%= f.id %>/builder">Edit</a>
-              <a class="roster-action-btn" href="/main-admin/forms/<%= f.id %>/submissions">Submissions</a>
-            </div>
+            <span class="cf-list-row-count"><%= f.submissionCount %> submission<%= f.submissionCount == 1 ? '' : 's' %></span>
+          </div>
+          <%# Edit / Share (copy the member-facing /forms/:id link -
+              public/js/copy-link.js, the same data-copy-link pattern
+              Documents/Sign-Up Lists/Volunteer Lists/Events already use
+              for "copy a link to paste elsewhere") / Submissions
+              (analytics - the existing sort/filter/CSV-export page,
+              not a new dashboard) / Delete, all as icon buttons so a
+              desktop row of name + status + count + 4 actions still
+              fits a phone - see .cf-list-row-actions' own CSS comment
+              for how it wraps below the name on narrow screens. %>
+          <div class="cf-list-row-actions">
+            <a class="icon-btn" href="/main-admin/forms/<%= f.id %>/builder" aria-label="Edit <%= f.title %>" title="Edit"><svg class="icon"><use href="#icon-edit"/></svg></a>
+            <button type="button" class="icon-btn" data-copy-link="<%= baseUrl %>/forms/<%= f.id %>" aria-label="Copy link to <%= f.title %>" title="Copy link"><svg class="icon"><use href="#icon-link"/></svg></button>
+            <a class="icon-btn" href="/main-admin/forms/<%= f.id %>/submissions" aria-label="Submissions and analytics for <%= f.title %>" title="Submissions"><svg class="icon"><use href="#icon-chart-bar"/></svg></a>
+            <form method="POST" action="/main-admin/forms/<%= f.id %>/delete" data-confirm="Delete &quot;<%= f.title %>&quot;? This removes every page, field, assignment, and submission. This cannot be undone.">
+              <button type="submit" class="icon-btn icon-btn-danger" aria-label="Delete <%= f.title %>" title="Delete"><svg class="icon"><use href="#icon-trash"/></svg></button>
+            </form>
           </div>
         </div>
       <% }); %>
     </div>
+    <% } %>
 
     <dialog id="new-form-dialog" class="member-picker-dialog">
       <form method="POST" action="/main-admin/forms">
@@ -54,5 +72,6 @@
       </form>
     </dialog>
   </main>
+  <script src="/js/copy-link.js"></script>
 </body>
 </html>
