@@ -9,10 +9,11 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const db = require('../db');
 const { requirePortalAuth, requirePortal } = require('../middleware/portalAuth');
 const { memberForAccount } = require('../utils/portalAuth');
 const { lessonAttachmentFileFilter } = require('../utils/uploads');
-const { formatDateLabel } = require('../utils/dates');
+const { formatDateLabel, formatTime } = require('../utils/dates');
 const { avatarColorFor } = require('../utils/members');
 const {
   classesForStudent,
@@ -36,6 +37,59 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'Ju
 
 router.use(requirePortalAuth, requirePortal('student'));
 
+// Co-op attendance (kiosk check-in/check-out, taken by a teacher/admin -
+// never something a student marks themselves) for the Attendance page's
+// own "Co-op Attendance" view below - a real request: "Dropdown menu to
+// choose co-op attendance or family homeschool attendance." Student
+// Portal never had a standalone Co-op Attendance view of its own before
+// this (only a per-class Attendance tab, already read-only, on each
+// class's own detail page - routes/student-portal.js's own GET
+// /classes/:id). Same shape/queries as Member Profile's own Attendance
+// tab (routes/main-admin-members.js's own attendanceHistoryForMember/
+// groupAttendanceByRoster, kept as a per-route-file copy by that file's
+// own established convention), reusing the exact same read-only
+// accordion partial (views/partials/member-attendance-rosters.ejs) that
+// already renders it there - grouped by class/roster, nothing to add or
+// edit, same as the Family Homeschool view right beside it.
+async function attendanceHistoryForMember(memberId) {
+  return db
+    .prepare(
+      `SELECT r.name AS "rosterName", a.session_date AS date, a.status,
+              a.check_in_time AS "checkInTime", c.check_out_time AS "checkOutTime"
+       FROM attendance a
+       JOIN rosters r ON r.id = a.roster_id
+       LEFT JOIN checkouts c ON c.member_id = a.member_id AND c.roster_id = a.roster_id AND c.session_date = a.session_date
+       WHERE a.member_id = ?
+       ORDER BY a.session_date DESC
+       LIMIT 25`
+    )
+    .all(memberId);
+}
+
+function formatAttendanceHistory(rows) {
+  return rows.map((r) => ({
+    rosterName: r.rosterName,
+    dateLabel: formatDateLabel(r.date),
+    statusLabel: r.status === 'present' ? 'Present' : r.status === 'late' ? 'Late' : 'Absent',
+    status: r.status,
+    checkInTime: r.checkInTime ? formatTime(r.checkInTime) : null,
+    checkOutTime: r.checkOutTime ? formatTime(r.checkOutTime) : null,
+  }));
+}
+
+function groupAttendanceByRoster(history) {
+  const order = [];
+  const byRoster = new Map();
+  history.forEach((h) => {
+    if (!byRoster.has(h.rosterName)) {
+      byRoster.set(h.rosterName, []);
+      order.push(h.rosterName);
+    }
+    byRoster.get(h.rosterName).push(h);
+  });
+  return order.map((rosterName) => ({ rosterName, rows: byRoster.get(rosterName) }));
+}
+
 router.get('/family-school', async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   res.render('student-family-school-classes', {
@@ -56,11 +110,26 @@ router.get('/family-school/grades', async (req, res) => {
 // Print/PDF controls (a parent marks attendance; a student just looks
 // at it), same simplification this file's own Grades/Overview pages
 // above already apply to their own Parent Portal counterparts.
+//
+// A later real request: "Dropdown menu to choose co-op attendance or
+// family homeschool attendance. Students can't add present and absent
+// dates to the family homeschool management attendance. They can only
+// view this and only parents can edit it." The Family Homeschool view
+// above was already exactly that (no add/edit controls ever rendered to
+// a student, and no POST route in this whole file touches attendance) -
+// nothing to fix there, just a view=coop|family toggle added on top
+// (same page, same /family-school/attendance URL, same nav entry) so a
+// student can switch to the brand-new read-only Co-op Attendance view
+// beside it (see attendanceHistoryForMember/groupAttendanceByRoster
+// above). Only ever this account's own member - never a passed id, same
+// rule every other route in this file follows.
 router.get('/family-school/attendance', async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
+  const view = req.query.view === 'coop' ? 'coop' : 'family';
   const schoolYear = currentSchoolYear();
-  const months = await attendanceForSchoolYear(member.id, parseInt(schoolYear.slice(0, 4), 10));
-  res.render('student-family-school-attendance', { title: 'Attendance', schoolYear, MONTH_NAMES, months });
+  const months = view === 'family' ? await attendanceForSchoolYear(member.id, parseInt(schoolYear.slice(0, 4), 10)) : [];
+  const coopGroups = view === 'coop' ? groupAttendanceByRoster(formatAttendanceHistory(await attendanceHistoryForMember(member.id))) : [];
+  res.render('student-family-school-attendance', { title: 'Attendance', view, schoolYear, MONTH_NAMES, months, coopGroups });
 });
 
 // Same "summarize all family school management features... visual

@@ -59,6 +59,14 @@ const settingsHref = portalTitle === 'Main Admin' ? '/main-admin/settings'
 // instead, the exact "always guess Parent first" bug class this whole
 // query-tagging mechanism exists to prevent.
 const cornerPortalQuery = portalTitle === 'Parent Portal' ? '?portal=parent' : portalTitle === 'Student Portal' ? '?portal=student' : portalTitle === 'Co-op Teacher Portal' ? '?portal=teacher' : '';
+// A real request: "Student Portal should not have a settings gear." -
+// settingsHref above (/portal/settings-hub for Student) only ever opens
+// a card linking to the generic account-settings page (views/portal-
+// settings-hub.ejs's own My Privacy card) - no content unique to a
+// student, purely the same shared scaffolding Co-op Teacher Portal still
+// uses that same hub for, so hiding just this nav entry (both corner
+// links below) leaves nothing orphaned.
+const showSettingsGear = portalTitle !== 'Student Portal';
 
 // A real request: "On parent, student and teacher portal on mobile add an
 // email icon at the top for contacting group leaders. On desktop it says
@@ -469,17 +477,19 @@ const TEACHER_NAV_LINKS = [
 // subpages-dialog it always has, exactly as before this request.
 const STUDENT_NAV_LINKS = [
   { href: '/student', icon: 'home', label: 'Home' },
-  { href: '/events?view=calendar&portal=student', icon: 'calendar-check', label: 'Events', subpages: [
-    { href: '/events?view=calendar&portal=student', label: 'Calendar' },
-    { href: '/student/events', label: 'My Event Registrations' },
-  ] },
+  // A real request: "events tab should just be the event calendar. My
+  // event signups should be a button on the calendar page. No subpages
+  // under the events tab" - dropped back out of this nav entry's own
+  // subpages array, same fix as PARENT_NAV_LINKS's own Events entry
+  // above; events-list.ejs's own "My Event Registrations" button (its
+  // toolbar, now Parent AND Student Portal) is the only way there now.
+  { href: '/events?view=calendar&portal=student', icon: 'calendar-check', label: 'Events' },
   { href: '/student/classes', icon: 'graduation-cap', label: 'Co-op Schedule', mobileLabel: 'Co-op<br>Schedule' },
   { href: '/student/family-school/portfolio', icon: 'grid', label: 'Classroom Dashboard', desktopAsSection: true, subpages: [
     { href: '/student/classes/dashboard', icon: 'graduation-cap', label: 'Classes' },
     { href: '/student/family-school/grades', icon: 'clipboard-list', label: 'Grades' },
     { href: '/student/family-school/attendance', icon: 'calendar-check', label: 'Attendance' },
     { href: '/student/family-school/weekly-planner', icon: 'calendar-check', label: 'Weekly Planner' },
-    { href: '/forums?portal=student', icon: 'users', label: 'Chat' },
     { href: '/student/family-school/portfolio', icon: 'file-text', label: 'Portfolio' },
     { href: '/student/transcript', icon: 'file-text', label: 'Transcripts' },
   ] },
@@ -493,14 +503,17 @@ const STUDENT_NAV_LINKS = [
 // Challenge page itself; a real request to list them as their own tabs
 // here split them into their own routes/views (routes/student-portal.js's
 // own /student/achievements, /student/leaderboard).
+// A real request: "Dashboard, activities section. Reorder tabs. Reading
+// challenge, Nature news, vocabulary, games, pets, achievements,
+// leaderboard."
 const STUDENT_ACTIVITY_LINKS = [
-  { href: '/student/games', icon: 'gamepad', label: 'Games' },
-  { href: '/student/pets', icon: 'paw', label: 'Pet' },
   { href: '/student/reading', icon: 'book', label: 'Reading Challenge', mobileLabel: 'Reading<br>Challenge' },
-  { href: '/student/achievements', icon: 'star', label: 'Achievements' },
-  { href: '/student/leaderboard', icon: 'trophy', label: 'Leaderboard' },
   { href: '/student/nature-news', icon: 'sprout', label: 'Nature News' },
   { href: '/student/vocabulary', icon: 'type', label: 'Vocabulary' },
+  { href: '/student/games', icon: 'gamepad', label: 'Games' },
+  { href: '/student/pets', icon: 'paw', label: 'Pet' },
+  { href: '/student/achievements', icon: 'star', label: 'Achievements' },
+  { href: '/student/leaderboard', icon: 'trophy', label: 'Leaderboard' },
 ];
 const primaryNavLinks =
   portalTitle === 'Main Admin' ? MAIN_ADMIN_NAV_LINKS
@@ -738,10 +751,12 @@ const communityLinksTitle = 'Community';
     <svg class="icon"><use href="#icon-user-circle"/></svg>
     My Profile
   </a>
-  <a class="admin-corner-link" href="<%= settingsHref %><%= cornerPortalQuery %>">
-    <svg class="icon"><use href="#icon-gear"/></svg>
-    Settings
-  </a>
+  <% if (showSettingsGear) { %>
+    <a class="admin-corner-link" href="<%= settingsHref %><%= cornerPortalQuery %>">
+      <svg class="icon"><use href="#icon-gear"/></svg>
+      Settings
+    </a>
+  <% } %>
   <% if (showSwitcher) { %>
     <details class="portal-switcher-details">
       <summary><svg class="icon"><use href="#icon-monitor"/></svg> Switch Portal</summary>
@@ -763,7 +778,9 @@ const communityLinksTitle = 'Community';
         <a class="admin-nav-right-link" href="/contact-admins<%= contactAdminsPortalQuery %>" aria-label="Contact Admins"><svg class="icon"><use href="#icon-mail"/></svg></a>
       <% } %>
       <a class="admin-nav-right-link" href="/portal/profile<%= cornerPortalQuery %>" aria-label="My Profile"><svg class="icon"><use href="#icon-user-circle"/></svg></a>
-      <a class="admin-nav-right-link" href="<%= settingsHref %><%= cornerPortalQuery %>" aria-label="Settings"><svg class="icon"><use href="#icon-gear"/></svg></a>
+      <% if (showSettingsGear) { %>
+        <a class="admin-nav-right-link" href="<%= settingsHref %><%= cornerPortalQuery %>" aria-label="Settings"><svg class="icon"><use href="#icon-gear"/></svg></a>
+      <% } %>
       <% if (showSwitcher) { %>
         <a class="admin-nav-right-link" href="/portal" aria-label="Switch Portal"><svg class="icon"><use href="#icon-monitor"/></svg></a>
       <% } %>

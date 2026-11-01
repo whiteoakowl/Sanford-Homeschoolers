@@ -421,7 +421,16 @@ textarea:focus-visible,
    columns every other .landing-grid page uses, kept separate from the
    shape rules above so the Documents list/category sub-pages below keep
    their own existing column counts. */
-.landing-grid-home { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 56rem; }
+/* A real request: "Group dashboard button, classroom dashboard button
+   and fun dashboard button should be centered on the row." .landing-grid's
+   own justify-content: center (above) only centers the grid's COLUMN
+   TRACKS within this box's own width - it has no leftover space to work
+   with here, since .landing-grid-home's fr columns already fill this
+   box's entire max-width: 56rem. The real problem is the box itself: on
+   a wide desktop screen .admin-main has far more than 56rem to give, and
+   with no margin of its own this box just sits flush against .admin-
+   main's own left edge instead of centering within it. */
+.landing-grid-home { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 56rem; margin: 0 auto; }
 @media (max-width: 720px) {
   .landing-grid-home { grid-template-columns: 1fr; }
 }
@@ -12920,6 +12929,35 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
    its own card. */
 .parent-home-main .roster-action-btn { align-self: flex-start; flex-grow: 0; }
 
+/* A real request: "My classes and nature news the buttons should be the
+   same size and fit to text" - Student Portal's own home page (views/
+   student-home.ejs), same exact root cause/fix as .parent-home-main
+   above: .portal-dashboard-card's default align-items: stretch stretches
+   each card's own button to the card's full width, which .roster-action-
+   btn's flex: 1 0 auto then has room to grow into. Scoped to this page's
+   own wrapper class (.student-home-dashboard-grid), not .portal-
+   dashboard-card/.roster-action-btn themselves - both shared by every
+   other portal's own home dashboard (Main Admin, Teacher, Babysitters,
+   ...), none of which reported this. */
+.student-home-dashboard-grid .roster-action-btn { align-self: flex-start; flex-grow: 0; }
+
+/* A real request: "Student portal, Resources, desktop. Add a resource
+   button should be fit to text." (views/student-resources.ejs - the
+   button is actually "+ Submit a Resource", students proposing a link
+   for a Main Admin to review, not an admin Add control). .roster-toolbar
+   is a flex row (h1 left, this one button right, justify-content: space-
+   between) with nothing else to absorb .roster-action-btn's own flex: 1
+   0 auto - that flex-grow: 1 claims the toolbar's entire remaining width
+   after the <h1>, stretching the button across the rest of the row on a
+   wide desktop screen. No media query needed: the mobile-only global
+   `.roster-action-btn { width: 100% }` rule (styles.css, @media max-width:
+   640px) sets `width` directly, which still wins there regardless of this
+   rule's own flex-basis, so mobile's already-fine full-width button is
+   untouched. Scoped to this page's own toolbar class, not .roster-toolbar
+   itself - shared by dozens of other admin/portal pages that never
+   reported this. */
+.student-resources-toolbar .roster-action-btn { flex: 0 0 auto; }
+
 /* A real request: "Change the parent portal dashboard to have cards
    exactly like this [reference image]" - a colored icon badge + title +
    "View All" link in each card's own header, a tinted card background
@@ -13332,6 +13370,43 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
   }
   .event-calendar-nav-btn:first-child::before { content: '\2190'; }
   .event-calendar-nav-btn:last-child::before { content: '\2192'; }
+}
+
+/* A real request: "Student portal, events calendar, desktop only.
+   Export, pdf and print icons should be on the same row as the month
+   and year selection, after the next arrow. Calendar view and list view
+   icons should be top right of the calendar." Scoped to Student Portal
+   only (.student-events-portal, views/events-list.ejs) - Parent
+   Portal/Main Admin/a public visitor all share this exact same toolbar
+   and calendar partial and none of them asked for this, so they keep
+   their own existing layout untouched at every width.
+   views/partials/event-calendar-grid.ejs renders a second copy of the
+   Export/Print/PDF icons (desktopTrailingIcons, right inside its own
+   Prev/Month/Year/Next row) and of the view toggle (desktopTopRightToggle,
+   directly above the grid) - real DOM at every width, not JS-moved -
+   so this pair of media queries just swaps which copy is visible: the
+   duplicates by default (and the originals above 640px), the originals
+   by default (and the duplicates at/under 640px). 640px matches this
+   same file's own existing mobile breakpoint for this toolbar (see the
+   max-width: 480px/nav-row rules just above - the row itself already
+   never wraps above 640px). */
+.student-events-portal .event-calendar-desktop-trailing-icon,
+.student-events-portal .event-calendar-desktop-view-toggle {
+  display: none;
+}
+@media (min-width: 641px) {
+  .student-events-portal .roster-toolbar .roster-btn-row > .class-schedule-view-toggle,
+  .student-events-portal .roster-toolbar .roster-btn-row > .events-toolbar-file-icon {
+    display: none;
+  }
+  .student-events-portal .event-calendar-desktop-trailing-icon {
+    display: inline-flex;
+  }
+  .student-events-portal .event-calendar-desktop-view-toggle {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.5rem;
+  }
 }
 
 /* Babysitter Directory - profile photo thumbnail, shown both on a

@@ -6,101 +6,64 @@
 <body>
   <%- include('partials/portal-nav', { portalTitle: 'Student Portal' }) %>
 
+  <%# A real request: "This page should show the entire schedules that
+      are listed on parent portal. For example if currently is shows
+      fall Monday and fall Wednesday classes, those class grids should
+      appear on this page. This is not the page to view the classes the
+      student is registered for. It is for viewing the current class
+      schedules of classes available." Same semester/day/grid-list
+      controls and read-only Room x Hour grid as Parent Portal's own
+      Class Registration page (routes/parent-portal.js's own GET
+      /classes, views/parent-classes.ejs) - same data-fetching functions
+      (utils/classSchedule.js) and the same views/partials/member-class-
+      schedule-grid.ejs grid markup, just with nothing registration-
+      specific: no Register/Cancel actions (clickable: false - students
+      don't self-register from this page), no Filter-by-grade/student
+      panel (a parent-family-specific filter), no "Classes Needing a
+      Teacher or Assistant" button. %>
   <main id="main-content" tabindex="-1" class="admin-main">
     <h1>Co-op Schedule</h1>
-    <p class="hint">Most classes are registered for by your parent from their Parent Portal. A class listed below has been opened for you to register for yourself.</p>
+    <p class="hint">The co-op's current class schedule - every class scheduled this day, for browsing only.</p>
 
-    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
-    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
-
-    <% if (classes.length === 0) { %>
-      <p class="roster-empty">You're not enrolled in any classes yet.</p>
-    <% } else { %>
-      <div class="day-toggle no-print classes-day-filter" role="tablist">
-        <button type="button" class="day-toggle-option active" data-filter="all">All</button>
-        <% classDays.forEach(function(d) { %>
-          <button type="button" class="day-toggle-option" data-filter="<%= d %>"><%= dayLabels[d] %></button>
+    <div class="filter-row no-print">
+      <%
+        const semesterQuery = selectedSemesterId ? `&semesterId=${selectedSemesterId}` : '';
+      %>
+      <div class="category-filter">
+        <label for="student-schedule-semester-select">Semester</label>
+        <select id="student-schedule-semester-select" onchange="window.fullscreenNavigate(this.value)">
+          <option value="/student/classes?day=<%= day %>&view=<%= view %>" <%= selectedSemesterId === null ? 'selected' : '' %>>All Semesters</option>
+          <% semesters.forEach(function(s) { %>
+            <option value="/student/classes?day=<%= day %>&view=<%= view %>&semesterId=<%= s.id %>" <%= selectedSemesterId === s.id ? 'selected' : '' %>><%= s.title %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="class-schedule-view-toggle" role="group" aria-label="Grid or list view">
+        <a class="icon-btn<%= view === 'grid' ? ' icon-btn-active' : '' %>" href="/student/classes?day=<%= day %>&view=grid<%= semesterQuery %>" aria-pressed="<%= view === 'grid' %>" aria-label="Grid view" title="Grid view"><svg class="icon"><use href="#icon-grid"/></svg></a>
+        <a class="icon-btn<%= view === 'list' ? ' icon-btn-active' : '' %>" href="/student/classes?day=<%= day %>&view=list<%= semesterQuery %>" aria-pressed="<%= view === 'list' %>" aria-label="List view" title="List view"><svg class="icon"><use href="#icon-clipboard-list"/></svg></a>
+      </div>
+      <div class="day-toggle schedule-day-toggle">
+        <% activeDays.forEach(function (d) { %>
+          <a class="day-toggle-option<%= day === d ? ' active' : '' %>" href="/student/classes?day=<%= d %>&view=<%= view %><%= semesterQuery %>"><%= dayLabels[d] %></a>
         <% }); %>
       </div>
-      <div class="classes-grid">
-        <% classes.forEach(function(c) { %>
-          <div class="class-card" data-day="<%= c.day %>">
-            <a class="class-card-link" href="/student/classes/<%= c.id %>">
-              <div class="class-card-color-bar" style="background:<%= c.color %>"></div>
-              <div class="class-card-body">
-                <%# Same class-card-thumb-row pattern as the Parent Portal's
-                    own class cards (views/parent-classes.ejs) - a real
-                    request: "the class image should show on the left side
-                    of the class card." %>
-                <div class="class-card-thumb-row">
-                  <% if (c.classImageUrl) { %>
-                    <img class="class-card-thumb" src="<%= c.classImageUrl %>" alt="" />
-                  <% } %>
-                  <div class="class-card-thumb-content">
-                    <h3 class="class-card-title"><%= c.class_name %></h3>
-                    <p class="class-card-meta"><%= c.dayLabel %> &middot; <%= c.timeLabel %></p>
-                    <p class="class-card-meta"><%= c.room || 'No room set' %></p>
-                    <p class="class-card-meta"><%= c.teacherNames.length ? c.teacherNames.join(', ') : 'No teacher assigned' %></p>
-                  </div>
-                </div>
-              </div>
-            </a>
-            <% if (c.allow_student_register && c.allow_cancel) { %>
-              <form method="POST" action="/student/classes/<%= c.id %>/unregister" class="class-card-unregister">
-                <button type="submit" class="roster-action-btn roster-action-btn-danger">Cancel</button>
-              </form>
-            <% } %>
-          </div>
-        <% }); %>
-      </div>
-    <% } %>
+    </div>
 
-    <% if (openClasses.length > 0) { %>
-      <h2>Register for a Class</h2>
-      <div class="roster-scroll">
-        <table class="roster-table members-table condensed-table">
-          <thead>
-            <tr>
-              <th>Class</th>
-              <th>Day / Time</th>
-              <th>Teacher</th>
-              <th>Seats</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <% openClasses.forEach(function(c) { %>
-              <tr>
-                <td class="roster-name-col"><strong><%= c.class_name %></strong></td>
-                <td><%= c.dayLabel %> &middot; <%= c.timeLabel %></td>
-                <td><%= c.teacherNames.length ? c.teacherNames.join(', ') : '—' %></td>
-                <td>
-                  <% if (c.capacity == null) { %><span class="badge-pill">Open</span>
-                  <% } else if (c.isFull) { %><span class="badge-pill badge-pill-absent">Full</span>
-                  <% } else { %><span class="badge-pill badge-pill-present"><%= c.seatsLeft %> left</span><% } %>
-                </td>
-                <td>
-                  <% if (waitlistPositionByClassId[c.id] != null) { %>
-                    <form method="POST" action="/student/classes/<%= c.id %>/unregister" class="inline-block-form">
-                      <button type="submit" class="roster-action-btn roster-action-btn-danger">Cancel (waitlist #<%= waitlistPositionByClassId[c.id] %>)</button>
-                    </form>
-                  <% } else if (eligibleClassIds.indexOf(c.id) === -1) { %>
-                    <span class="hint">Not in an eligible section</span>
-                  <% } else if (windowOpen) { %>
-                    <form method="POST" action="/student/classes/<%= c.id %>/register" class="inline-block-form">
-                      <button type="submit" class="roster-action-btn">Register</button>
-                    </form>
-                  <% } else { %>
-                    <span class="hint">Not open yet</span>
-                  <% } %>
-                </td>
-              </tr>
-            <% }); %>
-          </tbody>
-        </table>
-      </div>
-    <% } %>
+    <%- include('partials/member-class-schedule-grid', {
+      roomGrid,
+      classList,
+      day,
+      view,
+      enrolledClassIds,
+      clickable: false,
+      registeredTitle: 'You are enrolled in this class',
+    }) %>
   </main>
-  <script src="/js/classes-day-filter.js"></script>
+
+  <%# Shrinks a long class title to fit its own grid cell/card, same as
+      Parent Portal's own identical grid (public/js/shrink-title-to-fit.js
+      - a generic measure-and-shrink helper, not registration-specific,
+      so this page keeps it even with clickable: false above). %>
+  <script src="/js/shrink-title-to-fit.js"></script>
 </body>
 </html>

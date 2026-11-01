@@ -92,7 +92,7 @@ test('a signed-in student sees their own bottom tab bar on the Calendar page, no
   // matches Main Admin/Parent/Teacher, which all already said Events.
   assert.deepEqual(tabs, [
     'Home', 'Events', 'Co-op Schedule', 'Classroom Dashboard', 'Chat', 'Resources', 'Photos', 'Babysitter Profile',
-    'Games', 'Pet', 'Reading Challenge', 'Achievements', 'Leaderboard', 'Nature News', 'Vocabulary',
+    'Reading Challenge', 'Nature News', 'Vocabulary', 'Games', 'Pet', 'Achievements', 'Leaderboard',
   ]);
 });
 
@@ -112,7 +112,7 @@ test('a signed-in student sees their own bottom tab bar on the Chat page, with e
   assert.equal(tabs.filter((t) => t === 'Chat').length, 1, 'exactly one Chat tab, not two');
   assert.deepEqual(tabs, [
     'Home', 'Events', 'Co-op Schedule', 'Classroom Dashboard', 'Chat', 'Resources', 'Photos', 'Babysitter Profile',
-    'Games', 'Pet', 'Reading Challenge', 'Achievements', 'Leaderboard', 'Nature News', 'Vocabulary',
+    'Reading Challenge', 'Nature News', 'Vocabulary', 'Games', 'Pet', 'Achievements', 'Leaderboard',
   ]);
   assert.doesNotMatch(res.text, /Member Directory/, 'the generic community list (Member Directory, Newsletter, ...) should not leak into a student\'s own nav');
 });

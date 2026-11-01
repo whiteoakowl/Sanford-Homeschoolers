@@ -175,21 +175,25 @@ test('Student Portal Transcript shows "Tuesday", not a hardcoded Monday/Wednesda
   assert.match(transcript.text.slice(rowStart, rowEnd), />Tuesday<\/td>/);
 });
 
-test('Student Portal "My Classes" day-filter toggle offers a Tuesday button, not just All/Monday/Wednesday', async () => {
+// A later real request ("this is not the page to view the classes the
+// student is registered for... the full room x hour grid") reworked
+// /student/classes from a "My Classes" list with its own classes-day-
+// filter.js toggle into the exact same read-only Room x Hour schedule
+// grid as Parent Portal's own Class Registration page (same day-toggle
+// markup/mechanism - utils/classSchedule.js's own listActiveClassDays,
+// see the Parent Portal Tuesday test above) - still genuinely any day,
+// not hardcoded, just a different (shared) toggle now.
+test('Student Portal Co-op Schedule page offers a Tuesday day-toggle, not just All/Monday/Wednesday', async () => {
   const admin = await loginAsAdmin();
   await activateTuesday(admin);
   const student = await createStudentAccount('Portal Day Filter Student');
   const classId = await classSchedule.createClass({ day: 'tuesday', hourPosition: 1, className: 'Tuesday Filter Class' });
   await db.prepare('INSERT INTO class_enrollments (class_id, student_id) VALUES (?, ?)').run(classId, student.memberId);
 
-  const page = await request(app).get('/student/classes').set('Cookie', student.cookie);
+  const page = await request(app).get('/student/classes?day=tuesday').set('Cookie', student.cookie);
   assert.equal(page.status, 200);
-  assert.match(
-    page.text,
-    /<button type="button" class="day-toggle-option" data-filter="tuesday">Tuesday<\/button>/,
-    'the day-filter toggle used to hardcode just All/Monday/Wednesday buttons, so a Tuesday class had no way to filter down to it'
-  );
-  assert.match(page.text, /<div class="class-card" data-day="tuesday">/);
+  assert.match(page.text, /class="day-toggle-option active" href="\/student\/classes\?day=tuesday&view=grid"/);
+  assert.match(page.text, /Tuesday Filter Class/);
 });
 
 test('portal-profile Schedules tab shows "Tuesday" for a family member\'s Tuesday class', async () => {

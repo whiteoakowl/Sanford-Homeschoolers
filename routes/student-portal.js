@@ -16,9 +16,19 @@ const fs = require('fs');
 const db = require('../db');
 const { requirePortalAuth, requirePortal } = require('../middleware/portalAuth');
 const { memberForAccount } = require('../utils/portalAuth');
-const { allClassesList, attendanceHistoryForRoster, CLASS_DAY_LABELS_FULL, primaryClassScheduleForClass } = require('../utils/classSchedule');
+const {
+  allClassesList,
+  attendanceHistoryForRoster,
+  CLASS_DAY_LABELS_FULL,
+  roomGridForDay,
+  hideClassesNotVisibleToMembers,
+  hoursForDay,
+  listActiveClassDays,
+  listSemesters,
+  parseClockMinutesLocal,
+} = require('../utils/classSchedule');
 const { CLASS_DAY_ORDER } = require('../utils/classDays');
-const { formatFriendlyTimestamp, formatTimestamp } = require('../utils/dates');
+const { formatFriendlyTimestamp } = require('../utils/dates');
 const {
   assignmentsForStudent,
   assignmentsForStudentInClass,
@@ -37,9 +47,7 @@ const {
   generateTranscriptsForEndedClasses,
 } = require('../utils/academics');
 const { renderViewToPdf } = require('../utils/pdfRender');
-const { isRegistrationOpenForAccount, nextWindowForAccount } = require('../utils/registrationWindows');
 const forums = require('../utils/forums');
-const { sectionIdsForMember, classSectionIdsForClasses, memberSatisfiesRestriction } = require('../utils/sections');
 const { registerForClass, unregisterFromClass } = require('../utils/classRegistration');
 const events = require('../utils/events');
 const notifications = require('../utils/notifications');
@@ -224,71 +232,54 @@ router.get('/events', async (req, res) => {
   });
 });
 
+// A real request: "This page should show the entire schedules that are
+// listed on parent portal... those class grids should appear on this
+// page. This is not the page to view the classes the student is
+// registered for. It is for viewing the current class schedules of
+// classes available." This used to be this student's own "My Classes"
+// list plus a "Register for a Class" table (students don't self-register
+// from here) - now the exact same read-only Room x Hour schedule grid
+// Parent Portal's own Class Registration page shows (same data-fetching
+// functions, same views/partials/member-class-schedule-grid.ejs this
+// page now shares with that one), minus anything registration-specific:
+// no Register/Cancel actions, no Filter-by-grade/student panel (parent-
+// specific family filtering), no "Classes Needing a Teacher or
+// Assistant" button. clickable: false on the shared grid partial below -
+// a student browsing has nothing to open by clicking a class card here.
+// enrolledClassIds (this student's own enrollment, not a family's) still
+// badges a class "Registered" purely for their own information - a
+// passive badge, not a registration action.
 router.get('/classes', async (req, res) => {
+  const activeDays = await listActiveClassDays();
+  const day = activeDays.includes(req.query.day) ? req.query.day : (activeDays[0] || 'monday');
+  const view = req.query.view === 'list' ? 'list' : 'grid';
+  const semesters = await listSemesters();
+  const selectedSemesterId = req.query.semesterId ? parseInt(req.query.semesterId, 10) : null;
+  const gridSemesterId = selectedSemesterId === null ? undefined : selectedSemesterId;
+
   const member = await memberForAccount(req.portalAccount.id);
-  const classes = await classesForStudent(member);
-  const enrolledIds = new Set(classes.map((c) => c.id));
+  const enrolledClassIds = member ? (await classesForStudent(member)).map((c) => c.id) : [];
 
-  // Every OTHER class with self-registration turned on - "Register for a
-  // Class" only ever shows classes not already in "My Classes" above, and
-  // only ones a Main/Co-op Admin has actually opened to students (most
-  // classes stay parent-registers-on-your-behalf, unaffected by any of
-  // this - allow_student_register defaults off).
-  let openClasses = member
-    ? (await allClassesList(null))
-        .filter((c) => c.allow_student_register && !enrolledIds.has(c.id))
-        .map((c) => ({ ...c, seatsLeft: c.capacity == null ? null : Math.max(0, c.capacity - Number(c.studentCount)), isFull: c.capacity != null && Number(c.studentCount) >= c.capacity }))
-    : [];
-  // A real request: "Check box to lock grid to be viewable to members...
-  // if these boxes aren't checked then members... can't register" -
-  // same browse-time hide as Parent Portal's own Class Registration grid.
-  if (openClasses.length) {
-    const visibility = await Promise.all(openClasses.map((c) => primaryClassScheduleForClass(c)));
-    openClasses = openClasses.filter((c, i) => !visibility[i] || visibility[i].visible_to_members);
-  }
-  const eligibleClassIds = [];
-  if (member) {
-    const mySectionIds = await sectionIdsForMember(member.id);
-    // One query for every open class's own restrictions, not one per
-    // class - this page can list dozens of open classes during a
-    // registration window.
-    const restrictionsByClass = await classSectionIdsForClasses(openClasses.map((c) => c.id));
-    for (const c of openClasses) {
-      if (memberSatisfiesRestriction(mySectionIds, restrictionsByClass[c.id])) eligibleClassIds.push(c.id);
-    }
-  }
-
-  const waitlistRows = member
-    ? await db.prepare("SELECT class_id, waitlist_position FROM class_registrations WHERE student_id = ? AND status = 'waitlisted'").all(member.id)
-    : [];
-  const waitlistPositionByClassId = {};
-  waitlistRows.forEach((r) => {
-    waitlistPositionByClassId[r.class_id] = r.waitlist_position;
-  });
-
-  const windowOpen = await isRegistrationOpenForAccount(req.portalRoles, { actionType: 'student_register_self' });
-  const nextWindow = windowOpen ? null : await nextWindowForAccount(req.portalRoles, { actionType: 'student_register_self' });
-
-  // The day-filter toggle (public/js/classes-day-filter.js) used to hardcode
-  // just Monday/Wednesday buttons, so a Tuesday (or any 3rd+ day) class had
-  // no way to filter down to it - only "All" would show it. Built from
-  // whichever days this student's own classes actually fall on, sorted
-  // calendar-order, same as the Member Schedules Archive tab's own
-  // archiveDays.
-  const classDays = [...new Set(classes.map((c) => c.day))].sort((a, b) => CLASS_DAY_ORDER[a] - CLASS_DAY_ORDER[b]);
+  const roomGrid = await hideClassesNotVisibleToMembers(await roomGridForDay(day, gridSemesterId));
+  const classList =
+    view === 'list'
+      ? roomGrid.rows
+          .flatMap((row) => row.cells.flatMap((cell) => cell.classes))
+          .sort((a, b) => (parseClockMinutesLocal(a.start_time) ?? 0) - (parseClockMinutesLocal(b.start_time) ?? 0) || a.class_name.localeCompare(b.class_name))
+      : [];
 
   res.render('student-classes', {
     title: 'Co-op Schedule',
-    classes,
-    classDays,
+    day,
+    view,
+    activeDays,
     dayLabels: CLASS_DAY_LABELS_FULL,
-    openClasses,
-    eligibleClassIds,
-    waitlistPositionByClassId,
-    windowOpen,
-    nextWindowLabel: nextWindow ? formatTimestamp(nextWindow.opens_at) : null,
-    error: req.query.error || null,
-    notice: req.query.notice || null,
+    hours: await hoursForDay(day, gridSemesterId),
+    roomGrid,
+    classList,
+    semesters,
+    selectedSemesterId,
+    enrolledClassIds,
   });
 });
 

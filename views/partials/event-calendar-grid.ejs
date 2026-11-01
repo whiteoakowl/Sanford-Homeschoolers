@@ -15,6 +15,22 @@
 // shared "/events?view=calendar" - each caller's own routing, appended
 // to below), eventHref(e) - one event pill's own link target (Main
 // Admin's own builder page vs. the shared public event detail page).
+//
+// desktopTrailingIcons/desktopTopRightToggle (both optional, Student
+// Portal only today - views/events-list.ejs) - a real request: "Student
+// portal, events calendar, desktop only. Export, pdf and print icons
+// should be on the same row as the month and year selection, after the
+// next arrow. Calendar view and list view icons should be top right of
+// the calendar." desktopTrailingIcons is an array of {href, icon, label,
+// target?} rendered as extra .icon-btns right after the Next arrow,
+// inside this exact same nav row; desktopTopRightToggle is {view,
+// portalQuerySuffix}, rendered as a second Grid/List-equivalent toggle
+// directly above the calendar grid. Both are real DOM elements at every
+// width (not injected by JS) with a `.event-calendar-desktop-*` class -
+// styles.css hides them by default and shows them only at desktop width,
+// so the caller's own ORIGINAL Export/Print/PDF icons and view toggle
+// (events-list.ejs's own .roster-toolbar row) can stay exactly where
+// they already are on mobile, where this request doesn't apply.
 %>
 <div class="event-calendar-toolbar no-print">
   <%# A real request: "mobile view. the row should be small left arrow,
@@ -37,8 +53,20 @@
       <% } %>
     </select>
     <a class="roster-action-btn event-calendar-nav-btn" href="<%= monthLinkBase %>&month=<%= calendar.nextParam %>">Next &rarr;</a>
+    <% if (typeof desktopTrailingIcons !== 'undefined' && desktopTrailingIcons) { %>
+      <% desktopTrailingIcons.forEach(function(b) { %>
+        <a class="icon-btn event-calendar-desktop-trailing-icon" href="<%= b.href %>"<% if (b.target) { %> target="<%= b.target %>"<% } %> aria-label="<%= b.label %>" title="<%= b.label %>"><svg class="icon"><use href="#<%= b.icon %>"/></svg></a>
+      <% }); %>
+    <% } %>
   </div>
 </div>
+
+<% if (typeof desktopTopRightToggle !== 'undefined' && desktopTopRightToggle) { %>
+  <div class="class-schedule-view-toggle event-calendar-desktop-view-toggle no-print" role="group" aria-label="List or calendar view">
+    <a class="icon-btn<%= desktopTopRightToggle.view === 'list' ? ' icon-btn-active' : '' %>" href="/events?view=list<%= desktopTopRightToggle.portalQuerySuffix %>" aria-pressed="<%= desktopTopRightToggle.view === 'list' %>" aria-label="List view" title="List view"><svg class="icon"><use href="#icon-clipboard-list"/></svg></a>
+    <a class="icon-btn<%= desktopTopRightToggle.view === 'calendar' ? ' icon-btn-active' : '' %>" href="/events?view=calendar<%= desktopTopRightToggle.portalQuerySuffix %>" aria-pressed="<%= desktopTopRightToggle.view === 'calendar' %>" aria-label="Calendar view" title="Calendar view"><svg class="icon"><use href="#icon-calendar-check"/></svg></a>
+  </div>
+<% } %>
 
 <% if (calendar.weeks.every(function(w) { return w.every(function(d) { return !d.inMonth || d.events.length === 0; }); })) { %>
   <p class="roster-empty">No published events this month.</p>
