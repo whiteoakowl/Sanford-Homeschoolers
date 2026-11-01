@@ -68,14 +68,20 @@ test('Co-op Admin Edit Member page can now set Sections and Portal Roles, not ju
 
   const editPage = await request(app).get(`/admin/members/${memberId}/edit`).set('Cookie', cookie);
   assert.equal(editPage.status, 200);
-  assert.match(editPage.text, new RegExp(`name="sectionIds" value="${sectionId}"`), 'Co-op Admin edit form now renders a writable Sections checkbox');
+  // A later real request ("each family member should be listed with a
+  // dropdown menu for portals and dropdown menu for sections under each
+  // member name") moved Sections from a single sectionIds checkbox for
+  // just this member to a per-family-member sectionIds_<memberId>
+  // multi-select (views/partials/member-portal-roles.ejs) - same naming
+  // convention roleIds_<memberId> already uses just below.
+  assert.match(editPage.text, new RegExp(`name="sectionIds_${memberId}" value="${sectionId}"`), 'Co-op Admin edit form now renders a writable Sections checkbox');
   const csrfToken = extractCsrf(editPage.text);
 
   const res = await request(app)
     .post(`/admin/members/${memberId}/edit`)
     .set('Cookie', cookie)
     .type('form')
-    .send({ name: 'Coop Sections Test', email: 'coopsections@example.com', sectionIds: String(sectionId), _csrf: csrfToken });
+    .send({ name: 'Coop Sections Test', email: 'coopsections@example.com', [`sectionIds_${memberId}`]: String(sectionId), _csrf: csrfToken });
   assert.equal(res.status, 302);
 
   const sectionRows = await db.prepare('SELECT section_id FROM member_sections WHERE member_id = ?').all(memberId);

@@ -1679,6 +1679,28 @@ body.public-page .roster-empty {
   margin-top: 0.2rem;
 }
 
+/* A real request: "Address is the same checkbox should line up with the
+   first word in the description, same for all check boxes on edit
+   profile." Same bug class as .class-settings-form's own fix just
+   above: .checkbox-option's own align-items: center (fine for a short
+   one-line label) instead centers the checkbox against the WHOLE
+   wrapped block once a label runs to 2+ lines on a narrower screen -
+   "Address is the same as the first parent/guardian," "Give this
+   parent/student their own portal login," and every custom membership
+   question rendered as a checkbox (partials/membership-form-field.ejs)
+   are all long enough to wrap there. Scoped to .member-edit-form-page so
+   every .checkbox-option on this one page (member-edit-fields.ejs's
+   Primary Parent toggle, member-edit-adult-block.ejs/member-edit-child-
+   block.ejs's own toggles and custom questions, member-portal-roles.ejs's
+   Allow Student Portal, and multi-select-checkbox.ejs's own checkbox
+   rows inside an open dropdown panel) lines up the same way, not just
+   the one checkbox named in the request. */
+.member-edit-form-page .checkbox-option { align-items: flex-start; }
+.member-edit-form-page .checkbox-option input[type="checkbox"],
+.member-edit-form-page .checkbox-option input[type="radio"] {
+  margin-top: 0.2rem;
+}
+
 .primary-btn {
   margin-top: 1.5rem;
   background: var(--btn-bg);
@@ -2886,7 +2908,25 @@ a.totals-item:hover, a.totals-item:focus-visible { background: var(--brand-soft)
   background: #f8fafc;
 }
 
-.member-edit-form { max-width: 720px; }
+/* A real request: "Additional parent and children sections... information
+   should be wider on the screen." The 720px cap below used to live on
+   .member-edit-form (only ever applied to the two admin portals' own
+   <form> - Parent Portal's self-edit page has no such element, see that
+   view's own markup, and instead relied on .member-form-page-panel's
+   own unconstrained width: fit-content, which still settles narrower
+   than this on a plain 2-column field grid). Moved to .member-edit-form-
+   page instead - the one class every unified member edit page's own
+   <form> shares across all three portals (admin-member-edit.ejs,
+   main-admin-member-edit.ejs, portal-profile-edit.ejs) - and widened to
+   960px, the same "wide content column" value .training-player-wrap
+   already settled on elsewhere in this file, rather than a new one-off
+   number. `form.` (not a bare class selector) beats .member-form-page-
+   panel's own max-width: 100% (below) on specificity alone regardless of
+   source order, since Parent Portal's own <form> carries BOTH classes
+   on the same element (no separate wrapping panel div the way the two
+   admin pages have). Still well inside .admin-main's own 1200px cap, so
+   this never fights that container on a real desktop screen. */
+form.member-edit-form-page { max-width: 960px; }
 /* A real request: "Make sure there is adequate row space between every
    row" - the public self-registration form (#portal-register-form) and
    the unified member edit pages (.member-edit-form-page) share this
@@ -2908,6 +2948,24 @@ a.totals-item:hover, a.totals-item:focus-visible { background: var(--brand-soft)
 .member-edit-form-page .register-adult-block > .checkbox-option,
 .member-edit-form-page .register-child-block > .checkbox-option {
   margin: 1.25rem 0;
+}
+
+/* A real request: "New password row make sure there is adequate space
+   before title." member-edit-fields.ejs's own Password/New Password
+   grid is a SECOND, separate .member-form-grid sitting directly after
+   the member's main field grid (and any custom membership questions) in
+   the same .form-section - unlike the register-adult-block/register-
+   child-block case just below (already spaced by that block's own
+   `> * + *` owl-selector rule, see this file's own .register-adult-block
+   comment), two sibling .member-form-grid elements landing straight in a
+   .form-section had no spacing rule between them at all, so "New
+   Password"/"Password" rendered flush against whatever (a custom
+   question, or the field grid above) ended right before it. 1.5rem
+   matches .member-form-grid's own row gap and .register-adult-block's
+   own `> * + *` margin, so this reads as the same spacing rhythm as
+   every other gap on this page, not a new number. */
+.member-edit-form-page .form-section > .member-form-grid + .member-form-grid {
+  margin-top: 1.5rem;
 }
 
 .member-form-grid {
@@ -4873,9 +4931,26 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
    font-size (already true via the .member-form-footer rule just above),
    NOT stretched to split the row evenly - each one sized to its own
    label, same as this button pair already behaves everywhere else in
-   the app it's used. No extra rule needed here beyond the shared one
-   above; this comment just marks the spot so a future "make them even
-   width again" request doesn't get re-added by mistake. */
+   the app it's used.
+   A later real request superseded that clarification: "Cancel and save
+   button should be same height and width as long as the text is well
+   balanced" - same height was already true (both share the shared
+   padding/font-size rule just below), but "Cancel" (short) and "Save
+   Member"/"Save" (longer, with an icon) still rendered at visibly
+   different widths next to each other. Scoped to just this page's own
+   footer (not every other .member-form-footer-edit button pair - e.g.
+   Announcements' "Send Now"/"Schedule for Later" below deliberately
+   keeps its own fit-to-text sizing, nobody asked to change that one): a
+   shared min-width big enough for "Save Member" + its icon at this
+   font-size, center-justified text, so Cancel grows to roughly match
+   Save's width without forcing either label to wrap - "well balanced"
+   rather than forced to an exact even split. */
+.member-edit-form-page .member-form-footer-edit .btn-secondary,
+.member-edit-form-page .member-form-footer-edit .primary-btn {
+  min-width: 9rem;
+  justify-content: center;
+  text-align: center;
+}
 
 /* A real request: "Sections dropdown menu should be white, not blue,
    shrink to fit text" - the Sections/Portal Roles dropdown triggers
@@ -5019,15 +5094,19 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
 }
 
 /* "List each member in that family with a portal dropdown next to it" -
-   name on the left, its role control (single checkbox for a student,
-   multi-select checkbox dropdown for anyone else) on the right on wide
-   screens; stacked on mobile so the dropdown has room to open without
-   crowding the name. */
+   name on the left, its controls on the right on wide screens; stacked
+   on mobile so a dropdown has room to open without crowding the name.
+   A later real request: "each family member should be listed with a
+   dropdown menu for portals and dropdown menu for sections under each
+   member name" - each row now holds up to two labeled controls
+   (.member-family-portal-control: Portals, Sections) side by side
+   inside .member-family-portal-controls, instead of one bare dropdown. */
 .member-family-portal-roles { display: flex; flex-direction: column; gap: 0.75rem; margin: 0.5rem 0 0.75rem; }
 .member-family-portal-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.75rem;
   padding: 0.6rem 0.75rem;
   background: var(--surface);
@@ -5035,10 +5114,14 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
   border-radius: var(--control-radius);
 }
 .member-family-portal-name { font-weight: 600; flex: 0 0 auto; }
-.member-family-portal-row .multi-select-checkbox { flex: 1 1 220px; max-width: 320px; }
+.member-family-portal-controls { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; flex: 1 1 auto; justify-content: flex-end; }
+.member-family-portal-control { display: flex; flex-direction: column; gap: 0.3rem; flex: 1 1 200px; max-width: 320px; }
+.member-family-portal-control-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; color: var(--muted); }
+.member-family-portal-control .hint { padding-top: 0.45rem; }
 @media (max-width: 480px) {
   .member-family-portal-row { flex-direction: column; align-items: flex-start; }
-  .member-family-portal-row .multi-select-checkbox { max-width: none; width: 100%; }
+  .member-family-portal-controls { justify-content: flex-start; width: 100%; }
+  .member-family-portal-control { max-width: none; width: 100%; }
 }
 
 /* Phone/Email (icon-wrapped) already get their box treatment from
@@ -5631,6 +5714,48 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
   margin-bottom: 1.25rem;
 }
 .manage-section h2 { margin-top: 0; }
+
+/* A real request: "Additional parent and children sections should not be
+   a card within a card. Its redundant." Each per-person block
+   (.register-adult-block/.register-child-block, views/partials/
+   member-edit-adult-block.ejs/member-edit-child-block.ejs) already sits
+   inside its own .form-section card (member-edit-family-sections.ejs's
+   own "Additional Parents/Guardians"/"Children" boxes) - .manage-section's
+   own background/border/shadow/padding/margin-bottom (just above) nested
+   a SECOND card inside that one. Same fix already applied to
+   .member-intake-section elsewhere in this file, and to the Public
+   Homepage theme editor's .homepage-theme-section ("no card design...
+   seamless list, not a stack of separate floating cards"): strip the
+   nested card chrome back to a plain top divider between blocks, scoped
+   to just this page (not every other .manage-section/.register-adult-
+   block/.register-child-block user - #portal-register-form's own public
+   self-registration form keeps its own stacked-card look unchanged,
+   which nobody has asked to touch). */
+.member-edit-form-page .register-adult-block,
+.member-edit-form-page .register-child-block {
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+}
+.member-edit-form-page #member-family-adults .register-adult-block:first-of-type,
+.member-edit-form-page #member-family-children .register-child-block:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+/* Gives the +Add Adult/+Add Child button its own breathing room below
+   the last person's block, now that block no longer carries its own
+   .manage-section margin-bottom to create that gap. */
+.member-edit-form-page #member-family-adults,
+.member-edit-form-page #member-family-children {
+  margin-bottom: 1.5rem;
+}
 /* A real request: "Check boxes lined up in a single row with text
    starting at the check box" - a plain <label> wrapping a checkbox and
    its own text already reads/clicks as one unit; this just keeps the

@@ -665,13 +665,15 @@ router.get('/members/:id/edit', async (req, res) => {
   const portalStatus = (await portalStatusForMembers([id]))[id];
   // See routes/main-admin-members.js's own identical GET /:id/edit
   // comment - familyPortalRows backs views/partials/member-portal-
-  // roles.ejs's family-wide portal dropdown.
+  // roles.ejs's family-wide Portals/Sections dropdowns.
   const rolesFamilyRoster = [member, ...(await familyOf(id))];
   const rolesFamilyPortalStatus = await portalStatusForMembers(rolesFamilyRoster.map((m) => m.id));
+  const rolesFamilySectionIds = await sectionIdsForMembers(rolesFamilyRoster.map((m) => m.id));
   const familyPortalRows = rolesFamilyRoster.map((m) => ({
     member: m,
     portalAccount: rolesFamilyPortalStatus[m.id].account,
     roleIds: rolesFamilyPortalStatus[m.id].roleIds,
+    sectionIds: rolesFamilySectionIds[m.id],
   }));
   res.render('admin-member-edit', {
     title: `Edit ${member.name}`,
@@ -682,8 +684,13 @@ router.get('/members/:id/edit', async (req, res) => {
     gradeLevels: GRADE_LEVELS,
     adminPositions: await listAdminPositions(),
     memberAdminPositionIds: await adminPositionIdsForMember(id),
+    // A real request: "each family member should be listed with a
+    // dropdown menu for portals and dropdown menu for sections under
+    // each member name" - allSections now only feeds the per-family-
+    // member Sections dropdown inside familyPortalRows above (views/
+    // partials/member-portal-roles.ejs), not a separate single-member
+    // control of its own.
     allSections: await db.prepare('SELECT * FROM sections ORDER BY LOWER(name)').all(),
-    memberSectionIds: (await sectionIdsForMembers([id]))[id],
     portalAccount: portalStatus.account,
     allRoles: await db.prepare('SELECT * FROM roles ORDER BY label').all(),
     portalRoleIds: portalStatus.roleIds,
@@ -790,14 +797,27 @@ router.post('/members/:id/edit', uploadIntakePhotos((req) => `/admin/members/${r
   // them. setMemberRoles is already a no-op for a member with no portal
   // account yet (utils/portalPermissions.js), same as Main Admin's own
   // identical handling when no password is set in the same submit.
-  const sectionIds = [].concat(req.body.sectionIds || []).map((v) => parseInt(v, 10)).filter(Boolean);
-  await setMemberSections(id, sectionIds);
+  //
+  // A real request: "each family member should be listed with a dropdown
+  // menu for portals and dropdown menu for sections under each member
+  // name" - Sections now save per family member (sectionIds_<memberId>,
+  // same naming convention roleIds_<memberId> already uses just below),
+  // not just for the one member being edited. Unlike Portal Roles,
+  // Sections is never gated to "self only" for a student - see views/
+  // partials/member-portal-roles.ejs's own comment on why Sections always
+  // lists (and now always saves) every family member regardless of
+  // member type or portal-account status.
+  const familyIds = [id, ...(await familyOf(id)).map((fm) => fm.id)];
+  for (const fmId of familyIds) {
+    const fmSectionIds = [].concat(req.body['sectionIds_' + fmId] || []).map((v) => parseInt(v, 10)).filter(Boolean);
+    await setMemberSections(fmId, fmSectionIds);
+  }
   // Portal Roles - see views/partials/member-portal-roles.ejs and
   // routes/main-admin-members.js's own identical POST /:id/edit comment.
   // A student only ever submits their own roleIds_<id> field; anyone
   // else submits one per family member, since that view renders the
   // whole family's portal access in one place.
-  const rolesFamilyIds = existing && existing.member_type === 'student' ? [id] : [id, ...(await familyOf(id)).map((fm) => fm.id)];
+  const rolesFamilyIds = existing && existing.member_type === 'student' ? [id] : familyIds;
   for (const fmId of rolesFamilyIds) {
     const fmRoleIds = [].concat(req.body['roleIds_' + fmId] || []).map((v) => parseInt(v, 10)).filter(Boolean);
     await setMemberRoles(fmId, fmRoleIds, null);
