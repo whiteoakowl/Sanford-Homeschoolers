@@ -375,7 +375,12 @@ router.get('/import-template/names.xlsx', requireAdmin, (req, res) => {
 // gear - those same messages are still edited from Main Admin's own
 // /main-admin/notifications page.
 const SETTINGS_TABS = ['account', 'classcheckin', 'kiosk', 'semesters', 'quicklinks', 'install'];
-const FULL_ADMIN_ONLY_TABS = ['account', 'classcheckin', 'kiosk', 'semesters'];
+// A real request: "Where are the semester creation settings... There
+// isn't a semester card" - a coop_admin member (not the master login)
+// couldn't see Semesters at all. Its add/edit/delete routes already
+// allow coop_admin (requireFullAdmin in routes/admin-schedule.js), so
+// only the master-admin-only credential/kiosk/PIN tabs stay gated here.
+const FULL_ADMIN_ONLY_TABS = ['account', 'classcheckin', 'kiosk'];
 
 // requireAdmin/requireFullAdmin now also let a coop_admin-role member
 // into every /admin route on their own portal session (middleware/
