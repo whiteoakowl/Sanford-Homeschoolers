@@ -270,4 +270,10 @@ test('a position with no one assigned yet still shows its own row, and permissio
   const loginB = await request(app).post('/login').type('form').send({ email: memberB.email, password: memberB.password, next: '/main-admin/website' });
   const resB = await request(app).get('/main-admin/website').set('Cookie', loginB.headers['set-cookie']);
   assert.equal(resB.status, 200);
+  // The Wix-style editor and its API are gated on the same permission.
+  const editorB = await request(app).get('/main-admin/website/editor').set('Cookie', loginB.headers['set-cookie']);
+  assert.equal(editorB.status, 200);
+  const stateB = await request(app).get('/main-admin/website/api/state').set('Cookie', loginB.headers['set-cookie']);
+  assert.equal(stateB.status, 200);
+  assert.ok(stateB.body.draft && Array.isArray(stateB.body.draft.pages));
 });

@@ -57,11 +57,10 @@ test('GET /main-admin/settings renders a card for every settings-area destinatio
   // see test/routes-admin-settings-hub.test.js for that removal).
   assert.match(res.text, /href="\/main-admin\/admin-login"[^]*?Admin Login/);
   // A real request: "settings gear, website. Should say public
-  // homepage." Later real request (with a Shopify Themes-page
-  // screenshot): "should look and function exactly like Shopify" - the
-  // card now opens the new Themes landing page (test/routes-admin-
-  // website-themes-page.test.js), not straight into the full editor.
-  assert.match(res.text, /href="\/main-admin\/website\/themes"[^]*?Public Homepage/);
+  // homepage." Later real request: "switch that to wix" - the card opens
+  // the Wix-style site dashboard (Edit Site / View Site), see
+  // test/routes-site-builder.test.js.
+  assert.match(res.text, /href="\/main-admin\/website"[^]*?Public Homepage/);
   assert.match(res.text, /href="\/main-admin\/faq"[^]*?FAQ/);
   assert.match(res.text, /href="\/main-admin\/quick-links"[^]*?Quick Links/);
   assert.match(res.text, /href="\/main-admin\/audit-log"[^]*?Audit Log/);
