@@ -161,7 +161,7 @@ test('submit -> pending on the approval page; approve -> visible to enrolled stu
   assert.equal(submitRes.status, 302);
   assert.equal(await statusOf(lesson.id), 'pending');
   const teacherManage = await request(app).get(`/teacher/assignments/${lesson.id}`).set('Cookie', teacher.cookie);
-  assert.match(teacherManage.text, /Pending Approval/);
+  assert.match(teacherManage.text, /badge-pill-orange">Pending</);
   assert.doesNotMatch(teacherManage.text, /Submit for Approval/);
   // Still hidden while pending.
   const pendingStudent = await request(app).get(`/student/classes/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
@@ -210,45 +210,97 @@ test('submit -> pending on the approval page; approve -> visible to enrolled stu
   assert.equal(await statusOf(lesson.id), 'approved');
 });
 
-test('decline with a note hides it from students, shows the note to the teacher, and resubmitting works', async () => {
-  const classId = await createClass({ day: 'wednesday', hourPosition: 1, className: 'Approval Decline Class' });
+test('reject requires a message; rejected lesson is hidden from students, message shown to teacher; resubmit keeps history', async () => {
+  const classId = await createClass({ day: 'wednesday', hourPosition: 1, className: 'Approval Reject Class' });
   const teacher = await makeTeacher(classId);
+  const otherClassId = await createClass({ day: 'wednesday', hourPosition: 3, className: 'Approval Reject Other Class' });
+  const otherTeacher = await makeTeacher(otherClassId);
   const family = await makeFamily(classId);
-  const { lesson } = await teacherCreatesLesson(teacher, classId, 'Declined Lesson');
+  const { lesson, itemId } = await teacherCreatesLesson(teacher, classId, 'Rejected Lesson');
   await submit(teacher, lesson.id);
 
   const admin = await loginAsAdmin();
-  const declineRes = await request(app)
-    .post(`/admin/lesson-plans/approval/${lesson.id}/decline`)
+  const review = await request(app).get(`/admin/lesson-plans/approval/${lesson.id}`).set('Cookie', admin.cookie);
+  assert.match(review.text, /<dialog id="reject-lesson-dialog"/);
+  assert.match(review.text, /<textarea name="message"[^>]*required/);
+
+  // An empty (or whitespace-only) message is refused server-side.
+  const empty = await request(app)
+    .post(`/admin/lesson-plans/approval/${lesson.id}/reject`)
     .set('Cookie', admin.cookie)
     .type('form')
-    .send({ note: 'Please add a video.', _csrf: admin.csrfToken });
-  assert.equal(declineRes.status, 302);
-  assert.equal(await statusOf(lesson.id), 'declined');
-  const declinedTab = await request(app).get('/admin/lesson-plans/approval?status=declined').set('Cookie', admin.cookie);
-  assert.match(declinedTab.text, /Declined Lesson/);
-  // Approving a no-longer-pending lesson is refused.
-  await request(app).post(`/admin/lesson-plans/approval/${lesson.id}/approve`).set('Cookie', admin.cookie).type('form').send({ _csrf: admin.csrfToken });
-  assert.equal(await statusOf(lesson.id), 'declined');
+    .send({ message: '   ', _csrf: admin.csrfToken });
+  assert.equal(empty.status, 302);
+  assert.match(empty.headers.location, /error=/);
+  assert.equal(await statusOf(lesson.id), 'pending');
 
+  const rejectRes = await request(app)
+    .post(`/admin/lesson-plans/approval/${lesson.id}/reject`)
+    .set('Cookie', admin.cookie)
+    .type('form')
+    .send({ message: 'Please add a video.', _csrf: admin.csrfToken });
+  assert.equal(rejectRes.status, 302);
+  assert.equal(await statusOf(lesson.id), 'rejected');
+  const rejectedTab = await request(app).get('/admin/lesson-plans/approval?status=rejected').set('Cookie', admin.cookie);
+  assert.match(rejectedTab.text, /Rejected Lesson/);
+  const allTab = await request(app).get('/admin/lesson-plans/approval?status=all').set('Cookie', admin.cookie);
+  assert.match(allTab.text, /Rejected Lesson/);
+  // Reject/approve only while pending.
+  await request(app).post(`/admin/lesson-plans/approval/${lesson.id}/approve`).set('Cookie', admin.cookie).type('form').send({ _csrf: admin.csrfToken });
+  await request(app).post(`/admin/lesson-plans/approval/${lesson.id}/reject`).set('Cookie', admin.cookie).type('form').send({ message: 'again', _csrf: admin.csrfToken });
+  assert.equal(await statusOf(lesson.id), 'rejected');
+
+  const note = await db.prepare("SELECT * FROM notifications WHERE member_account_id = ? AND type_key = 'lesson_plan_review' ORDER BY id DESC").get(teacher.accountId);
+  assert.match(note.title, /rejected/i);
+  assert.match(note.body, /Please add a video\./);
+
+  // Students/parents still can't see it; another teacher can't open it.
   const studentLessons = await request(app).get(`/student/classes/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
-  assert.doesNotMatch(studentLessons.text, /Declined Lesson/);
+  assert.doesNotMatch(studentLessons.text, /Rejected Lesson/);
+  assert.equal((await request(app).get(`/student/content/${itemId}`).set('Cookie', family.student.cookie)).status, 404);
+  const outsiderView = await request(app).get(`/teacher/assignments/${lesson.id}`).set('Cookie', otherTeacher.cookie);
+  assert.equal(outsiderView.status, 403);
+  assert.doesNotMatch(outsiderView.text, /Please add a video\./);
+  assert.equal((await submit(otherTeacher, lesson.id)).status, 403);
+  assert.equal(await statusOf(lesson.id), 'rejected');
 
   const teacherManage = await request(app).get(`/teacher/assignments/${lesson.id}`).set('Cookie', teacher.cookie);
-  assert.match(teacherManage.text, /badge-pill-red">Declined</);
-  assert.match(teacherManage.text, /Please add a video\./);
+  assert.match(teacherManage.text, /badge-pill-red">Rejected</);
+  assert.match(teacherManage.text, /id="lesson-rejection"[\s\S]*Please add a video\.[\s\S]*Edit &amp; Resubmit/);
   assert.match(teacherManage.text, /Resubmit for Approval/);
   const teacherList = await request(app).get('/teacher/assignments').set('Cookie', teacher.cookie);
   assert.match(teacherList.text, /Please add a video\./);
+  assert.match(teacherList.text, /badge-pill-red">Rejected</);
 
+  // Edit then resubmit -> back to Pending; earlier rejection message kept.
+  await request(app)
+    .post(`/teacher/assignments/${lesson.id}/edit`)
+    .set('Cookie', teacher.cookie)
+    .type('form')
+    .send({ title: 'Rejected Lesson v2', _csrf: teacher.csrfToken });
   const resubmit = await submit(teacher, lesson.id);
   assert.equal(resubmit.status, 302);
   assert.equal(await statusOf(lesson.id), 'pending');
   const queue = await request(app).get('/admin/lesson-plans/approval').set('Cookie', admin.cookie);
-  assert.match(queue.text, /Declined Lesson/);
+  assert.match(queue.text, /Rejected Lesson v2/);
   // Submitting an already-pending lesson is a no-op.
   const again = await submit(teacher, lesson.id);
   assert.match(again.headers.location, /error=/);
+
+  // Second rejection; both messages remain in history.
+  await request(app)
+    .post(`/admin/lesson-plans/approval/${lesson.id}/reject`)
+    .set('Cookie', admin.cookie)
+    .type('form')
+    .send({ message: 'Video link is broken.', _csrf: admin.csrfToken });
+  const events = await db.prepare('SELECT action, message FROM lesson_approval_events WHERE assignment_id = ? ORDER BY id').all(lesson.id);
+  assert.deepEqual(events.map((e) => e.action), ['submitted', 'rejected', 'submitted', 'rejected']);
+  const reviewAfter = await request(app).get(`/admin/lesson-plans/approval/${lesson.id}`).set('Cookie', admin.cookie);
+  assert.match(reviewAfter.text, /Approval History/);
+  assert.match(reviewAfter.text, /Please add a video\./);
+  assert.match(reviewAfter.text, /Video link is broken\./);
+  const teacherAfter = await request(app).get(`/teacher/assignments/${lesson.id}`).set('Cookie', teacher.cookie);
+  assert.match(teacherAfter.text, /Rejection History[\s\S]*Video link is broken\.[\s\S]*Please add a video\./);
 });
 
 test('teachers can only submit their own classes; non-admins cannot approve or open the approval page', async () => {
@@ -313,6 +365,18 @@ test('migration: lessons that exist before it are backfilled as approved; new ro
   await pg.exec("INSERT INTO class_assignments (class_name, title) VALUES ('New Class', 'New Lesson')");
   const fresh = await pg.query("SELECT approval_status FROM class_assignments WHERE title = 'New Lesson'");
   assert.equal(fresh.rows[0].approval_status, 'draft');
+  await assert.rejects(pg.exec("INSERT INTO class_assignments (class_name, title, approval_status) VALUES ('X', 'Y', 'bogus')"));
+
+  // Follow-up migration: 'declined' -> 'rejected', with its note carried
+  // into lesson_approval_events; re-running is safe.
+  await pg.exec("INSERT INTO class_assignments (class_name, title, approval_status, review_note, reviewed_at) VALUES ('D', 'Declined Before', 'declined', 'Needs work', '2026-12-30 10:00:00')");
+  const followUp = fs.readFileSync(path.join(migrationsDir, '20261231030000_lesson_plan_rejections.sql'), 'utf8');
+  await pg.exec(followUp);
+  await pg.exec(followUp);
+  const migrated = await pg.query("SELECT id, approval_status FROM class_assignments WHERE title = 'Declined Before'");
+  assert.equal(migrated.rows[0].approval_status, 'rejected');
+  const history = await pg.query('SELECT action, message FROM lesson_approval_events WHERE assignment_id = $1', [migrated.rows[0].id]);
+  assert.deepEqual(history.rows, [{ action: 'rejected', message: 'Needs work' }]);
   await assert.rejects(pg.exec("INSERT INTO class_assignments (class_name, title, approval_status) VALUES ('X', 'Y', 'bogus')"));
   await pg.close();
 });

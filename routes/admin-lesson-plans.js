@@ -23,6 +23,8 @@ const {
   contentItemsForAssignment,
   lessonsForApprovalQueue,
   reviewAssignment,
+  approvalEventsForAssignment,
+  APPROVAL_QUEUE_FILTERS,
 } = require('../utils/academics');
 const { formatDateLabel, formatFriendlyTimestamp } = require('../utils/dates');
 const notifications = require('../utils/notifications');
@@ -72,10 +74,10 @@ router.post('/lesson-plans', async (req, res) => {
 // before /lesson-plans/:id so "approval" is never parsed as a template
 // id. ---
 
-const APPROVAL_FILTERS = ['pending', 'approved', 'declined'];
-
 router.get('/lesson-plans/approval', async (req, res) => {
-  const status = APPROVAL_FILTERS.includes(req.query.status) ? req.query.status : 'pending';
+  // 'declined' is the old spelling of 'rejected' (bookmarked links).
+  const requested = req.query.status === 'declined' ? 'rejected' : req.query.status;
+  const status = APPROVAL_QUEUE_FILTERS.includes(requested) ? requested : 'pending';
   res.render('admin-lesson-plan-approval', {
     title: 'Lesson Plan Approval',
     status,
@@ -105,6 +107,7 @@ router.get('/lesson-plans/approval/:id', async (req, res) => {
     submittedAtLabel: assignment.submitted_at ? formatFriendlyTimestamp(assignment.submitted_at) : null,
     reviewedAtLabel: assignment.reviewed_at ? formatFriendlyTimestamp(assignment.reviewed_at) : null,
     contentItems,
+    events: await approvalEventsForAssignment(assignment.id),
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
@@ -116,10 +119,10 @@ async function notifySubmitter(assignment, approved, note) {
   if (!assignment.submitted_by_account_id) return;
   try {
     await notifications.notify(assignment.submitted_by_account_id, 'lesson_plan_review', {
-      title: approved ? `Lesson approved: ${assignment.title}` : `Lesson declined: ${assignment.title}`,
+      title: approved ? `Lesson approved: ${assignment.title}` : `Lesson rejected: ${assignment.title}`,
       body: approved
         ? `"${assignment.title}" (${assignment.class_name}) was approved and is now visible to enrolled students.`
-        : `"${assignment.title}" (${assignment.class_name}) was declined.${note ? ` Note: ${note}` : ''} You can edit it and resubmit.`,
+        : `"${assignment.title}" (${assignment.class_name}) was rejected. Message: ${note} You can edit it and resubmit.`,
       linkUrl: `/teacher/assignments/${assignment.id}`,
     });
   } catch (err) {
@@ -138,15 +141,20 @@ router.post('/lesson-plans/approval/:id/approve', async (req, res) => {
   res.redirect('/admin/lesson-plans/approval?notice=' + encodeURIComponent(`Approved "${assignment.title}". Enrolled students can see it now.`));
 });
 
-router.post('/lesson-plans/approval/:id/decline', async (req, res) => {
+// A real request: rejection works "just like for teacher reimbursements"
+// - a required message (the popup's textarea is `required` too, but an
+// empty POST is refused here regardless), only while Pending.
+router.post('/lesson-plans/approval/:id/reject', async (req, res) => {
   const assignment = await getAssignment(parseInt(req.params.id, 10));
   if (!assignment) return res.status(404).render('404', { title: 'Not Found' });
-  const note = (req.body.note || '').trim().slice(0, 2000);
+  const back = `/admin/lesson-plans/approval/${assignment.id}`;
+  const message = (req.body.message || '').trim().slice(0, 2000);
+  if (!message) return res.redirect(back + '?error=' + encodeURIComponent('A rejection message is required.'));
   const reviewerId = req.portalAccount ? req.portalAccount.id : null;
-  const changed = await reviewAssignment(assignment.id, { approve: false, note, accountId: reviewerId });
-  if (!changed) return res.redirect('/admin/lesson-plans/approval?error=' + encodeURIComponent(`"${assignment.title}" isn't pending approval.`));
-  await notifySubmitter(assignment, false, note);
-  res.redirect('/admin/lesson-plans/approval?notice=' + encodeURIComponent(`Declined "${assignment.title}". The teacher can edit and resubmit it.`));
+  const changed = await reviewAssignment(assignment.id, { approve: false, note: message, accountId: reviewerId });
+  if (!changed) return res.redirect(back + '?error=' + encodeURIComponent(`"${assignment.title}" isn't pending approval.`));
+  await notifySubmitter(assignment, false, message);
+  res.redirect('/admin/lesson-plans/approval?notice=' + encodeURIComponent(`Rejected "${assignment.title}". The teacher can edit and resubmit it.`));
 });
 
 router.post('/lesson-plans/:id/delete', async (req, res) => {

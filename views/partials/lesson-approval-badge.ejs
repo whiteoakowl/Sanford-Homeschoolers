@@ -1,6 +1,8 @@
 <%# Lesson plan approval status pill (see the lesson_plan_approval
-    migration) - shown only on teacher/admin views; students and parents
-    only ever see approved lessons. Pass { status }. %>
-<% var approvalBadgeClass = { draft: 'badge-pill-gray', pending: 'badge-pill-pending', approved: 'badge-pill-green', declined: 'badge-pill-red' }[status] || 'badge-pill-gray'; %>
-<% var approvalBadgeLabel = { draft: 'Draft', pending: 'Pending Approval', approved: 'Approved', declined: 'Declined' }[status] || 'Draft'; %>
+    migrations) - shown only on teacher/admin views; students and parents
+    only ever see approved lessons. Pass { status }. 'declined' is the
+    pre-rename spelling of 'rejected'. %>
+<% var approvalStatusKey = status === 'declined' ? 'rejected' : status; %>
+<% var approvalBadgeClass = { draft: 'badge-pill-gray', pending: 'badge-pill-orange', approved: 'badge-pill-green', rejected: 'badge-pill-red' }[approvalStatusKey] || 'badge-pill-gray'; %>
+<% var approvalBadgeLabel = { draft: 'Draft', pending: 'Pending', approved: 'Approved', rejected: 'Rejected' }[approvalStatusKey] || 'Draft'; %>
 <span class="badge-pill <%= approvalBadgeClass %>"><%= approvalBadgeLabel %></span>
