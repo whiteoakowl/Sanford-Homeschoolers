@@ -86,6 +86,7 @@ const ADD_GROUPS = [
   ['Shape & line', [['shape', null, 'Box'], ['shape', 'card', 'Card'], ['shape', 'circle', 'Circle'], ['shape', 'outline', 'Outline box'], ['line', null, 'Horizontal line'], ['line', 'dashed', 'Dashed line'], ['line', 'vertical', 'Vertical line']]],
   ['Icons & social', [['icon', 'star', 'Icon'], ['icon', 'heart', 'Heart icon'], ['icon', 'calendar', 'Calendar icon'], ['social', null, 'Social bar']]],
   ['Interactive', [['accordion', null, 'Accordion'], ['tabs', null, 'Tabs'], ['menu', null, 'Menu']]],
+  ['Header & brand', [['logo', null, 'Logo'], ['sitename', null, 'Site name'], ['menu', null, 'Site menu'], ['login', null, 'Log In / My Portals']]],
   ['Embed', [['map', null, 'Google Map'], ['embed', null, 'Custom HTML'], ['form', null, 'Custom Form']]],
   ['Co-op data', [['classes', null, 'Classes showcase'], ['events', null, 'Upcoming events'], ['announcements', null, 'Announcements'], ['faq', null, 'FAQ']]],
 ];
@@ -128,6 +129,8 @@ function addIcon(type, preset) {
   if (type === 'button' || type === 'login') return `<span class="wxe-add-btn is-${preset || 'solid'}">Button</span>`;
   if (type === 'shape') return `<span class="wxe-add-shape is-${preset || 'box'}"></span>`;
   if (type === 'line') return `<span class="wxe-add-line is-${preset || 'h'}"></span>`;
+  if (type === 'logo') return '<img src="/img/logo.png" alt="" width="26" height="26" />';
+  if (type === 'sitename') return '<span class="wxe-add-text is-subheading">Name</span>';
   const map = { image: ICON.image, gallery: ICON.grid, slideshow: ICON.media, video: ICON.play, social: R.iconSvg('instagram'), accordion: ICON.down, tabs: ICON.sections, menu: ICON.tl, map: R.iconSvg('map-pin'), embed: '<b>&lt;/&gt;</b>', form: ICON.pages, classes: R.iconSvg('book'), events: R.iconSvg('calendar'), announcements: R.iconSvg('chat'), faq: ICON.help };
   return map[type] || ICON.add;
 }
@@ -543,12 +546,27 @@ function designPanel() {
         if (id) (mutP(() => (S.doc.header[k] = id)), render());
       } }, 'Choose'), m ? h('button.wxe-btn.is-small', { type: 'button', onclick: () => (mutP(() => delete S.doc.header[k]), render()) }, 'Remove') : null));
     };
+    const strip = hd.strip;
+    const addToHeader = (type) => {
+      const el = createElement(type);
+      if (type === 'menu') el.props = { label: 'Site menu', burgerAt: 'mobile', align: 'right' };
+      el.layout.desktop = { x: 980 - el.layout.desktop.w - 24, y: Math.max(0, Math.round(((strip.height.desktop || 84) - el.layout.desktop.h) / 2)), w: el.layout.desktop.w, h: el.layout.desktop.h };
+      el.z = strip.elements.reduce((m, e) => Math.max(m, e.z || 1), 0) + 1;
+      mutP(() => S.doc.header.strip.elements.push(el));
+      select([el.id], null);
+    };
     body.push(
       toggle('Show the site header', hd.show !== false, (v) => (set('show')(v), render())),
-      group('Logo & name', mediaBtn('logoId', 'Logo'), toggle('Show logo', hd.showLogo !== false, set('showLogo')), toggle('Show site name', hd.showSiteName !== false, set('showSiteName'))),
+      h('p.wxe-hint', null, 'The header is a freeform strip shown on every standard page: drag its logo, name, menu and buttons on the canvas - separately for desktop, tablet and mobile - and resize it with its height handle.'),
+      group(
+        'Add to the header',
+        h('div.wxe-btn-row', null, [['logo', 'Logo'], ['sitename', 'Site name'], ['menu', 'Menu'], ['login', 'Log in / My Portals'], ['button', 'Button'], ['text', 'Text']].map(([t, l]) => h('button.wxe-btn.is-small', { type: 'button', onclick: () => addToHeader(t) }, '+ ' + l)))
+      ),
       group(
         'Layout',
-        field('Height', slider(hd.height || 84, set('height'), { min: 48, max: 200, suffix: 'px' })),
+        field('Height (desktop)', slider(strip.height.desktop || 84, (v) => mutP(() => (S.doc.header.strip.height.desktop = v), 'hdh'), { min: 40, max: 300, suffix: 'px' })),
+        field('Height (mobile)', slider(strip.height.mobile || 64, (v) => mutP(() => (S.doc.header.strip.height.mobile = v), 'hdhm'), { min: 40, max: 300, suffix: 'px' })),
+        mediaBtn('logoId', 'Site logo (used by Logo elements)'),
         field('Background', colorControl(hd.bg, set('bg'), { noneLabel: 'Site background' })),
         mediaBtn('imageId', 'Background image'),
         field('Text color', colorControl(hd.textColor, set('textColor'), { noneLabel: 'Site text color' })),
@@ -564,9 +582,8 @@ function designPanel() {
         field('Link color', colorControl(hd.navColor, set('navColor'), { noneLabel: 'Inherit' })),
         field('Hover color', colorControl(hd.navHover, set('navHover'), { noneLabel: 'Site primary' })),
         field('Current page color', colorControl(hd.navActive, set('navActive'), { noneLabel: 'Site primary' })),
-        field('Collapse into a ☰ menu on', selectCtl([['mobile', 'Mobile'], ['tablet', 'Tablet and mobile']], hd.burgerAt || 'mobile', set('burgerAt')))
+        h('p.wxe-hint', null, 'When a menu collapses into ☰ is set on each Menu element (select it > Settings).')
       ),
-      group('Member log in', toggle('Show "Log in" / "My Portals" bar above the header', hd.showLogin !== false, set('showLogin'))),
       group(
         'Announcement bar',
         toggle('Show announcement bar', !!(hd.announcement && hd.announcement.enabled), (v) => mutP(() => (S.doc.header.announcement = { ...(S.doc.header.announcement || {}), enabled: v }))),
@@ -638,7 +655,8 @@ function designPanel() {
 function layersPanel() {
   const p = page();
   const tree = h('ul.wxe-layers', { role: 'tree', 'aria-label': 'Layers' });
-  for (const s of p.sections) {
+  const strips = S.doc.header.strip && S.doc.header.show !== false && p.type !== 'landing' ? [S.doc.header.strip, ...p.sections] : p.sections;
+  for (const s of strips) {
     tree.appendChild(
       h(
         'li.wxe-layer.is-section' + (S.sectionId === s.id ? '.is-selected' : ''),

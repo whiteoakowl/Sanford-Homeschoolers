@@ -18,6 +18,7 @@ export const S = {
   clipboard: null,
   media: [],
   savedSections: [],
+  placeholders: {},
   widgetData: {},
   fonts: [],
   reservedSlugs: [],
@@ -42,21 +43,32 @@ export function emit(reason, extra) {
 export function page() {
   return S.doc.pages.find((p) => p.id === S.pageId) || S.doc.pages[0];
 }
+// Every strip that can hold elements: the freeform site header plus the
+// sections of every page. `page` is null for the header.
+export function allStrips() {
+  const out = [];
+  if (S.doc.header && S.doc.header.strip) out.push({ page: null, section: S.doc.header.strip });
+  for (const p of S.doc.pages) for (const s of p.sections) out.push({ page: p, section: s });
+  return out;
+}
+// The strips shown on the canvas for the current page (header first).
+export function pageStrips() {
+  const p = page();
+  const showHeader = S.doc.header && S.doc.header.strip && S.doc.header.show !== false && p.type !== 'landing';
+  return showHeader ? [S.doc.header.strip, ...p.sections] : p.sections;
+}
+export function isHeader(section) {
+  return !!section && section.id === 'hdr';
+}
 export function findElement(id) {
-  for (const p of S.doc.pages) {
-    for (const s of p.sections) {
-      const el = s.elements.find((e) => e.id === id);
-      if (el) return { page: p, section: s, el };
-    }
+  for (const f of allStrips()) {
+    const el = f.section.elements.find((e) => e.id === id);
+    if (el) return { page: f.page || page(), section: f.section, el };
   }
   return null;
 }
 export function findSection(id) {
-  for (const p of S.doc.pages) {
-    const s = p.sections.find((x) => x.id === id);
-    if (s) return { page: p, section: s };
-  }
-  return null;
+  return allStrips().find((f) => f.section.id === id) || null;
 }
 export function selectedElements() {
   return S.selection.map((id) => findElement(id)).filter(Boolean);

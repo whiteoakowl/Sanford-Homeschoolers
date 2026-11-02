@@ -3,7 +3,7 @@
 // uploaded as a new file or as a replacement), delete. Also the picker
 // every "Choose image" button opens.
 import { h, api, toast, ICON, confirmDialog, promptDialog, modal } from './util.js';
-import { S, emit } from './state.js';
+import { S, emit, mutate } from './state.js';
 
 function fmtSize(n) {
   if (!n) return '';
@@ -22,9 +22,15 @@ function readDims(file) {
     img.src = url;
   });
 }
+// Big photos are shrunk in the browser first (public/js/image-upload-
+// downscale.js) - the app's host rejects request bodies over ~6MB.
+export async function prepareFile(f) {
+  return window.shrinkImageForUpload && /^image\/(jpeg|png|webp)$/.test(f.type) ? window.shrinkImageForUpload(f) : f;
+}
 export async function uploadFiles(files, folder) {
   const fd = new FormData();
-  for (const f of files) {
+  for (const raw of files) {
+    const f = await prepareFile(raw);
     fd.append('files', f);
     fd.append('sizes', await readDims(f));
   }
@@ -37,6 +43,35 @@ export async function uploadFiles(files, folder) {
   S.media = [...res.media, ...S.media];
   emit('media');
   toast(`Uploaded ${res.media.length} file${res.media.length === 1 ? '' : 's'}.`, 'success');
+  return res.media;
+}
+
+// Replace = a NEW stored file/row (server side); only the draft is
+// repointed to it, so the live site keeps the old file until Publish.
+const MEDIA_KEYS = /^(mediaId|videoId|logoId|imageId|faviconId|ogImageId)$/;
+function repoint(node, from, to) {
+  if (Array.isArray(node)) return node.forEach((n) => repoint(n, from, to));
+  if (!node || typeof node !== 'object') return;
+  for (const [k, v] of Object.entries(node)) {
+    if (MEDIA_KEYS.test(k) && Number(v) === from) node[k] = to;
+    else if (v && typeof v === 'object') repoint(v, from, to);
+  }
+}
+export async function replaceMedia(m, rawFile, size) {
+  const file = await prepareFile(rawFile);
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('size', size || (await readDims(file)));
+  const res = await api('POST', `/main-admin/website/api/media/${m.id}/replace`, fd, true);
+  if (!res.ok) {
+    toast(res.error || 'Could not replace the file.', 'error');
+    return null;
+  }
+  m.replacedBy = res.media.id;
+  S.media = [res.media, ...S.media];
+  mutate((doc) => repoint(doc, res.replacedId, res.media.id));
+  emit('media');
+  toast('Replaced in your draft - the live site keeps the old file until you publish.', 'success');
   return res.media;
 }
 
@@ -79,7 +114,7 @@ export function openMedia(opts) {
     });
 
     function items() {
-      return S.media.filter((m) => (!o.pick || m.kind === o.pick) && (folder === '__all' || m.folder === folder) && (!query || (m.name || '').toLowerCase().includes(query) || (m.alt || '').toLowerCase().includes(query)));
+      return S.media.filter((m) => !m.replacedBy && (!o.pick || m.kind === o.pick) && (folder === '__all' || m.folder === folder) && (!query || (m.name || '').toLowerCase().includes(query) || (m.alt || '').toLowerCase().includes(query)));
     }
     function renderFolders() {
       const folders = [...new Set([...S.media.map((m) => m.folder).filter(Boolean), ...extraFolders])].sort();
@@ -161,17 +196,11 @@ export function openMedia(opts) {
       replaceInput.addEventListener('change', async () => {
         const f = replaceInput.files[0];
         if (!f) return;
-        const fd = new FormData();
-        fd.append('file', f);
-        fd.append('size', await readDims(f));
         status.textContent = 'Replacing…';
-        const res = await api('POST', `/main-admin/website/api/media/${m.id}/replace`, fd, true);
+        const fresh = await replaceMedia(m, f);
         status.textContent = '';
-        if (!res.ok) return toast(res.error || 'Could not replace the file.', 'error');
-        Object.assign(m, res.media);
-        selected = m;
-        emit('media');
-        toast('File replaced everywhere it is used.', 'success');
+        if (!fresh) return;
+        selected = fresh;
         render();
       });
       detail.append(
@@ -379,16 +408,5 @@ export async function cropImage(m) {
     const added = await uploadFiles([file], m.folder);
     return added[0] || null;
   }
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('size', `${ow}x${oh}`);
-  const res = await api('POST', `/main-admin/website/api/media/${m.id}/replace`, fd, true);
-  if (!res.ok) {
-    toast(res.error || 'Could not save the crop.', 'error');
-    return null;
-  }
-  Object.assign(m, res.media);
-  emit('media');
-  toast('Image cropped.', 'success');
-  return m;
+  return replaceMedia(m, file, `${ow}x${oh}`);
 }

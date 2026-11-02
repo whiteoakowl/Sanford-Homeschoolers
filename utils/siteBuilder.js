@@ -23,8 +23,13 @@ const { publicShowcaseClasses } = require('./classSchedule');
 const MEDIA_BUCKET = 'homepage-images';
 const LOCAL_MEDIA_DIR = path.join(__dirname, '..', 'public', 'uploads', 'homepage');
 
+// "static:site-templates/x.svg" keys are the editor's bundled template
+// placeholder artwork (public/img/site-templates/) - never in storage.
+const STATIC_KEY_RE = /^static:(site-templates\/[a-z0-9-]+\.svg)$/;
 function mediaUrlForKey(key) {
   if (!key) return null;
+  const st = STATIC_KEY_RE.exec(key);
+  if (st) return `/img/${st[1]}`;
   return createStorageClient() ? publicUrl(MEDIA_BUCKET, key) : `/uploads/homepage/${key}`;
 }
 
@@ -32,7 +37,7 @@ function mediaUrlForKey(key) {
 const LIMITS = { pages: 40, sections: 60, elements: 150, menu: 80, presets: 30, swatches: 24, listItems: 40 };
 const ELEMENT_TYPES = [
   'text', 'image', 'button', 'icon', 'shape', 'line', 'video', 'gallery', 'slideshow', 'accordion', 'tabs',
-  'social', 'map', 'embed', 'form', 'login', 'menu', 'classes', 'announcements', 'faq', 'events',
+  'social', 'map', 'embed', 'form', 'login', 'menu', 'classes', 'announcements', 'faq', 'events', 'logo', 'sitename',
 ];
 
 // Top-level paths the app itself already serves - a page slug can never
@@ -110,9 +115,47 @@ function clean(obj) {
 }
 
 // Inline-only rich text (the editor's own text toolbar: bold/italic/
-// underline/strike/link/color/line breaks) - same sanitize-html library
-// and no-javascript:-URL rule as utils/sanitizeHtml.js, just a narrower
-// tag list since a text element is a single heading/paragraph.
+// underline/strike/link/color, per-word font and size, line breaks) -
+// same sanitize-html library and no-javascript:-URL rule as
+// utils/sanitizeHtml.js, just a narrower tag list since a text element
+// is a single heading/paragraph. A <span style> is rebuilt from scratch:
+// only color, font-family (mapped onto the site's own font list, never a
+// free-form value), font-size (6-240px), bold/italic/underline/strike.
+const SPAN_COLOR_RE = /^(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6}|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+)\s*)?\))$/;
+function fontKeyForFamily(value) {
+  const first = String(value || '')
+    .split(',')[0]
+    .replace(/["']/g, '')
+    .trim()
+    .toLowerCase();
+  if (!first) return null;
+  const f = R.FONTS.find((x) => x.stack.split(',')[0].replace(/["']/g, '').trim().toLowerCase() === first);
+  return f ? f.key : null;
+}
+function cleanSpanStyle(style) {
+  const out = [];
+  for (const decl of String(style || '').split(';')) {
+    const i = decl.indexOf(':');
+    if (i < 0) continue;
+    const prop = decl.slice(0, i).trim().toLowerCase();
+    const val = decl.slice(i + 1).trim();
+    if (prop === 'color' && SPAN_COLOR_RE.test(val)) out.push(`color: ${val}`);
+    else if (prop === 'font-family') {
+      const key = fontKeyForFamily(val);
+      if (key) out.push(`font-family: ${R.fontStack(key)}`);
+    } else if (prop === 'font-size') {
+      const m = /^(\d{1,3}(?:\.\d+)?)px$/.exec(val);
+      if (m && Number(m[1]) >= 6 && Number(m[1]) <= 240) out.push(`font-size: ${Math.round(Number(m[1]))}px`);
+    } else if (prop === 'font-weight' && /^(bold|[1-9]00)$/.test(val)) out.push(`font-weight: ${val}`);
+    else if (prop === 'font-style' && val === 'italic') out.push('font-style: italic');
+    else if (prop === 'text-decoration' || prop === 'text-decoration-line') {
+      const m = /(underline|line-through)/.exec(val);
+      if (m) out.push(`text-decoration: ${m[1]}`);
+    }
+  }
+  return out.join('; ');
+}
+const FONT_FAMILY_VALUES = R.FONTS.map((f) => new RegExp('^' + f.stack.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'));
 function sanitizeInline(html) {
   return sanitizeHtml(String(html || '').slice(0, 20000), {
     allowedTags: ['strong', 'b', 'em', 'i', 'u', 's', 'a', 'br', 'span'],
@@ -120,11 +163,24 @@ function sanitizeInline(html) {
     allowedSchemes: ['http', 'https', 'mailto', 'tel'],
     allowedSchemesAppliedToAttributes: ['href'],
     allowProtocolRelative: false,
-    allowedStyles: { span: { color: [/^#(?:[0-9a-fA-F]{3}){1,2}$/, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/], 'font-weight': [/^(bold|[1-9]00)$/], 'font-style': [/^italic$/], 'text-decoration': [/^(underline|line-through)$/] } },
+    allowedStyles: {
+      span: {
+        color: [SPAN_COLOR_RE],
+        'font-family': FONT_FAMILY_VALUES,
+        'font-size': [/^\d{1,3}px$/],
+        'font-weight': [/^(bold|[1-9]00)$/],
+        'font-style': [/^italic$/],
+        'text-decoration': [/^(underline|line-through)$/],
+      },
+    },
     transformTags: {
       a: (tagName, attribs) => ({ tagName, attribs: { href: attribs.href || '#', ...(attribs.target === '_blank' ? { target: '_blank', rel: 'noopener' } : {}) } }),
       b: 'strong',
       i: 'em',
+      span: (tagName, attribs) => {
+        const style = cleanSpanStyle(attribs.style);
+        return { tagName, attribs: style ? { style } : {} };
+      },
     },
   });
 }
@@ -165,7 +221,16 @@ function normRect(l, device) {
   if (!l || typeof l !== 'object') return null;
   const w = int(l.w, 4, W, Math.min(200, W));
   const x = int(l.x, 0, W - Math.min(w, 4), 0);
-  return { x, y: int(l.y, 0, 20000, 0), w: Math.min(w, W - x) || 4, h: int(l.h, 2, 6000, 40) };
+  const out = { x, y: int(l.y, 0, 20000, 0), w: Math.min(w, W - x) || 4, h: int(l.h, 2, 6000, 40) };
+  // Rotation in degrees, normalized to -180..180; 0 is simply omitted.
+  const r = Number(l.r);
+  if (Number.isFinite(r) && Math.round(r) % 360 !== 0) {
+    let deg = Math.round(r) % 360;
+    if (deg > 180) deg -= 360;
+    if (deg < -180) deg += 360;
+    if (deg) out.r = deg;
+  }
+  return out;
 }
 function normHidden(h) {
   const out = {};
@@ -223,7 +288,11 @@ function normProps(type, p) {
     case 'login':
       return clean({ loginLabel: str(p.loginLabel, 40), portalLabel: str(p.portalLabel, 40) });
     case 'menu':
-      return clean({ label: str(p.label, 60) });
+      return clean({ label: str(p.label, 60), burgerAt: oneOf(p.burgerAt, ['never', 'mobile', 'tablet'], undefined), align: oneOf(p.align, ['left', 'center', 'right'], undefined) });
+    case 'logo':
+      return clean({ mediaId: mediaId(p.mediaId) });
+    case 'sitename':
+      return clean({ text: str(p.text, 120) });
     case 'classes':
       return { showButton: p.showButton !== false };
     case 'announcements':
@@ -350,21 +419,40 @@ function normDesign(d) {
   };
 }
 
+// Freeform header (Wix): the header is a strip of positioned elements.
+// A header saved before that existed (fixed logo/name/menu/log-in bar)
+// is converted to the same look - deterministic ids and positions, so
+// converting an already-converted doc (or the published snapshot on
+// every read) is a no-op.
+function legacyHeaderStrip(h) {
+  const H = int(h.height, 48, 240, 84);
+  const els = [];
+  const mid = (hh) => Math.max(0, Math.round((H - hh) / 2));
+  const mmid = (hh) => Math.max(0, Math.round((64 - hh) / 2));
+  if (h.showLogo !== false) els.push({ id: 'hdr-logo', type: 'logo', name: 'Logo', layout: { desktop: { x: 24, y: mid(48), w: 48, h: 48 }, mobile: { x: 12, y: mmid(40), w: 40, h: 40 } }, props: {}, style: {}, z: 1 });
+  if (h.showSiteName !== false) els.push({ id: 'hdr-name', type: 'sitename', name: 'Site name', layout: { desktop: { x: 84, y: mid(36), w: 340, h: 36 }, mobile: { x: 60, y: mmid(28), w: 150, h: 28 } }, props: {}, style: {}, styleBy: { mobile: { fontSize: 15 } }, z: 2 });
+  const loginW = h.showLogin !== false ? 112 : 0;
+  els.push({ id: 'hdr-menu', type: 'menu', name: 'Menu', layout: { desktop: { x: 440, y: mid(44), w: 980 - 440 - 24 - (loginW ? loginW + 16 : 0), h: 44 }, mobile: { x: 272, y: mmid(44), w: 44, h: 44 } }, props: { label: 'Site menu', burgerAt: h.burgerAt === 'tablet' ? 'tablet' : 'mobile', align: 'right' }, style: {}, z: 3 });
+  if (loginW) els.push({ id: 'hdr-login', type: 'login', name: 'Log In Button', layout: { desktop: { x: 980 - 24 - loginW, y: mid(40), w: loginW, h: 40 }, mobile: { x: 208, y: mmid(34), w: 62, h: 34 } }, props: {}, style: { fontSize: 14 }, styleBy: { mobile: { fontSize: 12, padding: 0 } }, z: 4 });
+  return { id: 'hdr', name: 'Header', height: { desktop: H, mobile: 64 }, bg: { type: 'color' }, elements: els };
+}
 function normHeader(h) {
   h = h || {};
   const a = h.announcement || {};
+  const strip = normSection(h.strip && typeof h.strip === 'object' ? h.strip : legacyHeaderStrip(h));
+  strip.id = 'hdr';
+  strip.name = 'Header';
+  delete strip.anchor;
+  delete strip.autoHide;
   return clean({
+    strip,
     show: h.show !== false,
     sticky: bool(h.sticky),
     transparent: bool(h.transparent),
-    height: int(h.height, 48, 240, 84),
     bg: color(h.bg),
     textColor: color(h.textColor),
     imageId: mediaId(h.imageId),
     logoId: mediaId(h.logoId),
-    showLogo: h.showLogo !== false,
-    showSiteName: h.showSiteName !== false,
-    showLogin: h.showLogin !== false,
     navFont: R.FONT_BY_KEY[h.navFont] ? h.navFont : undefined,
     navSize: int(h.navSize, 10, 32, 16),
     navWeight: int(h.navWeight, 100, 900, 600),
@@ -372,7 +460,6 @@ function normHeader(h) {
     navHover: color(h.navHover),
     navActive: color(h.navActive),
     navSpacing: int(h.navSpacing, 0, 80, 24),
-    burgerAt: oneOf(h.burgerAt, ['mobile', 'tablet'], 'mobile'),
     announcement: { enabled: bool(a.enabled), text: str(a.text, 300), bg: color(a.bg), color: color(a.color) },
   });
 }
@@ -595,9 +682,12 @@ async function getState() {
   };
 }
 
+// normalizeDoc also upgrades older snapshots (e.g. the fixed header into
+// the freeform header strip) deterministically, so a site published
+// before an upgrade renders the same way without being re-published.
 async function getPublishedDoc() {
   const row = await ensureState();
-  return JSON.parse(row.published_json || row.draft_json);
+  return normalizeDoc(JSON.parse(row.published_json || row.draft_json)).doc;
 }
 
 // Optimistic concurrency: two open editor tabs can't silently overwrite
@@ -624,6 +714,7 @@ async function publish(accountId, label) {
       .prepare('UPDATE site_settings SET org_name = ?, contact_email = ?, contact_phone = ?, updated_at = now_text() WHERE id = 1')
       .run(doc.site.orgName || 'Sanford Homeschoolers', doc.site.contactEmail, doc.site.contactPhone);
   });
+  await cleanupReplacedMedia();
   const after = await db.prepare('SELECT published_at FROM site_builder_state WHERE id = 1').get();
   return { publishedAt: after.published_at };
 }
@@ -643,7 +734,25 @@ async function getVersionDoc(id) {
 
 // ------------------------------------------------------------------ media
 function mediaRowToClient(r) {
-  return { id: r.id, kind: r.kind, url: mediaUrlForKey(r.image_key), name: r.display_name, folder: r.folder, alt: r.alt_text, focalX: r.focal_x, focalY: r.focal_y, width: r.width, height: r.height, size: r.size_bytes, mime: r.mime_type, createdAt: r.created_at };
+  return {
+    id: r.id,
+    kind: r.kind,
+    url: mediaUrlForKey(r.image_key),
+    name: r.display_name,
+    folder: r.folder,
+    alt: r.alt_text,
+    focalX: r.focal_x,
+    focalY: r.focal_y,
+    width: r.width,
+    height: r.height,
+    size: r.size_bytes,
+    mime: r.mime_type,
+    createdAt: r.created_at,
+    // Superseded by a Replace - hidden from the library, still rendered
+    // wherever the live site or version history uses it.
+    replacedBy: r.replaced_by || null,
+    placeholder: STATIC_KEY_RE.test(r.image_key) || undefined,
+  };
 }
 async function listMedia() {
   const rows = await db.prepare('SELECT * FROM site_media ORDER BY id DESC').all();
@@ -663,7 +772,7 @@ async function storeFile(file) {
   return key;
 }
 async function removeFile(key) {
-  if (!key) return;
+  if (!key || STATIC_KEY_RE.test(key)) return;
   const client = createStorageClient();
   if (client) return deleteFile(client, MEDIA_BUCKET, key);
   const p = path.join(LOCAL_MEDIA_DIR, path.basename(key));
@@ -677,15 +786,38 @@ async function addMedia(file, meta) {
     .run(key, kind, str(meta.name || file.originalname, 120), str(meta.folder, 60), file.mimetype, file.size || file.buffer.length, meta.width ? int(meta.width, 1, 20000, null) : null, meta.height ? int(meta.height, 1, 20000, null) : null);
   return mediaRowToClient(await db.prepare('SELECT * FROM site_media WHERE id = ?').get(info.lastInsertRowid));
 }
+// Replace never touches the existing row/file: the live site (and any
+// saved version) keeps showing the old file until a Publish no longer
+// references it. A new row takes the old one's name/folder/alt/focal
+// point; the editor repoints its draft from oldId to the new id.
 async function replaceMediaFile(id, file, meta) {
   const row = await db.prepare('SELECT * FROM site_media WHERE id = ?').get(id);
   if (!row) return null;
   const key = await storeFile(file);
-  await db
-    .prepare('UPDATE site_media SET image_key = ?, mime_type = ?, size_bytes = ?, width = ?, height = ?, updated_at = now_text() WHERE id = ?')
-    .run(key, file.mimetype, file.size || file.buffer.length, meta.width ? int(meta.width, 1, 20000, null) : null, meta.height ? int(meta.height, 1, 20000, null) : null, id);
-  await removeFile(row.image_key);
-  return mediaRowToClient(await db.prepare('SELECT * FROM site_media WHERE id = ?').get(id));
+  const kind = /^video\//.test(file.mimetype) ? 'video' : 'image';
+  const info = await db
+    .prepare('INSERT INTO site_media (image_key, kind, display_name, folder, alt_text, focal_x, focal_y, mime_type, size_bytes, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(key, kind, row.display_name, row.folder, row.alt_text, row.focal_x, row.focal_y, file.mimetype, file.size || file.buffer.length, meta.width ? int(meta.width, 1, 20000, null) : null, meta.height ? int(meta.height, 1, 20000, null) : null);
+  await db.prepare('UPDATE site_media SET replaced_by = ?, updated_at = now_text() WHERE id = ?').run(info.lastInsertRowid, id);
+  return mediaRowToClient(await db.prepare('SELECT * FROM site_media WHERE id = ?').get(info.lastInsertRowid));
+}
+// After Publish: a replaced row that nothing (draft, live site, any saved
+// version) references any more is deleted along with its file.
+async function cleanupReplacedMedia() {
+  const replaced = await db.prepare('SELECT * FROM site_media WHERE replaced_by IS NOT NULL').all();
+  if (!replaced.length) return 0;
+  const st = await db.prepare('SELECT draft_json, published_json FROM site_builder_state WHERE id = 1').get();
+  const docs = [st.draft_json, st.published_json, ...(await db.prepare('SELECT doc_json FROM site_versions').all()).map((v) => v.doc_json)].filter(Boolean).map((j) => JSON.parse(j));
+  let removed = 0;
+  for (const row of replaced) {
+    if (docs.some((d) => mediaUsages(d, row.id).length)) continue;
+    // Keep older links in the chain pointing at a row that still exists.
+    await db.prepare('UPDATE site_media SET replaced_by = ? WHERE replaced_by = ?').run(row.replaced_by, row.id);
+    await db.prepare('DELETE FROM site_media WHERE id = ?').run(row.id);
+    await removeFile(row.image_key);
+    removed++;
+  }
+  return removed;
 }
 async function updateMedia(id, data) {
   const row = await db.prepare('SELECT * FROM site_media WHERE id = ?').get(id);
@@ -716,6 +848,7 @@ function mediaUsages(doc, id) {
     }
   };
   for (const p of doc.pages || []) walk(p, `page "${p.title}"`);
+  if (doc.header && doc.header.strip) walk(doc.header.strip, 'the site header');
   walk({ header: doc.header, footer: doc.footer, settings: doc.settings }, 'site header/footer/settings');
   return [...hits];
 }
@@ -728,6 +861,26 @@ async function deleteMedia(id) {
   await db.prepare('DELETE FROM site_media WHERE id = ?').run(id);
   await removeFile(row.image_key);
   return { ok: true };
+}
+
+// Bundled template placeholder artwork (public/img/site-templates/*.svg),
+// registered once as media rows so templates can reference them like any
+// uploaded image (and "Change Image" swaps them out).
+const PLACEHOLDERS = ['hero', 'about', 'team-1', 'team-2', 'team-3', 'team-4', 'gallery-1', 'gallery-2', 'gallery-3', 'gallery-4', 'gallery-5', 'gallery-6', 'slide-1', 'slide-2', 'slide-3'];
+async function ensurePlaceholderMedia() {
+  const map = {};
+  for (const name of PLACEHOLDERS) {
+    const key = `static:site-templates/${name}.svg`;
+    let row = await db.prepare('SELECT id FROM site_media WHERE image_key = ?').get(key);
+    if (!row) {
+      const info = await db
+        .prepare("INSERT INTO site_media (image_key, kind, display_name, folder, alt_text, mime_type) VALUES (?, 'image', ?, 'Template placeholders', '', 'image/svg+xml')")
+        .run(key, `Placeholder - ${name}`);
+      row = { id: info.lastInsertRowid };
+    }
+    map[name] = row.id;
+  }
+  return map;
 }
 
 // --------------------------------------------------------- saved sections
@@ -788,6 +941,10 @@ module.exports = {
   mediaMap,
   addMedia,
   replaceMediaFile,
+  cleanupReplacedMedia,
+  ensurePlaceholderMedia,
+  mediaUsages,
+  legacyHeaderStrip,
   updateMedia,
   deleteMedia,
   listSavedSections,

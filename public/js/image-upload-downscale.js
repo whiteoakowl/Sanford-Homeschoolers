@@ -48,6 +48,11 @@
     return new File([blob], name, { type: outType, lastModified: file.lastModified });
   }
 
+  // Also used directly by fetch()-based uploaders that read input.files
+  // themselves before this file's own change listener runs (the site
+  // editor's Media Manager - public/js/site-editor/media.js).
+  window.shrinkImageForUpload = (file) => shrink(file).catch(() => file);
+
   async function processInput(input) {
     const files = Array.from(input.files || []);
     if (!files.some((f) => SHRINKABLE.includes(f.type))) return;

@@ -1383,21 +1383,6 @@ textarea.wxe-input {
   display: block;
 }
 
-.wxe-dev-mobile .wx-burger,
-.wxe-dev-tablet .wx-header.burger-tablet .wx-burger {
-  display: block;
-}
-
-.wxe-dev-mobile .wx-menu-wrap,
-.wxe-dev-tablet .wx-header.burger-tablet .wx-menu-wrap {
-  display: none;
-}
-
-.wxe-dev-mobile .wx-header {
-  padding: 8px 16px;
-  min-height: 64px;
-}
-
 .wxe-section {
   position: relative;
 }
@@ -2226,4 +2211,42 @@ textarea.wxe-input {
     margin: 0;
     font-size: 20px;
   }
+}
+
+/* Freeform header strip on the canvas: always laid out in flow while
+   editing (sticky/transparent only apply on the live site). */
+.wxe-header-strip.wx-header {
+  position: relative !important;
+  top: auto;
+}
+
+.wxe-sec-chrome.is-header .wxe-sec-label {
+  background: #20303c;
+  color: #fff;
+}
+
+/* Rotate handle: a round knob above the selected element's top edge. */
+.wxe-rotate {
+  position: absolute;
+  left: 50%;
+  top: -30px;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  border: 2px solid var(--wxe-blue);
+  border-radius: 50%;
+  background: #fff;
+  cursor: grab;
+  pointer-events: auto;
+  transform: scale(var(--inv, 1));
+}
+
+.wxe-rotate::after {
+  position: absolute;
+  left: 5px;
+  top: 14px;
+  width: 2px;
+  height: 14px;
+  background: var(--wxe-blue);
+  content: "";
 }

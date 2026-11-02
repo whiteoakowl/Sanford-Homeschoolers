@@ -6,7 +6,7 @@ import { S, page, findElement } from './state.js';
 export const TYPE_LABEL = {
   text: 'Text', image: 'Image', button: 'Button', icon: 'Icon', shape: 'Shape', line: 'Line', video: 'Video', gallery: 'Gallery',
   slideshow: 'Slideshow', accordion: 'Accordion', tabs: 'Tabs', social: 'Social Bar', map: 'Map', embed: 'Custom Embed', form: 'Form',
-  login: 'Log In Button', menu: 'Menu', classes: 'Classes Showcase', announcements: 'Announcements', faq: 'FAQ', events: 'Upcoming Events',
+  login: 'Log In Button', menu: 'Menu', logo: 'Logo', sitename: 'Site Name', classes: 'Classes Showcase', announcements: 'Announcements', faq: 'FAQ', events: 'Upcoming Events',
 };
 
 // Add Elements presets: [type, preset key] -> element skeleton.
@@ -98,8 +98,15 @@ export function createElement(type, preset) {
       L(150, 44);
       break;
     case 'menu':
-      base.props = { label: 'Page menu' };
+      base.props = { label: 'Page menu', burgerAt: 'mobile' };
       L(600, 48);
+      break;
+    case 'logo':
+      L(56, 56);
+      break;
+    case 'sitename':
+      base.style = { fontSize: 22 };
+      L(320, 40);
       break;
     case 'classes':
       base.props = { showButton: true };
@@ -146,6 +153,12 @@ export function setRect(el, section, rect, device) {
   const d = device || S.device;
   const W = R.DEVICE_WIDTH[d];
   const r = { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.w), h: Math.round(rect.h) };
+  if (rect.r) {
+    let deg = Math.round(rect.r) % 360;
+    if (deg > 180) deg -= 360;
+    if (deg < -180) deg += 360;
+    if (deg) r.r = deg;
+  }
   r.w = clamp(r.w, 4, W);
   r.x = clamp(r.x, 0, W - Math.min(r.w, 4));
   if (r.x + r.w > W) r.w = W - r.x;

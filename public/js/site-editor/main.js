@@ -23,6 +23,7 @@ async function boot() {
     rev: res.rev,
     media: res.media,
     savedSections: res.savedSections,
+    placeholders: res.placeholders || {},
     widgetData: res.widgetData,
     reservedSlugs: res.reservedSlugs,
     fonts: res.fonts,

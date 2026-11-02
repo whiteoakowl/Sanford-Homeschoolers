@@ -2,11 +2,17 @@
 // Every color references the site palette (theme:*) so templates always
 // match the current Site Design.
 import { uid } from './util.js';
+import { S } from './state.js';
+
+// Bundled placeholder artwork (public/img/site-templates/*.svg, registered
+// as media by the server) so a new section looks finished; each is
+// labelled "Placeholder image" and swapped out with Change Image.
+const ph = (name) => (S.placeholders && S.placeholders[name]) || undefined;
 
 const el = (type, x, y, w, h, props, style, extra) => ({ id: uid('e'), type, name: extra && extra.name, layout: { desktop: { x, y, w, h } }, props: props || {}, style: style || {}, z: 1, ...(extra || {}) });
 const text = (html, tag, ts, x, y, w, h, style) => el('text', x, y, w, h, { tag, textStyle: ts, html }, style, { name: tag === 'p' ? 'Paragraph' : 'Heading' });
 const btn = (label, href, x, y, w, h, style) => el('button', x, y, w || 180, h || 48, { label, link: { href } }, style, { name: 'Button' });
-const img = (x, y, w, h, style) => el('image', x, y, w, h, { fit: 'cover', alt: '' }, style, { name: 'Image' });
+const img = (x, y, w, h, style, placeholder) => el('image', x, y, w, h, { fit: 'cover', alt: '', mediaId: ph(placeholder) }, style, { name: 'Image' });
 const icon = (name, x, y, s, style) => el('icon', x, y, s || 44, s || 44, { icon: name }, { color: 'theme:primary', ...(style || {}) }, { name: 'Icon' });
 const box = (x, y, w, h, style) => el('shape', x, y, w, h, {}, { bg: 'theme:cards', radius: 12, shadow: 'sm', ...(style || {}) }, { name: 'Card' });
 const sec = (name, height, elements, bg, extra) => {
@@ -57,7 +63,7 @@ export const TEMPLATES = [
         text('A welcoming homeschool co-op with weekly classes, field trips and a community that has your back.', 'p', 'p', 40, 316, 420, 80),
         btn('Join Us', '/register', 40, 416, 160, 52),
         btn('Learn More', '#about', 216, 416, 160, 52, { bg: 'transparent', color: 'theme:primary', borderWidth: 2, borderColor: 'theme:primary', radius: 6 }),
-        img(520, 60, 420, 440, { radius: 16 }),
+        img(520, 60, 420, 440, { radius: 16 }, 'hero'),
       ]),
   },
   {
@@ -70,7 +76,7 @@ export const TEMPLATES = [
         'About',
         520,
         [
-          img(40, 60, 420, 400, { radius: 12 }),
+          img(40, 60, 420, 400, { radius: 12 }, 'about'),
           text('About Us', 'h2', 'h2', 520, 110, 420, 50),
           text('We are a parent-led co-op of families who believe learning is better together. Share your story, mission and what makes your community special.', 'p', 'p', 520, 180, 420, 130),
           btn('Meet the Families', '#team', 520, 330, 200, 48),
@@ -153,7 +159,7 @@ export const TEMPLATES = [
           text('Meet Our Leaders', 'h2', 'h2', 190, 50, 600, 50, center),
           ...[0, 1, 2, 3].flatMap((i) => {
             const x = 70 + i * 220;
-            return [img(x + 20, 140, 160, 160, { radius: 999 }), text(['Jane Doe', 'Sam Lee', 'Ana Ruiz', 'Mark Bell'][i], 'h4', 'h4', x, 318, 200, 30, center), text(['Director', 'Classes', 'Events', 'Treasurer'][i], 'p', 'small', x, 352, 200, 22, center)];
+            return [img(x + 20, 140, 160, 160, { radius: 999 }, `team-${i + 1}`), text(['Jane Doe', 'Sam Lee', 'Ana Ruiz', 'Mark Bell'][i], 'h4', 'h4', x, 318, 200, 30, center), text(['Director', 'Classes', 'Events', 'Treasurer'][i], 'p', 'small', x, 352, 200, 22, center)];
           }),
         ],
         { type: 'color' },
@@ -187,14 +193,14 @@ export const TEMPLATES = [
     name: 'Portfolio / Projects',
     group: 'Media',
     desc: 'Heading plus a three-column photo grid.',
-    make: () => sec('Projects', 560, [text('Student Projects', 'h2', 'h2', 190, 50, 600, 50, center), el('gallery', 40, 130, 900, 380, { items: [], columns: 3, gap: 12 }, {}, { name: 'Gallery' })]),
+    make: () => sec('Projects', 560, [text('Student Projects', 'h2', 'h2', 190, 50, 600, 50, center), el('gallery', 40, 130, 900, 380, { items: [1, 2, 3, 4, 5, 6].map((n) => ({ mediaId: ph(`gallery-${n}`), alt: '' })).filter((x) => x.mediaId), columns: 3, gap: 12 }, {}, { name: 'Gallery' })]),
   },
   {
     key: 'gallery',
     name: 'Photo slideshow',
     group: 'Media',
     desc: 'A full-width slideshow of your photos.',
-    make: () => sec('Slideshow', 520, [el('slideshow', 0, 0, 980, 520, { slides: [], autoplay: true, interval: 5, label: 'Photo slideshow' }, {}, { name: 'Slideshow' })]),
+    make: () => sec('Slideshow', 520, [el('slideshow', 0, 0, 980, 520, { slides: [1, 2, 3].map((n) => ({ mediaId: ph(`slide-${n}`), alt: '', title: n === 1 ? 'Add your own photos' : '', text: n === 1 ? 'Select the slideshow and choose Manage Slides.' : '' })).filter((x) => x.mediaId), autoplay: true, interval: 5, label: 'Photo slideshow' }, {}, { name: 'Slideshow' })]),
   },
   {
     key: 'video',

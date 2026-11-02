@@ -192,6 +192,7 @@
       if (el.type === 'image' || el.type === 'video' || el.type === 'gallery' || el.type === 'slideshow' || el.type === 'map' || el.type === 'shape' || el.type === 'embed') h = Math.max(20, Math.round((d.h * w) / Math.max(1, d.w)));
       else if (el.type === 'text') h = Math.round(d.h * Math.min(3, Math.max(1, d.w / w) * 0.85 + 0.15));
       out[el.id] = { x: Math.round((W - w) / 2), y, w, h };
+      if (d.r) out[el.id].r = d.r;
       y += h + 16;
     }
     return { positions: out, height: Math.max(80, y + 8) };
@@ -205,7 +206,9 @@
     if (device === 'tablet') {
       if (el.layout.tablet) return el.layout.tablet;
       const k = DEVICE_WIDTH.tablet / DEVICE_WIDTH.desktop;
-      return { x: Math.round(d.x * k), y: d.y, w: Math.round(d.w * k), h: d.h };
+      const t = { x: Math.round(d.x * k), y: d.y, w: Math.round(d.w * k), h: d.h };
+      if (d.r) t.r = d.r;
+      return t;
     }
     if (el.layout.mobile) return el.layout.mobile;
     const auto = autoCache || autoStack(section);
@@ -225,6 +228,28 @@
       bottom = Math.max(bottom, l.y + l.h);
     }
     return Math.max(80, bottom + 24);
+  }
+  // The site header is a freeform strip like any section (Wix), stored
+  // once on doc.header.strip and shown above every standard page.
+  const HEADER_ID = 'hdr';
+  function headerStrip(doc, page) {
+    const h = (doc && doc.header) || {};
+    if (h.show === false || !h.strip || (page && page.type === 'landing')) return null;
+    return { ...h.strip, id: HEADER_ID, isHeader: true };
+  }
+  function stripsFor(page, doc) {
+    const hs = headerStrip(doc, page);
+    return hs ? [hs, ...(page.sections || [])] : page.sections || [];
+  }
+  // Rotated elements: axis-aligned bounds (for guides/marquee).
+  function rotatedBounds(r) {
+    if (!r.r) return { x: r.x, y: r.y, w: r.w, h: r.h };
+    const a = (r.r * Math.PI) / 180;
+    const c = Math.abs(Math.cos(a));
+    const sn = Math.abs(Math.sin(a));
+    const w = r.w * c + r.h * sn;
+    const hh = r.w * sn + r.h * c;
+    return { x: r.x + r.w / 2 - w / 2, y: r.y + r.h / 2 - hh / 2, w, h: hh };
   }
   // Effective style on a device: preset (global design preset) < element
   // style < tablet override < mobile override.
@@ -304,10 +329,10 @@
   function deviceRules(page, doc, device) {
     const rules = [];
     const W = DEVICE_WIDTH[device];
-    for (const section of page.sections || []) {
+    for (const section of stripsFor(page, doc)) {
       const hid = isHidden(section, device);
       const auto = device === 'mobile' ? autoStack(section) : null;
-      const flowMobile = device === 'mobile' && sectionMobileAuto(section);
+      const flowMobile = device === 'mobile' && !section.isHeader && sectionMobileAuto(section);
       // Auto-stacked mobile strips size to their real content (estimated
       // text heights would leave gaps) unless a mobile height was set.
       const minH = flowMobile && !(section.height && section.height.mobile) ? 0 : sectionHeight(section, device);
@@ -321,6 +346,7 @@
         // Opacity sits on the outer wrapper so it never fights the
         // entrance animation's own opacity on the inner .wx-box.
         if (s.opacity != null && s.opacity !== 100) pos.push(`opacity:${num(s.opacity, 0, 100, 100) / 100}`);
+        pos.push(l.r ? `transform:rotate(${num(l.r, -180, 180, 0)}deg)` : 'transform:none');
         if (flowMobile) pos.push('margin:0 auto', `width:${round2((l.w / W) * 100)}%`);
         else pos.push(`margin:${l.y}px 0 0 ${round2((l.x / W) * 100)}%`, `width:${round2((l.w / W) * 100)}%`);
         if (flowMobile && el.type === 'text') pos.push('min-height:0', 'height:auto');
@@ -348,8 +374,8 @@
   }
   function pageCss(page, doc) {
     const desktop = [];
-    for (const section of page.sections || []) {
-      const parts = sectionBgCss(section);
+    for (const section of stripsFor(page, doc)) {
+      const parts = section.isHeader ? [] : sectionBgCss(section);
       desktop.push(`#s-${section.id}{${parts.join(';')}}`);
       for (const el of section.elements || []) {
         const extra = [`z-index:${num(el.z, 0, 9999, 1)}`];
@@ -401,7 +427,6 @@
     if (cssColor(h.navColor)) hv.push(`--wx-nav-color:${cssColor(h.navColor)}`);
     if (cssColor(h.navHover)) hv.push(`--wx-nav-hover:${cssColor(h.navHover)}`);
     if (cssColor(h.navActive)) hv.push(`--wx-nav-active:${cssColor(h.navActive)}`);
-    hv.push(`--wx-header-height:${num(h.height, 48, 240, 84)}px`);
     hv.push(`--wx-nav-size:${num(h.navSize, 10, 32, 16)}px`);
     hv.push(`--wx-nav-weight:${num(h.navWeight, 100, 900, 600)}`);
     hv.push(`--wx-nav-gap:${num(h.navSpacing, 0, 80, 24)}px`);
@@ -417,11 +442,16 @@
     used.add(d.fontBody);
     if (doc.header && doc.header.navFont) used.add(doc.header.navFont);
     for (const s of Object.values(d.textStyles || {})) if (s && s.fontFamily) used.add(s.fontFamily);
-    for (const page of doc.pages || []) {
-      for (const sec of page.sections || []) {
-        for (const el of sec.elements || []) {
-          if (el.style && el.style.fontFamily) used.add(el.style.fontFamily);
-          for (const dev of ['tablet', 'mobile']) if (el.styleBy && el.styleBy[dev] && el.styleBy[dev].fontFamily) used.add(el.styleBy[dev].fontFamily);
+    const strips = [];
+    if (doc.header && doc.header.strip) strips.push(doc.header.strip);
+    for (const page of doc.pages || []) strips.push(...(page.sections || []));
+    for (const sec of strips) {
+      for (const el of sec.elements || []) {
+        if (el.style && el.style.fontFamily) used.add(el.style.fontFamily);
+        for (const dev of ['tablet', 'mobile']) if (el.styleBy && el.styleBy[dev] && el.styleBy[dev].fontFamily) used.add(el.styleBy[dev].fontFamily);
+        // Per-word fonts inside rich text (span style="font-family: ...").
+        if (el.type === 'text' && el.props && el.props.html && el.props.html.includes('font-family')) {
+          for (const f of FONTS) if (f.google && el.props.html.includes(f.stack.split(',')[0].replace(/'/g, ''))) used.add(f.key);
         }
       }
     }
@@ -555,10 +585,26 @@
         const href = ctx.portalAccount ? `/forms/${form.id}` : `/login?next=${encodeURIComponent('/forms/' + form.id)}`;
         return `<div class="wx-form-card"><h3>${esc(p.title || form.title)}</h3>${p.description || form.description ? `<p>${esc(p.description || form.description)}</p>` : ''}<a class="wx-btn" href="${esc(href)}">${esc(p.buttonLabel || 'Fill out form')}</a>${ctx.portalAccount ? '' : '<p class="wx-form-note">Members sign in to fill this out.</p>'}</div>`;
       }
+      case 'logo': {
+        const info = mediaInfo(ctx, p.mediaId);
+        const src = info ? info.url : ctx.logoUrl || '/img/logo.png';
+        const name = (ctx.site && ctx.site.orgName) || 'Home';
+        return `<a class="wx-logo-link" href="/" aria-label="${esc(name)} - home"><img class="wx-img" src="${esc(src)}" alt="" style="object-fit:contain" /></a>`;
+      }
+      case 'sitename':
+        return `<a class="wx-sitename" href="/">${esc(p.text || (ctx.site && ctx.site.orgName) || 'Site name')}</a>`;
       case 'login':
         return ctx.portalAccount ? `<a class="wx-btn" href="/portal">${esc(p.portalLabel || 'My Portals')}</a>` : `<a class="wx-btn" href="/login">${esc(p.loginLabel || 'Log in')}</a>`;
-      case 'menu':
-        return `<nav class="wx-inline-menu" aria-label="${esc(p.label || 'Page menu')}">${renderMenuList(ctx.menu || [], ctx, false)}</nav>`;
+      case 'menu': {
+        // burgerAt: below which device the menu collapses into a ☰ button
+        // (Wix's mobile hamburger), per menu element.
+        const list = renderMenuList(ctx.menu || [], ctx, false);
+        if (!list) return placeholder(ctx, 'Menu - add pages or links in Pages & Menu');
+        const burger = ['mobile', 'tablet'].includes(p.burgerAt) ? p.burgerAt : 'never';
+        const mid = `m-${el.id}`;
+        const align = ['center', 'right'].includes(p.align) ? ` is-${p.align}` : '';
+        return `<nav class="wx-nav burger-${burger}${align}" aria-label="${esc(p.label || 'Site menu')}"><button type="button" class="wx-burger" aria-expanded="false" aria-controls="${mid}"><span class="wx-burger-bars" aria-hidden="true"></span><span class="wx-sr">Menu</span></button><div id="${mid}" class="wx-menu-wrap">${list}</div></nav>`;
+      }
       case 'classes': {
         const list = data.classes || [];
         if (!list.length) return placeholder(ctx, 'Classes showcase - no public classes yet (hidden on the live site)');
@@ -658,27 +704,27 @@
       })
       .join('')}</ul>`;
   }
-  function renderHeader(doc, ctx) {
+  function announcementBar(doc) {
+    const a = (doc.header && doc.header.announcement) || {};
+    return a.enabled && a.text ? `<div class="wx-announcement" style="${cssColor(a.bg) ? `background:${cssColor(a.bg)};` : ''}${cssColor(a.color) ? `color:${cssColor(a.color)}` : ''}">${esc(a.text)}</div>` : '';
+  }
+  function headerClasses(doc) {
     const h = doc.header || {};
-    if (h.show === false) return '';
-    const a = h.announcement || {};
-    const bar = a.enabled && a.text ? `<div class="wx-announcement" style="${cssColor(a.bg) ? `background:${cssColor(a.bg)};` : ''}${cssColor(a.color) ? `color:${cssColor(a.color)}` : ''}">${esc(a.text)}</div>` : '';
-    const util =
-      h.showLogin !== false
-        ? `<div class="wx-utility">${ctx.portalAccount ? '<a class="wx-btn" href="/portal">My Portals</a>' : '<a class="wx-btn wx-btn-outline" href="/login">Log in</a>'}</div>`
-        : '';
-    const homeHref = '/';
-    const logo = h.showLogo !== false ? `<img src="${esc(h.logoUrl || '/img/logo.png')}" alt="" class="wx-logo" />` : '';
-    const name = h.showSiteName !== false ? `<span>${esc((doc.site && doc.site.orgName) || '')}</span>` : '';
-    const menu = renderMenuList(doc.menu || [], ctx, false);
     const cls = ['wx-header'];
     if (h.sticky) cls.push('is-sticky');
     if (h.transparent) cls.push('is-transparent');
-    if (h.burgerAt === 'tablet') cls.push('burger-tablet');
-    const nav = menu
-      ? `<nav class="wx-nav" aria-label="Site menu"><button type="button" class="wx-burger" aria-expanded="false" aria-controls="wx-menu-list"><span class="wx-burger-bars" aria-hidden="true"></span><span class="wx-sr">Menu</span></button><div id="wx-menu-list" class="wx-menu-wrap">${menu}</div></nav>`
-      : '';
-    return `${bar}${util}<header class="${cls.join(' ')}"><a class="wx-brand" href="${homeHref}">${logo}${name}</a>${nav}</header>`;
+    return cls.join(' ');
+  }
+  // The freeform header strip: its elements (logo, site name, menu, log
+  // in, anything else) render exactly like section elements.
+  function renderHeader(doc, ctx, page) {
+    const strip = headerStrip(doc, page);
+    if (!strip) return '';
+    const html = sortedElements(strip)
+      .map((el) => renderElement(el, ctx))
+      .filter(Boolean)
+      .join('');
+    return `${announcementBar(doc)}<header class="${headerClasses(doc)}" id="s-${HEADER_ID}"><div class="wx-sec-inner">${html}</div></header>`;
   }
   function renderFooter(doc, ctx) {
     const f = doc.footer || {};
@@ -695,9 +741,9 @@
     return `<footer class="wx-footer"${cssColor(f.bg) ? ` style="background:${cssColor(f.bg)}${cssColor(f.color) ? `;color:${cssColor(f.color)}` : ''}"` : ''}>${parts.join('')}</footer>`;
   }
   function renderPageBody(doc, page, ctx) {
-    const c = { ...ctx, pages: doc.pages, menu: doc.menu, currentPageId: page.id };
+    const c = { ...ctx, pages: doc.pages, menu: doc.menu, currentPageId: page.id, site: doc.site, logoUrl: doc.header && doc.header.logoUrl };
     const landing = page.type === 'landing';
-    return `${landing ? '' : renderHeader(doc, c)}<main id="main-content" tabindex="-1">${(page.sections || []).map((s) => renderSection(s, c)).join('')}</main>${landing ? '' : renderFooter(doc, c)}`;
+    return `${landing ? '' : renderHeader(doc, c, page)}<main id="main-content" tabindex="-1">${(page.sections || []).map((s) => renderSection(s, c)).join('')}</main>${landing ? '' : renderFooter(doc, c)}`;
   }
 
   // Resolves every media id the doc references into a URL (media map:
@@ -726,6 +772,12 @@
   }
 
   return {
+    HEADER_ID,
+    headerStrip,
+    stripsFor,
+    rotatedBounds,
+    announcementBar,
+    headerClasses,
     hydrate,
     DEVICES,
     DEVICE_WIDTH,

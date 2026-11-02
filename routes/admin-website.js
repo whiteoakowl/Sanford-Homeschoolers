@@ -73,6 +73,7 @@ router.get('/preview/:pageId', async (req, res) => {
 // ---------------------------------------------------------------- API
 router.get('/api/state', async (req, res) => {
   const state = await site.getState();
+  const placeholders = await site.ensurePlaceholderMedia();
   res.json({
     ok: true,
     draft: state.draft,
@@ -82,6 +83,7 @@ router.get('/api/state', async (req, res) => {
     hasUnpublished: JSON.stringify(state.draft) !== JSON.stringify(state.published),
     media: await site.listMedia(),
     savedSections: await site.listSavedSections(),
+    placeholders,
     widgetData: await site.loadWidgetData(),
     reservedSlugs: [...site.RESERVED_SLUGS],
     fonts: R.FONTS.map((f) => ({ key: f.key, label: f.label, stack: f.stack, google: f.google || null })),
@@ -132,7 +134,9 @@ router.post('/api/media/:id/replace', uploadMw('file', false), async (req, res) 
   const [width, height] = String(req.body.size || '').split('x');
   const media = await site.replaceMediaFile(req.params.id, req.file, { width, height });
   if (!media) return res.status(404).json({ ok: false, error: 'Not found.' });
-  res.json({ ok: true, media });
+  // The editor repoints its draft from replacedId to media.id; the live
+  // site keeps the old file until the next Publish.
+  res.json({ ok: true, media, replacedId: Number(req.params.id) });
 });
 
 router.post('/api/media/:id', async (req, res) => {

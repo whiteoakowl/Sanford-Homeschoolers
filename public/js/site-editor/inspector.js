@@ -222,7 +222,28 @@ function contentFields(el) {
       out.push(field('Signed-out text', textInput(p.loginLabel, set('loginLabel'), { placeholder: 'Log in' })), field('Signed-in text', textInput(p.portalLabel, set('portalLabel'), { placeholder: 'My Portals' })), h('p.wxe-hint', null, 'Links to the app\'s existing member login (/login) and portals.'));
       break;
     case 'menu':
-      out.push(field('Name (for screen readers)', textInput(p.label, set('label'))), h('p.wxe-hint', null, 'Shows your site menu - edit it in Pages & Menu.'), h('button.wxe-btn.is-small', { type: 'button', onclick: () => emit('panel', { name: 'pages' }) }, 'Edit menu'));
+      out.push(
+        field('Name (for screen readers)', textInput(p.label, set('label'))),
+        field('Alignment', segmented([['left', 'Left', ICON.tl], ['center', 'Center', ICON.tc], ['right', 'Right', ICON.tr]], p.align || 'left', set('align'), 'Menu alignment')),
+        field('Collapse into a ☰ menu on', select([['never', 'Never'], ['mobile', 'Mobile'], ['tablet', 'Tablet and mobile']], p.burgerAt || 'never', set('burgerAt'))),
+        h('p.wxe-hint', null, 'Shows your site menu - edit it in Pages & Menu. Link colors and fonts come from Site Design > Header.'),
+        h('button.wxe-btn.is-small', { type: 'button', onclick: () => emit('panel', { name: 'pages' }) }, 'Edit menu')
+      );
+      break;
+    case 'logo': {
+      const m = S.media.find((x) => x.id === p.mediaId);
+      out.push(
+        h('div.wxe-media-pick', null, m ? h('img', { src: m.url, alt: '' }) : h('span.wxe-hint', null, 'Uses the site logo (Site Design > Header)'), h('button.wxe-btn.is-small', { type: 'button', onclick: async () => {
+          const mid = await openMedia({ pick: 'image' });
+          if (mid) upd(id, (e) => (e.props.mediaId = mid));
+          render();
+        } }, 'Choose image'), m ? h('button.wxe-btn.is-small', { type: 'button', onclick: () => (upd(id, (e) => delete e.props.mediaId), render()) }, 'Use site logo') : null),
+        h('p.wxe-hint', null, 'Links to the homepage.')
+      );
+      break;
+    }
+    case 'sitename':
+      out.push(field('Text', textInput(p.text, set('text'), { placeholder: S.doc.site.orgName || 'Site name' }), { hint: 'Leave empty to always show the site name from Settings. Links to the homepage.' }));
       break;
     case 'classes':
       out.push(toggle('Show "Member Registration to Enroll" button', p.showButton !== false, set('showButton')), h('p.wxe-hint', null, 'Lists classes from Schedule Grids marked "visible to public" (Co-op Admin > Classes).'));
@@ -378,6 +399,12 @@ function layoutFields(f) {
         field('Width', numberInput(r.w, setR('w'), { min: 4 })),
         field('Height', numberInput(r.h, setR('h'), { min: 2 }))
       ),
+      field(`Rotation (${S.device})`, slider(r.r || 0, (v) => {
+        mutate(() => {
+          const g = findElement(id);
+          setRect(g.el, g.section, { ...rectOf(g.el, g.section), r: v });
+        }, { merge: id + 'rot', fromInspector: true });
+      }, { min: -180, max: 180, step: 1, suffix: '°' }), { hint: 'Or drag the round handle above the element (hold Shift for 15° steps).' }),
       S.device !== 'desktop' && el.layout[S.device]
         ? h('button.wxe-btn.is-small', { type: 'button', onclick: () => (mutate(() => resetDeviceLayout(findElement(id).el, S.device)), toast(`Back to the automatic ${S.device} layout.`)) }, `Reset ${S.device} position`)
         : null
@@ -454,6 +481,16 @@ function renderSection(section) {
   body.append = (...nodes) => rawAppend(...nodes.filter(Boolean));
   host.appendChild(body);
   const sid = section.id;
+  if (sid === 'hdr') {
+    const note = deviceNote();
+    if (note) body.appendChild(note);
+    body.append(
+      h('p.wxe-hint', null, 'The header appears on every standard page. Drag its elements to arrange it for each device.'),
+      field(`Height on ${S.device}`, slider(sectionHeightFor(section), (v) => updSection(sid, (s) => setSectionHeight(s, v), 'height'), { min: 40, max: 400, suffix: 'px' })),
+      h('button.wxe-btn.is-small', { type: 'button', onclick: () => emit('panel', { name: 'design', tab: 'header' }) }, 'Header design (background, sticky, menu style)')
+    );
+    return;
+  }
   if (sectionTab === 'section') {
     const note = deviceNote();
     if (note) body.appendChild(note);

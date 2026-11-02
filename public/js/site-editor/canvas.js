@@ -6,7 +6,7 @@
 // element toolbar, section toolbars, "+ Add Section", the right-click
 // menu and keyboard shortcuts.
 import { h, R, ICON, clamp, toast, confirmDialog, promptDialog, api, esc } from './util.js';
-import { S, on, emit, mutate, page, findElement, findSection, select, selectedElements, undo, redo, save } from './state.js';
+import { S, on, emit, mutate, page, findElement, findSection, select, selectedElements, undo, redo, save, pageStrips, isHeader } from './state.js';
 import {
   TYPE_LABEL, rectOf, setRect, sectionHeightFor, setSectionHeight, effectiveStyle, setStyle, cloneElement, cloneSection, arrange, expandGroups,
   boundsOf, alignElements, placeNew, maxZ, mediaMap, setHidden, newSection,
@@ -51,7 +51,9 @@ export function mountCanvas(host) {
 }
 
 function ctx() {
-  return { media: mediaMap(), data: S.widgetData, portalAccount: false, editor: true, pages: S.doc.pages, menu: S.doc.menu, currentPageId: S.pageId };
+  const media = mediaMap();
+  const logo = S.doc.header && S.doc.header.logoId && media[S.doc.header.logoId];
+  return { media, data: S.widgetData, portalAccount: false, editor: true, pages: S.doc.pages, menu: S.doc.menu, currentPageId: S.pageId, site: S.doc.site, logoUrl: logo ? logo.url : null };
 }
 
 // ---------------------------------------------------------------- render
@@ -66,10 +68,11 @@ export function render() {
   stage.innerHTML = '';
   const c = ctx();
   const landing = p.type === 'landing';
-  if (!landing && S.doc.header.show !== false) {
-    const hd = h('div.wxe-chrome.wxe-chrome-header', { html: R.renderHeader(hydrated, c), title: 'Site header - edit it in Site Design > Header' });
-    hd.appendChild(h('button.wxe-chrome-edit', { type: 'button', onclick: () => emit('panel', { name: 'design', tab: 'header' }) }, 'Edit header'));
-    stage.appendChild(hd);
+  const strips = pageStrips();
+  if (strips[0] && isHeader(strips[0])) {
+    const bar = R.announcementBar(hydrated);
+    if (bar) stage.appendChild(h('div.wxe-chrome', { html: bar, title: 'Announcement bar - Site Design > Header' }));
+    stage.appendChild(renderSection(strips[0], -1, c));
   }
   if (!p.sections.length) {
     stage.appendChild(
@@ -92,7 +95,9 @@ function renderSection(section, index, c) {
   const bg = { ...section, bg: { ...(section.bg || {}) } };
   const media = mediaMap();
   if (bg.bg.mediaId && media[bg.bg.mediaId]) bg.bg.imageUrl = media[bg.bg.mediaId].url;
-  const sEl = h('div.wxe-section' + (hidden ? '.is-hidden-device' : ''), { 'data-sid': section.id, style: `min-height:${sectionHeightFor(section)}px;${R.sectionBgCss(bg).filter((x) => !x.startsWith('background-attachment')).join(';')}` });
+  const header = isHeader(section);
+  const bgCss = header ? [] : R.sectionBgCss(bg).filter((x) => !x.startsWith('background-attachment'));
+  const sEl = h('div.wxe-section' + (header ? '.wxe-header-strip.' + R.headerClasses(S.doc).split(' ').join('.') : '') + (hidden ? '.is-hidden-device' : ''), { 'data-sid': section.id, style: `min-height:${sectionHeightFor(section)}px;${bgCss.join(';')}` });
   if (section.bg && section.bg.type === 'video' && section.bg.videoId && media[section.bg.videoId]) {
     sEl.appendChild(h('video.wx-sec-video', { src: media[section.bg.videoId].url, muted: true, loop: true, autoplay: true, playsinline: true }));
   }
@@ -105,7 +110,7 @@ function renderSection(section, index, c) {
     const flow = R.FLOW_TYPES.has(el.type);
     const node = h('div.wxe-el.wx-el.wx-el-' + el.type + (elHidden ? '.is-hidden-device' : '') + (el.locked ? '.is-locked' : ''), {
       'data-eid': el.id,
-      style: `left:${r.x}px;top:${r.y}px;width:${r.w}px;${flow ? 'min-height' : 'height'}:${r.h}px;z-index:${el.z || 1};${s.opacity != null && s.opacity !== 100 ? `opacity:${s.opacity / 100};` : ''}`,
+      style: `left:${r.x}px;top:${r.y}px;width:${r.w}px;${flow ? 'min-height' : 'height'}:${r.h}px;z-index:${el.z || 1};${s.opacity != null && s.opacity !== 100 ? `opacity:${s.opacity / 100};` : ''}${r.r ? `transform:rotate(${r.r}deg);` : ''}`,
     });
     const box = h('div.wx-box', { style: R.elementBoxCss(el, s).join(';') });
     box.innerHTML = R.renderInner(el, c) || '';
@@ -113,6 +118,10 @@ function renderSection(section, index, c) {
       const t = box.querySelector('.wx-text');
       if (t) t.setAttribute('style', R.textCss(s).join(';'));
     }
+    // The canvas isn't phone-sized, so collapse menus by device here
+    // instead of by media query.
+    const nav = box.querySelector('.wx-nav');
+    if (nav && (nav.classList.contains('burger-tablet') ? S.device !== 'desktop' : nav.classList.contains('burger-mobile') && S.device === 'mobile')) nav.classList.add('is-collapsed');
     node.appendChild(box);
     if (elHidden) node.appendChild(h('span.wxe-hidden-badge', null, `Hidden on ${S.device}`));
     inner.appendChild(node);
@@ -161,19 +170,23 @@ export function renderOverlay() {
   positionWrap();
   const p = page();
   // Section chrome: label + "+ Add Section" on every strip, full toolbar
-  // on the selected one.
-  p.sections.forEach((section, index) => {
+  // on the selected one. The header strip is first when shown.
+  const strips = pageStrips();
+  const offset = strips[0] && isHeader(strips[0]) ? 1 : 0;
+  strips.forEach((section, i) => {
+    const index = i - offset;
+    const header = isHeader(section);
     const sEl = sectionEl(section.id);
     if (!sEl) return;
     const top = sEl.offsetTop;
     const hh = sEl.offsetHeight;
     const selected = S.sectionId === section.id;
-    const holder = h('div.wxe-sec-chrome' + (selected ? '.is-selected' : ''), { style: { top: top + 'px', height: hh + 'px' }, 'data-sid': section.id });
-    holder.appendChild(h('span.wxe-sec-label', null, (section.name || 'Section') + (R.isHidden(section, S.device) ? ` (hidden on ${S.device})` : '')));
+    const holder = h('div.wxe-sec-chrome' + (selected ? '.is-selected' : '') + (header ? '.is-header' : ''), { style: { top: top + 'px', height: hh + 'px' }, 'data-sid': section.id });
+    holder.appendChild(h('span.wxe-sec-label', null, header ? 'Header (every page)' : (section.name || 'Section') + (R.isHidden(section, S.device) ? ` (hidden on ${S.device})` : '')));
     holder.appendChild(h('button.wxe-add-sec.is-bottom', { type: 'button', onclick: () => emit('panel', { name: 'sections', insertAt: index + 1 }) }, '+ Add Section'));
-    if (index === 0) holder.appendChild(h('button.wxe-add-sec.is-top', { type: 'button', onclick: () => emit('panel', { name: 'sections', insertAt: 0 }) }, '+ Add Section'));
+    if (index === 0 && !offset) holder.appendChild(h('button.wxe-add-sec.is-top', { type: 'button', onclick: () => emit('panel', { name: 'sections', insertAt: 0 }) }, '+ Add Section'));
     if (selected) {
-      holder.appendChild(sectionToolbar(section, index));
+      holder.appendChild(header ? headerToolbar() : sectionToolbar(section, index));
       holder.appendChild(h('div.wxe-sec-resize', { 'data-sec-resize': section.id, title: 'Drag to change the section height', role: 'separator', 'aria-label': 'Section height' }, h('span', null, '⇕')));
     }
     overlay.appendChild(holder);
@@ -186,8 +199,11 @@ export function renderOverlay() {
     const n = elNode(f.el.id);
     if (!n) continue;
     const b = nodeBox(n);
-    frames.push(b);
-    overlay.appendChild(h('div.wxe-frame' + (f.el.locked ? '.is-locked' : ''), { style: { left: b.x + 'px', top: b.y + 'px', width: b.w + 'px', height: b.h + 'px' } }));
+    const rot = rectOf(f.el, f.section).r || 0;
+    // Rotated elements: frames rotate with them; the combined bounds use
+    // the rotated outline's axis-aligned box.
+    frames.push(R.rotatedBounds({ ...b, r: rot }));
+    overlay.appendChild(h('div.wxe-frame' + (f.el.locked ? '.is-locked' : ''), { style: { left: b.x + 'px', top: b.y + 'px', width: b.w + 'px', height: b.h + 'px', transform: rot ? `rotate(${rot}deg)` : '' } }));
   }
   if (!frames.length) return;
   const x1 = Math.min(...frames.map((b) => b.x));
@@ -198,14 +214,20 @@ export function renderOverlay() {
   const first = sel[0].el;
   const grouped = sel.length > 1 && first.groupId && sel.every((f) => f.el.groupId === first.groupId);
   const tagText = sel.length === 1 ? first.name || TYPE_LABEL[first.type] : grouped ? 'Group' : `${sel.length} elements`;
-  const bounds = h('div.wxe-bounds' + (sel.length > 1 ? '.is-multi' : ''), { style: { left: box.x + 'px', top: box.y + 'px', width: box.w + 'px', height: box.h + 'px' } });
+  const size = rectOf(first, sel[0].section);
+  const single = sel.length === 1;
+  const rot = single ? size.r || 0 : 0;
+  // One element: the frame sits on the element's own (possibly rotated)
+  // box so its handles resize in the element's local frame.
+  const fb = single ? nodeBox(elNode(first.id)) : box;
+  const bounds = h('div.wxe-bounds' + (sel.length > 1 ? '.is-multi' : ''), { style: { left: fb.x + 'px', top: fb.y + 'px', width: fb.w + 'px', height: fb.h + 'px', transform: rot ? `rotate(${rot}deg)` : '' } });
   bounds.appendChild(h('span.wxe-name-tag', null, tagText + (first.locked ? ' 🔒' : '')));
   const sameSection = sel.every((f) => f.section.id === sel[0].section.id);
   if (!sel.some((f) => f.el.locked) && sameSection && !S.editingText) {
     for (const hd of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) bounds.appendChild(h('span.wxe-handle.is-' + hd, { 'data-handle': hd }));
+    if (single) bounds.appendChild(h('span.wxe-rotate', { 'data-rotate': '1', title: 'Drag to rotate (hold Shift to snap to 15°)', 'aria-hidden': 'true' }));
   }
-  const size = rectOf(first, sel[0].section);
-  if (sel.length === 1) bounds.appendChild(h('span.wxe-size-tag', null, `${Math.round(size.w)} × ${Math.round(size.h)}`));
+  if (single) bounds.appendChild(h('span.wxe-size-tag', null, `${Math.round(size.w)} × ${Math.round(size.h)}${rot ? ` · ${rot}°` : ''}`));
   overlay.appendChild(bounds);
   if (S.editingText) overlay.appendChild(textToolbar(first, box));
   else overlay.appendChild(elementToolbar(sel, box, grouped));
@@ -267,6 +289,14 @@ function elementToolbar(sel, box, grouped) {
   return placeToolbar(bar, box);
 }
 
+function headerToolbar() {
+  const bar = h('div.wxe-sec-toolbar', { role: 'toolbar', 'aria-label': 'Header actions' });
+  bar.append(
+    tb('Header design', ICON.brush, () => emit('panel', { name: 'design', tab: 'header' }), { text: 'Header design' }),
+    tb('Header height', ICON.gear, () => emit('inspector', { tab: 'section' }))
+  );
+  return bar;
+}
 function sectionToolbar(section, index) {
   const count = page().sections.length;
   const bar = h('div.wxe-sec-toolbar', { role: 'toolbar', 'aria-label': 'Section actions' });
@@ -307,17 +337,21 @@ function textToolbar(el, box) {
     endTextEdit(false);
     startTextEdit(el.id);
   });
-  const fontSel = h('select.wxe-tb-select', { 'aria-label': 'Font' }, h('option', { value: '' }, 'Theme font'), S.fonts.map((f) => h('option', { value: f.key, selected: s.fontFamily === f.key }, f.label)));
-  fontSel.addEventListener('change', () => styleWhileEditing(el.id, 'fontFamily', fontSel.value || undefined));
-  const size = h('input.wxe-tb-num', { type: 'number', min: 6, max: 240, value: s.fontSize || '', placeholder: 'Size', 'aria-label': 'Font size' });
-  size.addEventListener('change', () => styleWhileEditing(el.id, 'fontSize', size.value ? Number(size.value) : undefined));
+  const fontSel = h('select.wxe-tb-select', { 'aria-label': 'Font (selected words, or the whole text)' }, h('option', { value: '' }, 'Theme font'), S.fonts.map((f) => h('option', { value: f.key, selected: s.fontFamily === f.key }, f.label)));
+  fontSel.addEventListener('change', () => {
+    const f = S.fonts.find((x) => x.key === fontSel.value);
+    if (f && applyToSelection('fontFamily', f.stack)) return;
+    styleWhileEditing(el.id, 'fontFamily', fontSel.value || undefined);
+  });
+  const size = h('input.wxe-tb-num', { type: 'number', min: 6, max: 240, value: s.fontSize || '', placeholder: 'Size', 'aria-label': 'Font size (selected words, or the whole text)' });
+  size.addEventListener('change', () => {
+    const v = Math.min(240, Math.max(6, Number(size.value) || 0));
+    if (size.value && applyToSelection('fontSize', v + 'px')) return;
+    styleWhileEditing(el.id, 'fontSize', size.value ? v : undefined);
+  });
   const color = h('input.wxe-tb-color', { type: 'color', value: /^#[0-9a-f]{6}$/i.test(s.color || '') ? s.color : '#1c2530', 'aria-label': 'Text color', title: 'Text color (selected words, or the whole text when nothing is selected)' });
   color.addEventListener('input', () => {
-    const sel = window.getSelection();
-    if (sel && !sel.isCollapsed && editingNode() && editingNode().contains(sel.anchorNode)) {
-      document.execCommand('styleWithCSS', false, true);
-      document.execCommand('foreColor', false, color.value);
-    } else styleWhileEditing(el.id, 'color', color.value.toUpperCase());
+    if (!applyToSelection('color', color.value)) styleWhileEditing(el.id, 'color', color.value.toUpperCase());
   });
   const exec = (cmd) => () => {
     document.execCommand(cmd, false, null);
@@ -363,6 +397,40 @@ function textToolbar(el, box) {
     tb('Done', '', () => endTextEdit(true), { text: 'Done' })
   );
   return placeToolbar(bar, box);
+}
+// Per-word formatting: the toolbar's selects/inputs take focus, so the
+// last text selection inside the element being edited is remembered and
+// restored, then wrapped in a <span style> (font-family / font-size /
+// color only - the server rebuilds that style from an allowlist).
+let lastRange = null;
+document.addEventListener('selectionchange', () => {
+  const n = editingNode();
+  const sel = window.getSelection();
+  if (n && sel && sel.rangeCount && n.contains(sel.anchorNode) && n.contains(sel.focusNode)) lastRange = sel.getRangeAt(0).cloneRange();
+});
+function applyToSelection(prop, value) {
+  const n = editingNode();
+  if (!n || !lastRange || lastRange.collapsed || !n.contains(lastRange.commonAncestorContainer)) return false;
+  n.focus();
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(lastRange);
+  document.execCommand('styleWithCSS', false, true);
+  document.execCommand('fontName', false, 'wxemark');
+  n.querySelectorAll('[style*="wxemark"], font[face="wxemark"]').forEach((x) => {
+    let span = x;
+    if (x.tagName === 'FONT') {
+      span = document.createElement('span');
+      while (x.firstChild) span.appendChild(x.firstChild);
+      x.replaceWith(span);
+    }
+    span.style.removeProperty('font-family');
+    span.style[prop] = value;
+    // Nested spans inside the selection must not override the new value.
+    span.querySelectorAll('span').forEach((inner) => inner.style.removeProperty(prop.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())));
+  });
+  growWhileTyping();
+  return true;
 }
 function editingNode() {
   if (!S.editingText) return null;
@@ -450,6 +518,7 @@ export function endTextEdit(commit) {
     n.removeEventListener('input', growWhileTyping);
   }
   S.editingText = null;
+  lastRange = null;
   const f = findElement(id);
   if (commit && f && (html !== f.el.props.html || measured > rectOf(f.el, f.section).h)) {
     mutate(() => {
@@ -484,6 +553,7 @@ function onPointerDown(e) {
     if (n && n.contains(e.target)) return;
     endTextEdit(true);
   }
+  if (e.target.closest('[data-rotate]')) return startRotate(e, p);
   const handle = e.target.closest('[data-handle]');
   if (handle) return startResize(e, handle.getAttribute('data-handle'), p);
   const secResize = e.target.closest('[data-sec-resize]');
@@ -541,7 +611,7 @@ function guideLines(sectionId, excludeIds) {
   const ys = [0, H / 2, H];
   for (const el of f.section.elements) {
     if (excludeIds.includes(el.id) || R.isHidden(el, S.device)) continue;
-    const r = rectOf(el, f.section);
+    const r = R.rotatedBounds(rectOf(el, f.section));
     xs.push(r.x, r.x + r.w / 2, r.x + r.w);
     ys.push(r.y, r.y + r.h / 2, r.y + r.h);
   }
@@ -574,7 +644,7 @@ function onPointerMove(e) {
   if (drag.mode === 'move') {
     const ids = drag.items.map((i) => i.id);
     const sTop = sectionEl(drag.sectionId).offsetTop;
-    const b = boundsOfRects(drag.items.map((i) => i.rect));
+    const b = boundsOfRects(drag.items.map((i) => R.rotatedBounds(i.rect)));
     let mx = dx;
     let my = dy;
     const g = guideLines(drag.sectionId, ids);
@@ -599,6 +669,24 @@ function onPointerMove(e) {
     drag.delta = { x: mx, y: my };
     drawGuides(sTop, gx, gy);
     moveFrames(mx, my);
+  } else if (drag.mode === 'rotate') {
+    let ang = (Math.atan2(p.y - drag.cy, p.x - drag.cx) * 180) / Math.PI + 90;
+    if (ang > 180) ang -= 360;
+    // Shift: 15° steps; otherwise a gentle pull to 0/90/180/-90.
+    if (e.shiftKey) ang = Math.round(ang / 15) * 15;
+    else {
+      const near = Math.round(ang / 90) * 90;
+      if (Math.abs(ang - near) < 4) ang = near;
+    }
+    ang = Math.round(ang);
+    if (ang === -180) ang = 180;
+    drag.angle = ang;
+    drag.node.style.transform = ang ? `rotate(${ang}deg)` : '';
+    const bnd = overlay.querySelector('.wxe-bounds');
+    if (bnd) bnd.style.transform = ang ? `rotate(${ang}deg)` : '';
+    const tag = overlay.querySelector('.wxe-size-tag');
+    if (tag) tag.textContent = `${ang}°`;
+    overlay.querySelectorAll('.wxe-frame, .wxe-toolbar').forEach((f) => (f.style.display = 'none'));
   } else if (drag.mode === 'resize') {
     doResize(dx, dy, e.shiftKey, tol, e.altKey);
   } else if (drag.mode === 'section') {
@@ -652,7 +740,7 @@ function onPointerUp(e) {
         const f = findElement(it.id);
         let rect = { ...it.rect, x: it.rect.x + d.delta.x, y: it.rect.y + d.delta.y };
         // Dropped on another strip: the element moves into it (Wix).
-        if (targetId && targetId !== d.sectionId && d.items.length === d.items.filter((x) => x.section.id === d.sectionId).length) {
+        if (targetId && targetId !== d.sectionId && targetId !== 'hdr' && d.sectionId !== 'hdr' && d.items.length === d.items.filter((x) => x.section.id === d.sectionId).length) {
           const to = findSection(targetId).section;
           const offset = fromTop - target.offsetTop;
           f.section.elements = f.section.elements.filter((x) => x.id !== it.id);
@@ -669,6 +757,12 @@ function onPointerUp(e) {
           growSectionToFit(f.section, rect);
         }
       }
+    });
+  } else if (d.mode === 'rotate') {
+    if (!d.moved || d.angle == null) return renderOverlay();
+    mutate(() => {
+      const f = findElement(d.id);
+      setRect(f.el, f.section, { ...rectOf(f.el, f.section), r: d.angle });
     });
   } else if (d.mode === 'resize') {
     if (!d.moved || !d.result) return renderOverlay();
@@ -689,7 +783,7 @@ function onPointerUp(e) {
     const f = findSection(d.sectionId);
     const hits = f.section.elements.filter((el) => {
       if (R.isHidden(el, S.device)) return false;
-      const r = rectOf(el, f.section);
+      const r = R.rotatedBounds(rectOf(el, f.section));
       return r.x < d.rect.x + d.rect.w && r.x + r.w > d.rect.x && r.y + sTop < d.rect.y + d.rect.h && r.y + r.h + sTop > d.rect.y;
     });
     select(expandGroups(hits.map((x) => x.id)), d.sectionId);
@@ -700,6 +794,16 @@ function growSectionToFit(section, rect) {
   if (need > sectionHeightFor(section)) setSectionHeight(section, need);
 }
 
+function startRotate(e, p) {
+  const f = selectedElements()[0];
+  if (!f || f.el.locked) return;
+  e.preventDefault();
+  const n = elNode(f.el.id);
+  const b = nodeBox(n);
+  drag = { mode: 'rotate', id: f.el.id, node: n, start: p, moved: false, cx: b.x + b.w / 2, cy: b.y + b.h / 2 };
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp, { once: true });
+}
 function startResize(e, handle, p) {
   const sel = selectedElements();
   if (!sel.length) return;
@@ -709,7 +813,46 @@ function startResize(e, handle, p) {
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp, { once: true });
 }
+// Resizing a rotated element: work in its local (unrotated) frame and
+// keep the handle's opposite corner/edge fixed on screen.
+function doRotatedResize(dx, dy, keepRatio) {
+  const it = drag.items[0];
+  const r0 = it.rect;
+  const a = ((r0.r || 0) * Math.PI) / 180;
+  const cos = Math.cos(a);
+  const sin = Math.sin(a);
+  const lx = dx * cos + dy * sin;
+  const ly = -dx * sin + dy * cos;
+  const hd = drag.handle;
+  let w = r0.w + (hd.includes('e') ? lx : hd.includes('w') ? -lx : 0);
+  let hh = r0.h + (hd.includes('s') ? ly : hd.includes('n') ? -ly : 0);
+  if (keepRatio && hd.length === 2) {
+    const ratio = r0.w / r0.h;
+    if (w / hh > ratio) w = hh * ratio;
+    else hh = w / ratio;
+  }
+  w = Math.max(10, w);
+  hh = Math.max(4, hh);
+  const ax = hd.includes('e') ? -1 : hd.includes('w') ? 1 : 0;
+  const ay = hd.includes('s') ? -1 : hd.includes('n') ? 1 : 0;
+  const c0 = { x: r0.x + r0.w / 2, y: r0.y + r0.h / 2 };
+  const rot = (vx, vy) => ({ x: vx * cos - vy * sin, y: vx * sin + vy * cos });
+  const anchorOld = rot((ax * r0.w) / 2, (ay * r0.h) / 2);
+  const anchorNew = rot((ax * w) / 2, (ay * hh) / 2);
+  const cx = c0.x + anchorOld.x - anchorNew.x;
+  const cy = c0.y + anchorOld.y - anchorNew.y;
+  const r = { x: cx - w / 2, y: cy - hh / 2, w, h: hh, r: r0.r };
+  drag.result = { [it.id]: r };
+  Object.assign(it.node.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', [R.FLOW_TYPES.has(it.type) ? 'minHeight' : 'height']: r.h + 'px' });
+  const sTop = sectionEl(drag.sectionId).offsetTop;
+  const bounds = overlay.querySelector('.wxe-bounds');
+  if (bounds) Object.assign(bounds.style, { left: r.x + 'px', top: sTop + r.y + 'px', width: w + 'px', height: hh + 'px' });
+  const tag = overlay.querySelector('.wxe-size-tag');
+  if (tag) tag.textContent = `${Math.round(w)} × ${Math.round(hh)}`;
+  overlay.querySelectorAll('.wxe-frame, .wxe-toolbar').forEach((f) => (f.style.display = 'none'));
+}
 function doResize(dx, dy, keepRatio, tol, noSnap) {
+  if (drag.items.length === 1 && drag.items[0].rect.r) return doRotatedResize(dx, dy, keepRatio);
   const b = drag.bounds;
   const hd = drag.handle;
   let { x, y, w, h: hh } = b;
@@ -758,7 +901,7 @@ function doResize(dx, dy, keepRatio, tol, noSnap) {
   const sy = hh / b.h;
   drag.result = {};
   for (const it of drag.items) {
-    const r = { x: x + (it.rect.x - b.x) * sx, y: y + (it.rect.y - b.y) * sy, w: it.rect.w * sx, h: it.rect.h * sy };
+    const r = { x: x + (it.rect.x - b.x) * sx, y: y + (it.rect.y - b.y) * sy, w: it.rect.w * sx, h: it.rect.h * sy, r: it.rect.r };
     drag.result[it.id] = r;
     Object.assign(it.node.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', [R.FLOW_TYPES.has(it.type) ? 'minHeight' : 'height']: r.h + 'px' });
   }
@@ -929,7 +1072,7 @@ export function duplicateSection(id) {
 }
 export async function deleteSection(id) {
   const f = findSection(id);
-  if (!f) return;
+  if (!f || isHeader(f.section)) return;
   if (f.section.elements.length && !(await confirmDialog('Delete section?', `"${f.section.name || 'Section'}" and its ${f.section.elements.length} element(s) will be removed. You can undo this.`, 'Delete', true))) return;
   mutate(() => {
     const p = page();
@@ -1126,6 +1269,13 @@ function onContextMenu(e) {
   if (!sEl) return;
   const sid = sEl.getAttribute('data-sid');
   select([], sid);
+  if (sid === 'hdr') {
+    return showContextMenu(e.clientX, e.clientY, [
+      { label: 'Paste into header', key: MOD + 'V', run: () => paste(sid) },
+      { label: 'Header design…', run: () => emit('panel', { name: 'design', tab: 'header' }) },
+      { label: 'Header height…', run: () => emit('inspector', { tab: 'section' }) },
+    ]);
+  }
   const idx = page().sections.findIndex((s) => s.id === sid);
   showContextMenu(e.clientX, e.clientY, [
     { label: 'Paste here', key: MOD + 'V', run: () => paste(sid) },

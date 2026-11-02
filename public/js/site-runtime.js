@@ -80,23 +80,22 @@
     });
   });
 
-  // Mobile hamburger menu.
-  const burger = document.querySelector('.wx-burger');
-  if (burger) {
-    const header = burger.closest('.wx-header');
+  // Hamburger menus (any menu element - the header's own included).
+  document.querySelectorAll('.wx-burger').forEach((burger) => {
+    const nav = burger.closest('.wx-nav');
     burger.addEventListener('click', () => {
       const open = burger.getAttribute('aria-expanded') !== 'true';
       burger.setAttribute('aria-expanded', String(open));
-      header.classList.toggle('menu-open', open);
+      nav.classList.toggle('menu-open', open);
     });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && header.classList.contains('menu-open')) {
-        header.classList.remove('menu-open');
+    nav.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && nav.classList.contains('menu-open')) {
+        nav.classList.remove('menu-open');
         burger.setAttribute('aria-expanded', 'false');
         burger.focus();
       }
     });
-  }
+  });
   // Touch devices have no hover - a tap on a dropdown parent opens it.
   document.querySelectorAll('.wx-menu .has-sub > a, .wx-menu .has-sub > .wx-menu-folder').forEach((a) => {
     a.addEventListener('click', (e) => {
