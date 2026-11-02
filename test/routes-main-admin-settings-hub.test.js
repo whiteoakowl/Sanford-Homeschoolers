@@ -55,7 +55,7 @@ test('GET /main-admin/settings renders a card for every settings-area destinatio
   // still the same requireFullAdmin-gated legacy login, just linked to
   // from here now instead of views/admin-settings.ejs's own card grid,
   // see test/routes-admin-settings-hub.test.js for that removal).
-  assert.match(res.text, /href="\/admin\/settings\?tab=account"[^]*?Admin Login/);
+  assert.match(res.text, /href="\/main-admin\/admin-login"[^]*?Admin Login/);
   // A real request: "settings gear, website. Should say public
   // homepage." Later real request (with a Shopify Themes-page
   // screenshot): "should look and function exactly like Shopify" - the

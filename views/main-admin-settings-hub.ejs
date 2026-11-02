@@ -28,17 +28,13 @@
         </a>
       </div>
       <%# A real request: "Main admin log in settings should be moved
-          from co-op admin portal to main admin portal." This is still
-          the same shared master admin account's own username/password
-          (routes/admin.js's own ?tab=account, requireFullAdmin-gated -
-          a separate legacy login from this Main Admin portal's own
-          member-account system, unchanged) - just linked to from here
-          instead of views/admin-settings.ejs's own card grid, where it
-          used to live. Clicking this while only signed into Main Admin
-          (not also the legacy admin account) lands on /admin/login,
-          same as this link always has from anywhere else in the app. %>
+          from co-op admin portal to main admin portal." Edits the single
+          master admin account's username/password on Main Admin's own
+          page (routes/main-admin.js's /admin-login) - linking to Co-op
+          Admin's ?tab=account fell through to Quick Links for a Main
+          Admin member, and its Back link led into Co-op Admin. %>
       <div class="team-col">
-        <a class="team-info-card" href="/admin/settings?tab=account">
+        <a class="team-info-card" href="/main-admin/admin-login">
           <span class="team-info-icon"><svg class="icon"><use href="#icon-user-circle"/></svg></span>
           <h3 class="team-info-title">Admin Login</h3>
         </a>

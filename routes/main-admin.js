@@ -32,6 +32,7 @@ const {
   membersByAdminPosition,
 } = require('../utils/adminPositions');
 const { activeMemberOptions } = require('../utils/members');
+const bcrypt = require('bcryptjs');
 
 router.use(requirePortalAuth, requirePortal('main_admin'));
 
@@ -153,6 +154,54 @@ router.get('/', async (req, res) => {
 // each destination page still enforces its own permission on click.
 router.get('/settings', (req, res) => {
   res.render('main-admin-settings-hub', { title: 'Settings' });
+});
+
+// A real request: "Main admin portal, settings gear. Admin login, when
+// you click this card it goes to the quick link page it should have the
+// settings for change the username and password for the admin account.
+// When you click the back button it goes back to co-op admin portal
+// settings." The card used to link to Co-op Admin's own /admin/settings?
+// tab=account, which only opens for a session signed in through the
+// separate master admin login (routes/admin.js's isMasterAdmin) - a Main
+// Admin member never is, so it fell through to Quick Links. Main Admin
+// now edits that same single admins row here, inside its own portal.
+// A password change still requires the current password, same as the
+// Co-op Admin form always has.
+async function masterAdminRow() {
+  return db.prepare('SELECT * FROM admins ORDER BY id LIMIT 1').get();
+}
+
+async function renderAdminLogin(res, error, notice) {
+  const admin = await masterAdminRow();
+  res.render('main-admin-admin-login', { title: 'Admin Login', username: admin ? admin.username : '', error, notice });
+}
+
+router.get('/admin-login', async (req, res) => {
+  await renderAdminLogin(res, null, null);
+});
+
+router.post('/admin-login/username', async (req, res) => {
+  const admin = await masterAdminRow();
+  const newUsername = (req.body.newUsername || '').trim();
+  if (!admin) return renderAdminLogin(res, 'No admin account exists yet.', null);
+  if (!newUsername) return renderAdminLogin(res, 'New username is required.', null);
+  const taken = await db.prepare('SELECT id FROM admins WHERE LOWER(username) = LOWER(?) AND id != ?').get(newUsername, admin.id);
+  if (taken) return renderAdminLogin(res, 'That username is already in use.', null);
+  await db.prepare('UPDATE admins SET username = ? WHERE id = ?').run(newUsername, admin.id);
+  await renderAdminLogin(res, null, 'Username updated.');
+});
+
+router.post('/admin-login/password', async (req, res) => {
+  const admin = await masterAdminRow();
+  const { currentPassword, newPassword } = req.body;
+  if (!admin || !bcrypt.compareSync(currentPassword || '', admin.password_hash)) {
+    return renderAdminLogin(res, 'Current password is incorrect.', null);
+  }
+  if (!newPassword || newPassword.length < 8) {
+    return renderAdminLogin(res, 'New password must be at least 8 characters.', null);
+  }
+  await db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(bcrypt.hashSync(newPassword, 10), admin.id);
+  await renderAdminLogin(res, null, 'Password updated.');
 });
 
 // A real request: "the co-op admin portal settings quicklinks tab
