@@ -63,6 +63,7 @@
               <tr>
                 <th></th>
                 <th>Title</th>
+                <th>Status</th>
                 <th>Open</th>
                 <th>Due</th>
                 <th></th>
@@ -73,6 +74,7 @@
                 <tr data-lesson-reorder-row="<%= a.id %>">
                   <td class="roster-drag-col"><span data-lesson-reorder-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span></td>
                   <td class="roster-name-col"><%= a.title %></td>
+                  <td><%- include('partials/lesson-approval-badge', { status: a.approval_status }) %></td>
                   <td><%= a.open_date ? a.open_date : '—' %></td>
                   <td><%= a.dueDateLabel || '—' %></td>
                   <td><a class="roster-action-btn" href="/teacher/assignments/<%= a.id %>">Manage</a></td>

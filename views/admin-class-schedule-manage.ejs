@@ -335,13 +335,20 @@
           <div class="roster-scroll">
             <table class="roster-table members-table condensed-table lessons-table-mobile-fit">
               <thead>
-                <tr><th></th><th>Title</th><th>Open</th><th>Due</th><th>Completed</th><th></th></tr>
+                <tr><th></th><th>Title</th><th>Status</th><th>Open</th><th>Due</th><th>Completed</th><th></th></tr>
               </thead>
               <tbody data-lesson-reorder-tbody data-class-id="<%= cls.id %>">
                 <% assignments.forEach(function(a) { %>
                   <tr data-lesson-reorder-row="<%= a.id %>">
                     <td class="roster-drag-col"><span data-lesson-reorder-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span></td>
                     <td class="roster-name-col"><%= a.title %></td>
+                    <td>
+                      <% if (a.approval_status === 'pending') { %>
+                        <a href="/admin/lesson-plans/approval/<%= a.id %>"><%- include('partials/lesson-approval-badge', { status: a.approval_status }) %></a>
+                      <% } else { %>
+                        <%- include('partials/lesson-approval-badge', { status: a.approval_status }) %>
+                      <% } %>
+                    </td>
                     <td><%= a.open_date ? a.open_date : '—' %></td>
                     <td><%= a.dueDateLabel || '—' %></td>
                     <%# A real request: "On lesson list show percentage of

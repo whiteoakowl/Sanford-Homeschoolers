@@ -397,7 +397,12 @@ const TEACHER_NAV_LINKS = [
   { href: '/teacher/attendance', icon: 'calendar-check', label: 'Attendance', perm: 'view_teacher_attendance' },
   { href: '/teacher/classes', icon: 'graduation-cap', label: 'Class Schedule', perm: 'view_teacher_classes' },
   { href: '/teacher/training', icon: 'graduation-cap', label: 'Training', perm: 'view_teacher_training' },
-  { href: '/teacher/assignments', icon: 'clipboard-list', label: 'Assignments', perm: 'view_teacher_assignments' },
+  // A real request: "When the admin approves the lesson plan, it will
+  // show on the teacher side on the lesson plan approved by admins."
+  { href: '/teacher/assignments', icon: 'clipboard-list', label: 'Assignments', subpages: [
+    { href: '/teacher/assignments', label: 'Assignments', perm: 'view_teacher_assignments' },
+    { href: '/teacher/lesson-plans/approved', label: 'Approved by Admins', perm: 'view_teacher_assignments' },
+  ] },
   { href: '/forums?portal=teacher', icon: 'users', label: 'Chat', perm: 'view_teacher_chat' },
   { href: '/photos?portal=teacher', icon: 'camera', label: 'Photos', perm: 'view_teacher_photos' },
   // A real request: "Teachers can edit their instructor profile on the

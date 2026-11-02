@@ -1,0 +1,6 @@
+<%# Lesson plan approval status pill (see the lesson_plan_approval
+    migration) - shown only on teacher/admin views; students and parents
+    only ever see approved lessons. Pass { status }. %>
+<% var approvalBadgeClass = { draft: 'badge-pill-gray', pending: 'badge-pill-pending', approved: 'badge-pill-green', declined: 'badge-pill-red' }[status] || 'badge-pill-gray'; %>
+<% var approvalBadgeLabel = { draft: 'Draft', pending: 'Pending Approval', approved: 'Approved', declined: 'Declined' }[status] || 'Draft'; %>
+<span class="badge-pill <%= approvalBadgeClass %>"><%= approvalBadgeLabel %></span>

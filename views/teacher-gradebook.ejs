@@ -17,6 +17,28 @@
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
+    <div class="manage-section">
+      <div class="grid-box-header">
+        <h2>Approval</h2>
+        <%- include('partials/lesson-approval-badge', { status: assignment.approval_status }) %>
+      </div>
+      <% if (assignment.approval_status === 'draft') { %>
+        <p class="hint">Students can't see this lesson yet. Add its content, then submit it for a Co-op Admin to approve.</p>
+      <% } else if (assignment.approval_status === 'pending') { %>
+        <p class="hint">Waiting for a Co-op Admin to review this lesson. Students will see it once it's approved.</p>
+      <% } else if (assignment.approval_status === 'declined') { %>
+        <p class="hint">A Co-op Admin declined this lesson. Make any changes needed, then submit it again.</p>
+        <% if (assignment.review_note) { %><div class="alert alert-error plain-text-display">Admin note: <%= assignment.review_note %></div><% } %>
+      <% } else { %>
+        <p class="hint">Approved - visible to students enrolled in this class. Edits you make keep it approved.</p>
+      <% } %>
+      <% if (assignment.approval_status === 'draft' || assignment.approval_status === 'declined') { %>
+        <form method="POST" action="/teacher/assignments/<%= assignment.id %>/submit-approval">
+          <button type="submit" class="primary-btn"><%= assignment.approval_status === 'declined' ? 'Resubmit for Approval' : 'Submit for Approval' %></button>
+        </form>
+      <% } %>
+    </div>
+
     <%- include('partials/lesson-content-manage', { basePath: '/teacher', assignment, contentItems }) %>
 
     <div class="manage-section">

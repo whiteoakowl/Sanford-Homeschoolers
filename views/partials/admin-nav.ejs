@@ -127,7 +127,14 @@
       // lesson-plans.js) - full-admin-only (routes/admin-lesson-plans.js's
       // own router.use(requireFullAdmin)), same gate Settings above the
       // Classes group already applies.
-      ...(isFullAdmin ? [{ href: '/admin/lesson-plans', icon: 'clipboard-list', label: 'Lesson Plans' }] : []),
+      // A later real request: "Add a page under lesson plans tab called
+      // lesson plan approval" - teacher-submitted class lessons wait
+      // there for a Co-op Admin's approval (routes/admin-lesson-plans.js).
+      // `badge` is the pending count (server.js's own /admin middleware).
+      ...(isFullAdmin ? [{ href: '/admin/lesson-plans', icon: 'clipboard-list', label: 'Lesson Plans', subpages: [
+        { href: '/admin/lesson-plans', label: 'Lesson Plans' },
+        { href: '/admin/lesson-plans/approval', label: 'Lesson Plan Approval', badge: typeof pendingLessonApprovalCount !== 'undefined' ? pendingLessonApprovalCount : 0 },
+      ] }] : []),
       { href: '/admin/logs', icon: 'clipboard-list', label: 'Logs', subpages: [
         // Same bug/fix as Classes' own identical comment above - GET
         // /admin/logs with no ?tab= renders the Absence/Late tab
@@ -201,7 +208,7 @@
           <summary><svg class="icon"><use href="#icon-<%= link.icon %>"/></svg> <%= link.label %> <svg class="icon admin-nav-group-chevron"><use href="#icon-chevron-down"/></svg></summary>
           <div class="admin-nav-subpages">
             <% link.subpages.forEach(function(sp) { %>
-              <a href="<%= sp.href %>"><%= sp.label %></a>
+              <a href="<%= sp.href %>"><%= sp.label %><% if (sp.badge) { %> <span class="badge-pill badge-pill-orange"><%= sp.badge %><span class="sr-only"> pending</span></span><% } %></a>
             <% }); %>
           </div>
         </details>

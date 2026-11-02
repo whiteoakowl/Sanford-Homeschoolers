@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Co-op Teacher Portal' }) %>
+
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <h1>Approved by Admins</h1>
+    <p class="hint">Lesson plans a Co-op Admin has approved. Only approved lessons are visible to the students enrolled in your classes.</p>
+
+    <% if (approvedByClass.length === 0) { %>
+      <p class="roster-empty">You're not staffed on any classes yet.</p>
+    <% } else { %>
+      <% approvedByClass.forEach(function(group) { %>
+        <div class="manage-section">
+          <div class="grid-box-header">
+            <h2><%= group.cls.class_name %></h2>
+            <a class="roster-action-btn" href="/teacher/classes/<%= group.cls.id %>?tab=lessons">View Lessons</a>
+          </div>
+          <% if (group.lessons.length === 0) { %>
+            <p class="roster-empty">No approved lesson plans yet.</p>
+          <% } else { %>
+            <div class="training-lesson-list">
+              <% group.lessons.forEach(function(a) { %>
+                <div class="training-lesson-row">
+                  <div class="training-lesson-row-main">
+                    <svg class="icon"><use href="#icon-clipboard-list"/></svg>
+                    <div class="training-lesson-info">
+                      <strong><%= a.title %></strong> <%- include('partials/lesson-approval-badge', { status: a.approval_status }) %>
+                      <span class="hint"><% if (a.reviewedAtLabel) { %>Approved <%= a.reviewedAtLabel %><% } else { %>Approved by default<% } %></span>
+                    </div>
+                    <a class="roster-action-btn" href="/teacher/assignments/<%= a.id %>">Manage</a>
+                  </div>
+                </div>
+              <% }); %>
+            </div>
+          <% } %>
+        </div>
+      <% }); %>
+    <% } %>
+  </main>
+</body>
+</html>

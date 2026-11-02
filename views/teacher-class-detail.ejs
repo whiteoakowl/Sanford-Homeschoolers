@@ -121,7 +121,7 @@
         <%# A teacher reviewing their own class never gets quiz-taking -
             same reasoning as Parent Portal's own staff view (canTakeQuiz
             is always false here, no student to complete anything for). %>
-        <%- include('partials/lessons-view', { lessons, canTakeQuiz: false, quizBasePath: '/teacher', quizQuery: '' }) %>
+        <%- include('partials/lessons-view', { lessons, canTakeQuiz: false, quizBasePath: '/teacher', quizQuery: '', showApprovalStatus: true }) %>
       <% } else if (tab === 'chat') { %>
         <%- include('partials/class-chat', { chatMessages, postUrl: `/teacher/classes/${cls.id}/chat` }) %>
       <% } %>

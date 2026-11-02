@@ -42,6 +42,7 @@
             <% if (lesson.description) { %><span class="lesson-accordion-desc"><%= lesson.description %></span><% } %>
           </span>
           <span class="lesson-accordion-meta">
+            <% if (typeof showApprovalStatus !== 'undefined' && showApprovalStatus) { %><%- include('lesson-approval-badge', { status: lesson.approval_status }) %><% } %>
             <%# A real request: "it doesn't need to say complete the
                 previous lesson to unlock, it stretches out the whole row
                 and ruins it" - the lock icon just below already says

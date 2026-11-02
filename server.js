@@ -118,6 +118,7 @@ const adminNameTagRouter = require('./routes/admin-name-tag');
 const adminScheduleRouter = require('./routes/admin-schedule');
 const adminClassScheduleRouter = require('./routes/admin-class-schedule');
 const adminLessonPlansRouter = require('./routes/admin-lesson-plans');
+const { pendingApprovalCount: pendingLessonApprovalCount } = require('./utils/academics');
 const adminOrientationRouter = require('./routes/admin-orientation');
 const contactAdminsRouter = require('./routes/contact-admins');
 const membershipRouter = require('./routes/membership');
@@ -573,6 +574,14 @@ app.use('/', trainingRouter);
 // every other /admin router ensures the latter's own requireAdmin routes
 // get first chance to handle the request, instead of being hijacked by an
 // unrelated router's blanket gate before they're ever reached.
+// Pending count for the Co-op Admin nav's own "Lesson Plan Approval"
+// subpage badge (views/partials/admin-nav.ejs) - GET page renders only.
+app.use('/admin', async (req, res, next) => {
+  if (req.method === 'GET' && res.locals.isFullAdmin) {
+    res.locals.pendingLessonApprovalCount = await pendingLessonApprovalCount();
+  }
+  next();
+});
 app.use('/admin', require('./middleware/csrfProtection'));
 app.use('/admin', adminRouter);
 app.use('/admin', adminRostersRouter);
