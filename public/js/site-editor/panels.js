@@ -142,7 +142,11 @@ function sectionsPanel() {
     const grid = h('div.wxe-tpl-grid');
     for (const t of TEMPLATES.filter((x) => x.group === g)) {
       grid.appendChild(
-        h('button.wxe-tpl', { type: 'button', onclick: () => insertSection(t.make(), insertAt) }, h('span.wxe-tpl-thumb.is-' + t.key, { 'aria-hidden': 'true' }, h('i'), h('i'), h('i')), h('strong', null, t.name), h('span.wxe-hint', null, t.desc))
+        h('button.wxe-tpl', { type: 'button', onclick: () => {
+          // Several picks in a row stack in the order they were chosen.
+          insertSection(t.make(), panelOpts.insertAt == null ? page().sections.length : panelOpts.insertAt);
+          if (panelOpts.insertAt != null) panelOpts.insertAt++;
+        } }, h('span.wxe-tpl-thumb.is-' + t.key, { 'aria-hidden': 'true' }, h('i'), h('i'), h('i')), h('strong', null, t.name), h('span.wxe-hint', null, t.desc))
       );
     }
     body.push(grid);
@@ -154,7 +158,10 @@ function sectionsPanel() {
       h(
         'div.wxe-row-item',
         null,
-        h('button.wxe-link-btn', { type: 'button', onclick: () => insertSection(cloneSection(s.section), insertAt) }, s.name),
+        h('button.wxe-link-btn', { type: 'button', onclick: () => {
+          insertSection(cloneSection(s.section), panelOpts.insertAt == null ? page().sections.length : panelOpts.insertAt);
+          if (panelOpts.insertAt != null) panelOpts.insertAt++;
+        } }, s.name),
         h('button.wxe-icon-btn.is-small', { type: 'button', 'aria-label': `Delete saved section ${s.name}`, html: ICON.trash, onclick: async () => {
           if (!(await confirmDialog('Delete saved section?', `"${s.name}" will be removed from My Sections. Pages that already use it keep their copy.`, 'Delete', true))) return;
           const res = await api('POST', `/main-admin/website/api/saved-sections/${s.id}/delete`, {});

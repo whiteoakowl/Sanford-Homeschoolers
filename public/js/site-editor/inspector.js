@@ -73,10 +73,8 @@ function renderElement(f) {
   host.appendChild(tabs([['content', 'Settings'], ['design', 'Design'], ['animation', 'Animation'], ['layout', 'Layout']], tab, (k) => ((tab = k), render(true))));
   const body = h('div.wxe-insp-body', { role: 'tabpanel' });
   host.appendChild(body);
-  if (tab === 'content') body.append(...contentFields(el));
-  else if (tab === 'design') body.append(...designFields(el));
-  else if (tab === 'animation') body.append(...animationFields(el));
-  else body.append(...layoutFields(f));
+  const fields = tab === 'content' ? contentFields(el) : tab === 'design' ? designFields(el) : tab === 'animation' ? animationFields(el) : layoutFields(f);
+  body.append(...fields.filter(Boolean));
 }
 
 function contentFields(el) {
@@ -452,6 +450,8 @@ function renderSection(section) {
   host.appendChild(h('div.wxe-insp-head', null, h('strong', null, section.name || 'Section'), h('span.wxe-hint', null, 'Section')));
   host.appendChild(tabs([['section', 'Settings'], ['background', 'Background']], sectionTab, (k) => ((sectionTab = k), render(true))));
   const body = h('div.wxe-insp-body', { role: 'tabpanel' });
+  const rawAppend = body.append.bind(body);
+  body.append = (...nodes) => rawAppend(...nodes.filter(Boolean));
   host.appendChild(body);
   const sid = section.id;
   if (sectionTab === 'section') {

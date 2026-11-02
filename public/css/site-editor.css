@@ -1533,11 +1533,10 @@ textarea.wxe-input {
 
 .wxe-sec-resize {
   position: absolute;
-  left: 50%;
+  right: 24px;
   bottom: -9px;
   width: 44px;
   height: 18px;
-  margin-left: -22px;
   border-radius: 9px;
   background: var(--wxe-blue);
   color: #fff;

@@ -53,10 +53,10 @@ export const TEMPLATES = [
     desc: 'Headline, intro text, two buttons and a photo.',
     make: () =>
       sec('Hero', 560, [
-        text('Learning together, growing together', 'h1', 'h1', 40, 120, 440, 176),
-        text('A welcoming homeschool co-op with weekly classes, field trips and a community that has your back.', 'p', 'p', 40, 312, 420, 80),
-        btn('Join Us', '/register', 40, 412, 160, 52),
-        btn('Learn More', '#about', 216, 412, 160, 52, { bg: 'transparent', color: 'theme:primary', borderWidth: 2, borderColor: 'theme:primary', radius: 6 }),
+        text('Learning together, growing together', 'h1', 'h1', 40, 90, 440, 210, { fontSize: 44 }),
+        text('A welcoming homeschool co-op with weekly classes, field trips and a community that has your back.', 'p', 'p', 40, 316, 420, 80),
+        btn('Join Us', '/register', 40, 416, 160, 52),
+        btn('Learn More', '#about', 216, 416, 160, 52, { bg: 'transparent', color: 'theme:primary', borderWidth: 2, borderColor: 'theme:primary', radius: 6 }),
         img(520, 60, 420, 440, { radius: 16 }),
       ]),
   },
