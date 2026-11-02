@@ -85,7 +85,7 @@ test('syncDayMemberRosters clears a stale non-primary-parent auto entry and keep
 });
 
 test('the manual Resync button/route is gone - POST /admin/rosters/:day/resync no longer exists', async () => {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin/rosters?tab=monday-parent').set('Cookie', cookie);
   assert.doesNotMatch(page.text, /\/admin\/rosters\/monday\/resync/, 'the Resync button/form should no longer be on the page');

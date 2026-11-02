@@ -24,7 +24,6 @@
 const { hasCoopAdminAccess } = require('./requireAdmin');
 
 module.exports = function requireFullAdmin(req, res, next) {
-  if (req.session && req.session.adminId) return next();
   if (hasCoopAdminAccess(req)) return next();
   const wantsJson = req.headers.accept && req.headers.accept.includes('application/json');
   if (wantsJson) return res.status(401).json({ error: 'Not authenticated' });
@@ -32,5 +31,5 @@ module.exports = function requireFullAdmin(req, res, next) {
   // action URL replayed as a GET after re-login 404s outright, so only a
   // GET request's own URL is safe to carry forward as `next`.
   const nextParam = req.method === 'GET' ? encodeURIComponent(req.originalUrl) : '';
-  res.redirect(nextParam ? `/admin/login?next=${nextParam}` : '/admin/login');
+  res.redirect(nextParam ? `/login?next=${nextParam}` : '/login');
 };

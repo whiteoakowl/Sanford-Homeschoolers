@@ -31,7 +31,7 @@ test.after(() => {
 });
 
 async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   return loginRes.headers['set-cookie'];
 }
 
@@ -57,7 +57,7 @@ test('GET /admin/settings with no tab renders a card for every settings destinat
 
 test('each settings tab page shows a Back to Settings Menu link instead of the tab strip', async () => {
   const cookie = await loginAsAdmin();
-  for (const tab of ['account', 'classcheckin', 'kiosk', 'quicklinks', 'install']) {
+  for (const tab of ['classcheckin', 'kiosk', 'semesters', 'quicklinks', 'install']) {
     const res = await request(app).get(`/admin/settings?tab=${tab}`).set('Cookie', cookie);
     assert.equal(res.status, 200, `tab=${tab}`);
     assert.match(res.text, /<a href="\/admin\/settings">&larr; Back to Settings Menu<\/a>/, `tab=${tab}`);
@@ -65,18 +65,18 @@ test('each settings tab page shows a Back to Settings Menu link instead of the t
   }
 });
 
-test('a saved notice (e.g. after updating the username) still renders that tab\'s own panel, not the hub', async () => {
+test('a saved notice (e.g. after updating the Class Check-In PIN) still renders that tab\'s own panel, not the hub', async () => {
   const cookie = await loginAsAdmin();
-  const page = await request(app).get('/admin/settings?tab=account').set('Cookie', cookie);
+  const page = await request(app).get('/admin/settings?tab=classcheckin').set('Cookie', cookie);
   const csrfToken = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];
 
   const res = await request(app)
-    .post('/admin/settings/username')
+    .post('/admin/settings/class-checkin-pin')
     .set('Cookie', cookie)
     .type('form')
-    .send({ newUsername: 'renamedtestadmin', _csrf: csrfToken });
+    .send({ newPin: '4321', _csrf: csrfToken });
   assert.equal(res.status, 200);
-  assert.match(res.text, /Username updated\./);
+  assert.match(res.text, /Class Check-In PIN updated\./);
   assert.match(res.text, /<a href="\/admin\/settings">&larr; Back to Settings Menu<\/a>/);
   assert.doesNotMatch(res.text, /<div class="team-card-grid">/);
 });

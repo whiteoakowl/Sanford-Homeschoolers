@@ -71,10 +71,9 @@
             <% if (role.key === 'main_admin') { %>
               <p class="hint">Main Admin always has every permission.</p>
             <% } else if (role.key === 'coop_admin') { %>
-              <%# Co-op Admin runs on its own, separate single-shared-login
-                  system (middleware/requireAdmin.js, req.session.adminId) -
-                  not the member_accounts/roles/permissions model every
-                  other portal card here controls. A real request: "Co-op
+              <%# Co-op Admin access is all-or-nothing by role (coop_admin
+                  or main_admin - middleware/requireAdmin.js), not per-
+                  page permissions like the other portal cards. A real request: "Co-op
                   admin portal should say, always has every permission.
                   Just like main admin." Same wording/no-dialog treatment
                   as Main Admin's own card above, rather than a dialog whose

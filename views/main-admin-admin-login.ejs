@@ -14,13 +14,13 @@
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
 
     <div class="settings-account-grid">
-      <form method="POST" action="/main-admin/admin-login/username" class="stack-form stack-form-narrow">
-        <h2>Username</h2>
-        <label for="currentUsernameDisplay">Current Username</label>
-        <input id="currentUsernameDisplay" type="text" value="<%= username %>" disabled />
+      <form method="POST" action="/main-admin/admin-login/email" class="stack-form stack-form-narrow">
+        <h2>Login Email</h2>
+        <label for="currentEmailDisplay">Current Email</label>
+        <input id="currentEmailDisplay" type="email" value="<%= email %>" disabled />
 
-        <label for="newUsername">New Username</label>
-        <input id="newUsername" name="newUsername" type="text" required />
+        <label for="newEmail">New Email</label>
+        <input id="newEmail" name="newEmail" type="email" autocomplete="email" required />
 
         <button type="submit" class="primary-btn">Update</button>
       </form>

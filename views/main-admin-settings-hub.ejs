@@ -27,12 +27,9 @@
           <h3 class="team-info-title">Portal Permissions</h3>
         </a>
       </div>
-      <%# A real request: "Main admin log in settings should be moved
-          from co-op admin portal to main admin portal." Edits the single
-          master admin account's username/password on Main Admin's own
-          page (routes/main-admin.js's /admin-login) - linking to Co-op
-          Admin's ?tab=account fell through to Quick Links for a Main
-          Admin member, and its Back link led into Co-op Admin. %>
+      <%# A real request: "The main admin portal is now where the master
+          lives." Changes the signed-in Main Admin account's own login
+          email/password (routes/main-admin.js's /admin-login). %>
       <div class="team-col">
         <a class="team-info-card" href="/main-admin/admin-login">
           <span class="team-info-icon"><svg class="icon"><use href="#icon-user-circle"/></svg></span>

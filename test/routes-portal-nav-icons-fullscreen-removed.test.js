@@ -36,7 +36,7 @@ test.after(() => {
 });
 
 test('Co-op Admin (admin-nav.ejs): no Full Screen View button/script, My Portals uses a computer icon, My Profile appears', async () => {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin').set('Cookie', cookie);
   assert.equal(page.status, 200);

@@ -76,7 +76,7 @@ test('Main Admin Members list: no inline Primary badge, search bar sits next to 
 });
 
 test('Co-op Admin Members list: no inline Primary badge, Filter moved into the button toolbar same as Main Admin', async () => {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const { familyId } = await makeFamily('CoopAdminBadge');
   // Co-op Admin's own Members list only shows families with an enrolled
@@ -107,7 +107,7 @@ test('Co-op Admin Members list: no inline Primary badge, Filter moved into the b
 });
 
 test('Co-op Admin member profile still shows Primary Parent status now that the list row drops it', async () => {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const { parentId } = await makeFamily('ProfileBadge');
 

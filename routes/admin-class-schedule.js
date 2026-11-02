@@ -562,18 +562,8 @@ router.post('/class-schedule/classes/:id/chat', requireFullAdmin, async (req, re
   const back = `/admin/class-schedule/classes/${id}/manage?tab=chat`;
   const body = (req.body.body || '').trim();
   if (!body) return res.redirect(back + '&error=' + encodeURIComponent('A message is required.'));
-  // requireFullAdmin now also lets a coop_admin-role member reach this
-  // entirely through their own portal session (middleware/requireAdmin.js)
-  // - req.session.adminId is only ever set for the single master Admin
-  // login, so it's unset for them; use their own member name instead.
-  let authorName;
-  if (req.session.adminId) {
-    const admin = await db.prepare('SELECT username FROM admins WHERE id = ?').get(req.session.adminId);
-    authorName = admin.username;
-  } else {
-    const member = await memberForAccount(req.portalAccount.id);
-    authorName = (member && member.name) || req.portalAccount.email;
-  }
+  const member = await memberForAccount(req.portalAccount.id);
+  const authorName = (member && member.name) || req.portalAccount.email;
   await db.prepare('INSERT INTO class_chat_messages (class_id, author_name, body) VALUES (?, ?, ?)').run(id, authorName, body);
   res.redirect(back);
 });

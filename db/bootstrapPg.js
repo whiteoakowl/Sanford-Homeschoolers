@@ -17,14 +17,10 @@ const { DEFAULT_LAYOUTS } = require('../utils/nameTagBadge');
 const { DEFAULT_LAYOUT: SCHEDULE_CARD_DEFAULT_LAYOUT } = require('../utils/scheduleCardBadge');
 
 async function seedIfMissing(db) {
-  const adminCount = (await db.prepare('SELECT COUNT(*) AS c FROM admins').get()).c;
-  if (Number(adminCount) === 0) {
-    const username = process.env.ADMIN_USERNAME || 'admin';
-    const password = process.env.ADMIN_PASSWORD || 'changeme123';
-    const hash = bcrypt.hashSync(password, 10);
-    await db.prepare('INSERT INTO admins (username, password_hash) VALUES (?, ?)').run(username, hash);
-    console.log(`Seeded default admin account "${username}". Change the password after first login.`);
-  }
+  // The old separate username/password master login (admins table) is
+  // retired - a real request: "The main admin portal is now where the
+  // master lives." The Main Admin portal account seeded below is the
+  // master; the admins table is left in place, untouched, but unused.
 
   if (!(await db.prepare("SELECT 1 FROM app_settings WHERE key = 'class_checkin_pin_hash'").get())) {
     const pin = process.env.CLASS_CHECKIN_PIN || '0000';

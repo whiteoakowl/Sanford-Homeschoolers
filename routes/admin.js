@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const db = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
@@ -19,7 +18,6 @@ const {
 } = require('../utils/classSchedule');
 const { getActiveKioskSemesterId, setActiveKioskSemesterId } = require('../utils/kioskSettings');
 const { CLASS_DAY_WEEKDAY_FULL } = require('../utils/classDays');
-const { isRateLimited, recordFailure, recordSuccess } = require('../utils/loginRateLimit');
 const { setClassCheckinPin, verifyClassCheckinPin } = require('../utils/classCheckinPin');
 const fullscreenPinLimiter = require('../utils/classCheckinPinRateLimit');
 const { computeTrend } = require('../utils/dashboardTrends');
@@ -34,40 +32,16 @@ function safeNext(value) {
   return '/admin';
 }
 
+// A real request: "The main admin portal is now where the master lives"
+// - the separate username/password master login is retired. Old links
+// and bookmarks to /admin/login land on the one shared member login.
 router.get('/login', (req, res) => {
-  if (req.session.adminId) return res.redirect('/admin');
-  res.render('admin-login', { title: 'Admin Login', error: null, next: safeNext(req.query.next) });
-});
-
-router.post('/login', async (req, res) => {
-  const next = safeNext(req.body.next);
-  if (isRateLimited(req.ip)) {
-    return res.render('admin-login', {
-      title: 'Admin Login',
-      error: 'Too many login attempts. Please wait a few minutes and try again.',
-      next,
-    });
-  }
-
-  const { username, password } = req.body;
-  // Case-insensitive on purpose - there's only ever one admin account
-  // (or a small handful, all trusted), so nothing depends on "Admin" and
-  // "admin" being different logins, and a mismatched case (e.g. a mobile
-  // keyboard auto-capitalizing the first letter) shouldn't be able to
-  // lock someone out who's typing the right username.
-  const admin = await db.prepare('SELECT * FROM admins WHERE LOWER(username) = LOWER(?)').get((username || '').trim());
-  if (!admin || !bcrypt.compareSync(password || '', admin.password_hash)) {
-    recordFailure(req.ip);
-    return res.render('admin-login', { title: 'Admin Login', error: 'Invalid username or password.', next });
-  }
-  recordSuccess(req.ip);
-  req.session.adminId = admin.id;
-  req.session.username = admin.username;
-  res.redirect(next);
+  const next = safeNext(req.query.next);
+  res.redirect('/login?next=' + encodeURIComponent(next));
 });
 
 router.post('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/admin/login'));
+  req.session.destroy(() => res.redirect('/login'));
 });
 
 // --- Dashboard ---
@@ -374,63 +348,18 @@ router.get('/import-template/names.xlsx', requireAdmin, (req, res) => {
 // A real request: "Remove text/email notifications" from Co-op Admin's
 // gear - those same messages are still edited from Main Admin's own
 // /main-admin/notifications page.
-const SETTINGS_TABS = ['account', 'classcheckin', 'kiosk', 'semesters', 'quicklinks', 'install'];
-// A real request: "Nothing should be hidden from the member given portal
-// permissions and admin manage permissions." A coop_admin member gets
-// every Co-op Admin setting (Semesters, Kiosk, Class Check-In PIN). Only
-// 'account' stays master-only: it edits the master login's own row via
-// req.session.adminId, isn't linked from the hub, and Main Admin's own
-// /main-admin/admin-login now covers it.
-const FULL_ADMIN_ONLY_TABS = ['account'];
-
-// requireAdmin/requireFullAdmin now also let a coop_admin-role member
-// into every /admin route on their own portal session (middleware/
-// requireAdmin.js) - but changing the single master Admin's own login
-// credentials, the Kiosk semester, and the Class Check-In PIN have to
-// stay exclusive to whoever is actually signed in as that master admin,
-// never to a coop_admin-role bypass. This is the same req.session.adminId
-// check isFullAdmin below already uses to hide these same tabs from a
-// Co-op Admin member in the first place - here as a route guard, so a
-// direct POST to one of these 4 action URLs can't skip that hiding.
-function requireMasterAdmin(req, res, next) {
-  if (req.session && req.session.adminId) return next();
-  return res
-    .status(403)
-    .render('403', { title: 'Not Authorized', message: 'Only the master Admin account can do that.', backHref: '/admin/settings', backLabel: 'Back to Settings' });
-}
+const SETTINGS_TABS = ['classcheckin', 'kiosk', 'semesters', 'quicklinks', 'install'];
 
 async function renderSettings(req, res, error, success, activeTab) {
-  // Strictly the real master Admin session - unlike res.locals.isFullAdmin
-  // (server.js, used for nav/section access everywhere else in /admin and
-  // left alone here), this one is never true for a coop_admin-role member
-  // let in on their own portal session (middleware/requireAdmin.js) -
-  // changing the single master Admin's own login credentials, the Kiosk
-  // semester, and the Class Check-In PIN have to stay exclusive to it (see
-  // routes/admin.js's own requireMasterAdmin route guard on those 4
-  // actions - this is the matching UI-side hiding).
-  const isMasterAdmin = !!req.session.adminId;
   // A real request: "change co-op admin settings gear to cards for each
   // tab like main admin portal settings gear." No tab (or an unknown
   // one) now lands on a card-grid hub - same shape as Main Admin's own
   // /main-admin/settings - instead of silently defaulting to the
   // Username/Password tab the way this used to. An explicit, invalid
   // ?tab= still falls through to the hub rather than erroring.
-  //
-  // A Co-op Admin (a member, not the master admin account) only ever gets
-  // Quick Links and Install App here - Username/Password manages the
-  // single master admin account.
-  let tab = SETTINGS_TABS.includes(activeTab) ? activeTab : null;
-  if (tab && FULL_ADMIN_ONLY_TABS.includes(tab) && !isMasterAdmin) tab = 'quicklinks';
+  const tab = SETTINGS_TABS.includes(activeTab) ? activeTab : null;
   res.render('admin-settings', {
     title: 'Settings',
-    // req.session.username is only ever set by the real /admin/login
-    // (routes/admin.js's own POST /login above) - a coop_admin-role
-    // member reached this page entirely through their own portal
-    // session instead (middleware/requireAdmin.js), which never sets
-    // it, so fall back to their own account's email rather than
-    // showing a blank username.
-    username: req.session.username || (req.portalAccount && req.portalAccount.email) || '',
-    isMasterAdmin,
     activeTab: tab,
     // A real request: "Kiosk semester control should be under co-op
     // admin portal, gear settings icon at the top. Not under class
@@ -474,38 +403,6 @@ router.post('/settings/kiosk-semester', requireAdmin, requireFullAdmin, async (r
   }
   await setActiveKioskSemesterId(semesterId);
   res.redirect('/admin/settings?tab=kiosk&notice=' + encodeURIComponent('Kiosk semester updated.'));
-});
-
-router.post('/settings/username', requireAdmin, requireFullAdmin, requireMasterAdmin, async (req, res) => {
-  const newUsername = (req.body.newUsername || '').trim();
-
-  if (!newUsername) return renderSettings(req, res, 'New username is required.', null, 'account');
-
-  // Case-insensitive, matching the login lookup above - otherwise two
-  // accounts could end up differing only by case, which login could never
-  // tell apart anyway.
-  const taken = await db.prepare('SELECT id FROM admins WHERE LOWER(username) = LOWER(?) AND id != ?').get(newUsername, req.session.adminId);
-  if (taken) return renderSettings(req, res, 'That username is already in use.', null, 'account');
-
-  await db.prepare('UPDATE admins SET username = ? WHERE id = ?').run(newUsername, req.session.adminId);
-  req.session.username = newUsername;
-  await renderSettings(req, res, null, 'Username updated.', 'account');
-});
-
-router.post('/settings/password', requireAdmin, requireFullAdmin, requireMasterAdmin, async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-  const admin = await db.prepare('SELECT * FROM admins WHERE id = ?').get(req.session.adminId);
-
-  if (!admin || !bcrypt.compareSync(currentPassword || '', admin.password_hash)) {
-    return renderSettings(req, res, 'Current password is incorrect.', null, 'account');
-  }
-  if (!newPassword || newPassword.length < 8) {
-    return renderSettings(req, res, 'New password must be at least 8 characters.', null, 'account');
-  }
-
-  const hash = bcrypt.hashSync(newPassword, 10);
-  await db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(hash, admin.id);
-  await renderSettings(req, res, null, 'Password updated.', 'account');
 });
 
 // Backup/Restore (routes/settings/backup, /settings/restore,

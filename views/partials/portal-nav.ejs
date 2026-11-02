@@ -15,7 +15,7 @@
 // expandPortalRoles - so "Switch Portal" needs to show for a parent-
 // only account too, not just a genuinely multi-role one.
 const hasParentRole = typeof portalRoles !== 'undefined' && portalRoles.some(function (r) { return r.key === 'parent'; });
-const showSwitcher = typeof portalRoles !== 'undefined' && (portalRoles.length > 1 || hasParentRole);
+const showSwitcher = typeof portalRoles !== 'undefined' && (portalRoles.length > 1 || hasParentRole || (typeof isMasterAccount !== 'undefined' && isMasterAccount));
 
 // A real request: "under main admin portal the users tab should be
 // under the settings icon at the top" (and later, Website too) - Main

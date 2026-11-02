@@ -41,7 +41,7 @@ test('Design/Print hub print tab marks primary parents with data-primary, and th
   await db.prepare("INSERT INTO members (name, barcode, member_type, is_primary_parent) VALUES ('Pat Primary', 'Pat Primary', 'parent', 1)").run();
   await db.prepare("INSERT INTO members (name, barcode, member_type, is_primary_parent) VALUES ('Sam Secondary', 'Sam Secondary', 'parent', 0)").run();
 
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
 
   const res = await request(app).get('/admin/design?tab=print').set('Cookie', cookie);
@@ -56,7 +56,7 @@ test('Design/Print hub print tab marks primary parents with data-primary, and th
 });
 
 test('Design/Print hub offers Primary Parents Only on every member-based print panel, not just Name Tags', async () => {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
 
   const res = await request(app).get('/admin/design?tab=print').set('Cookie', cookie);
@@ -76,7 +76,7 @@ test('Design/Print hub offers Primary Parents Only on every member-based print p
 // Search bar doesn't need search title because it has a description in
 // the text bar."
 test('Schedule Cards search: the filter select and search box share one group, and the Search label is screen-reader only', async () => {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
 
   const res = await request(app).get('/admin/design?tab=print').set('Cookie', cookie);

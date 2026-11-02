@@ -52,7 +52,7 @@ test('kiosk-home.ejs tags its own Setup/Cleanup and Floater Assignments links wi
 });
 
 test('the admin-curated Quick Links panels still use the bare URLs (no ?kiosk=1) - they are the standalone entry point', async () => {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const res = await request(app).get('/admin/settings?tab=quicklinks').set('Cookie', cookie);
   assert.equal(res.status, 200);

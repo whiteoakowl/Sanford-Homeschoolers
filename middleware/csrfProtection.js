@@ -42,7 +42,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 module.exports = function csrfProtection(req, res, next) {
   if (SAFE_METHODS.has(req.method)) return next();
-  if (!req.session || !(req.session.adminId || req.session.portalAccountId)) return next(); // no authenticated session yet
+  if (!req.session || !req.session.portalAccountId) return next(); // no authenticated session yet
 
   const submitted = (req.body && req.body._csrf) || req.query._csrf || req.get('X-CSRF-Token');
   if (submitted && submitted === req.session.csrfToken) return next();
@@ -60,11 +60,14 @@ module.exports = function csrfProtection(req, res, next) {
   // '/admin' at all. Every other 403 render for a portal account in this
   // app already sends it to '/portal' (middleware/portalAuth.js,
   // routes/admin-events.js's own deny()) - matches that here too.
-  const portalSession = Boolean(req.session.portalAccountId);
+  // Every session is a member portal session now (the old separate
+  // master login is retired), so pick the back link by which portal the
+  // rejected form belonged to instead.
+  const coopAdminAction = req.originalUrl.startsWith('/admin/') || req.originalUrl === '/admin';
   res.status(403).render('403', {
     title: 'Session Expired',
     message,
-    backHref: portalSession ? '/portal' : '/admin',
-    backLabel: portalSession ? 'Back to My Portals' : 'Back to Dashboard',
+    backHref: coopAdminAction ? '/admin' : '/portal',
+    backLabel: coopAdminAction ? 'Back to Dashboard' : 'Back to My Portals',
   });
 };

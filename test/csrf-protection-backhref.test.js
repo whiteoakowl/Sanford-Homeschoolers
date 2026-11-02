@@ -42,7 +42,7 @@ async function loginAsMainAdmin() {
 }
 
 async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   return loginRes.headers['set-cookie'];
 }
 
@@ -64,10 +64,10 @@ test('A CSRF mismatch on a Main Admin portal action sends "Back to My Portals" t
 test('A CSRF mismatch on a Co-op Admin action still sends "Back to Dashboard" to /admin', async () => {
   const cookie = await loginAsAdmin();
   const res = await request(app)
-    .post('/admin/settings/username')
+    .post('/admin/settings/class-checkin-pin')
     .set('Cookie', cookie)
     .type('form')
-    .send({ username: 'shouldnotchange' });
+    .send({ newPin: '1234' });
   assert.equal(res.status, 403);
   assert.match(res.text, /href="\/admin"/);
   assert.match(res.text, />Back to Dashboard</);

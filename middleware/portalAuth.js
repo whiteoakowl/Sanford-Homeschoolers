@@ -5,7 +5,7 @@
 // account have this role" itself. Manually navigating to an
 // unauthorized portal URL always hits this same check; nothing about
 // portal access is UI-only.
-const { findAccountById, rolesForAccount, permissionsForAccount } = require('../utils/portalAuth');
+const { findAccountById, rolesForAccount, permissionsForAccount, masterAccountId } = require('../utils/portalAuth');
 
 // Loads the signed-in account (if any) onto req.portalAccount/
 // req.portalRoles/req.portalPermissions for every request, whether or
@@ -22,6 +22,7 @@ async function loadPortalSession(req, res, next) {
   // public event page crashing 500 for every signed-out visitor - the
   // one place this had already gone unguarded.
   res.locals.portalAccount = null;
+  res.locals.isMasterAccount = false;
   res.locals.portalRoles = [];
   // A real request: "admin can check the boxes if that portal is
   // allowed to view that page... unchecking removes the permission and
@@ -101,6 +102,8 @@ async function loadPortalSession(req, res, next) {
   req.portalAccount = account;
   req.portalRoles = await rolesForAccount(account.id);
   req.portalPermissions = await permissionsForAccount(account.id);
+  req.isMasterAccount = account.id === (await masterAccountId());
+  res.locals.isMasterAccount = req.isMasterAccount;
   res.locals.portalAccount = account;
   res.locals.portalRoles = req.portalRoles;
   res.locals.portalPermissions = req.portalPermissions;

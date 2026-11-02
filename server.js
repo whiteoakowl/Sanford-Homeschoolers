@@ -440,12 +440,11 @@ function trainingResourceUrl(key) {
 // or portalAccountId set, so an anonymous visitor to a public page never
 // gets a session created just to hold this.
 app.use((req, res, next) => {
-  const isAdmin = !!(req.session && req.session.adminId);
   const isPortalSession = !!(req.session && req.session.portalAccountId);
-  res.locals.isFullAdmin = isAdmin || hasCoopAdminAccess(req);
+  res.locals.isFullAdmin = hasCoopAdminAccess(req);
   res.locals.photoUrl = photoUrl;
   res.locals.trainingResourceUrl = trainingResourceUrl;
-  if (isAdmin || isPortalSession) {
+  if (isPortalSession) {
     if (!req.session.csrfToken) req.session.csrfToken = crypto.randomBytes(24).toString('hex');
     res.locals.csrfToken = req.session.csrfToken;
   } else {

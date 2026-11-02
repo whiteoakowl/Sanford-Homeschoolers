@@ -547,7 +547,14 @@ router.get('/portal', async (req, res) => {
   // (its locked-redirect lives there), so a locked account needs the
   // same check here directly.
   if (req.portalAccount.status === 'suspended') return res.redirect('/accounting?locked=1');
-  const roles = sortForPortalSwitcher(expandPortalRoles(req.portalRoles));
+  const allRoles = [...req.portalRoles];
+  // The master account gets every portal (middleware/requireAdmin.js) -
+  // offer Co-op Admin here even though it doesn't hold that role itself.
+  if (req.isMasterAccount && !allRoles.some((r) => r.key === 'coop_admin')) {
+    const coopAdmin = await db.prepare("SELECT * FROM roles WHERE key = 'coop_admin'").get();
+    if (coopAdmin) allRoles.push(coopAdmin);
+  }
+  const roles = sortForPortalSwitcher(expandPortalRoles(allRoles));
   if (roles.length === 1) return res.redirect(PORTAL_HOME_ROUTES[roles[0].key] || '/portal');
   res.render('portal-switcher', { title: 'My Portals', roles, portalHomeRoutes: PORTAL_HOME_ROUTES });
 });

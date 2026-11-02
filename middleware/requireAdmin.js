@@ -18,12 +18,20 @@
 // settings, the class chat author name) check req.session.adminId
 // directly themselves - see routes/admin.js's own requireMasterAdmin
 // and routes/admin-class-schedule.js's own chat handler.
+// A real request: "The main admin portal is now where the master lives.
+// Master log in as full control of everything... This should not affect
+// member admin access to portals." The old separate username/password
+// master login (/admin/login, req.session.adminId) is retired; the one
+// master account (utils/portalAuth.js's masterAccountId, flagged as
+// req.isMasterAccount by middleware/portalAuth.js) gets all of Co-op
+// Admin. Every other member still needs the coop_admin role, exactly as
+// before - holding main_admin alone doesn't add Co-op Admin.
 function hasCoopAdminAccess(req) {
+  if (req.isMasterAccount) return true;
   return !!(req.portalRoles && req.portalRoles.some((r) => r.key === 'coop_admin'));
 }
 
 function requireAdmin(req, res, next) {
-  if (req.session && req.session.adminId) return next();
   if (hasCoopAdminAccess(req)) return next();
   const wantsJson = req.headers.accept && req.headers.accept.includes('application/json');
   if (wantsJson) return res.status(401).json({ error: 'Not authenticated' });
@@ -36,7 +44,7 @@ function requireAdmin(req, res, next) {
   // so replaying a POST-only URL that way 404s outright - only a GET
   // request's own URL is safe to send a signed-in admin straight back to.
   const next_ = req.method === 'GET' ? encodeURIComponent(req.originalUrl) : '';
-  res.redirect(next_ ? `/admin/login?next=${next_}` : '/admin/login');
+  res.redirect(next_ ? `/login?next=${next_}` : '/login');
 }
 
 module.exports = requireAdmin;

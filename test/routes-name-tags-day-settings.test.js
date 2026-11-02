@@ -40,7 +40,7 @@ function extractCsrf(html) {
 }
 
 async function activateTuesday() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin/schedule?tab=settings').set('Cookie', cookie);
   const csrfToken = extractCsrf(page.text);
@@ -74,7 +74,7 @@ test('Name Tag Form offers Tuesday once activated, and a Tuesday request can be 
   const row = await db.prepare("SELECT * FROM name_tag_requests WHERE day = 'tuesday'").get();
   assert.ok(row, 'the Tuesday request should have been saved, not rejected by a stale CHECK constraint');
 
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const adminPage = await request(app).get('/admin/name-tag?tab=requests').set('Cookie', cookie);
   assert.equal(adminPage.status, 200);

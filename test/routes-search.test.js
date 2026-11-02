@@ -34,7 +34,7 @@ test.after(() => {
 });
 
 async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   return loginRes.headers['set-cookie'];
 }
 
@@ -88,7 +88,7 @@ test('global admin search', async (t) => {
   await t.test('unauthenticated requests redirect to login', async () => {
     const res = await request(app).get('/admin/search?q=Zzsearch');
     assert.equal(res.status, 302);
-    assert.match(res.headers.location, /^\/admin\/login/);
+    assert.match(res.headers.location, /^\/login/);
   });
 
   await t.test('visiting with no query shows the initial prompt, not a "no matches" message', async () => {
