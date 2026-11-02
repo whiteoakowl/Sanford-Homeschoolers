@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body class="admin-page">
+  <%- include('partials/admin-nav') %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <h1>Lesson Plan Approval</h1>
+    <p class="hint">Lessons teachers have submitted from the Co-op Teacher Portal. A lesson is only visible to the
+      students enrolled in its class once it's approved here.</p>
+
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+
+    <div class="view-tabs no-print">
+      <a class="view-tab<%= status === 'pending' ? ' active' : '' %>" href="/admin/lesson-plans/approval">Pending</a>
+      <a class="view-tab<%= status === 'approved' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=approved">Recently Approved</a>
+      <a class="view-tab<%= status === 'declined' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=declined">Recently Declined</a>
+    </div>
+
+    <div class="manage-section">
+      <% if (lessons.length === 0) { %>
+        <p class="roster-empty">
+          <% if (status === 'pending') { %>No lesson plans are waiting for approval.<% } else if (status === 'approved') { %>No reviewed lesson plans have been approved yet.<% } else { %>No lesson plans have been declined.<% } %>
+        </p>
+      <% } else { %>
+        <div class="roster-scroll">
+          <table class="roster-table members-table condensed-table table-stack-mobile">
+            <thead>
+              <tr>
+                <th>Lesson</th>
+                <th>Class</th>
+                <th>Teacher</th>
+                <th>Submitted</th>
+                <% if (status !== 'pending') { %><th>Reviewed</th><% } %>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% lessons.forEach(function(a) { %>
+                <tr>
+                  <td class="roster-name-col table-stack-heading">
+                    <a href="/admin/lesson-plans/approval/<%= a.id %>"><%= a.title %></a>
+                    <% if (status === 'declined' && a.review_note) { %><div class="hint">Note: <%= a.review_note %></div><% } %>
+                  </td>
+                  <td data-label="Class"><%= a.class_name %></td>
+                  <td data-label="Teacher"><%= a.submitted_by_name || '—' %></td>
+                  <td data-label="Submitted"><%= a.submittedAtLabel || '—' %></td>
+                  <% if (status !== 'pending') { %><td data-label="Reviewed"><%= a.reviewedAtLabel || '—' %></td><% } %>
+                  <td class="roster-btn-row">
+                    <a class="roster-action-btn" href="/admin/lesson-plans/approval/<%= a.id %>"><%= status === 'pending' ? 'Review' : 'View' %></a>
+                    <% if (status === 'pending') { %>
+                      <form method="POST" action="/admin/lesson-plans/approval/<%= a.id %>/approve" class="inline-block-form">
+                        <button type="submit" class="roster-action-btn">Approve</button>
+                      </form>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </main>
+</body>
+</html>

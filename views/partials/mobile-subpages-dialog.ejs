@@ -19,6 +19,6 @@ const dialogId = 'mobile-subpages-' + link.label.toLowerCase().replace(/[^a-z0-9
     subpage link. %>
 <dialog class="view-tabs page-tabs-dialog no-print" id="<%= dialogId %>">
   <% link.subpages.forEach(function(sp) { %>
-    <a class="view-tab" href="<%= sp.href %>"><%= sp.label %></a>
+    <a class="view-tab" href="<%= sp.href %>"><%= sp.label %><% if (sp.badge) { %> <span class="badge-pill badge-pill-orange"><%= sp.badge %><span class="sr-only"> pending</span></span><% } %></a>
   <% }); %>
 </dialog>

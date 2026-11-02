@@ -17,7 +17,16 @@ const db = require('../db');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
 const { lessonAttachmentFileFilter } = require('../utils/uploads');
-const { saveLessonAttachment } = require('../utils/academics');
+const {
+  saveLessonAttachment,
+  getAssignment,
+  contentItemsForAssignment,
+  lessonsForApprovalQueue,
+  reviewAssignment,
+} = require('../utils/academics');
+const { formatDateLabel, formatFriendlyTimestamp } = require('../utils/dates');
+const notifications = require('../utils/notifications');
+const { logError } = require('../utils/logger');
 const { allClassesList } = require('../utils/classSchedule');
 const {
   listLessonPlans,
@@ -53,6 +62,91 @@ router.post('/lesson-plans', async (req, res) => {
   if (!title) return res.redirect('/admin/lesson-plans?error=' + encodeURIComponent('A title is required.'));
   const id = await createLessonPlan({ title, description: (req.body.description || '').trim(), createdByAccountId: null });
   res.redirect(`/admin/lesson-plans/${id}?notice=` + encodeURIComponent('Lesson plan created.'));
+});
+
+// --- Lesson Plan Approval - a real request: "Teachers can create lesson
+// plans in their teacher portal for a class and click submit for
+// approval button, and then it will send a request for approval to the
+// co-op admin portal lesson plan approval subpage... Only when it has
+// been approved by admins will it be visible to the students." Defined
+// before /lesson-plans/:id so "approval" is never parsed as a template
+// id. ---
+
+const APPROVAL_FILTERS = ['pending', 'approved', 'declined'];
+
+router.get('/lesson-plans/approval', async (req, res) => {
+  const status = APPROVAL_FILTERS.includes(req.query.status) ? req.query.status : 'pending';
+  res.render('admin-lesson-plan-approval', {
+    title: 'Lesson Plan Approval',
+    status,
+    lessons: await lessonsForApprovalQueue(status),
+    notice: req.query.notice || null,
+    error: req.query.error || null,
+  });
+});
+
+// Read-only preview of the full submitted lesson (details + every
+// content item, quiz answer key included) so an admin can judge it
+// before approving.
+router.get('/lesson-plans/approval/:id', async (req, res) => {
+  const assignment = await getAssignment(parseInt(req.params.id, 10));
+  if (!assignment) return res.status(404).render('404', { title: 'Not Found' });
+  const submitter = assignment.submitted_by_account_id
+    ? await db.prepare('SELECT m.name FROM member_accounts ma LEFT JOIN members m ON m.id = ma.member_id WHERE ma.id = ?').get(assignment.submitted_by_account_id)
+    : null;
+  const contentItems = (await contentItemsForAssignment(assignment.id, { includeAnswerKey: true })).map((item) => ({
+    ...item,
+    dueDateLabel: item.due_date ? formatDateLabel(item.due_date) : null,
+  }));
+  res.render('admin-lesson-plan-approval-review', {
+    title: `Review: ${assignment.title}`,
+    assignment,
+    submitterName: submitter ? submitter.name : null,
+    submittedAtLabel: assignment.submitted_at ? formatFriendlyTimestamp(assignment.submitted_at) : null,
+    reviewedAtLabel: assignment.reviewed_at ? formatFriendlyTimestamp(assignment.reviewed_at) : null,
+    contentItems,
+    notice: req.query.notice || null,
+    error: req.query.error || null,
+  });
+});
+
+// Best-effort heads-up to whoever submitted it - a notification failure
+// must never undo or block the review itself.
+async function notifySubmitter(assignment, approved, note) {
+  if (!assignment.submitted_by_account_id) return;
+  try {
+    await notifications.notify(assignment.submitted_by_account_id, 'lesson_plan_review', {
+      title: approved ? `Lesson approved: ${assignment.title}` : `Lesson declined: ${assignment.title}`,
+      body: approved
+        ? `"${assignment.title}" (${assignment.class_name}) was approved and is now visible to enrolled students.`
+        : `"${assignment.title}" (${assignment.class_name}) was declined.${note ? ` Note: ${note}` : ''} You can edit it and resubmit.`,
+      linkUrl: `/teacher/assignments/${assignment.id}`,
+    });
+  } catch (err) {
+    console.error('Lesson plan review notification failed:', err);
+    logError('lesson plan review notification', err);
+  }
+}
+
+router.post('/lesson-plans/approval/:id/approve', async (req, res) => {
+  const assignment = await getAssignment(parseInt(req.params.id, 10));
+  if (!assignment) return res.status(404).render('404', { title: 'Not Found' });
+  const reviewerId = req.portalAccount ? req.portalAccount.id : null;
+  const changed = await reviewAssignment(assignment.id, { approve: true, accountId: reviewerId });
+  if (!changed) return res.redirect('/admin/lesson-plans/approval?error=' + encodeURIComponent(`"${assignment.title}" isn't pending approval.`));
+  await notifySubmitter(assignment, true, null);
+  res.redirect('/admin/lesson-plans/approval?notice=' + encodeURIComponent(`Approved "${assignment.title}". Enrolled students can see it now.`));
+});
+
+router.post('/lesson-plans/approval/:id/decline', async (req, res) => {
+  const assignment = await getAssignment(parseInt(req.params.id, 10));
+  if (!assignment) return res.status(404).render('404', { title: 'Not Found' });
+  const note = (req.body.note || '').trim().slice(0, 2000);
+  const reviewerId = req.portalAccount ? req.portalAccount.id : null;
+  const changed = await reviewAssignment(assignment.id, { approve: false, note, accountId: reviewerId });
+  if (!changed) return res.redirect('/admin/lesson-plans/approval?error=' + encodeURIComponent(`"${assignment.title}" isn't pending approval.`));
+  await notifySubmitter(assignment, false, note);
+  res.redirect('/admin/lesson-plans/approval?notice=' + encodeURIComponent(`Declined "${assignment.title}". The teacher can edit and resubmit it.`));
 });
 
 router.post('/lesson-plans/:id/delete', async (req, res) => {

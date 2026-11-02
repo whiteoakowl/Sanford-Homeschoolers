@@ -47,6 +47,7 @@ const {
   scoreAnswer,
   lessonsForStudentView,
   nextContentItemAfter,
+  submitAssignmentForApproval,
 } = require('../utils/academics');
 const { formatDateLabel, formatFriendlyTimestamp, todayISO, formatDateLong } = require('../utils/dates');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
@@ -327,7 +328,7 @@ router.get('/classes/:id', requirePortalPermission('view_teacher_classes'), asyn
   }
   let tab = TEACHER_CLASS_DETAIL_TABS.includes(req.query.tab) ? req.query.tab : 'details';
   if (tab === 'chat' && !cls.allow_parent_chat) tab = 'details';
-  const lessons = tab === 'lessons' ? await lessonsForStudentView(cls.id, null) : [];
+  const lessons = tab === 'lessons' ? await lessonsForStudentView(cls.id, null, { includeUnapproved: true }) : [];
   const chatMessages =
     tab === 'chat'
       ? (await db.prepare('SELECT * FROM class_chat_messages WHERE class_id = ? ORDER BY id ASC').all(cls.id)).map((m) => ({
@@ -365,7 +366,7 @@ router.get('/content/:id', requirePortalPermission('view_teacher_assignments'), 
   const cls = classes.find((c) => c.id === assignment.class_id);
   if (!cls) return res.status(404).render('404', { title: 'Not Found' });
 
-  const lessons = await lessonsForStudentView(cls.id, null);
+  const lessons = await lessonsForStudentView(cls.id, null, { includeUnapproved: true });
   const lesson = lessons.find((l) => l.id === assignment.id);
   const item = lesson ? lesson.contentItems.find((i) => i.id === contentItemId) : null;
   if (!lesson || !item) return res.status(404).render('404', { title: 'Not Found' });
@@ -415,8 +416,9 @@ router.post('/classes/:id/assignments', requirePortalPermission('view_teacher_as
     openDate: req.body.openDate || null,
     pointsPossible: req.body.pointsPossible ? parseInt(req.body.pointsPossible, 10) : null,
     createdByAccountId: req.portalAccount.id,
+    approvalStatus: 'draft',
   });
-  res.redirect(back + '?notice=' + encodeURIComponent(`"${title}" added.`));
+  res.redirect(back + '?notice=' + encodeURIComponent(`"${title}" added as a draft. Submit it for approval when it's ready for students.`));
 });
 
 router.post('/classes/:id/assignments/reorder', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
@@ -470,6 +472,22 @@ router.post('/assignments/:id/edit', requirePortalPermission('view_teacher_assig
     pointsPossible: req.body.pointsPossible ? parseInt(req.body.pointsPossible, 10) : null,
   });
   res.redirect(back + '?notice=' + encodeURIComponent('Lesson details saved.'));
+});
+
+// A real request: "Teachers can create lesson plans in their teacher
+// portal for a class and click submit for approval button, and then it
+// will send a request for approval to the co-op admin portal lesson plan
+// approval subpage." Only this teacher's own classes (assignmentForTeacher)
+// and only a draft/declined lesson (submitAssignmentForApproval no-ops
+// otherwise).
+router.post('/assignments/:id/submit-approval', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
+  const assignmentId = parseInt(req.params.id, 10);
+  const found = await assignmentForTeacher(req, assignmentId);
+  if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
+  const back = `/teacher/assignments/${assignmentId}`;
+  const submitted = await submitAssignmentForApproval(assignmentId, req.portalAccount.id);
+  if (!submitted) return res.redirect(back + '?error=' + encodeURIComponent('Only a draft or declined lesson can be submitted for approval.'));
+  res.redirect(back + '?notice=' + encodeURIComponent('Submitted for approval. A Co-op Admin will review it before students can see it.'));
 });
 
 // --- Lesson content items + quiz questions (same "video/text/file/quiz,
@@ -982,6 +1000,24 @@ router.get('/assignments', requirePortalPermission('view_teacher_assignments'), 
     assignmentsByClass.push({ cls, assignments });
   }
   res.render('teacher-assignments', { title: 'Assignments', assignmentsByClass });
+});
+
+// "Approved by Admins" - a real request: "When the admin approves the
+// lesson plan, it will show on the teacher side on the lesson plan
+// approved by admins." Every approved lesson across this teacher's own
+// classes (including ones approved by default - admin-assigned or
+// pre-existing - since those are just as visible to students).
+router.get('/lesson-plans/approved', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
+  const member = await memberForAccount(req.portalAccount.id);
+  const classes = await classesForTeacher(member);
+  const approvedByClass = [];
+  for (const cls of classes) {
+    const lessons = (await assignmentsForClass(cls.id))
+      .filter((a) => a.approval_status === 'approved')
+      .map((a) => ({ ...a, reviewedAtLabel: a.reviewed_at ? formatFriendlyTimestamp(a.reviewed_at) : null }));
+    approvedByClass.push({ cls, lessons });
+  }
+  res.render('teacher-approved-lesson-plans', { title: 'Approved by Admins', approvedByClass });
 });
 
 // --- Reports tab: a simple per-class grade summary ---
