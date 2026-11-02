@@ -128,11 +128,15 @@ const CONDITION_OPERATORS = [
 ];
 const THEME_BUTTON_STYLES = ['rounded', 'square', 'pill'];
 
+// system_key forms (the Website Feedback / Support contact form's own
+// extra fields - utils/supportRequests.js) are built in this same
+// builder but managed from Main Admin > Support, never listed here or
+// fillable at /forms/:id on their own.
 async function listForms() {
   return db
     .prepare(
       `SELECT f.*, (SELECT COUNT(*) FROM custom_form_submissions s WHERE s.form_id = f.id) AS "submissionCount"
-       FROM custom_forms f ORDER BY f.created_at DESC`
+       FROM custom_forms f WHERE f.system_key IS NULL ORDER BY f.created_at DESC`
     )
     .all();
 }
@@ -520,7 +524,7 @@ async function canAccessForm(formId, family, roleIds) {
 }
 
 async function formsVisibleTo(family, roleIds) {
-  const published = await db.prepare("SELECT * FROM custom_forms WHERE status = 'published' ORDER BY created_at DESC").all();
+  const published = await db.prepare("SELECT * FROM custom_forms WHERE status = 'published' AND system_key IS NULL ORDER BY created_at DESC").all();
   const out = [];
   for (const f of published) {
     if (await canAccessForm(f.id, family, roleIds)) out.push(f);

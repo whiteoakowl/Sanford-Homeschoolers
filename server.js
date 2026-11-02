@@ -212,6 +212,10 @@ const adminCustomFormsRouter = require('./routes/admin-custom-forms');
 const accountingRouter = require('./routes/accounting');
 const adminAccountingRouter = require('./routes/admin-accounting');
 const mainAdminAnnualCalendarRouter = require('./routes/main-admin-annual-calendar');
+// Parent Portal's Website Feedback & Support contact form and Main
+// Admin's Support tab that logs it (utils/supportRequests.js).
+const parentSupportRouter = require('./routes/parent-support');
+const mainAdminSupportRouter = require('./routes/main-admin-support');
 // Item 8: Store at /store (members-only online checkout, wired through
 // the payment abstraction above), admin at /main-admin/store (also
 // records in-person sales, recorded distinctly from an online order).
@@ -465,6 +469,7 @@ app.use('/kiosk/class-checkin', kioskClassCheckinRouter);
 // both the kiosk's no-login model and the single shared Admin login.
 app.use('/', require('./middleware/csrfProtection'));
 app.use('/', portalAuthRouter);
+app.use('/parent/support', parentSupportRouter);
 app.use('/parent', parentPortalRouter);
 app.use('/parent', parentFamilySchoolRouter);
 // Mounted at the bare root, not under /parent or /student - see
@@ -516,6 +521,7 @@ app.use('/main-admin/forms', adminCustomFormsRouter);
 app.use('/accounting', accountingRouter);
 app.use('/main-admin/accounting', adminAccountingRouter);
 app.use('/main-admin/annual-calendar', mainAdminAnnualCalendarRouter);
+app.use('/main-admin/support', mainAdminSupportRouter);
 app.use('/store', storeRouter);
 app.use('/main-admin/store', adminStoreRouter);
 app.use('/newsletter', newsletterRouter);

@@ -117,6 +117,11 @@ const MAIN_ADMIN_PAGES = [
     { key: 'view_babysitters_settings', label: 'Settings' },
   ] },
   { key: 'manage_annual_calendar', label: 'Annual Calendar' },
+  // routes/main-admin-support.js - Website Feedback is the tab's own
+  // first subpage, so it shares the top-level key (same as Members).
+  { key: 'manage_support', label: 'Support (Website Feedback)', subpages: [
+    { key: 'view_support_requests', label: 'Support' },
+  ] },
   // Had no permission key at all before this pass (routes/main-admin-
   // family-school.js only ever checked requirePortal('main_admin')) -
   // both of these are genuinely new.

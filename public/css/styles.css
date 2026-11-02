@@ -16366,3 +16366,13 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 @media (max-width: 640px) {
   .cf-list-row-actions { flex-basis: 100%; justify-content: flex-start; margin-top: 0.25rem; }
 }
+
+/* Parent Portal's Website Feedback & Support form (views/parent-
+   support.ejs) - each request type's own admin-built extra fields sit in
+   a plain borderless fieldset (disabled + hidden when the other type is
+   selected), laid out by the same .member-form-grid as the rest. */
+.support-extra-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.support-extra-fields[hidden] { display: none; }
+.support-request-completed td { opacity: 0.65; }
+.support-extra-answers { margin: 0; padding-left: 1rem; }
+.support-message-cell { white-space: pre-wrap; }

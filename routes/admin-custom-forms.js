@@ -21,6 +21,7 @@ const db = require('../db');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { toCsvRow, sendCsv } = require('../utils/spreadsheet');
 const customForms = require('../utils/customForms');
+const supportRequests = require('../utils/supportRequests');
 const auditLog = require('../utils/auditLog');
 const { byLastName } = require('../utils/members');
 const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('../utils/pagination');
@@ -144,7 +145,12 @@ async function loadBuilder(req, res) {
     // (see the routes below, each redirect already appends ?tab=... to
     // its own notice/error query string - only loadBuilder's own
     // GET needs to read it).
-    activeTab: req.query.tab === 'settings' ? 'settings' : 'details',
+    activeTab: req.query.tab === 'settings' && !form.system_key ? 'settings' : 'details',
+    // A Main Admin > Support type's own backing form (custom_forms.
+    // system_key) - the view swaps its back link to that Support page
+    // and drops the Submissions/Settings tabs, since its answers land in
+    // the Support log and it's never published/assigned/deleted by hand.
+    supportType: form.system_key ? supportRequests.typeBySystemKey(form.system_key) : null,
     error: req.query.error || null,
     notice: req.query.notice || null,
   });
@@ -165,6 +171,8 @@ router.post('/:id', async (req, res) => {
 });
 
 router.post('/:id/status', async (req, res) => {
+  const existing = await customForms.getForm(req.params.id);
+  if (existing && existing.system_key) return res.redirect(`/main-admin/forms/${existing.id}/builder`);
   const status = req.body.status;
   if (!['draft', 'published', 'closed'].includes(status)) return res.redirect(`/main-admin/forms/${req.params.id}/builder?tab=settings`);
   await customForms.setFormStatus(req.params.id, status);
@@ -173,6 +181,7 @@ router.post('/:id/status', async (req, res) => {
 
 router.post('/:id/delete', async (req, res) => {
   const form = await customForms.getForm(req.params.id);
+  if (form && form.system_key) return res.redirect(`/main-admin/forms/${form.id}/builder`);
   await customForms.deleteForm(req.params.id);
   await auditLog.record(req.portalAccount.id, 'form_deleted', 'custom_form', req.params.id, form?.title);
   res.redirect('/main-admin/forms?notice=' + encodeURIComponent('Form deleted.'));

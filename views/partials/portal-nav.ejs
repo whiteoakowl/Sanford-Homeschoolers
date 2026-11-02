@@ -211,6 +211,14 @@ const MAIN_ADMIN_NAV_LINKS = [
   // query param convention Accounting's own Category/Fiscal Year
   // subpage already reads fiscal years from).
   { href: '/main-admin/annual-calendar', icon: 'calendar-check', label: 'Annual Calendar', perm: 'manage_annual_calendar' },
+  // A real request: "Main admin portal add a support tab with Website
+  // feedback subpage and [Support] subpage" - routes/main-admin-
+  // support.js, each a log of Parent Portal's own Website Feedback and
+  // Support contact form entries.
+  { href: '/main-admin/support', icon: 'message-square', label: 'Support', perm: 'manage_support', subpages: [
+    { href: '/main-admin/support', label: 'Website Feedback' },
+    { href: '/main-admin/support/requests', label: 'Support', perm: 'view_support_requests' },
+  ] },
   // A real request: "Main admin portal, remove academics tab and
   // features. Only parent portal has those pages and admin doesn't need
   // to control them with any settings." Diplomas/transcripts used to be

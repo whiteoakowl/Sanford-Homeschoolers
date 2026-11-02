@@ -301,6 +301,7 @@ router.get('/', async (req, res) => {
     classifiedsListings,
     readingLeaders,
     trainingAssignments,
+    notice: req.query.notice || null,
   });
 });
 

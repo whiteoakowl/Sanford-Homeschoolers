@@ -250,6 +250,10 @@ const PORTAL_PERMISSIONS = [
   { key: 'view_fun_games', label: 'Manage Fun: Games', description: 'Manage the Fun page’s Games subpage.', portal: 'main_admin' },
   { key: 'view_fun_vocabulary_game', label: 'Manage Fun: Vocabulary Game', description: 'Manage the Fun page’s Vocabulary Game subpage.', portal: 'main_admin' },
   { key: 'view_fun_pets', label: 'Manage Fun: Pets', description: 'Manage the Fun page’s Pets subpage.', portal: 'main_admin' },
+  // Main Admin > Support (routes/main-admin-support.js) - see supabase/
+  // migrations/20261228020000_support_permissions.sql.
+  { key: 'manage_support', label: 'Manage Support', description: 'Manage the Support page’s Website Feedback log and its contact form fields.', portal: 'main_admin' },
+  { key: 'view_support_requests', label: 'Manage Support: Support', description: 'Manage the Support page’s Support log and its contact form fields.', portal: 'main_admin' },
 
   // Parent Portal - see utils/portalPageCatalog.js's PARENT_PAGES.
   { key: 'view_parent_events', label: 'View Events', description: 'View the Events page from Parent Portal.', portal: 'parent' },

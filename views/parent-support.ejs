@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Parent Portal' }) %>
+
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <h1>Website Feedback and Support</h1>
+    <p><a href="/parent">&larr; Back to Parent Portal</a></p>
+    <p class="hint">Send the co-op's website admins feedback about the site, or ask for help with something that isn't working.</p>
+
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+    <div class="manage-section">
+      <form method="POST" action="/parent/support" enctype="multipart/form-data" class="member-form-grid cf-form" data-cf-form>
+        <label class="member-form-full">Type
+          <select name="requestType" required data-support-type-select>
+            <% types.forEach(function(t) { %>
+              <option value="<%= t.key %>" <%= selectedType === t.key ? 'selected' : '' %>><%= t.key === 'feedback' ? 'Feedback' : 'Support' %></option>
+            <% }); %>
+          </select>
+        </label>
+        <label class="member-form-full">Subject <span class="cf-required-star">*</span>
+          <input type="text" name="subject" required maxlength="200" value="<%= subject %>" />
+        </label>
+        <label class="member-form-full">Message <span class="cf-required-star">*</span>
+          <textarea name="message" rows="6" required><%= message %></textarea>
+        </label>
+
+        <%# Each type's own extra fields (built on Main Admin > Support's
+            "Create Form" - the Custom Forms builder). A real request:
+            "allows you to add different fields like jotform." Only the
+            selected type's set is shown; the other sits in a disabled
+            <fieldset>, so its inputs never validate or post. %>
+        <% types.forEach(function(t) { %>
+          <% var extraFields = t.pages.flatMap(function(p) { return p.fields; }); %>
+          <% if (extraFields.length) { %>
+            <fieldset class="member-form-full support-extra-fields" data-support-fields="<%= t.key %>" <%= selectedType === t.key ? '' : 'disabled hidden' %>>
+              <div class="member-form-grid">
+                <% extraFields.forEach(function(field) { %>
+                  <%- include('partials/custom-form-field', { field: field, ratingMax: ratingMax, spinnerRange: spinnerRange, customFormImageUrl: customFormImageUrl }) %>
+                <% }); %>
+              </div>
+            </fieldset>
+          <% } %>
+        <% }); %>
+
+        <div class="member-form-full roster-btn-row">
+          <button type="submit" class="primary-btn">Submit</button>
+          <a class="btn-secondary" href="/parent">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </main>
+  <script>
+    (function () {
+      var select = document.querySelector('[data-support-type-select]');
+      if (!select) return;
+      select.addEventListener('change', function () {
+        document.querySelectorAll('[data-support-fields]').forEach(function (fs) {
+          var active = fs.getAttribute('data-support-fields') === select.value;
+          fs.hidden = !active;
+          fs.disabled = !active;
+        });
+      });
+    })();
+  </script>
+  <script src="/js/custom-form-runtime.js"></script>
+  <script src="/js/custom-form-signature-pad.js"></script>
+</body>
+</html>
