@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { chunkQrPages } = require('../utils/qrSheetPages');
 const db = require('../db');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
 const { BADGE_WIDTH, BADGE_HEIGHT, FIELDS_BY_TYPE, SHAPE_TYPES, FONT_FAMILIES, DEFAULT_LAYOUTS } = require('../utils/nameTagBadge');
@@ -420,7 +421,7 @@ router.post('/design/print-classcheckin-qr', async (req, res) => {
 
   res.render('admin-classcheckin-qr-print', {
     title: 'Print Class Check-In QR Codes',
-    pages,
+    pages: chunkQrPages(pages),
   });
 });
 
@@ -467,7 +468,7 @@ router.get('/design/print-classcheckin-qr/download.pdf', async (req, res) => {
 
   const pdf = await renderViewToPdf(req, 'admin-classcheckin-qr-print', {
     title: 'Print Class Check-In QR Codes',
-    pages,
+    pages: chunkQrPages(pages),
     isFullAdmin: true,
   });
   sendPdf(res, 'class-checkin-qr-codes.pdf', pdf);

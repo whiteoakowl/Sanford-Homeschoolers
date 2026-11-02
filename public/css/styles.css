@@ -6367,6 +6367,8 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
   flex-direction: column;
 }
 .qr-sheet-page:not(:last-child) { page-break-after: always; }
+/* Never let a sheet's contents spill onto the next printed page. */
+.qr-sheet-page { overflow: hidden; }
 
 /* 1fr rows/columns (not a fixed inch size, unlike .avery-label-grid,
    which needs an exact printer-label match) - "evenly spaced" just means
