@@ -1,6 +1,6 @@
 // Assign Training member picker (admin-training-assign.ejs) - a filter
 // dropdown (All/Students/Primary Parents/Parents/Admins/Teachers) plus
-// Select All/Select None, same interaction as the Design/Print hub's own
+// Select All, same interaction as the Design/Print hub's own
 // bulk print pickers (public/js/design-print-hub.js's wireBulkMemberList)
 // - standalone here since this page doesn't otherwise load that script. A
 // real request: "should have a filter option like bulk printing. primary
@@ -22,25 +22,21 @@
   }
   if (filterSelect) filterSelect.addEventListener('change', applyFilter);
 
+  // A real request: "Remove select none check box... Simply unselecting
+  // select all will uncheck them." Select All also follows the rows:
+  // unchecking any row clears it, checking every visible row checks it.
   const selectAll = document.getElementById('training-assign-select-all-checkbox');
   if (selectAll) {
+    const visibleBoxes = () => Array.from(list.querySelectorAll('.print-picker-row'))
+      .filter((row) => row.style.display !== 'none')
+      .map((row) => row.querySelector('input[type="checkbox"]'));
     selectAll.addEventListener('change', () => {
-      list.querySelectorAll('.print-picker-row').forEach((row) => {
-        if (row.style.display !== 'none') row.querySelector('input[type="checkbox"]').checked = selectAll.checked;
-      });
+      visibleBoxes().forEach((cb) => { cb.checked = selectAll.checked; });
     });
-  }
-
-  const selectNone = document.getElementById('training-assign-select-none-checkbox');
-  if (selectNone) {
-    selectNone.addEventListener('change', () => {
-      if (selectNone.checked) {
-        list.querySelectorAll('.print-picker-row').forEach((row) => {
-          if (row.style.display !== 'none') row.querySelector('input[type="checkbox"]').checked = false;
-        });
-        if (selectAll) selectAll.checked = false;
-        selectNone.checked = false;
-      }
+    list.addEventListener('change', (e) => {
+      if (!e.target.closest('.print-picker-row')) return;
+      const boxes = visibleBoxes();
+      selectAll.checked = boxes.length > 0 && boxes.every((cb) => cb.checked);
     });
   }
 })();

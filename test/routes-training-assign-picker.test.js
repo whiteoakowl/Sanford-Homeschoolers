@@ -79,9 +79,12 @@ test('Assign Training page: members are sorted by last name, and the filter/sele
     assert.match(selectMatch[0], /<option value="teacher">Teachers Only<\/option>/);
   });
 
-  await t.test('Select All and Select None checkboxes are present', () => {
+  // A real request: "Remove select none check box... Simply unselecting
+  // select all will uncheck them."
+  await t.test('Select All is present and Select None is gone', () => {
     assert.match(res.text, /id="training-assign-select-all-checkbox"/);
-    assert.match(res.text, /id="training-assign-select-none-checkbox"/);
+    assert.doesNotMatch(res.text, /training-assign-select-none-checkbox/);
+    assert.doesNotMatch(res.text, /Select None/);
   });
 
   await t.test('each row carries the correct data-type/data-primary/data-teacher attributes for client-side filtering', () => {

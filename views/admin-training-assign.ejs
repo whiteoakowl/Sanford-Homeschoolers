@@ -30,7 +30,7 @@
         <%# A real request: "should have a filter option like bulk
             printing. primary parents, parents, students, admins" (later
             joined by "add filter option for training for teachers") -
-            same filter dropdown + Select All/Select None interaction as
+            same filter dropdown + Select All interaction as
             the Design/Print hub's bulk print pickers (public/js/design-
             print-hub.js's wireBulkMemberList), standalone here since this
             page doesn't otherwise load that script (public/js/training-
@@ -50,10 +50,6 @@
           <label class="checkbox-option name-tag-select-all">
             <input type="checkbox" id="training-assign-select-all-checkbox" />
             Select All
-          </label>
-          <label class="checkbox-option name-tag-select-none">
-            <input type="checkbox" id="training-assign-select-none-checkbox" />
-            Select None
           </label>
         </div>
         <% if (members.length === 0) { %>
