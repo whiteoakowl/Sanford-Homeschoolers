@@ -48,7 +48,6 @@ const {
 } = require('../utils/academics');
 const { renderViewToPdf } = require('../utils/pdfRender');
 const forums = require('../utils/forums');
-const { registerForClass, unregisterFromClass } = require('../utils/classRegistration');
 const events = require('../utils/events');
 const notifications = require('../utils/notifications');
 const resourceLinks = require('../utils/resourceLinks');
@@ -330,33 +329,10 @@ router.get('/classes/dashboard', requirePortalPermission('view_student_classes_d
   });
 });
 
-router.post('/classes/:id/register', requirePortalPermission('view_student_classes'), async (req, res) => {
-  const classId = parseInt(req.params.id, 10);
-  const back = '/student/classes';
-  const member = await memberForAccount(req.portalAccount.id);
-  if (!member) return res.redirect(back + '?error=' + encodeURIComponent('No student profile found for your account.'));
-
-  const result = await registerForClass({
-    classId,
-    studentId: member.id,
-    accountId: req.portalAccount.id,
-    portalRoles: req.portalRoles,
-    registrantType: 'student',
-  });
-  if (!result.ok) return res.redirect(back + '?error=' + encodeURIComponent(result.error));
-  res.redirect(back + '?notice=' + encodeURIComponent(result.notice));
-});
-
-router.post('/classes/:id/unregister', requirePortalPermission('view_student_classes'), async (req, res) => {
-  const classId = parseInt(req.params.id, 10);
-  const back = '/student/classes';
-  const member = await memberForAccount(req.portalAccount.id);
-  if (!member) return res.redirect(back + '?error=' + encodeURIComponent('No student profile found for your account.'));
-
-  const result = await unregisterFromClass({ classId, studentId: member.id, accountId: req.portalAccount.id });
-  if (!result.ok) return res.redirect(back + '?error=' + encodeURIComponent(result.error));
-  res.redirect(back + '?notice=' + encodeURIComponent('Registration cancelled.'));
-});
+// A real request: "Students will not be able to register for classes.
+// Only parents through parent portal and admins of course." The old
+// student self-register/unregister routes (POST /classes/:id/register
+// and /unregister) were removed.
 
 // A real request: "Parent and student portal. On classroom dashboard
 // when you click on a Class card it take you to that class. Details
