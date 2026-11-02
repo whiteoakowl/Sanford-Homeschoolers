@@ -31,6 +31,15 @@ const { CLASS_DAY_ORDER } = require('../utils/classDays');
 const { allClassesList, staffForClass, listSemesters } = require('../utils/classSchedule');
 const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
 const { instructorProfilesByMemberIds, instructorProfile, setInstructorProfileEnabled, saveInstructorProfile } = require('../utils/instructorProfiles');
+const multer = require('multer');
+const reimb = require('../utils/reimbursements');
+const { toCsvRow, sendCsv, buildTemplateWorkbook, readRowsFromFile } = require('../utils/spreadsheet');
+const { renderViewToPdf, publicOrigin } = require('../utils/pdfRender');
+const { spreadsheetFileFilter } = require('../utils/uploads');
+const { formatTimestamp, formatDateShort } = require('../utils/dates');
+const { renderForm: renderReimbursementForm, submit: submitReimbursement, uploadReceipts, queryErrors } = require('./teacher-reimbursements');
+
+const reimbursementImportUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024 }, fileFilter: spreadsheetFileFilter });
 
 // "Schedule grid semester" is the same active-semester concept the Kiosk
 // Settings dropdown drives everywhere else (Classes grid default,
@@ -171,6 +180,244 @@ router.post('/teachers/instructor-profiles/:id/edit', requireAdmin, async (req, 
     qualificationsVisible: !!req.body.qualificationsVisible,
   });
   res.redirect('/admin/teachers/instructor-profiles?notice=' + encodeURIComponent('Instructor profile saved.'));
+});
+
+// --- Teacher Reimbursements - a real request: "add a subpage called
+// teacher reimbursements. This will be a log of reimbursement forms that
+// have been submitted for approval. There should be import, export,
+// print, and PDF icons on this page lined up on the same row. There will
+// also be a button that says edit form." See utils/reimbursements.js;
+// the teacher-facing form is routes/teacher-reimbursements.js. Every
+// literal subpath is registered ahead of /teachers/reimbursements/:id.
+
+function reimbursementFilters(req) {
+  const status = reimb.STATUS_LABELS[req.query.status] ? req.query.status : '';
+  const semesterId = parseInt(req.query.semesterId, 10) || null;
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (semesterId) params.set('semesterId', String(semesterId));
+  const qs = params.toString();
+  return { status, semesterId, query: qs ? `?${qs}` : '' };
+}
+
+async function filteredReimbursements(req) {
+  const filters = reimbursementFilters(req);
+  const requests = await reimb.listRequests(filters);
+  const grandTotalLabel = reimb.formatCents(requests.reduce((sum, r) => sum + Number(r.total_cents || 0), 0));
+  return { filters, requests, grandTotalLabel };
+}
+
+async function reimbursementFilterLabel(filters) {
+  const parts = [];
+  if (filters.status) parts.push(reimb.STATUS_LABELS[filters.status]);
+  if (filters.semesterId) {
+    const sem = (await listSemesters()).find((s) => s.id === filters.semesterId);
+    if (sem) parts.push(sem.title);
+  }
+  return parts.join(', ');
+}
+
+async function renderReimbursementLog(req, res, extra = {}) {
+  const { filters, requests, grandTotalLabel } = await filteredReimbursements(req);
+  res.render('admin-teacher-reimbursements', {
+    title: 'Teacher Reimbursements',
+    requests,
+    grandTotalLabel,
+    filters,
+    filterQuery: filters.query,
+    statusLabels: reimb.STATUS_LABELS,
+    semesters: await listSemesters(),
+    notice: req.query.notice || null,
+    error: req.query.error || null,
+    importErrors: [],
+    formatTimestamp,
+    ...extra,
+  });
+}
+
+router.get('/teachers/reimbursements', requireAdmin, async (req, res) => {
+  await renderReimbursementLog(req, res);
+});
+
+router.get('/teachers/reimbursements/export.csv', requireAdmin, async (req, res) => {
+  const { requests } = await filteredReimbursements(req);
+  const lines = [toCsvRow(['Submitted', 'Name', 'Semester', 'Day', 'Class', 'Items', 'Receipts', 'Total', 'Status', 'Check Number', 'Check Date', 'Approved By'])];
+  requests.forEach((r) => {
+    lines.push(
+      toCsvRow([
+        r.submitted_at,
+        r.member_name,
+        r.semester_title,
+        r.dayLabel,
+        r.class_name,
+        r.itemCount,
+        r.receiptCount,
+        (Number(r.total_cents) / 100).toFixed(2),
+        r.statusLabel,
+        r.check_number || '',
+        r.check_date || '',
+        r.approved_by_name || '',
+      ])
+    );
+  });
+  sendCsv(res, 'teacher-reimbursements.csv', lines);
+});
+
+// One row per item line, in the same columns the Import template uses,
+// so an export can be re-imported elsewhere.
+router.get('/teachers/reimbursements/export-items.csv', requireAdmin, async (req, res) => {
+  const { requests } = await filteredReimbursements(req);
+  const items = await reimb.itemsForRequests(requests.map((r) => r.id));
+  const byId = new Map(requests.map((r) => [r.id, r]));
+  const lines = [toCsvRow(reimb.IMPORT_HEADERS)];
+  items.forEach((it) => {
+    const r = byId.get(it.request_id);
+    lines.push(
+      toCsvRow([
+        r.member_name,
+        r.semester_title,
+        r.dayLabel,
+        r.class_name,
+        it.description,
+        it.purchase_date || '',
+        (it.amount_cents / 100).toFixed(2),
+        (r.submitted_at || '').slice(0, 10),
+        r.check_number || '',
+        r.check_date || '',
+        r.approved_by_name || '',
+      ])
+    );
+  });
+  sendCsv(res, 'teacher-reimbursement-items.csv', lines);
+});
+
+async function reimbursementPrintLocals(req) {
+  const { filters, requests, grandTotalLabel } = await filteredReimbursements(req);
+  return {
+    title: 'Teacher Reimbursements',
+    requests,
+    grandTotalLabel,
+    filterLabel: await reimbursementFilterLabel(filters),
+    formatTimestamp,
+    formatDateShort,
+  };
+}
+
+router.get('/teachers/reimbursements/print', requireAdmin, async (req, res) => {
+  res.render('admin-teacher-reimbursements-print', await reimbursementPrintLocals(req));
+});
+
+router.get('/teachers/reimbursements/download.pdf', requireAdmin, async (req, res) => {
+  // req.app.render() never sees this request's res.locals, so the nav's
+  // isFullAdmin has to be passed explicitly (same as admin-design.js).
+  const pdf = await renderViewToPdf(req, 'admin-teacher-reimbursements-print', { ...(await reimbursementPrintLocals(req)), isFullAdmin: !!res.locals.isFullAdmin });
+  res.set('Content-Type', 'application/pdf');
+  res.set('Content-Disposition', 'attachment; filename="teacher-reimbursements.pdf"');
+  res.send(pdf);
+});
+
+router.get('/teachers/reimbursements/import-template.xlsx', requireAdmin, (req, res) => {
+  const buffer = buildTemplateWorkbook(reimb.IMPORT_HEADERS, [
+    ['Jane Smith', 'Fall 2026', 'Monday', 'Art', 'Construction paper', '2026-09-01', '12.50', '2026-09-05', '', '', ''],
+    ['Jane Smith', 'Fall 2026', 'Monday', 'Art', 'Glue sticks', '2026-09-01', '6.00', '2026-09-05', '', '', ''],
+  ]);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="teacher-reimbursements-import-template.xlsx"');
+  res.send(buffer);
+});
+
+router.post('/teachers/reimbursements/import', requireAdmin, reimbursementImportUpload.single('file'), async (req, res) => {
+  if (!req.file) return res.redirect('/admin/teachers/reimbursements?error=' + encodeURIComponent('Please choose a file to import.'));
+  let rows;
+  try {
+    rows = await readRowsFromFile(req.file.buffer);
+  } catch {
+    return res.redirect('/admin/teachers/reimbursements?error=' + encodeURIComponent('Could not read that file. Please use the template format.'));
+  }
+  const { imported, errors } = await reimb.importRows(rows, req.portalAccount ? req.portalAccount.id : null);
+  const notice = `Imported ${imported} reimbursement form${imported === 1 ? '' : 's'}.`;
+  if (errors.length === 0) return res.redirect('/admin/teachers/reimbursements?notice=' + encodeURIComponent(notice));
+  await renderReimbursementLog(req, res, { notice, importErrors: errors });
+});
+
+router.get('/teachers/reimbursements/form-settings', requireAdmin, async (req, res) => {
+  res.render('admin-teacher-reimbursements-form-settings', {
+    title: 'Edit Reimbursement Form',
+    settings: await reimb.formSettings(),
+    teacherFormUrl: `${publicOrigin(req)}/reimbursement-form`,
+    notice: req.query.notice || null,
+  });
+});
+
+router.post('/teachers/reimbursements/form-settings', requireAdmin, async (req, res) => {
+  await reimb.saveFormSettings({ title: req.body.title, intro: req.body.intro, footer: req.body.footer });
+  res.redirect('/admin/teachers/reimbursements/form-settings?notice=' + encodeURIComponent('Form saved.'));
+});
+
+const ADMIN_FORM = { shell: 'admin', formAction: '/admin/teachers/reimbursements', backHref: '/admin/teachers/reimbursements', backLabel: 'Teacher Reimbursements' };
+
+router.get('/teachers/reimbursements/new', requireAdmin, async (req, res) => {
+  await renderReimbursementForm(res, { ...ADMIN_FORM, errors: queryErrors(req), values: {} });
+});
+
+router.post('/teachers/reimbursements', requireAdmin, uploadReceipts('/admin/teachers/reimbursements/new'), async (req, res) => {
+  await submitReimbursement(req, res, {
+    ...ADMIN_FORM,
+    onSuccess: (id) => res.redirect(`/admin/teachers/reimbursements/${id}?notice=` + encodeURIComponent('Reimbursement form submitted.')),
+  });
+});
+
+async function renderReimbursementDetail(req, res, request, { notice, error, status } = {}) {
+  res.status(status || 200).render('reimbursement-detail', {
+    title: 'Reimbursement',
+    shell: 'admin',
+    backHref: '/admin/teachers/reimbursements',
+    backLabel: 'Teacher Reimbursements',
+    settings: await reimb.formSettings(),
+    request,
+    admins: await reimb.adminMembers(),
+    notice: notice || null,
+    error: error || null,
+    formatTimestamp,
+    formatDateShort,
+  });
+}
+
+router.get('/teachers/reimbursements/:id', requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const request = id ? await reimb.getRequest(id) : null;
+  if (!request) return res.status(404).send('Not found');
+  await renderReimbursementDetail(req, res, request, { notice: req.query.notice });
+});
+
+router.post('/teachers/reimbursements/:id/admin', requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const existing = id ? await reimb.getRequest(id) : null;
+  if (!existing) return res.status(404).send('Not found');
+  const error = await reimb.saveAdminSection(id, {
+    checkNumber: req.body.checkNumber,
+    checkDate: req.body.checkDate,
+    approvedByMemberId: req.body.approvedByMemberId,
+  });
+  if (error) return renderReimbursementDetail(req, res, existing, { error, status: 400 });
+  const saved = await reimb.getRequest(id);
+  const notice = saved.status === 'approved' ? 'Saved - marked Approved/Paid.' : 'Saved. Fill in the check number, check date and approver to mark it Approved/Paid.';
+  res.redirect(`/admin/teachers/reimbursements/${id}?notice=` + encodeURIComponent(notice));
+});
+
+router.post('/teachers/reimbursements/:id/reject', requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const existing = id ? await reimb.getRequest(id) : null;
+  if (!existing) return res.status(404).send('Not found');
+  const error = await reimb.rejectRequest(id, req.body.message, req.portalAccount ? req.portalAccount.id : null);
+  if (error) return renderReimbursementDetail(req, res, existing, { error, status: 400 });
+  res.redirect(`/admin/teachers/reimbursements/${id}?notice=` + encodeURIComponent('Rejected - the teacher was notified and can edit and resubmit it.'));
+});
+
+router.post('/teachers/reimbursements/:id/delete', requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (id) await reimb.deleteRequest(id);
+  res.redirect('/admin/teachers/reimbursements?notice=' + encodeURIComponent('Reimbursement form deleted.'));
 });
 
 module.exports = router;

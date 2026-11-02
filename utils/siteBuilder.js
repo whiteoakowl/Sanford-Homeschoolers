@@ -50,6 +50,7 @@ const RESERVED_SLUGS = new Set([
   'publications', 'search', 'absence', 'name-tag', 'volunteers', 'volunteer-lists', 'signup-lists', 'setup',
   'contact-admins', 'training', 'family-school', 'handbook-file', 'privacy-policy', 'terms-and-conditions',
   'uploads', 'api', 'sitemap.xml', 'robots.txt', 'manifest.json', 'sw.js', 'favicon.ico', 'preview',
+  'reimbursement-form',
 ]);
 try {
   for (const name of fs.readdirSync(path.join(__dirname, '..', 'public'))) RESERVED_SLUGS.add(name.toLowerCase());

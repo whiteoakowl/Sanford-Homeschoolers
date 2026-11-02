@@ -296,6 +296,7 @@ const PORTAL_PERMISSIONS = [
   { key: 'view_teacher_chat', label: 'View Chat', description: 'View the Chat page from Co-op Teacher Portal.', portal: 'teacher' },
   { key: 'view_teacher_photos', label: 'View Photos', description: 'View the Photos page from Co-op Teacher Portal.', portal: 'teacher' },
   { key: 'view_teacher_instructor_profile', label: 'View Instructor Profile', description: 'View the Instructor Profile page.', portal: 'teacher' },
+  { key: 'view_teacher_reimbursements', label: 'View Reimbursements', description: 'View and submit the Reimbursements form from Co-op Teacher Portal.', portal: 'teacher' },
 
   // Student Portal - see utils/portalPageCatalog.js's STUDENT_PAGES.
   { key: 'view_student_events', label: 'View Calendar', description: 'View the Events page’s Calendar subpage from Student Portal.', portal: 'student' },
