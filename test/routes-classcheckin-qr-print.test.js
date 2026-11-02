@@ -145,7 +145,7 @@ test('the print sheet groups classes into one page per (day, room), sorted by ho
 
   await t.test('each cell carries the class name and an absolute Class Check-In URL', async () => {
     for (const classId of classIds) {
-      assert.match(res.text, new RegExp(`data-qr-value="http://[^"]*/kiosk/class-checkin/classes/${classId}/attendance"`));
+      assert.match(res.text, new RegExp(`data-qr-value="http://[^"]*/kiosk/class-checkin/classes/${classId}/attendance\\?k=[0-9a-f]{20}"`));
     }
     assert.match(res.text, /Room A Hour 1/);
     assert.match(res.text, /Room B Solo Class/);
@@ -232,4 +232,43 @@ test('the QR picker Filter popup has a Semester dropdown and each row carries it
   const daySelect = /<select id="classcheckin-qr-filter-day-select">([\s\S]*?)<\/select>/.exec(page.text)[1];
   assert.match(daySelect, /<option value="monday">Monday<\/option>/);
   assert.doesNotMatch(daySelect, /<option value="tuesday">/, 'only days that actually have classes are offered');
+});
+
+// A real request: "When scanning qr codes to do class attendance, check in
+// and out, it should not ask for a pin #. Scanning the class qr code goes
+// directly to the class attendance page." The printed URL's per-class key
+// opens that class (and its check-in/out) with no PIN; no key, a wrong
+// key, or another class's key still lands on the PIN screen.
+test('a printed class QR code opens that class attendance page with no PIN, but only that class', async () => {
+  const { classQrKey } = require('../utils/classQrKey');
+  const classA = await createClass({ day: 'monday', hourPosition: 1, className: 'QR No PIN Class A', room: 'Room Q' });
+  const classB = await createClass({ day: 'monday', hourPosition: 2, className: 'QR No PIN Class B', room: 'Room Q' });
+  const keyA = await classQrKey(classA);
+
+  const noKey = await request(app).get(`/kiosk/class-checkin/classes/${classA}/attendance`);
+  assert.equal(noKey.status, 302);
+  assert.match(noKey.headers.location, /^\/kiosk\/class-checkin\?next=/);
+
+  const wrongKey = await request(app).get(`/kiosk/class-checkin/classes/${classA}/attendance?k=${'0'.repeat(20)}`);
+  assert.match(wrongKey.headers.location, /^\/kiosk\/class-checkin\?next=/);
+
+  const agent = request.agent(app);
+  const scanned = await agent.get(`/kiosk/class-checkin/classes/${classA}/attendance?k=${keyA}`);
+  assert.equal(scanned.status, 302, 'the key is accepted and stripped from the URL');
+  assert.equal(scanned.headers.location, `/kiosk/class-checkin/classes/${classA}/attendance`);
+  const page = await agent.get(`/kiosk/class-checkin/classes/${classA}/attendance`);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /QR No PIN Class A/);
+  const scanPage = await agent.get(`/kiosk/class-checkin/classes/${classA}/scan?mode=checkin`);
+  assert.equal(scanPage.status, 200);
+  const checkin = await agent.post(`/kiosk/class-checkin/classes/${classA}/scan/checkin`).type('form').send({ barcode: 'no-such-barcode' });
+  assert.equal(checkin.status, 200, 'check-in scanning works on the unlocked class (an unknown barcode just reports not recognized)');
+
+  const otherClass = await agent.get(`/kiosk/class-checkin/classes/${classB}/attendance`);
+  assert.equal(otherClass.status, 302, 'one class\'s QR key does not unlock a different class');
+  const otherWithAKey = await agent.get(`/kiosk/class-checkin/classes/${classB}/attendance?k=${keyA}`);
+  assert.equal(otherWithAKey.status, 302);
+  assert.match(otherWithAKey.headers.location, /^\/kiosk\/class-checkin\?next=/);
+  const list = await agent.get('/kiosk/class-checkin/classes');
+  assert.equal(list.status, 302, 'the class list itself still needs the PIN');
 });

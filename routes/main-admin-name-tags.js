@@ -40,6 +40,7 @@
 const express = require('express');
 const router = express.Router();
 const { chunkQrPages, qrPickerFilterOptions } = require('../utils/qrSheetPages');
+const { classQrKey } = require('../utils/classQrKey');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -906,6 +907,7 @@ router.post('/print-classcheckin-qr', async (req, res) => {
   const allClasses = await allClassesList();
   const idSet = new Set(classIds);
   const classes = allClasses.filter((c) => idSet.has(c.id));
+  for (const c of classes) c.qrKey = await classQrKey(c.id);
 
   const origin = `${req.protocol}://${req.get('host')}`;
   const groups = new Map();
@@ -927,7 +929,7 @@ router.post('/print-classcheckin-qr', async (req, res) => {
           className: c.class_name,
           dayLabel: c.dayLabel,
           timeLabel: c.timeLabel,
-          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance`,
+          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance?k=${c.qrKey}`,
         })),
     }));
 
@@ -954,6 +956,7 @@ router.get('/print-classcheckin-qr/download.pdf', async (req, res) => {
   const allClasses = await allClassesList();
   const idSet = new Set(classIds);
   const classes = allClasses.filter((c) => idSet.has(c.id));
+  for (const c of classes) c.qrKey = await classQrKey(c.id);
 
   const origin = `${req.protocol}://${req.get('host')}`;
   const groups = new Map();
@@ -975,7 +978,7 @@ router.get('/print-classcheckin-qr/download.pdf', async (req, res) => {
           className: c.class_name,
           dayLabel: c.dayLabel,
           timeLabel: c.timeLabel,
-          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance`,
+          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance?k=${c.qrKey}`,
         })),
     }));
 

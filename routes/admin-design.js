@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { chunkQrPages, qrPickerFilterOptions } = require('../utils/qrSheetPages');
+const { classQrKey } = require('../utils/classQrKey');
 const db = require('../db');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
 const { BADGE_WIDTH, BADGE_HEIGHT, FIELDS_BY_TYPE, SHAPE_TYPES, FONT_FAMILIES, DEFAULT_LAYOUTS } = require('../utils/nameTagBadge');
@@ -395,6 +396,7 @@ router.post('/design/print-classcheckin-qr', async (req, res) => {
   const allClasses = await allClassesList();
   const idSet = new Set(classIds);
   const classes = allClasses.filter((c) => idSet.has(c.id));
+  for (const c of classes) c.qrKey = await classQrKey(c.id);
 
   const origin = `${req.protocol}://${req.get('host')}`;
   const groups = new Map();
@@ -416,7 +418,7 @@ router.post('/design/print-classcheckin-qr', async (req, res) => {
           className: c.class_name,
           dayLabel: c.dayLabel,
           timeLabel: c.timeLabel,
-          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance`,
+          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance?k=${c.qrKey}`,
         })),
     }));
 
@@ -442,6 +444,7 @@ router.get('/design/print-classcheckin-qr/download.pdf', async (req, res) => {
   const allClasses = await allClassesList();
   const idSet = new Set(classIds);
   const classes = allClasses.filter((c) => idSet.has(c.id));
+  for (const c of classes) c.qrKey = await classQrKey(c.id);
 
   const origin = `${req.protocol}://${req.get('host')}`;
   const groups = new Map();
@@ -463,7 +466,7 @@ router.get('/design/print-classcheckin-qr/download.pdf', async (req, res) => {
           className: c.class_name,
           dayLabel: c.dayLabel,
           timeLabel: c.timeLabel,
-          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance`,
+          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance?k=${c.qrKey}`,
         })),
     }));
 
