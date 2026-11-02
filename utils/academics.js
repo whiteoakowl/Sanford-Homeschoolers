@@ -15,11 +15,12 @@ const { createStorageClient, uploadFile, deleteFile, generateKey, publicUrl } = 
 // one exists - a lesson with no due date at all no longer needs the old
 // "due_date IS NULL, due_date DESC" tiebreak to sort sensibly.
 async function assignmentsForClass(classId) {
-  return db.prepare('SELECT * FROM class_assignments WHERE class_id = ? ORDER BY position, due_date IS NULL, due_date DESC, created_at DESC').all(classId);
+  const rows = await db.prepare('SELECT * FROM class_assignments WHERE class_id = ? ORDER BY position, due_date IS NULL, due_date DESC, created_at DESC').all(classId);
+  return rows.map(withNormalizedStatus);
 }
 
 async function getAssignment(id) {
-  return db.prepare('SELECT * FROM class_assignments WHERE id = ?').get(id);
+  return withNormalizedStatus(await db.prepare('SELECT * FROM class_assignments WHERE id = ?').get(id));
 }
 
 // approvalStatus: see the lesson_plan_approval migration. Defaults to
@@ -40,39 +41,85 @@ async function createAssignment({ classId, className, title, description, dueDat
 }
 
 // --- Lesson plan approval (teacher submits -> Co-op Admin approves or
-// declines). Only 'approved' lessons are ever shown to students/parents
-// (lessonsForStudentView, assignmentsForStudent*, below). A real request:
-// edits to an already-approved lesson keep it approved - pulling a lesson
-// away from students mid-class over a typo fix would be worse than the
-// risk of an unreviewed correction. ---
+// rejects with a required message). Only 'approved' lessons are ever
+// shown to students/parents (lessonsForStudentView, assignmentsForStudent*,
+// below). A real request: edits to an already-approved lesson keep it
+// approved - pulling a lesson away from students mid-class over a typo
+// fix would be worse than the risk of an unreviewed correction. Every
+// submit/approve/reject is also logged to lesson_approval_events so a
+// resubmit never loses earlier rejection messages. ---
 
-const APPROVAL_STATUS_LABELS = { draft: 'Draft', pending: 'Pending Approval', approved: 'Approved', declined: 'Declined' };
+const APPROVAL_STATUS_LABELS = { draft: 'Draft', pending: 'Pending', approved: 'Approved', rejected: 'Rejected' };
 
-// Only a draft or declined lesson can be (re)submitted. Returns true when
-// the status actually changed.
+// 'declined' is the pre-rename spelling of 'rejected' (see the
+// lesson_plan_rejections migration) - read it as 'rejected' so a
+// row written mid-deploy still behaves correctly.
+function normalizeApprovalStatus(status) {
+  return status === 'declined' ? 'rejected' : status;
+}
+function withNormalizedStatus(row) {
+  return row ? { ...row, approval_status: normalizeApprovalStatus(row.approval_status) } : row;
+}
+
+async function actorNameForAccount(accountId) {
+  if (!accountId) return null;
+  const row = await db.prepare('SELECT m.name, ma.email FROM member_accounts ma LEFT JOIN members m ON m.id = ma.member_id WHERE ma.id = ?').get(accountId);
+  return row ? row.name || row.email : null;
+}
+
+async function recordApprovalEvent(assignmentId, action, { message = null, accountId = null } = {}) {
+  await db
+    .prepare('INSERT INTO lesson_approval_events (assignment_id, action, message, actor_account_id, actor_name) VALUES (?, ?, ?, ?, ?)')
+    .run(assignmentId, action, message, accountId, await actorNameForAccount(accountId));
+}
+
+async function approvalEventsForAssignment(assignmentId) {
+  const rows = await db.prepare('SELECT * FROM lesson_approval_events WHERE assignment_id = ? ORDER BY id').all(assignmentId);
+  return rows.map((r) => ({ ...r, createdAtLabel: formatFriendlyTimestamp(r.created_at) }));
+}
+
+// Only a draft or rejected lesson can be (re)submitted; it goes back to
+// pending. The lesson's own review_note is cleared (the rejection
+// message itself stays in lesson_approval_events). Returns true when the
+// status actually changed.
 async function submitAssignmentForApproval(id, accountId) {
   const info = await db
     .prepare(
-      "UPDATE class_assignments SET approval_status = 'pending', submitted_at = now_text(), submitted_by_account_id = ?, reviewed_at = NULL, reviewed_by_account_id = NULL, review_note = NULL WHERE id = ? AND approval_status IN ('draft', 'declined')"
+      "UPDATE class_assignments SET approval_status = 'pending', submitted_at = now_text(), submitted_by_account_id = ?, reviewed_at = NULL, reviewed_by_account_id = NULL, review_note = NULL WHERE id = ? AND approval_status IN ('draft', 'rejected', 'declined')"
     )
     .run(accountId, id);
-  return Number(info.changes) > 0;
+  const changed = Number(info.changes) > 0;
+  if (changed) await recordApprovalEvent(id, 'submitted', { accountId });
+  return changed;
 }
 
-// Approve/decline only act on a lesson that's actually pending, so a
-// stale double-click (or a replayed POST) can't flip a lesson twice.
+// Approve/reject only act on a lesson that's actually pending, so a
+// stale double-click (or a replayed POST) can't flip a lesson twice. A
+// rejection requires a message (the caller validates it too).
 async function reviewAssignment(id, { approve, note, accountId }) {
+  const message = approve ? null : (note || '').trim();
+  if (!approve && !message) return false;
   const info = await db
     .prepare("UPDATE class_assignments SET approval_status = ?, reviewed_at = now_text(), reviewed_by_account_id = ?, review_note = ? WHERE id = ? AND approval_status = 'pending'")
-    .run(approve ? 'approved' : 'declined', accountId, approve ? null : note || null, id);
-  return Number(info.changes) > 0;
+    .run(approve ? 'approved' : 'rejected', accountId, message, id);
+  const changed = Number(info.changes) > 0;
+  if (changed) await recordApprovalEvent(id, approve ? 'approved' : 'rejected', { message, accountId });
+  return changed;
 }
 
-// The Co-op Admin "Lesson Plan Approval" queue. status is one of
-// pending/approved/declined; approved/declined lists only lessons that
-// actually went through review (reviewed_at set), not every lesson that
-// was simply backfilled/admin-created as approved.
+const APPROVAL_QUEUE_FILTERS = ['pending', 'approved', 'rejected', 'all'];
+
+// The Co-op Admin "Lesson Plan Approval" list. status is one of
+// APPROVAL_QUEUE_FILTERS. Only lessons that were actually submitted by
+// a teacher are listed (submitted_at set) - not every lesson that was
+// simply backfilled/admin-created as approved.
 async function lessonsForApprovalQueue(status) {
+  const statusClause = {
+    pending: "ca.approval_status = 'pending'",
+    approved: "ca.approval_status = 'approved'",
+    rejected: "ca.approval_status IN ('rejected', 'declined')",
+    all: "ca.approval_status IN ('pending', 'approved', 'rejected', 'declined')",
+  }[status];
   const rows = await db
     .prepare(
       `SELECT ca.*, m.name AS submitted_by_name, cl.day AS class_day
@@ -80,13 +127,13 @@ async function lessonsForApprovalQueue(status) {
        LEFT JOIN member_accounts ma ON ma.id = ca.submitted_by_account_id
        LEFT JOIN members m ON m.id = ma.member_id
        LEFT JOIN classes cl ON cl.id = ca.class_id
-       WHERE ca.approval_status = ? ${status === 'pending' ? '' : 'AND ca.reviewed_at IS NOT NULL'}
-       ORDER BY ${status === 'pending' ? 'ca.submitted_at ASC' : 'ca.reviewed_at DESC'}
+       WHERE ${statusClause} AND ca.submitted_at IS NOT NULL
+       ORDER BY ${status === 'pending' ? 'ca.submitted_at ASC' : 'COALESCE(ca.reviewed_at, ca.submitted_at) DESC'}
        LIMIT 200`
     )
-    .all(status);
+    .all();
   return rows.map((r) => ({
-    ...r,
+    ...withNormalizedStatus(r),
     submittedAtLabel: r.submitted_at ? formatFriendlyTimestamp(r.submitted_at) : null,
     reviewedAtLabel: r.reviewed_at ? formatFriendlyTimestamp(r.reviewed_at) : null,
   }));
@@ -973,8 +1020,11 @@ module.exports = {
   getAssignment,
   createAssignment,
   APPROVAL_STATUS_LABELS,
+  APPROVAL_QUEUE_FILTERS,
+  normalizeApprovalStatus,
   submitAssignmentForApproval,
   reviewAssignment,
+  approvalEventsForAssignment,
   lessonsForApprovalQueue,
   pendingApprovalCount,
   updateAssignment,

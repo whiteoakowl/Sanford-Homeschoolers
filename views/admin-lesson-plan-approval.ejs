@@ -15,14 +15,15 @@
 
     <div class="view-tabs no-print">
       <a class="view-tab<%= status === 'pending' ? ' active' : '' %>" href="/admin/lesson-plans/approval">Pending</a>
-      <a class="view-tab<%= status === 'approved' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=approved">Recently Approved</a>
-      <a class="view-tab<%= status === 'declined' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=declined">Recently Declined</a>
+      <a class="view-tab<%= status === 'approved' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=approved">Approved</a>
+      <a class="view-tab<%= status === 'rejected' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=rejected">Rejected</a>
+      <a class="view-tab<%= status === 'all' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=all">All</a>
     </div>
 
     <div class="manage-section">
       <% if (lessons.length === 0) { %>
         <p class="roster-empty">
-          <% if (status === 'pending') { %>No lesson plans are waiting for approval.<% } else if (status === 'approved') { %>No reviewed lesson plans have been approved yet.<% } else { %>No lesson plans have been declined.<% } %>
+          <% if (status === 'pending') { %>No lesson plans are waiting for approval.<% } else if (status === 'approved') { %>No submitted lesson plans have been approved yet.<% } else if (status === 'rejected') { %>No lesson plans have been rejected.<% } else { %>No lesson plans have been submitted yet.<% } %>
         </p>
       <% } else { %>
         <div class="roster-scroll">
@@ -32,6 +33,7 @@
                 <th>Lesson</th>
                 <th>Class</th>
                 <th>Teacher</th>
+                <th>Status</th>
                 <th>Submitted</th>
                 <% if (status !== 'pending') { %><th>Reviewed</th><% } %>
                 <th></th>
@@ -42,19 +44,15 @@
                 <tr>
                   <td class="roster-name-col table-stack-heading">
                     <a href="/admin/lesson-plans/approval/<%= a.id %>"><%= a.title %></a>
-                    <% if (status === 'declined' && a.review_note) { %><div class="hint">Note: <%= a.review_note %></div><% } %>
+                    <% if (a.approval_status === 'rejected' && a.review_note) { %><div class="hint">Message: <%= a.review_note %></div><% } %>
                   </td>
                   <td data-label="Class"><%= a.class_name %></td>
                   <td data-label="Teacher"><%= a.submitted_by_name || '—' %></td>
+                  <td data-label="Status"><%- include('partials/lesson-approval-badge', { status: a.approval_status }) %></td>
                   <td data-label="Submitted"><%= a.submittedAtLabel || '—' %></td>
                   <% if (status !== 'pending') { %><td data-label="Reviewed"><%= a.reviewedAtLabel || '—' %></td><% } %>
-                  <td class="roster-btn-row">
-                    <a class="roster-action-btn" href="/admin/lesson-plans/approval/<%= a.id %>"><%= status === 'pending' ? 'Review' : 'View' %></a>
-                    <% if (status === 'pending') { %>
-                      <form method="POST" action="/admin/lesson-plans/approval/<%= a.id %>/approve" class="inline-block-form">
-                        <button type="submit" class="roster-action-btn">Approve</button>
-                      </form>
-                    <% } %>
+                  <td>
+                    <a class="roster-action-btn" href="/admin/lesson-plans/approval/<%= a.id %>"><%= a.approval_status === 'pending' ? 'Review' : 'View' %></a>
                   </td>
                 </tr>
               <% }); %>

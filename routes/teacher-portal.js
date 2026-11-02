@@ -48,6 +48,7 @@ const {
   lessonsForStudentView,
   nextContentItemAfter,
   submitAssignmentForApproval,
+  approvalEventsForAssignment,
 } = require('../utils/academics');
 const { formatDateLabel, formatFriendlyTimestamp, todayISO, formatDateLong } = require('../utils/dates');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
@@ -448,7 +449,8 @@ router.get('/assignments/:id', requirePortalPermission('view_teacher_assignments
     ...item,
     dueDateLabel: item.due_date ? formatDateLabel(item.due_date) : null,
   }));
-  res.render('teacher-gradebook', { title: assignment.title, cls, assignment, rows, contentItems, notice: req.query.notice || null, error: req.query.error || null });
+  const approvalEvents = await approvalEventsForAssignment(assignment.id);
+  res.render('teacher-gradebook', { title: assignment.title, cls, assignment, rows, contentItems, approvalEvents, notice: req.query.notice || null, error: req.query.error || null });
 });
 
 router.post('/assignments/:id/edit', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
@@ -478,7 +480,7 @@ router.post('/assignments/:id/edit', requirePortalPermission('view_teacher_assig
 // portal for a class and click submit for approval button, and then it
 // will send a request for approval to the co-op admin portal lesson plan
 // approval subpage." Only this teacher's own classes (assignmentForTeacher)
-// and only a draft/declined lesson (submitAssignmentForApproval no-ops
+// and only a draft/rejected lesson (submitAssignmentForApproval no-ops
 // otherwise).
 router.post('/assignments/:id/submit-approval', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const assignmentId = parseInt(req.params.id, 10);
@@ -486,7 +488,7 @@ router.post('/assignments/:id/submit-approval', requirePortalPermission('view_te
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
   const back = `/teacher/assignments/${assignmentId}`;
   const submitted = await submitAssignmentForApproval(assignmentId, req.portalAccount.id);
-  if (!submitted) return res.redirect(back + '?error=' + encodeURIComponent('Only a draft or declined lesson can be submitted for approval.'));
+  if (!submitted) return res.redirect(back + '?error=' + encodeURIComponent('Only a draft or rejected lesson can be submitted for approval.'));
   res.redirect(back + '?notice=' + encodeURIComponent('Submitted for approval. A Co-op Admin will review it before students can see it.'));
 });
 

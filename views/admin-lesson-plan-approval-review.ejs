@@ -17,8 +17,8 @@
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
-    <% if (assignment.approval_status === 'declined' && assignment.review_note) { %>
-      <div class="alert alert-error plain-text-display">Decline note: <%= assignment.review_note %></div>
+    <% if (assignment.approval_status === 'rejected' && assignment.review_note) { %>
+      <div class="alert alert-error plain-text-display">Rejection message: <%= assignment.review_note %></div>
     <% } %>
 
     <div class="manage-section">
@@ -75,6 +75,33 @@
       <% }); %>
     </div>
 
+    <div class="manage-section">
+      <h2>Approval History</h2>
+      <% if (events.length === 0) { %>
+        <p class="roster-empty">No approval activity yet.</p>
+      <% } else { %>
+        <div class="roster-scroll">
+          <table class="roster-table members-table condensed-table table-stack-mobile">
+            <thead>
+              <tr><th>When</th><th>Action</th><th>By</th><th>Message</th></tr>
+            </thead>
+            <tbody>
+              <% events.forEach(function(e) { %>
+                <tr>
+                  <td class="table-stack-heading"><%= e.createdAtLabel %></td>
+                  <td data-label="Action">
+                    <% if (e.action === 'submitted') { %><span class="badge-pill badge-pill-orange">Submitted</span><% } else if (e.action === 'approved') { %><span class="badge-pill badge-pill-green">Approved</span><% } else { %><span class="badge-pill badge-pill-red">Rejected</span><% } %>
+                  </td>
+                  <td data-label="By"><%= e.actor_name || '—' %></td>
+                  <td data-label="Message" class="plain-text-display"><%= e.message || '' %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
     <% if (assignment.approval_status === 'pending') { %>
       <div class="manage-section">
         <h2>Decision</h2>
@@ -82,16 +109,23 @@
           <form method="POST" action="/admin/lesson-plans/approval/<%= assignment.id %>/approve" class="inline-block-form">
             <button type="submit" class="primary-btn">Approve</button>
           </form>
+          <button type="button" class="roster-action-btn" onclick="document.getElementById('reject-lesson-dialog').showModal()">Reject</button>
         </div>
-        <form method="POST" action="/admin/lesson-plans/approval/<%= assignment.id %>/decline" class="member-form-grid">
-          <label class="member-form-full">Note to the teacher (optional)
-            <textarea name="note" rows="3" maxlength="2000" placeholder="What should be changed before resubmitting?"></textarea>
+      </div>
+
+      <dialog id="reject-lesson-dialog" class="member-picker-dialog">
+        <form method="POST" action="/admin/lesson-plans/approval/<%= assignment.id %>/reject">
+          <h3>Reject Lesson Plan</h3>
+          <p class="hint">The teacher will see this message and can edit the lesson and resubmit it.</p>
+          <label>Message to the teacher
+            <textarea name="message" rows="4" maxlength="2000" required placeholder="What needs to change before this can be approved?"></textarea>
           </label>
-          <div class="member-form-full">
-            <button type="submit" class="roster-action-btn">Decline</button>
+          <div class="notes-dialog-actions">
+            <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+            <button type="submit" class="primary-btn">Send</button>
           </div>
         </form>
-      </div>
+      </dialog>
     <% } %>
   </main>
 </body>
