@@ -20,15 +20,21 @@ async function classQrSecret() {
   return appSetting(SECRET_KEY, null);
 }
 
-async function classQrKey(classId) {
+async function keyFor(scope) {
   const secret = await classQrSecret();
-  return crypto.createHmac('sha256', secret).update(`class:${classId}`).digest('hex').slice(0, 20);
+  return crypto.createHmac('sha256', secret).update(scope).digest('hex').slice(0, 20);
 }
 
-async function isValidClassQrKey(classId, key) {
+async function keyMatches(scope, key) {
   if (typeof key !== 'string' || key.length !== 20) return false;
-  const expected = await classQrKey(classId);
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(key));
+  return crypto.timingSafeEqual(Buffer.from(await keyFor(scope)), Buffer.from(key));
 }
 
-module.exports = { classQrKey, isValidClassQrKey };
+const classQrKey = (classId) => keyFor(`class:${classId}`);
+const isValidClassQrKey = (classId, key) => keyMatches(`class:${classId}`, key);
+// A later real request: "Same for playground qr code scanning. It should
+// not require a pin number" - one key per printed (day, hour) code.
+const playgroundQrKey = (day, hour) => keyFor(`playground:${day}:${hour}`);
+const isValidPlaygroundQrKey = (day, hour, key) => keyMatches(`playground:${day}:${hour}`, key);
+
+module.exports = { classQrKey, isValidClassQrKey, playgroundQrKey, isValidPlaygroundQrKey };

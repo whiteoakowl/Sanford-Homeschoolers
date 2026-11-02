@@ -70,7 +70,7 @@ test('printing renders one page per day, 4 QR cells each, encoding every hour\'s
   assert.match(res.text, /Wednesday/);
   for (const day of ['monday', 'wednesday']) {
     for (let h = 1; h <= 4; h++) {
-      assert.match(res.text, new RegExp(`data-qr-value="http://[^"]*/kiosk/class-checkin/playground/${day}/${h}/attendance"`));
+      assert.match(res.text, new RegExp(`data-qr-value="http://[^"]*/kiosk/class-checkin/playground/${day}/${h}/attendance\\?k=[0-9a-f]{20}"`));
     }
   }
 
@@ -95,4 +95,31 @@ test('downloading the Playground QR sheet as a PDF renders a real, non-trivial P
   // a real two-page sheet (Monday + Wednesday) full of rendered QR codes
   // comes back well into the tens of KB, not a trivial handful of bytes.
   assert.ok(res.body.length > 5000, `expected a non-trivial PDF, got ${res.body.length} bytes`);
+});
+
+// A real request: "Same for playground qr code scanning. It should not
+// require a pin number." A printed playground code's key opens that one
+// day/hour (attendance + check-in/out) with no PIN; anything else still
+// needs the PIN.
+test('a printed playground QR code opens that day/hour with no PIN, but only that slot', async () => {
+  const { playgroundQrKey } = require('../utils/classQrKey');
+  const key = await playgroundQrKey('monday', 1);
+
+  const noKey = await request(app).get('/kiosk/class-checkin/playground/monday/1/attendance');
+  assert.equal(noKey.status, 302);
+  assert.match(noKey.headers.location, /^\/kiosk\/class-checkin\?next=/);
+
+  const agent = request.agent(app);
+  const scanned = await agent.get(`/kiosk/class-checkin/playground/monday/1/attendance?k=${key}`);
+  assert.equal(scanned.status, 302);
+  assert.equal(scanned.headers.location, '/kiosk/class-checkin/playground/monday/1/attendance');
+  assert.equal((await agent.get('/kiosk/class-checkin/playground/monday/1/attendance')).status, 200);
+  assert.equal((await agent.get('/kiosk/class-checkin/playground/monday/1/scan?mode=checkout')).status, 200);
+  const scan = await agent.post('/kiosk/class-checkin/playground/monday/1/scan/checkin').type('form').send({ barcode: 'no-such-barcode' });
+  assert.equal(scan.status, 200);
+
+  const otherHour = await agent.get(`/kiosk/class-checkin/playground/monday/2/attendance?k=${key}`);
+  assert.equal(otherHour.status, 302, 'one slot\'s key does not open another hour');
+  assert.match(otherHour.headers.location, /^\/kiosk\/class-checkin\?next=/);
+  assert.equal((await agent.get('/kiosk/class-checkin/playground')).status, 302, 'the playground day list still needs the PIN');
 });

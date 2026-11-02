@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { chunkQrPages, qrPickerFilterOptions } = require('../utils/qrSheetPages');
-const { classQrKey } = require('../utils/classQrKey');
+const { classQrKey, playgroundQrKey } = require('../utils/classQrKey');
 const db = require('../db');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
 const { BADGE_WIDTH, BADGE_HEIGHT, FIELDS_BY_TYPE, SHAPE_TYPES, FONT_FAMILIES, DEFAULT_LAYOUTS } = require('../utils/nameTagBadge');
@@ -500,7 +500,7 @@ router.get('/design/print-playground-qr', async (req, res) => {
       const hours = await Promise.all(
         HOUR_POSITIONS.map(async (hour) => ({
           hourLabel: await playgroundHourLabel(day, hour),
-          checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance`,
+          checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance?k=${await playgroundQrKey(day, hour)}`,
         }))
       );
       return { dayLabel: CLASS_DAY_LABELS_FULL[day], hours };
@@ -525,7 +525,7 @@ router.get('/design/print-playground-qr/download.pdf', async (req, res) => {
       const hours = await Promise.all(
         HOUR_POSITIONS.map(async (hour) => ({
           hourLabel: await playgroundHourLabel(day, hour),
-          checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance`,
+          checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance?k=${await playgroundQrKey(day, hour)}`,
         }))
       );
       return { dayLabel: CLASS_DAY_LABELS_FULL[day], hours };

@@ -29,7 +29,7 @@ const { verifyClassCheckinPin } = require('../utils/classCheckinPin');
 const { findMemberByBarcodeOrName } = require('../utils/memberLookup');
 const { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate } = require('../utils/playground');
 const pinLimiter = require('../utils/classCheckinPinRateLimit');
-const { isValidClassQrKey } = require('../utils/classQrKey');
+const { isValidClassQrKey, isValidPlaygroundQrKey } = require('../utils/classQrKey');
 const { createRateLimiter } = require('../utils/rateLimit');
 
 // Separate from the main portal's own checkinLimiter (routes/kiosk.js) -
@@ -73,6 +73,21 @@ async function requireClassAccess(req, res, next) {
   if (allowed.includes(classId)) return next();
   if (req.query.k && (await isValidClassQrKey(classId, String(req.query.k)))) {
     req.session.classQrClassIds = [...allowed, classId];
+    if (req.method === 'GET') return res.redirect(req.originalUrl.replace(/([?&])k=[^&]*&?/, '$1').replace(/[?&]$/, ''));
+    return next();
+  }
+  return requireUnlocked(req, res, next);
+}
+
+// Same as requireClassAccess, for one playground (day, hour) - its printed
+// QR code's ?k= key unlocks just that day/hour for this session.
+async function requirePlaygroundAccess(req, res, next) {
+  if (req.session && req.session.classCheckinUnlocked) return next();
+  const slot = `${req.params.day}:${req.params.hour}`;
+  const allowed = (req.session && req.session.playgroundQrSlots) || [];
+  if (allowed.includes(slot)) return next();
+  if (req.query.k && (await isValidPlaygroundQrKey(req.params.day, req.params.hour, String(req.query.k)))) {
+    req.session.playgroundQrSlots = [...allowed, slot];
     if (req.method === 'GET') return res.redirect(req.originalUrl.replace(/([?&])k=[^&]*&?/, '$1').replace(/[?&]$/, ''));
     return next();
   }
@@ -413,7 +428,7 @@ router.get('/playground/:day', requireUnlocked, async (req, res) => {
 // scope reasoning as a class's own attendance screen above (see that
 // route's own comment): reachable by anyone with the shared PIN, so it
 // only ever shows "who's here right now", not a term's history.
-router.get('/playground/:day/:hour/attendance', requireUnlocked, requirePlaygroundHour, async (req, res) => {
+router.get('/playground/:day/:hour/attendance', requirePlaygroundAccess, requirePlaygroundHour, async (req, res) => {
   const day = req.playgroundDay;
   const hour = req.playgroundHour;
   const rosterId = await ensurePlaygroundRoster(day, hour);
@@ -430,7 +445,7 @@ router.get('/playground/:day/:hour/attendance', requireUnlocked, requirePlaygrou
   });
 });
 
-router.get('/playground/:day/:hour/scan', requireUnlocked, requirePlaygroundHour, async (req, res) => {
+router.get('/playground/:day/:hour/scan', requirePlaygroundAccess, requirePlaygroundHour, async (req, res) => {
   const day = req.playgroundDay;
   const hour = req.playgroundHour;
   const mode = SCAN_MODES.includes(req.query.mode) ? req.query.mode : 'checkin';
@@ -474,7 +489,7 @@ async function resolvePlaygroundScan(day, hour, req, res) {
   return { rosterId, member, today };
 }
 
-router.post('/playground/:day/:hour/scan/checkin', requireUnlocked, requirePlaygroundHour, async (req, res) => {
+router.post('/playground/:day/:hour/scan/checkin', requirePlaygroundAccess, requirePlaygroundHour, async (req, res) => {
   if (classScanLimiter.isLimited(req.ip)) {
     return res.json({ ok: false, message: 'Too many check-ins from this device right now. Please wait a moment and try again.' });
   }
@@ -508,7 +523,7 @@ router.post('/playground/:day/:hour/scan/checkin', requireUnlocked, requirePlayg
   res.json({ ok: true, name: member.name, message: `Welcome, ${member.name}!` });
 });
 
-router.post('/playground/:day/:hour/scan/checkout', requireUnlocked, requirePlaygroundHour, async (req, res) => {
+router.post('/playground/:day/:hour/scan/checkout', requirePlaygroundAccess, requirePlaygroundHour, async (req, res) => {
   if (classScanLimiter.isLimited(req.ip)) {
     return res.json({ ok: false, message: 'Too many check-outs from this device right now. Please wait a moment and try again.' });
   }

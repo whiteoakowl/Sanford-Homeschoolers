@@ -40,7 +40,7 @@
 const express = require('express');
 const router = express.Router();
 const { chunkQrPages, qrPickerFilterOptions } = require('../utils/qrSheetPages');
-const { classQrKey } = require('../utils/classQrKey');
+const { classQrKey, playgroundQrKey } = require('../utils/classQrKey');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -998,7 +998,7 @@ router.get('/print-playground-qr', async (req, res) => {
     for (const hour of HOUR_POSITIONS) {
       hours.push({
         hourLabel: await playgroundHourLabel(day, hour),
-        checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance`,
+        checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance?k=${await playgroundQrKey(day, hour)}`,
       });
     }
     pages.push({ dayLabel: CLASS_DAY_LABELS_FULL[day], hours });
@@ -1023,7 +1023,7 @@ router.get('/print-playground-qr/download.pdf', async (req, res) => {
     for (const hour of HOUR_POSITIONS) {
       hours.push({
         hourLabel: await playgroundHourLabel(day, hour),
-        checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance`,
+        checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance?k=${await playgroundQrKey(day, hour)}`,
       });
     }
     pages.push({ dayLabel: CLASS_DAY_LABELS_FULL[day], hours });
