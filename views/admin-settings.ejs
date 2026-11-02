@@ -19,7 +19,7 @@
           PIN, and Kiosk only show for the full master admin account
           (same restriction the old tab strip enforced). %>
       <div class="team-card-grid settings-hub-card-grid">
-        <% if (isFullAdmin) { %>
+        <% if (isMasterAdmin) { %>
           <div class="team-col">
             <a class="team-info-card" href="/admin/settings?tab=account">
               <span class="team-info-icon"><svg class="icon"><use href="#icon-user-circle"/></svg></span>

@@ -262,6 +262,7 @@ const teacherPortalRouter = require('./routes/teacher-portal');
 const studentPortalRouter = require('./routes/student-portal');
 const studentFamilySchoolRouter = require('./routes/student-family-school');
 const { loadPortalSession } = require('./middleware/portalAuth');
+const { hasCoopAdminAccess } = require('./middleware/requireAdmin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -414,16 +415,25 @@ function trainingResourceUrl(key) {
 }
 
 // Available in every EJS view (including partials/admin-nav) without each
-// route having to pass it explicitly. True only for the single master Admin
-// account. Also generates (once per session) and exposes the CSRF
-// synchronizer token every admin page needs to embed - see
-// middleware/csrfProtection.js for how it's checked. Only ever generated
-// for a session that already has adminId set, so an anonymous visitor to
-// a public page never gets a session created just to hold this.
+// route having to pass it explicitly. True for the single master Admin
+// session OR a signed-in member portal account holding the coop_admin
+// role - middleware/requireAdmin.js/requireFullAdmin.js's own route gates
+// already let either one into /admin itself, so the nav needs to agree
+// (otherwise a coop_admin-role member could reach Members/Design-Print/
+// etc. by URL but never see them in their own nav). routes/admin.js's
+// own Settings page uses a separate, strictly-master-admin-only
+// isMasterAdmin for the 4 actions that really are exclusive to it
+// (changing its own login credentials, the Kiosk semester, the Class
+// Check-In PIN) - this flag is not that. Also generates (once per
+// session) and exposes the CSRF synchronizer token every admin page
+// needs to embed - see middleware/csrfProtection.js for how it's
+// checked. Only ever generated for a session that already has adminId
+// or portalAccountId set, so an anonymous visitor to a public page never
+// gets a session created just to hold this.
 app.use((req, res, next) => {
   const isAdmin = !!(req.session && req.session.adminId);
   const isPortalSession = !!(req.session && req.session.portalAccountId);
-  res.locals.isFullAdmin = isAdmin;
+  res.locals.isFullAdmin = isAdmin || hasCoopAdminAccess(req);
   res.locals.photoUrl = photoUrl;
   res.locals.trainingResourceUrl = trainingResourceUrl;
   if (isAdmin || isPortalSession) {

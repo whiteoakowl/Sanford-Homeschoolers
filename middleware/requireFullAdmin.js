@@ -1,10 +1,13 @@
 // Gates full-Admin-only sections (Members, Design/Print, Documents,
-// Library, misc badges, Name Tag) behind the single master Admin session.
-// Kept as its own middleware (distinct from requireAdmin) so those
-// sections stay clearly marked in each router even though the check is
-// currently the same - see README.md's "Admin access model" section for
-// the full rationale (short version: if a lesser admin role is ever
-// reintroduced, only this file changes).
+// Library, misc badges, Name Tag) - either the single master Admin
+// session or a signed-in member portal account holding the coop_admin
+// role (middleware/requireAdmin.js's own hasCoopAdminAccess, reused here
+// rather than duplicated - see that file's header comment for the full
+// reasoning). Kept as its own middleware (distinct from requireAdmin) so
+// those sections stay clearly marked in each router even though the
+// check is currently the same - see README.md's "Admin access model"
+// section for the full rationale (short version: if a lesser admin role
+// is ever reintroduced, only this file changes).
 //
 // Several of these routers gate themselves with a blanket
 // `router.use(requireFullAdmin)` at the top of the file, ahead of any of
@@ -18,16 +21,11 @@
 // instead, which fetch() reports as a 200 success whose body isn't valid
 // JSON, surfacing as a generic "Connection error" that has nothing to do
 // with the real cause.
-// A real request: "After a member signs in on the homepage, they should
-// not be asked again to sign into any portal pages... co-op admin." -
-// same bridge as middleware/requireAdmin.js's own (see that file's
-// comment for the full reasoning), reused here rather than duplicated.
-const { bridgeCoopAdminRole } = require('./requireAdmin');
+const { hasCoopAdminAccess } = require('./requireAdmin');
 
-module.exports = async function requireFullAdmin(req, res, next) {
+module.exports = function requireFullAdmin(req, res, next) {
   if (req.session && req.session.adminId) return next();
-  // Same same-request res.locals.isFullAdmin fix as requireAdmin.js's own.
-  if (await bridgeCoopAdminRole(req)) { res.locals.isFullAdmin = true; return next(); }
+  if (hasCoopAdminAccess(req)) return next();
   const wantsJson = req.headers.accept && req.headers.accept.includes('application/json');
   if (wantsJson) return res.status(401).json({ error: 'Not authenticated' });
   // Same fix as requireAdmin.js's own (see its comment) - a POST-only

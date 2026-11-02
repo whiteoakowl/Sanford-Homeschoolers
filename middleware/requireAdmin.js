@@ -1,34 +1,30 @@
-// Gates every /admin/* route behind the single master Admin session. See
-// README.md's "Admin access model" section for why this is functionally
-// identical to requireFullAdmin.js/res.locals.isFullAdmin today, and why
-// all three still exist as separate touchpoints anyway.
-const db = require('../db');
-
-// A real request: "After a member signs in on the homepage, they should
-// not be asked again to sign into any portal pages... co-op admin."
-// routes/portal-auth.js's own POST /login already bridges a fresh
-// member login carrying the coop_admin role straight into this same
-// session.adminId - this is the matching fallback for a session that
-// was already active before that bridge ran (signed in before this
-// change shipped, or granted the coop_admin role mid-session), so
-// nobody has to sign out and back in to pick it up.
-async function bridgeCoopAdminRole(req) {
-  if (!req.portalRoles || !req.portalRoles.some((r) => r.key === 'coop_admin')) return false;
-  const admin = await db.prepare('SELECT * FROM admins ORDER BY id LIMIT 1').get();
-  if (!admin) return false;
-  req.session.adminId = admin.id;
-  req.session.username = admin.username;
-  return true;
+// Gates every /admin/* route - either the single master Admin session
+// (req.session.adminId, routes/admin.js's own /admin/login) or a signed-
+// in member portal account holding the coop_admin role. See README.md's
+// "Admin access model" section for why requireAdmin/requireFullAdmin/
+// res.locals.isFullAdmin are functionally identical today, and why all
+// three still exist as separate touchpoints anyway.
+//
+// A real request: "After a member signs in on the homepage, they
+// should not be asked again to sign into any portal pages. Not even
+// main admin or co-op admin... Nobody should get access to the single
+// master admin session. Co-op admin portal shouldn't be locked behind
+// that log in either." hasCoopAdminAccess never touches
+// req.session.adminId at all - a coop_admin-role member gets into
+// /admin entirely on their own portal session, the master Admin
+// session stays exclusive to whoever actually signs in as it. The only
+// spots in /admin that still need to tell the two apart (changing the
+// master Admin's own username/password, the Kiosk/Class-Check-In
+// settings, the class chat author name) check req.session.adminId
+// directly themselves - see routes/admin.js's own requireMasterAdmin
+// and routes/admin-class-schedule.js's own chat handler.
+function hasCoopAdminAccess(req) {
+  return !!(req.portalRoles && req.portalRoles.some((r) => r.key === 'coop_admin'));
 }
 
-async function requireAdmin(req, res, next) {
+function requireAdmin(req, res, next) {
   if (req.session && req.session.adminId) return next();
-  // res.locals.isFullAdmin is already computed (server.js's own
-  // app.use, mounted ahead of every /admin router) by the time this
-  // runs, from session.adminId as it stood before the bridge below can
-  // set it - without this, the very first page a just-bridged account
-  // lands on would still hide admin-only nav for that one render.
-  if (await bridgeCoopAdminRole(req)) { res.locals.isFullAdmin = true; return next(); }
+  if (hasCoopAdminAccess(req)) return next();
   const wantsJson = req.headers.accept && req.headers.accept.includes('application/json');
   if (wantsJson) return res.status(401).json({ error: 'Not authenticated' });
   // A real bug report: "after adding 4 categories it asks me to log in
@@ -44,4 +40,4 @@ async function requireAdmin(req, res, next) {
 }
 
 module.exports = requireAdmin;
-module.exports.bridgeCoopAdminRole = bridgeCoopAdminRole;
+module.exports.hasCoopAdminAccess = hasCoopAdminAccess;
