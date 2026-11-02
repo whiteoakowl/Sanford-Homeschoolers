@@ -29,7 +29,7 @@
       %>
       <div class="landing-grid documents-grid landing-card-rect">
         <% documents.forEach(function(d, i) { %>
-          <div class="document-card-wrap">
+          <div class="document-card-wrap document-card-wrap-actions document-card-wrap-actions-3">
             <a class="landing-card <%= docColors[i % docColors.length] %>" href="/main-admin/documents/<%= d.id %>/view">
               <% if (d.image_path) { %>
                 <img class="landing-card-image" src="/main-admin/documents/<%= d.id %>/image" alt="" />
@@ -43,9 +43,14 @@
                 portals can view the documents" - a sibling of the card's
                 own <a> (not nested inside it) so clicking the icon never
                 also navigates to the document's view page. %>
-            <button type="button" class="document-card-edit-btn" aria-label="Edit who can view &quot;<%= d.title %>&quot;" title="Edit visibility" onclick="document.getElementById('doc-roles-dialog-<%= d.id %>').showModal()">
-              <svg class="icon"><use href="#icon-edit"/></svg>
-            </button>
+            <%# Print/PDF icons sit beside the edit icon, all siblings of the
+                card's own <a> for the same never-also-navigate reason. %>
+            <div class="document-card-actions">
+              <%- include('partials/document-actions', { doc: d, kind: d.kind, extraClass: 'document-card-action-btn' }) %>
+              <button type="button" class="document-card-edit-btn" aria-label="Edit who can view &quot;<%= d.title %>&quot;" title="Edit visibility" onclick="document.getElementById('doc-roles-dialog-<%= d.id %>').showModal()">
+                <svg class="icon"><use href="#icon-edit"/></svg>
+              </button>
+            </div>
           </div>
         <% }); %>
       </div>

@@ -272,7 +272,7 @@ test('Documents page paginates past the default page size, and the manage popup 
 
   const page1 = await request(app).get('/main-admin/documents').set('Cookie', cookie);
   assert.equal(page1.status, 200);
-  const cardCount = (page1.text.match(/class="document-card-wrap"/g) || []).length;
+  const cardCount = (page1.text.match(/class="document-card-wrap[" ]/g) || []).length;
   assert.equal(cardCount, 50, 'page 1 of the card grid should show only the first 50 documents');
   assert.match(page1.text, /class="pagination-bar no-print"/);
   assert.match(page1.text, new RegExp(`Showing 1&ndash;50 of ${expectedTotal}`));

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <% if (typeof pdfBaseUrl !== 'undefined' && pdfBaseUrl) { %><base href="<%= pdfBaseUrl %>/"><% } %>
+  <%- include('partials/head', { title }) %>
+  <% if (kind !== 'pdf') { %><style>@page { size: letter; margin: 0.6in; }</style><% } %>
+</head>
+<%# Print preview for one document (routes/documents.js GET /:token/print),
+    also the template its .docx PDF download is rendered from. A PDF is
+    embedded full-page and the Print button prints that embedded PDF
+    itself (public/js/document-print.js); a .docx is its converted HTML on
+    a letter-size sheet; an old .doc can't be printed from a browser at
+    all, so it says so and offers the original file. %>
+<body class="document-print-body<%= kind === 'pdf' ? ' document-print-body-pdf' : '' %>">
+  <% if (kind === 'pdf') { %>
+    <div class="print-preview-header document-print-header no-print">
+      <h1><%= doc.title %></h1>
+      <button type="button" class="roster-action-btn print-action-btn" data-document-print>Print</button>
+    </div>
+    <iframe class="document-print-frame" id="document-print-frame" src="/documents/<%= doc.public_token %>/file" title="<%= doc.title %>"></iframe>
+  <% } else if (kind === 'docx' && docxHtml !== null) { %>
+    <% if (typeof pdfBaseUrl === 'undefined' || !pdfBaseUrl) { %>
+      <div class="print-preview-header document-print-header no-print">
+        <h1><%= doc.title %></h1>
+        <button type="button" class="roster-action-btn print-action-btn" data-document-print>Print</button>
+      </div>
+    <% } %>
+    <div class="print-page document-print-page">
+      <h1 class="document-print-title"><%= doc.title %></h1>
+      <div class="document-docx-content"><%- docxHtml %></div>
+    </div>
+  <% } else { %>
+    <div class="document-print-unavailable">
+      <h1><%= doc.title %></h1>
+      <p><%= kind === 'doc' ? 'This older Word (.doc) file can\'t be printed in the browser.' : 'This file can\'t be printed in the browser.' %> Download it and print it from Word or another word processor.</p>
+      <a class="primary-btn" href="/documents/<%= doc.public_token %>/download.pdf" download>Download</a>
+    </div>
+  <% } %>
+  <script src="/js/print-auto.js"></script>
+  <script src="/js/document-print.js"></script>
+</body>
+</html>
