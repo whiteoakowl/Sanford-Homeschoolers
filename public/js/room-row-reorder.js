@@ -54,12 +54,13 @@
     dragging = null;
 
     const day = table.getAttribute('data-room-reorder-day');
+    const semesterId = table.getAttribute('data-room-reorder-semester') || '';
     const rooms = rowsIn(table).map((r) => r.getAttribute('data-room-row'));
     try {
       await fetch(`/admin/class-schedule/${day}/rooms/reorder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN || '' },
-        body: JSON.stringify({ rooms }),
+        body: JSON.stringify({ rooms, semesterId }),
       });
     } catch (err) {
       // Reordering is a nice-to-have, not page-breaking - if this fails

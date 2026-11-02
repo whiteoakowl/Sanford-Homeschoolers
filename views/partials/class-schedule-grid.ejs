@@ -499,7 +499,7 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
 <% } %>
 
 <div class="roster-scroll" data-class-schedule-view="grid" data-class-schedule-day="<%= day %>">
-  <table class="roster-table class-schedule-room-grid"<% if (!gridReadOnly) { %> data-room-reorder-day="<%= day %>"<% } %>>
+  <table class="roster-table class-schedule-room-grid"<% if (!gridReadOnly) { %> data-room-reorder-day="<%= day %>" data-room-reorder-semester="<%= typeof selectedSemesterId !== 'undefined' && selectedSemesterId ? selectedSemesterId : '' %>"<% } %>>
     <thead>
       <tr>
         <th class="class-schedule-room-col">Room</th>

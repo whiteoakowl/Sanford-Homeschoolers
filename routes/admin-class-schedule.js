@@ -61,6 +61,8 @@ const {
   renameRoom,
   saveRoomOrder,
   saveRoomsForGrid,
+  declaredRoomsForGrid,
+  UNASSIGNED_ROOM,
   listClassSchedules,
   createClassSchedule,
   updateClassSchedule,
@@ -338,6 +340,20 @@ router.post('/class-schedule/:day/rooms/reorder', requireFullAdmin, requireClass
   const day = req.params.day;
   const rooms = [].concat(req.body.rooms || []).map((r) => String(r));
   await saveRoomOrder(day, rooms);
+  // A real bug report: "Im not able to move the class schedule rows up
+  // and down like I use to." Once a semester+day has its own declared
+  // Rooms list (the Add/Edit Class Schedule Grid popup), roomGridForDay
+  // uses that list's order outright and ignores the day-level order
+  // above - so the drag must reorder the declared list too or it snaps
+  // back on reload. Declared rooms missing from the dragged list are kept
+  // (appended), never dropped.
+  const semesterId = req.body.semesterId ? parseInt(req.body.semesterId, 10) || null : null;
+  const declared = await declaredRoomsForGrid(day, semesterId);
+  if (declared.length > 0) {
+    const dragged = rooms.filter((r) => r !== UNASSIGNED_ROOM);
+    const missing = declared.map((r) => r.name).filter((n) => !dragged.includes(n));
+    await saveRoomsForGrid(day, semesterId, [...dragged, ...missing]);
+  }
   res.json({ ok: true });
 });
 
