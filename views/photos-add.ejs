@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%
+  // Same fix as photos-list.ejs's own comment.
+  const hasParentRole = typeof portalRoles !== 'undefined' && portalRoles.some((r) => r.key === 'parent');
+  const hasStudentRole = typeof portalRoles !== 'undefined' && portalRoles.some((r) => r.key === 'student');
+  const hasTeacherRole = typeof portalRoles !== 'undefined' && portalRoles.some((r) => r.key === 'teacher');
+  const usesPortalNavShell = hasParentRole || hasStudentRole || hasTeacherRole;
+%>
+<body>
+  <% if (usesPortalNavShell) { %>
+    <%- include('partials/portal-nav', { portalTitle: sharedPortalTitle(hasParentRole ? 'Parent Portal' : hasStudentRole ? 'Student Portal' : 'Co-op Teacher Portal') }) %>
+  <% } else { %>
+  <%- include('partials/icon-sprite') %>
+
+  <header class="site-header">
+    <a class="site-header-brand" href="/welcome">
+      <img src="/img/logo.png" alt="" />
+      <%= settings.org_name %>
+    </a>
+    <div class="site-header-actions">
+      <% if (typeof portalAccount !== 'undefined' && portalAccount) { %>
+        <a class="primary-btn" href="/portal">My Portals</a>
+      <% } else { %>
+        <a class="btn-secondary" href="/login">Log In</a>
+        <a class="primary-btn" href="/register">Member Registration</a>
+      <% } %>
+    </div>
+  </header>
+  <% } %>
+
+  <main id="main-content" tabindex="-1"<% if (usesPortalNavShell) { %> class="admin-main"<% } %>>
+    <section class="site-section">
+      <div class="site-section-inner">
+        <p><a href="/photos">&larr; All Albums</a></p>
+        <h1>Add Photo</h1>
+
+        <%
+          // A real request: "admins can create albums that members can
+          // upload to. members can't upload albums." The album picker
+          // below only ever posts to an existing album's own
+          // /photos/:id/upload route (routes/photos.js) - never creates
+          // a new one.
+        %>
+        <% if (albums.length === 0) { %>
+          <p class="roster-empty">No albums yet.</p>
+        <% } else { %>
+          <form method="POST" action="/photos" enctype="multipart/form-data" class="member-form-grid" onsubmit="this.action = '/photos/' + this.albumId.value + '/upload';">
+            <label class="member-form-full">Album
+              <select name="albumId" required>
+                <% albums.forEach(function(a) { %><option value="<%= a.id %>"><%= a.title %></option><% }); %>
+              </select>
+            </label>
+            <label class="member-form-full">Photo(s)
+              <input type="file" name="images" accept="image/*" multiple required />
+            </label>
+            <label class="member-form-full">Caption <span class="hint">(optional, applies to all photos in this upload)</span>
+              <input type="text" name="caption" placeholder="e.g. Field trip day" />
+            </label>
+            <div class="member-form-full">
+              <button type="submit" class="primary-btn">Upload</button>
+            </div>
+          </form>
+        <% } %>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

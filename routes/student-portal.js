@@ -685,6 +685,10 @@ router.post('/babysitter', requirePortalPermission('view_student_babysitter_prof
       certifications: (req.body.certifications || '').trim(),
       hourlyRate: (req.body.hourlyRate || '').trim(),
       contactMethod: (req.body.contactMethod || '').trim(),
+      email: (req.body.email || '').trim(),
+      contactText: req.body.contactText === '1',
+      contactCall: req.body.contactCall === '1',
+      contactEmail: req.body.contactEmail === '1',
       photoKey,
     },
     req.portalAccount.id

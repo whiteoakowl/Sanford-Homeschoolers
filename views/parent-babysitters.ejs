@@ -30,7 +30,21 @@
             <% if (p.experience) { %><p><strong>Experience:</strong> <%= p.experience %></p><% } %>
             <% if (p.certifications) { %><p><strong>Certifications:</strong> <%= p.certifications %></p><% } %>
             <% if (p.hourly_rate) { %><p><strong>Rate:</strong> <%= p.hourly_rate %></p><% } %>
-            <% if (p.contact_method) { %><p><strong>Contact:</strong> <%= p.contact_method %></p><% } %>
+            <% if (p.contact_method) { %><p><strong>Phone Number:</strong> <%= p.contact_method %></p><% } %>
+            <% if (p.email) { %><p><strong>Email:</strong> <%= p.email %></p><% } %>
+            <%
+              // A real request: "add checkboxes for how can parent
+              // contact you" - rendered as a short, comma-joined summary
+              // of whichever boxes are checked, the same ".join(', ')"
+              // convention this app already uses elsewhere for a short
+              // list of selected items (e.g. admin-rosters.ejs's own
+              // teacher name list).
+              const contactWays = [];
+              if (p.contact_text) contactWays.push('Text');
+              if (p.contact_call) contactWays.push('Call');
+              if (p.contact_email) contactWays.push('Email');
+            %>
+            <% if (contactWays.length > 0) { %><p><strong>Can Be Contacted By:</strong> <%= contactWays.join(', ') %></p><% } %>
           </section>
         <% }); %>
       </div>
@@ -62,9 +76,20 @@
         <label>Hourly Rate
           <input type="text" name="hourlyRate" id="babysitter-field-hourlyRate" placeholder="e.g. $12/hr" />
         </label>
-        <label>Contact Method
-          <input type="text" name="contactMethod" id="babysitter-field-contactMethod" placeholder="e.g. Text (555) 555-1234" />
+        <label>Phone Number
+          <input type="text" name="contactMethod" id="babysitter-field-contactMethod" placeholder="e.g. (555) 555-1234" />
         </label>
+        <label>Email Address
+          <input type="email" name="email" id="babysitter-field-email" placeholder="e.g. sitter@example.com" />
+        </label>
+        <div>
+          <span class="checkbox-group-label">How can a parent contact you?</span>
+          <div class="checkbox-group checkbox-group-stack">
+            <label class="checkbox-option"><input type="checkbox" name="contactText" id="babysitter-field-contactText" value="1" /> Text</label>
+            <label class="checkbox-option"><input type="checkbox" name="contactCall" id="babysitter-field-contactCall" value="1" /> Call</label>
+            <label class="checkbox-option"><input type="checkbox" name="contactEmail" id="babysitter-field-contactEmail" value="1" /> Email</label>
+          </div>
+        </div>
         <label>Photo <span class="hint">(optional - replaces the current photo, if any)</span>
           <input type="file" name="photo" accept="image/*" />
         </label>
