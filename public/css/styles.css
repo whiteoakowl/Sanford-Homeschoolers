@@ -9043,15 +9043,14 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
   .class-schedule-room-grid th,
   .class-schedule-room-grid td { padding: 0.15rem 0.15rem; }
   .class-schedule-room-grid th { font-size: 0.6rem; }
-  .class-schedule-room-grid .class-schedule-room-col { width: 42px; font-size: 0.58rem; }
-  /* At this width the drag handle alone ate most of the room column's own
-     42px, leaving the room NAME almost no space to shrink into (a real
-     problem surfaced while testing "Make sure row titles shrink to fit in
-     box" - a room name could still end up clipped even at the shrink
-     script's floor size). Reordering by drag is also awkward at phone
-     width regardless - hiding the handle here hands that space back to
-     the name, which is the part that actually needs to stay readable. */
-  .class-schedule-room-grid .room-row-drag-handle { display: none; }
+  .class-schedule-room-grid .class-schedule-room-col { width: 52px; font-size: 0.58rem; }
+  /* A real request: "I don't see the three lines on each class row
+     title to slide the rooms up and down on the grid" - the drag handle
+     used to be hidden entirely at this width to give the room name more
+     space. It's back, just smaller, with the room column a little wider
+     (52px, was 42px) so the name still has room to shrink into. */
+  .class-schedule-room-grid .room-row-drag-handle { margin-right: 0.1rem; }
+  .class-schedule-room-grid .room-row-drag-handle .icon { width: 0.7rem; height: 0.7rem; }
   .class-schedule-room-grid .class-card { padding: 0.2rem 0.25rem; border-left-width: 3px; }
   .class-schedule-room-grid .class-card-header { gap: 0.2rem; }
   .class-schedule-room-grid .class-card-header h3 { font-size: 0.62rem; }
