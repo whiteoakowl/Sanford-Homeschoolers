@@ -1986,15 +1986,6 @@ body.public-page .roster-empty {
   filter: brightness(0.88);
   color: #000;
 }
-@media (min-width: 861px) {
-  .site-header-utility-bar .btn-secondary {
-    background: var(--brand);
-    color: var(--ink);
-    border-color: var(--brand);
-  }
-  .site-header-utility-bar .btn-secondary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
-}
-
 
 /* Log out is the only control still pinned to the bottom of the sidebar
    on desktop, via margin-top:auto; folded into the mobile topbar's right
@@ -11597,16 +11588,7 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 }
 .homepage-builder-block.homepage-builder-block-dragging { opacity: 0.55; background: var(--brand-soft); }
 .homepage-builder-block .lesson-drag-handle { margin-top: 0.2rem; font-size: 1.3rem; }
-.homepage-builder-block-preview { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.4rem; }
-.homepage-builder-block-type { align-self: flex-start; }
-.homepage-builder-block-text-preview { white-space: pre-wrap; word-break: break-word; }
-.homepage-builder-block-text-preview.homepage-text-small { font-size: 0.85rem; color: var(--muted); }
-.homepage-builder-block-text-preview.homepage-text-large { font-size: 1.2rem; font-weight: 700; }
-.homepage-builder-block-image-preview { max-width: 160px; max-height: 100px; border-radius: var(--radius); object-fit: cover; }
-.homepage-builder-dialog-image-preview { display: block; max-width: 220px; max-height: 140px; border-radius: var(--radius); margin-top: 0.4rem; object-fit: cover; }
-.homepage-builder-block-button-preview { font-weight: 600; word-break: break-word; }
-.homepage-builder-block-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
-.homepage-builder-add-row { flex-wrap: wrap; }
+
 @media (max-width: 480px) {
   /* Below a real phone's own width, the drag handle/type badge/image
      preview/action buttons no longer fit comfortably in one row next to
@@ -11614,112 +11596,12 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
      full width, handle+actions on their own line) keeps every control a
      real tap target instead of shrinking them to fit. */
   .homepage-builder-block { flex-wrap: wrap; }
-  .homepage-builder-block-image-preview { max-width: 100%; }
+  
 }
 
-/* The public homepage's own rendering of the same blocks, in the same
-   order (views/public-home.ejs) - small/medium/large text sizes and
-   small/medium/large/full image sizes, the "text of different size
-   choices" a real request asked for. */
-.homepage-block { margin: 1.5rem 0; }
-.homepage-block-text.homepage-text-small { font-size: 0.9rem; color: var(--muted); }
-.homepage-block-text.homepage-text-medium { font-size: 1.05rem; }
-.homepage-block-text.homepage-text-large { font-size: 1.75rem; font-weight: 700; line-height: 1.25; }
-.homepage-block-image img { display: block; border-radius: var(--radius); }
-.homepage-block-image.homepage-image-small img { max-width: 240px; }
-.homepage-block-image.homepage-image-medium img { max-width: 480px; }
-.homepage-block-image.homepage-image-large img { max-width: 720px; }
-.homepage-block-image.homepage-image-full img { width: 100%; max-width: none; }
-.homepage-block-button { display: flex; }
-
-/* Per-block alignment - a real request: "Add left, right centering to
-   all page content settings when editing the homepage." 'left' is the
-   default/current behavior everywhere, so it needs no rule of its own -
-   only center/right ever override anything. Plain text-align works
-   directly for .homepage-block-text (its text just cascades), and for
-   .homepage-block-button (its own <a> is the text inside) - but a block-
-   level image doesn't respond to its parent's text-align at all, and
-   .homepage-block-button is itself `display: flex` (so its child link
-   needs justify-content, not text-align, to actually move) - each needs
-   its own pairing below instead of one shared rule. */
-.homepage-block.homepage-align-center { text-align: center; }
-.homepage-block.homepage-align-right { text-align: right; }
-.homepage-block-button.homepage-align-center { justify-content: center; }
-.homepage-block-button.homepage-align-right { justify-content: flex-end; }
-.homepage-block-image.homepage-align-center img { margin: 0 auto; }
-.homepage-block-image.homepage-align-right img { margin-left: auto; }
-
-/* Shopify-style theme editor shell (views/main-admin-website.ejs) - a
-   real request: "Main admin portal, settings gear, public homepage.
-   Should have the exact webpage editing features as Shopify. See
-   screenshot." A dark top bar (Exit/theme name/Desktop-Mobile toggle/
-   Save), a left sidebar of collapsible <details> sections (reusing the
-   same native disclosure .manage-section already uses elsewhere in
-   this app - see views/partials/membership-fields-manager.ejs's own
-   <details class="manage-section">), and a live(-ish) preview pane on
-   the right (an <iframe> onto the real public homepage route/its own
-   /preview draft-rendering variant - see routes/admin-website.js and
-   public/js/homepage-theme-editor.js). */
-/* A real request, with a screenshot of the actual Shopify theme editor
-   on a phone: "The header for the page is not the same and the dropdown
-   menus are not formatted the same with their lines, buttons and check
-   boxes, and widths." Shopify's own editor bar is a plain WHITE bar with
-   a thin bottom border (not the dark bar this app's first pass used) -
-   Exit / title / Save. The title truncates first to make room on a
-   narrow screen, same "give the squeeze to whatever can absorb it" idea
-   as this app's other mobile toolbars. */
-.homepage-theme-topbar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1.25rem;
-  background: var(--surface);
-  color: var(--ink);
-  border-bottom: 1px solid var(--border);
-  margin: -1.75rem -2rem 1.25rem;
-  position: sticky;
-  top: 0;
-  z-index: 15;
-}
-.homepage-theme-exit { color: var(--ink); text-decoration: none; font-weight: 600; opacity: 0.65; flex: 0 0 auto; }
-.homepage-theme-exit:hover { opacity: 1; text-decoration: underline; }
-/* Beats .admin-main h1's own (higher-specificity) page-title rule -
-   margin-bottom/padding-bottom/border-bottom meant for a full-width page
-   title pushed this one out of line with the rest of the topbar row. */
-.homepage-theme-topbar .homepage-theme-topbar-label {
-  font-size: 1rem;
-  margin: 0 auto 0 0;
-  padding-bottom: 0;
-  border-bottom: none;
-  color: var(--ink);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.homepage-theme-save-btn { margin: 0; padding: 0.5rem 1.1rem; flex: 0 0 auto; }
-@media (max-width: 640px) {
-  .homepage-theme-topbar { margin: -1rem -1rem 1rem; padding: 0.65rem 0.85rem; gap: 0.4rem; }
-  .homepage-theme-topbar-label { margin-right: auto; }
-  .homepage-theme-save-btn { padding: 0.5rem 0.75rem; }
-}
-/* A real request: "Desktop and mobile toggle should be lower on the
-   page just above the website view" - moved out of the topbar (above)
-   to sit right above the live preview frame it controls
-   (.homepage-theme-preview-frame-wrap below), inside the same
-   .homepage-theme-preview-pane. */
-.homepage-theme-viewport-toggle {
-  display: flex;
-  width: fit-content;
-  margin: 0 0 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--control-radius);
-  overflow: hidden;
-}
-.homepage-theme-viewport-btn { background: transparent; color: var(--ink); border: none; padding: 0.4rem 0.85rem; font-size: 0.85rem; cursor: pointer; white-space: nowrap; }
-.homepage-theme-viewport-btn.is-active { background: var(--brand-soft); font-weight: 700; }
-
-.homepage-theme-shell { display: flex; gap: 1.25rem; align-items: flex-start; }
+/* Collapsible settings sidebar (<details class="homepage-theme-section">
+   rows) - originally the old Shopify-style homepage editor's, still used
+   by the Custom Forms builder (views/admin-custom-forms-builder.ejs). */
 .homepage-theme-sidebar {
   flex: 0 0 380px;
   max-width: 380px;
@@ -11774,117 +11656,13 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 .homepage-theme-section-chevron { width: 0.85em; height: 0.85em; flex: 0 0 auto; transition: transform 0.15s ease; transform: rotate(-90deg); }
 .homepage-theme-section[open] > summary .homepage-theme-section-chevron { transform: rotate(0deg); }
 .homepage-theme-section-body { margin-top: 0.85rem; display: flex; flex-direction: column; }
-/* Colors specifically: each role is its own full-width row with a
-   divider between rows (not just a loose vertical gap), swatch/label/hex
-   in three fixed-width columns so every row lines up, matching the
-   screenshot's own consistent row widths. A real request: "Colors
-   should be spaced out and clean rows like the image" - more vertical
-   air per row and a bigger swatch, same reference as the seamless-list
-   request above. */
-.homepage-theme-color-row { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 0; border-bottom: 1px solid var(--border); }
-.homepage-theme-color-row:last-child { border-bottom: none; }
-.homepage-theme-color-row > span:first-child { flex: 1 1 auto; min-width: 0; }
-.homepage-theme-color-input { display: flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; }
-.homepage-theme-color-input input[type="color"] { width: 3.25rem; height: 2.1rem; padding: 0; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
-.homepage-theme-hex-input {
-  width: 6rem;
-  border: 1px solid transparent;
-  background: transparent;
-  font-family: 'SFMono-Regular', Consolas, monospace;
-  font-size: 0.85rem;
-  text-align: right;
-  padding: 0.3rem 0.4rem;
-}
-.homepage-theme-hex-input:hover, .homepage-theme-hex-input:focus { border-color: var(--border); background: var(--surface); text-align: left; }
 .homepage-theme-section-body label { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.5rem 0; }
 .homepage-theme-section-body > label:not(:last-child),
 .homepage-theme-section-body > form > label:not(:last-child) { border-bottom: 1px solid var(--border); }
-.homepage-theme-logo-preview, .homepage-theme-favicon-preview { max-height: 48px; vertical-align: middle; margin-left: 0.5rem; }
-.homepage-theme-reset-row { padding: 0.85rem 1.1rem; }
-/* A real request: "Reset theme to defaults button should be red with
-   white font." Scoped to just this one button (not .btn-secondary
-   site-wide, which stays the solid-blue secondary-action color every
-   other dialog Cancel/standalone button already uses) - same solid-
-   fill-danger-button shape .roster-action-btn-danger already uses
-   elsewhere, just with .btn-secondary's own padding/radius/size left
-   alone. */
-.homepage-theme-reset-row .btn-secondary { background: var(--red); border-color: var(--red); color: #fff; }
-.homepage-theme-reset-row .btn-secondary:hover { background: var(--red); border-color: var(--red); color: #fff; filter: brightness(0.92); }
-
-.homepage-theme-preview-pane { flex: 1 1 auto; min-width: 0; }
-.homepage-theme-preview-frame-wrap {
-  margin: 0 auto;
-  width: 100%;
-  max-width: 100%;
-  height: calc(100vh - 160px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: #fff;
-  transition: max-width 0.2s ease;
-}
-.homepage-theme-preview-frame-wrap[data-viewport="mobile"] { max-width: 420px; }
-.homepage-theme-preview-frame-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
+.homepage-theme-logo-preview { max-height: 48px; vertical-align: middle; margin-left: 0.5rem; }
 
 @media (max-width: 900px) {
-  .homepage-theme-shell { flex-direction: column; }
   .homepage-theme-sidebar { flex: 1 1 auto; max-width: none; max-height: none; position: static; }
-  .homepage-theme-preview-frame-wrap { height: 70vh; }
-}
-
-/* A real request, with a screenshot of Shopify's own Settings > Online
-   Store > Themes page: "This design page should look and function
-   exactly like Shopify when you edit the online store website." That
-   page is a list of theme cards (live preview/name/fonts/color swatches/
-   Customize button) sitting IN FRONT OF the full editor
-   (views/main-admin-website.ejs, unchanged) - this app only ever has
-   the one theme, so the list is always exactly one card. */
-.homepage-themes-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 0 1.25rem; }
-.homepage-themes-header h1 { margin: 0; }
-.homepage-theme-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  overflow: hidden;
-  max-width: 640px;
-}
-.homepage-theme-card-preview {
-  display: block;
-  position: relative;
-  height: 280px;
-  background: #f4f6f8;
-  border-bottom: 1px solid var(--border);
-}
-/* The iframe renders the real homepage at full desktop width, then
-   scales down into the card the same way a browser's own zoom does -
-   pointer-events: none hands every click to the <a> wrapping it
-   (straight to Customize), matching the screenshot's own "click the
-   preview to customize" behavior instead of a dead, un-clickable
-   thumbnail. */
-.homepage-theme-card-preview iframe {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 250%;
-  height: 250%;
-  border: none;
-  transform: scale(0.4);
-  transform-origin: top left;
-  pointer-events: none;
-}
-.homepage-theme-card-body { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.25rem; }
-.homepage-theme-card-name-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
-.homepage-theme-card-name-row h2 { margin: 0; font-size: 1.15rem; }
-.homepage-theme-current-badge { background: var(--brand-soft); color: var(--brand-dark); }
-.homepage-theme-card-swatches { display: flex; gap: 0.4rem; margin-top: 0.6rem; }
-.homepage-theme-swatch { width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 1px solid var(--border); display: inline-block; }
-.homepage-theme-card-customize { flex: 0 0 auto; }
-
-@media (max-width: 640px) {
-  .homepage-themes-header { flex-wrap: wrap; }
-  .homepage-theme-card-body { flex-direction: column; align-items: flex-start; }
-  .homepage-theme-card-customize { width: 100%; text-align: center; }
 }
 
 /* Parent/Student Lessons tab redesign (views/partials/lessons-view.ejs,
@@ -12294,76 +12072,7 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
    portal so the whole platform still visually agrees with itself once a
    visitor logs in.
    --------------------------------------------------------------------- */
-/* Public Homepage Theme Settings (Main Admin > Settings > Public
-   Homepage's own Colors/Typography sections, utils/homepage.js's own
-   themeStyleAttr) - a real request: "Should have the exact webpage
-   editing features as Shopify." --hp-* are a NEW, small set of CSS
-   custom properties scoped to just this page via the .public-home-page
-   body class, set inline per-render from the saved (or, in the editor's
-   own live preview iframe, not-yet-saved) theme row - deliberately NOT
-   the site-wide --bg/--accent/--surface/--ink tokens every admin page
-   also uses above, so customizing the public homepage's own colors can
-   never leak into the admin portals. Every fallback below matches
-   exactly what this page already rendered before this feature existed
-   (var(--surface)/var(--ink)/var(--btn-bg)/var(--accent)), so a
-   not-yet-customized homepage looks pixel-identical to before. */
-.public-home-page {
-  background: var(--hp-background, var(--surface));
-  color: var(--hp-text, var(--ink));
-  font-family: var(--hp-font-body, 'Open Sans', sans-serif);
-  font-size: var(--hp-font-size-base, 16px);
-}
-.public-home-page h1,
-.public-home-page h2,
-.public-home-page h3 { font-family: var(--hp-font-heading, 'Montserrat', sans-serif); }
-.public-home-page .site-header,
-.public-home-page .site-header-utility-bar,
-.public-home-page .site-footer,
-.public-home-page .site-section-alt,
-.public-home-page .site-class-showcase-card,
-.public-home-page .site-faq-item,
-.public-home-page .site-announcement-card { background: var(--hp-cards, var(--surface)); }
-.public-home-page .site-header-brand,
-.public-home-page .site-header-menu a,
-.public-home-page .homepage-block-text { color: var(--hp-text, var(--ink)); }
-/* Scoped to .site-section (the block canvas and the Classes We Offer
-   showcase both sit in one), deliberately NOT .site-cta - that section's
-   own white-on-brand-dark button (below) stays its own fixed, non-
-   themed look, same as the Announcements/FAQ/CTA systems around it. */
-.public-home-page .site-section .primary-btn { background: var(--hp-primary, var(--btn-bg)); }
-.public-home-page .site-section .primary-btn:hover { filter: brightness(0.92); }
-.public-home-page .site-faq-item { border-left: 4px solid var(--hp-accent, var(--accent)); }
-.public-home-page .site-class-showcase-day { color: var(--hp-accent, var(--muted)); }
 
-/* Announcement Bar theme section - a real request: "Should have the
-   exact webpage editing features as Shopify" (the screenshot's own
-   "Announcement bar" section). A thin bar across the very top of the
-   public homepage, shown only once an admin both enables it and gives
-   it text (views/public-home.ejs). */
-.site-announcement-bar { background: var(--hp-accent, var(--brand)); color: #fff; text-align: center; padding: 0.5rem 1rem; font-size: 0.9rem; font-weight: 600; }
-
-/* The Public Homepage builder's own live preview iframe (routes/admin-
-   website.js's own /preview route sets isPreview) - never rendered on
-   the real public /welcome page. */
-.homepage-preview-banner { background: var(--yellow-bg); color: var(--yellow); text-align: center; font-size: 0.8rem; font-weight: 700; padding: 0.3rem; }
-
-/* A real request: "Log in button should be above header." A thin bar
-   above .site-header holding just the signed-in/signed-out action link
-   (Log In, or My Portals once signed in - the same conditional swap
-   .site-header-actions used to hold, before a separate real request
-   removed the signed-out "Become a Member" button from the header
-   entirely). Right-aligned, same place that action link effectively sat
-   before (the far end of .site-header-actions, which used to be the
-   rightmost thing in .site-header itself). */
-.site-header-utility-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.6rem;
-  padding: 0.4rem 1.5rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
 /* A real request: "Header should be centered." Once the action buttons
    above are the only thing left of .site-header-actions (now relocated
    into .site-header-utility-bar above), .site-header only has the brand/
@@ -12389,18 +12098,6 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 }
 .site-header-brand { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--ink); font-weight: 800; font-size: 1.15rem; }
 .site-header-brand img { height: 42px; width: 42px; border-radius: 50%; }
-/* Homepage Menu (views/public-home.ejs) - a real request: "Should be
-   able to edit or add menu tabs to the homepage." No longer flex: 1 1
-   auto (that used to fill the space between the brand and the Log In/
-   Register buttons on a wide screen - both now gone from .site-header,
-   see .site-header-utility-bar above) - flex: 0 1 auto so the nav sits
-   next to the brand as part of the same centered group instead of
-   stretching to fill the header's own full width. flex-wrap still means
-   an admin adding more tabs than fit on one line never overflows the
-   header, it just wraps onto a second line instead. */
-.site-header-menu { display: flex; align-items: center; gap: 1.25rem; flex: 0 1 auto; flex-wrap: wrap; row-gap: 0.4rem; justify-content: center; }
-.site-header-menu a { color: var(--ink); font-weight: 600; text-decoration: none; white-space: nowrap; }
-.site-header-menu a:hover { color: var(--brand-dark); text-decoration: underline; }
 
 .site-hero {
   padding: 4.5rem 1.5rem;
@@ -12408,10 +12105,10 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
   background: linear-gradient(180deg, var(--bg) 0%, #3a6d99 100%);
   color: #fff;
 }
-.site-hero-inner { max-width: 760px; margin: 0 auto; }
+
 .site-hero h1 { font-size: clamp(2rem, 4vw, 2.75rem); margin: 0 0 0.9rem; line-height: 1.15; }
 .site-hero p { font-size: 1.15rem; opacity: 0.92; margin: 0 0 1.75rem; }
-.site-hero-actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+
 /* color: var(--brand-dark), not var(--bg) - white background needs the
    accessible-on-white blue (--bg itself only hits a 4.1:1 contrast ratio
    on white, short of WCAG AA's 4.5:1 - caught by the a11y check below). */
@@ -12572,18 +12269,9 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
    needs an explicit light background; -alt just alternates the shade. */
 .site-section { padding: 3.5rem 1.5rem; background: var(--surface); }
 .site-section-inner { max-width: 980px; margin: 0 auto; }
-.site-section-alt { background: #f4f8fc; }
+
 .site-section h2 { font-size: 1.75rem; margin: 0 0 1rem; color: var(--ink); }
 .site-section p { color: var(--muted); line-height: 1.6; font-size: 1.05rem; }
-/* --muted on -alt's own #f4f8fc tint (rather than -surface's white) falls
-   just short of WCAG AA's 4.5:1 - --muted-dark instead, same reasoning as
-   --brand-dark existing above for text on a non-white background. */
-.site-section-alt .site-section-inner p { color: var(--muted-dark); }
-
-.site-benefits-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
-.site-benefit-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; }
-.site-benefit-card h3 { margin: 0 0 0.5rem; font-size: 1.1rem; color: var(--ink); }
-.site-benefit-card p { font-size: 0.95rem; margin: 0; }
 
 /* Events (Community & Commerce track) - public/member event browsing
    cards. No existing shape covers "card with an image on top, a date
@@ -12993,47 +12681,16 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
 .site-announcement-card h3 { margin: 0 0 0.35rem; font-size: 1.05rem; color: var(--ink); }
 .site-announcement-date { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
 
-/* The public homepage's own read-only classes showcase (a real request:
-   "Check box to be viewable to public on public homepage") - same card
-   shape as .site-announcement-card above, in a responsive grid (like
-   .admin-card-grid elsewhere) instead of one column, since these are
-   short at-a-glance cards rather than long-form announcement bodies. */
-.site-class-showcase-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
-.site-class-showcase-card { background: var(--surface); border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius); padding: 1rem 1.25rem; text-align: left; }
-.site-class-showcase-card h3 { margin: 0.25rem 0 0.35rem; font-size: 1rem; color: var(--ink); }
-.site-class-showcase-day { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; font-weight: 700; }
-.site-class-showcase-time { margin: 0; font-size: 0.85rem; color: var(--muted); }
-
 .site-faq-list { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
 .site-faq-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.25rem 1.25rem; }
 .site-faq-item summary { padding: 1rem 0; font-weight: 700; color: var(--ink); cursor: pointer; list-style: none; }
 .site-faq-item summary::-webkit-details-marker { display: none; }
 .site-faq-item p { padding-bottom: 1rem; margin: 0; }
 
-/* background: var(--brand-dark), not var(--brand) - white text on
-   --brand's own lighter #79baec only hits a 2.09:1 contrast ratio, well
-   short of WCAG AA's 4.5:1 (caught by the a11y check below); --brand-dark
-   is the token that already exists for exactly this "text needs to sit
-   on a blue background/or be blue text" case. */
-.site-cta { text-align: center; padding: 4rem 1.5rem; background: var(--brand-dark); color: #fff; }
-.site-cta h2 { color: #fff; }
-.site-cta .primary-btn { background: #fff; color: var(--brand-dark); }
-
-.site-footer { padding: 2.5rem 1.5rem; text-align: center; color: var(--muted); font-size: 0.9rem; background: var(--surface); border-top: 1px solid var(--border); }
-.site-footer a { color: var(--muted); }
-/* Footer image/text - a real request: "Add options to edit header and
-   footer of website." Both off by default (views/public-home.ejs only
-   renders either once an admin has actually filled it in). */
-.site-footer-image { display: block; max-height: 56px; margin: 0 auto 0.85rem; }
-.site-footer-text { margin: 0 0 0.75rem; font-size: 0.95rem; }
-
 @media (max-width: 640px) {
   .site-hero { padding: 3rem 1.25rem; }
   .site-section { padding: 2.5rem 1.25rem; }
-  /* .site-header-utility-bar - a real request: "Log in button should be
-     above header" - needs its own tighter mobile padding rather than
-     just assuming desktop, same as every other bar/section here. */
-  .site-header-utility-bar { padding: 0.35rem 1rem; }
+  
   /* Real bug caught by a site-wide audit crawl: .site-header never
      wrapped, so the brand name plus the Menu Tabs nav together were
      wider than a phone screen, pushing the whole page into horizontal
@@ -13045,7 +12702,7 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
      gone from .site-header entirely now - see .site-header-utility-bar
      above and public-home.ejs's own header markup.) */
   .site-header { flex-wrap: wrap; }
-  .site-header-menu { flex-basis: 100%; gap: 0.9rem; }
+  
 }
 
 /* Portal dashboards (Parent/Student/Teacher/Main Admin home pages) -
@@ -16375,3 +16032,51 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 .support-request-completed td { opacity: 0.65; }
 .support-extra-answers { margin: 0; padding-left: 1rem; }
 .support-message-cell { white-space: pre-wrap; }
+
+/* Public Homepage site dashboard (views/main-admin-website.ejs) - a real
+   request: "switch that to wix." Wix's own site card: a live thumbnail
+   of the site, name/URL, and Edit Site / View Site. The thumbnail
+   iframe renders the real site at desktop width and scales it down;
+   pointer-events: none hands every click to the wrapping Edit link. */
+.site-dash-title { margin-bottom: 1rem; }
+.site-dash-card {
+  max-width: 760px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+.site-dash-thumb {
+  position: relative;
+  display: block;
+  height: 320px;
+  overflow: hidden;
+  background: var(--brand-soft);
+  border-bottom: 1px solid var(--border);
+}
+.site-dash-thumb iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 1000px;
+  border: none;
+  transform: scale(0.594);
+  transform-origin: top left;
+  pointer-events: none;
+}
+.site-dash-body { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.25rem; flex-wrap: wrap; }
+.site-dash-info h2 { margin: 0 0 0.2rem; font-size: 1.2rem; }
+.site-dash-info .hint { margin: 0.3rem 0; }
+.site-dash-url { font-size: 0.9rem; word-break: break-all; }
+.site-dash-badge { background: var(--yellow-bg); color: var(--yellow); }
+.site-dash-actions { display: flex; gap: 0.6rem; align-items: center; }
+.site-dash-note { max-width: 760px; margin-top: 0.85rem; }
+
+@media (max-width: 640px) {
+  .site-dash-thumb { height: 200px; }
+  .site-dash-thumb iframe { transform: scale(0.28); }
+  .site-dash-actions { width: 100%; }
+  .site-dash-actions a { flex: 1; text-align: center; }
+}

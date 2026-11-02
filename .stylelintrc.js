@@ -3,6 +3,18 @@
 // edit that drifts from either one fails `npm run lint:css` instead of
 // only being caught (or not) by someone noticing on review.
 module.exports = {
+  // The public website (site.css) and its editor (site-editor.css) use the
+  // site editor's own device breakpoints - desktop/tablet/mobile, the
+  // same widths the editor canvas switches between (public/js/
+  // site-render.js's TABLET_MAX/MOBILE_MAX) - not the app's admin scale.
+  overrides: [
+    {
+      files: ['public/css/site.css', 'public/css/site-editor.css'],
+      rules: {
+        'media-feature-name-value-allowed-list': { 'max-width': ['1024px', '767px'], 'min-width': ['768px', '1025px'] },
+      },
+    },
+  ],
   rules: {
     // Breakpoint scale (see the header comment in styles.css for the
     // full reasoning): @media max-width/min-width may only use one of

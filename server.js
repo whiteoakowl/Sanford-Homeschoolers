@@ -180,10 +180,9 @@ const mainAdminTrainingRouter = require('./routes/main-admin-training');
 // on Track A's hard-boundary list).
 const eventsRouter = require('./routes/events');
 const adminEventsRouter = require('./routes/admin-events');
-// Public Homepage block builder - sibling router at /main-admin/website,
-// same shape as adminEventsRouter above (routes/main-admin.js's old
-// /website, /website/settings, /website/announcements/:id/delete routes
-// moved here and rebuilt around homepage_blocks).
+// Wix-style site editor (dashboard + full-screen editor + its JSON API)
+// - sibling router at /main-admin/website, same shape as adminEventsRouter
+// above. See utils/siteBuilder.js.
 const adminWebsiteRouter = require('./routes/admin-website');
 // Item 4: Business Directory at /directory, Classifieds at /classifieds,
 // same sibling-router shape as Events above.
@@ -294,6 +293,12 @@ app.set('views', path.join(viewsRoot, 'views'));
 // (1001 params with _csrf) 500'd instead of rendering. Raised well past
 // the requested 1000-card ceiling so a real co-op has headroom to grow.
 app.use(express.urlencoded({ extended: true, parameterLimit: 20000 }));
+// The site editor autosaves the whole site document as one JSON body -
+// a multi-page site easily passes express.json()'s 100kb default. Scoped
+// to just that API (Main Admin-gated inside the router) so every other
+// route keeps the small default; the global parser below then skips an
+// already-parsed body.
+app.use('/main-admin/website/api', express.json({ limit: '4mb' }));
 app.use(express.json());
 
 // Stops a browser from ever re-guessing a served file's type from its
@@ -590,6 +595,11 @@ app.use('/admin', adminMembersRouter);
 app.use('/admin', adminSearchRouter);
 app.use('/admin', adminNameTagRouter);
 app.use('/admin', adminAnnouncementsRouter);
+
+// Site editor pages (/<slug>) - mounted LAST, after every app route, so a
+// page can never shadow one; utils/siteBuilder.js's RESERVED_SLUGS also
+// refuses those names up front so the editor never offers a dead URL.
+app.use('/', publicSiteRouter.pageRouter);
 
 app.use((req, res) => {
   res.status(404).render('404', { title: 'Not Found' });
