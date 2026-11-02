@@ -263,6 +263,7 @@ const adminAuditLogRouter = require('./routes/admin-audit-log');
 // own header comment.
 const searchRouter = require('./routes/search');
 const teacherPortalRouter = require('./routes/teacher-portal');
+const teacherReimbursementsRouter = require('./routes/teacher-reimbursements');
 const studentPortalRouter = require('./routes/student-portal');
 const studentFamilySchoolRouter = require('./routes/student-family-school');
 const { loadPortalSession } = require('./middleware/portalAuth');
@@ -544,6 +545,7 @@ app.use('/main-admin/publications', adminPublicationsRouter);
 app.use('/main-admin/audit-log', adminAuditLogRouter);
 app.use('/search', searchRouter);
 app.use('/teacher', teacherPortalRouter);
+app.use('/', teacherReimbursementsRouter);
 app.use('/student', studentPortalRouter);
 app.use('/student', studentFamilySchoolRouter);
 // contact-admins.js and membership.js (both mounted below) gate every one

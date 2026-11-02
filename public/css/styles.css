@@ -16082,3 +16082,46 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
   .site-dash-actions { width: 100%; }
   .site-dash-actions a { flex: 1; text-align: center; }
 }
+
+/* Teacher Reimbursements (views/reimbursement-form.ejs, reimbursement-detail.ejs,
+   admin-teacher-reimbursements*.ejs) */
+.reimbursement-intro { max-width: 46rem; }
+.reimbursement-form { max-width: 52rem; }
+.reimbursement-items-heading { font-size: 1.1rem; margin: 1.25rem 0 0.5rem; }
+.reimbursement-items { display: flex; flex-direction: column; gap: 0.5rem; }
+.reimbursement-item-row { display: grid; grid-template-columns: minmax(0, 1fr) 10rem 7rem 2.5rem; gap: 0.5rem; align-items: center; }
+.reimbursement-item-row input { width: 100%; min-width: 0; }
+.reimbursement-item-head { font-weight: 600; font-size: 0.9rem; color: var(--muted-dark); }
+.reimbursement-add-item { margin-top: 0.6rem; }
+.reimbursement-total { font-size: 1.15rem; text-align: right; margin: 1rem 0; }
+.reimbursement-footer { margin-bottom: 1rem; }
+.reimbursement-amount-col { text-align: right; white-space: nowrap; }
+.reimbursement-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.reimbursement-status { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; background: var(--yellow-bg); color: var(--yellow); }
+.reimbursement-status-approved { background: var(--green-bg); color: var(--green); }
+.reimbursement-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.75rem 1.5rem; margin: 0 0 1rem; }
+.reimbursement-summary dt { font-weight: 600; font-size: 0.85rem; color: var(--muted-dark); }
+.reimbursement-summary dd { margin: 0.15rem 0 0; }
+.reimbursement-admin-section { margin-top: 1.25rem; border: 2px dashed var(--accent); }
+.reimbursement-admin-section h2 { margin-top: 0; }
+.reimbursement-delete-form { margin-top: 1rem; }
+.reimbursement-settings-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 1.25rem; align-items: start; }
+.reimbursement-links { padding-left: 1.1rem; word-break: break-all; }
+
+@media (max-width: 640px) {
+  .reimbursement-item-row { grid-template-columns: minmax(0, 1fr) 2.5rem; }
+  .reimbursement-item-row input[type="text"]:first-child { grid-column: 1 / -1; }
+  .reimbursement-item-head { display: none; }
+}
+.reimbursement-status-rejected { background: var(--red-bg); color: var(--red); }
+.reimbursement-rejection-message { margin: 0.4rem 0 0.75rem; white-space: pre-wrap; }
+.reimbursement-receipts { display: flex; flex-direction: column; gap: 0.5rem; }
+.reimbursement-receipt-row { display: grid; grid-template-columns: minmax(0, 1fr) 2.5rem; gap: 0.5rem; align-items: center; }
+.reimbursement-receipt-list { padding-left: 1.1rem; }
+.reimbursement-receipt-list li { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.reimbursement-receipt-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: 0.75rem; }
+.reimbursement-receipt-tile { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius); text-align: center; word-break: break-all; font-size: 0.85rem; }
+.reimbursement-receipt-tile img { width: 100%; height: 7rem; object-fit: cover; border-radius: 8px; }
+.reimbursement-receipt-file-icon { width: 3rem; height: 3rem; margin: 2rem 0; }
+.reimbursement-admin-fields { border: 0; padding: 0; margin: 0; }
+.reimbursement-rejection-history ul { padding-left: 1.1rem; }

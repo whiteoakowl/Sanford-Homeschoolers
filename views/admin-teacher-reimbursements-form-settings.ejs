@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body class="admin-page">
+  <%- include('partials/admin-nav') %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p class="subtitle no-print"><a href="/admin/teachers/reimbursements">&larr; Teacher Reimbursements</a></p>
+    <h1>Edit Reimbursement Form</h1>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <%# The structured fields (name, semester, day, class, item lines,
+        total) drive validation and the log, so only the wording around
+        them is editable here. %>
+    <p class="hint">Edit the title and wording teachers see on the form. The Name, Semester, Day, Class and item fields are always included.</p>
+
+    <div class="reimbursement-settings-layout">
+      <form method="POST" action="/admin/teachers/reimbursements/form-settings" class="manage-section instructor-profile-form" data-reimb-settings>
+        <label for="reimb-settings-title">Form Title
+          <input id="reimb-settings-title" type="text" name="title" value="<%= settings.title %>" maxlength="150" required data-preview-source="title" />
+        </label>
+        <label for="reimb-settings-intro">Instructions
+          <textarea id="reimb-settings-intro" name="intro" rows="4" maxlength="2000" data-preview-source="intro"><%= settings.intro %></textarea>
+        </label>
+        <label for="reimb-settings-footer">Footer Note (e.g. where to turn in receipts)
+          <textarea id="reimb-settings-footer" name="footer" rows="3" maxlength="2000" data-preview-source="footer"><%= settings.footer %></textarea>
+        </label>
+        <div class="notes-dialog-actions">
+          <button type="submit" class="primary-btn">Save</button>
+        </div>
+      </form>
+
+      <section class="manage-section reimbursement-settings-preview" aria-label="Preview">
+        <h2>Preview</h2>
+        <h3 data-preview="title"><%= settings.title %></h3>
+        <p data-preview="intro"><%= settings.intro %></p>
+        <p class="hint">Name &middot; Semester &middot; Day of Co-op &middot; Class &middot; Items Purchased &middot; Total</p>
+        <p class="hint" data-preview="footer"><%= settings.footer %></p>
+        <p><strong>Links to the form:</strong></p>
+        <ul class="reimbursement-links">
+          <li>Teachers/assistants: <a href="<%= teacherFormUrl %>" target="_blank" rel="noopener"><%= teacherFormUrl %></a> <button type="button" class="icon-btn" data-copy-link="<%= teacherFormUrl %>" aria-label="Copy link" title="Copy link"><svg class="icon"><use href="#icon-copy"/></svg></button></li>
+          <li>Fill one in as an admin: <a href="/admin/teachers/reimbursements/new">/admin/teachers/reimbursements/new</a></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+  <script>
+    (function () {
+      document.querySelectorAll('[data-preview-source]').forEach(function (input) {
+        var target = document.querySelector('[data-preview="' + input.getAttribute('data-preview-source') + '"]');
+        input.addEventListener('input', function () { if (target) target.textContent = input.value; });
+      });
+      document.querySelectorAll('[data-copy-link]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (navigator.clipboard) navigator.clipboard.writeText(btn.getAttribute('data-copy-link'));
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

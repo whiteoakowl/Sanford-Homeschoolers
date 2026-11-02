@@ -212,6 +212,7 @@ const TEACHER_PAGES = [
   { key: 'view_teacher_chat', label: 'Chat' },
   { key: 'view_teacher_photos', label: 'Photos' },
   { key: 'view_teacher_instructor_profile', label: 'Instructor Profile' },
+  { key: 'view_teacher_reimbursements', label: 'Reimbursements' },
 ];
 
 // Student Portal - see STUDENT_NAV_LINKS. Chat is listed once, nested

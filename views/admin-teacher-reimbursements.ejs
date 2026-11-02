@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body class="admin-page">
+  <%- include('partials/admin-nav') %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <div class="roster-toolbar no-print">
+      <h1>Teacher Reimbursements</h1>
+    </div>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error" role="alert"><%= error %></div><% } %>
+    <% if (importErrors && importErrors.length) { %>
+      <div class="alert alert-error" role="alert">
+        <strong>Some rows were not imported:</strong>
+        <ul><% importErrors.forEach(function(e) { %><li><%= e %></li><% }); %></ul>
+      </div>
+    <% } %>
+
+    <div class="roster-toolbar no-print">
+      <div class="roster-btn-row roster-btn-row-fit-text reimbursement-toolbar-row">
+        <form method="GET" action="/admin/teachers/reimbursements" class="reimbursement-filters">
+          <select name="status" aria-label="Filter by status" onchange="this.form.requestSubmit()">
+            <option value="">All Statuses</option>
+            <% Object.keys(statusLabels).forEach(function(k) { %>
+              <option value="<%= k %>" <%= filters.status === k ? 'selected' : '' %>><%= statusLabels[k] %></option>
+            <% }); %>
+          </select>
+          <select name="semesterId" aria-label="Filter by semester" onchange="this.form.requestSubmit()">
+            <option value="">All Semesters</option>
+            <% semesters.forEach(function(s) { %>
+              <option value="<%= s.id %>" <%= String(filters.semesterId) === String(s.id) ? 'selected' : '' %>><%= s.title %></option>
+            <% }); %>
+          </select>
+        </form>
+        <%# A real request: "There should be import, export, print, and PDF
+            icons on this page lined up on the same row." %>
+        <button type="button" class="icon-btn" onclick="document.getElementById('import-reimbursements-dialog').showModal()" aria-label="Import" title="Import"><svg class="icon"><use href="#icon-upload"/></svg></button>
+        <a class="icon-btn" href="/admin/teachers/reimbursements/export.csv<%= filterQuery %>" aria-label="Export CSV" title="Export CSV"><svg class="icon"><use href="#icon-download"/></svg></a>
+        <a class="icon-btn" href="/admin/teachers/reimbursements/print<%= filterQuery %>" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
+        <a class="icon-btn" href="/admin/teachers/reimbursements/download.pdf<%= filterQuery %>" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
+        <a class="roster-action-btn roster-action-btn-fit" href="/admin/teachers/reimbursements/form-settings">Edit Form</a>
+        <a class="roster-action-btn roster-action-btn-fit" href="/admin/teachers/reimbursements/new">+ New Form</a>
+      </div>
+    </div>
+
+    <% if (requests.length === 0) { %>
+      <p class="roster-empty">No reimbursement forms<%= filters.status || filters.semesterId ? ' match these filters' : ' have been submitted yet' %>.</p>
+    <% } else { %>
+      <table class="roster-table members-table condensed-table reimbursement-log-table">
+        <thead>
+          <tr>
+            <th>Submitted</th><th>Name</th><th>Semester</th><th>Day</th><th>Class</th><th>Items</th><th>Receipts</th><th class="reimbursement-amount-col">Total</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% requests.forEach(function(r) { %>
+            <tr class="reimbursement-log-row">
+              <td><a href="/admin/teachers/reimbursements/<%= r.id %>"><%= formatTimestamp(r.submitted_at) %></a></td>
+              <td><a href="/admin/teachers/reimbursements/<%= r.id %>"><%= r.member_name %></a></td>
+              <td><%= r.semester_title %></td>
+              <td><%= r.dayLabel %></td>
+              <td><%= r.class_name %></td>
+              <td><%= r.itemCount %></td>
+              <td><%= r.receiptCount %></td>
+              <td class="reimbursement-amount-col"><%= r.totalLabel %></td>
+              <td><span class="reimbursement-status reimbursement-status-<%= r.status %>"><%= r.statusLabel %></span></td>
+            </tr>
+          <% }); %>
+        </tbody>
+        <tfoot><tr><th colspan="7">Total</th><th class="reimbursement-amount-col"><%= grandTotalLabel %></th><th></th></tr></tfoot>
+      </table>
+    <% } %>
+
+    <dialog id="import-reimbursements-dialog" class="member-picker-dialog">
+      <form method="POST" action="/admin/teachers/reimbursements/import" enctype="multipart/form-data">
+        <h3>Import Reimbursements</h3>
+        <p class="hint">Download the <a href="/admin/teachers/reimbursements/import-template.xlsx">template</a> and fill in one row per item purchased. Rows with the same Name, Semester, Day, Class and Submitted Date become one reimbursement form. Names, semesters and classes must already exist; rows that don't match are skipped and listed after the import.</p>
+        <label>File
+          <input type="file" name="file" accept=".xlsx,.xls,.csv" required />
+        </label>
+        <div class="notes-dialog-actions">
+          <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+          <button type="submit" class="primary-btn">Import</button>
+        </div>
+      </form>
+    </dialog>
+  </main>
+</body>
+</html>
