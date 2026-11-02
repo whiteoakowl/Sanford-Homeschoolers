@@ -502,7 +502,7 @@ async function buildFromLegacy() {
   const sections = [];
   let firstHeading = true;
   let z = 1;
-  const strip = (name, els, extra) => ({ id: newId('s'), name, height: { desktop: Math.max(60, ...els.map((e) => e.layout.desktop.y + e.layout.desktop.h + 24)) }, bg: { type: 'color' }, elements: els, ...(extra || {}) });
+  const strip = (name, els, extra) => ({ id: newId('s'), name, height: { desktop: Math.max(60, ...els.map((e) => e.layout.desktop.y + e.layout.desktop.h + 16)) }, bg: { type: 'color' }, elements: els, ...(extra || {}) });
   const xFor = (w, align) => (align === 'center' ? Math.round((980 - w) / 2) : align === 'right' ? 980 - 60 - w : 60);
   for (const b of blocks) {
     const align = b.alignment || 'left';
@@ -514,13 +514,13 @@ async function buildFromLegacy() {
       const size = big ? (tag === 'h1' ? 48 : 36) : b.text_size === 'small' ? 13 : baseSize;
       const lh = big ? 1.2 : 1.6;
       const h = estimateTextHeight(b.text_body, 860, size, lh);
-      sections.push(strip(big ? 'Heading' : 'Text', [{ id: newId('e'), type: 'text', name: big ? 'Heading' : 'Paragraph', layout: { desktop: { x: 60, y: 24, w: 860, h } }, props: { tag, textStyle: big ? tag : b.text_size === 'small' ? 'small' : 'p', html: textHtml(b.text_body) }, style: { align }, z: z++ }]));
+      sections.push(strip(big ? 'Heading' : 'Text', [{ id: newId('e'), type: 'text', name: big ? 'Heading' : 'Paragraph', layout: { desktop: { x: 60, y: 16, w: 860, h } }, props: { tag, textStyle: big ? tag : b.text_size === 'small' ? 'small' : 'p', html: textHtml(b.text_body) }, style: { align }, z: z++ }]));
     } else if (b.block_type === 'image' && b.image_key) {
       const w = { small: 240, medium: 480, large: 720, full: 980 }[b.image_size] || 480;
       const id = await ensureMediaForKey(b.image_key, b.image_alt || 'Homepage image');
       if (b.image_alt) await db.prepare("UPDATE site_media SET alt_text = ? WHERE id = ? AND alt_text = ''").run(b.image_alt, id);
       const x = w === 980 ? 0 : xFor(w, align);
-      sections.push(strip('Image', [{ id: newId('e'), type: 'image', name: 'Image', layout: { desktop: { x, y: 24, w, h: Math.round(w * 0.5625) } }, props: { mediaId: id, alt: b.image_alt || '', fit: 'contain' }, style: {}, z: z++ }]));
+      sections.push(strip('Image', [{ id: newId('e'), type: 'image', name: 'Image', layout: { desktop: { x, y: 16, w, h: Math.round(w * 0.5625) } }, props: { mediaId: id, alt: b.image_alt || '', fit: 'contain' }, style: {}, z: z++ }]));
     } else if (b.block_type === 'button' && b.button_label) {
       sections.push(strip('Button', [{ id: newId('e'), type: 'button', name: 'Button', layout: { desktop: { x: xFor(240, align), y: 24, w: 240, h: 52 } }, props: { label: b.button_label, link: link({ href: b.button_url }) }, style: {}, z: z++ }], { height: { desktop: 100 } }));
     }

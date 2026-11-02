@@ -333,19 +333,23 @@
     }
     return rules.join('\n');
   }
+  function sectionBgCss(section) {
+    const bg = section.bg || {};
+    const parts = bgCss({ color: bg.color, gradient: bg.type === 'gradient' ? bg.gradient : null });
+    if (bg.type === 'image' && bg.imageUrl) {
+      parts.push(`background-image:${bg.overlay && cssColor(bg.overlay.color) ? `linear-gradient(${cssColor(bg.overlay.color)}, ${cssColor(bg.overlay.color)}), ` : ''}url("${String(bg.imageUrl).replace(/["\\()]/g, '')}")`);
+      parts.push(`background-size:${['cover', 'contain', 'auto'].includes(bg.size) ? bg.size : 'cover'}`);
+      parts.push(`background-position:${num(bg.posX, 0, 100, 50)}% ${num(bg.posY, 0, 100, 50)}%`);
+      parts.push(`background-repeat:${bg.repeat ? 'repeat' : 'no-repeat'}`);
+      if (bg.parallax) parts.push('background-attachment:fixed');
+    }
+    if (cssColor(section.textColor)) parts.push(`color:${cssColor(section.textColor)}`);
+    return parts;
+  }
   function pageCss(page, doc) {
     const desktop = [];
     for (const section of page.sections || []) {
-      const bg = section.bg || {};
-      const parts = bgCss({ color: bg.color, gradient: bg.type === 'gradient' ? bg.gradient : null });
-      if (bg.type === 'image' && bg.imageUrl) {
-        parts.push(`background-image:${bg.overlay && cssColor(bg.overlay.color) ? `linear-gradient(${cssColor(bg.overlay.color)}, ${cssColor(bg.overlay.color)}), ` : ''}url("${String(bg.imageUrl).replace(/["\\()]/g, '')}")`);
-        parts.push(`background-size:${['cover', 'contain', 'auto'].includes(bg.size) ? bg.size : 'cover'}`);
-        parts.push(`background-position:${num(bg.posX, 0, 100, 50)}% ${num(bg.posY, 0, 100, 50)}%`);
-        parts.push(`background-repeat:${bg.repeat ? 'repeat' : 'no-repeat'}`);
-        if (bg.parallax) parts.push('background-attachment:fixed');
-      }
-      if (cssColor(section.textColor)) parts.push(`color:${cssColor(section.textColor)}`);
+      const parts = sectionBgCss(section);
       desktop.push(`#s-${section.id}{${parts.join(';')}}`);
       for (const el of section.elements || []) {
         const extra = [`z-index:${num(el.z, 0, 9999, 1)}`];
@@ -363,7 +367,7 @@
     ].join('\n');
   }
   // Site-wide design tokens + text styles, scoped to #wx-site.
-  function designCss(doc) {
+  function designCss(doc, opts) {
     const d = doc.design || {};
     const p = d.palette || {};
     const vars = [];
@@ -385,7 +389,11 @@
       const size = (ts[key] && ts[key].fontSize) || { h1: 48, h2: 36, h3: 26 }[key];
       scaled.push(`#wx-site .wx-ts-${key}{font-size:${Math.max(18, Math.round(size * (key === 'h3' ? 0.85 : 0.68)))}px}`);
     }
-    out.push(`@media (max-width:${MOBILE_MAX}px){${scaled.join('')}}`);
+    // The editor canvas passes its current device instead of relying on
+    // a media query (its viewport is never phone-sized).
+    if (opts && opts.device) {
+      if (opts.device === 'mobile') out.push(scaled.join(''));
+    } else out.push(`@media (max-width:${MOBILE_MAX}px){${scaled.join('')}}`);
     const h = doc.header || {};
     const hv = [];
     if (cssColor(h.bg)) hv.push(`--wx-header-bg:${cssColor(h.bg)}`);
@@ -755,6 +763,7 @@
     boxCss,
     bgCss,
     pageCss,
+    sectionBgCss,
     designCss,
     googleFontsHref,
     renderInner,
