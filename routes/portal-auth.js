@@ -569,6 +569,32 @@ router.get('/portal/settings-hub', (req, res) => {
   res.render('portal-settings-hub', { title: 'Settings', navPortalTitle: res.locals.sharedPortalTitle('Settings') });
 });
 
+// A real request: "Download app should be included in the settings
+// gears of all portals, all." The install-as-app content itself (same
+// Install App button/steps views/admin-settings.ejs's own ?tab=install
+// already has) has nothing Co-op Admin-specific about it and that route
+// is requireAdmin-gated (the separate legacy admin login), so every
+// other portal's own Settings hub links here instead - one shared,
+// account-agnostic page any signed-in portal account can reach. Main
+// Admin isn't covered by sharedPortalTitle (it only ever resolves
+// parent/student/teacher), so it's special-cased the same way isMainAdmin
+// is already used elsewhere in this file; every other role falls back to
+// sharedPortalTitle exactly like /portal/settings and /portal/settings-
+// hub above already do. Student Portal deliberately has no settings gear
+// of its own (a real request: "Student Portal should not have a settings
+// gear" - portal-nav.ejs's own showSettingsGear) - that's left alone
+// here, this route is simply unreachable from Student Portal's own nav,
+// same as /portal/settings-hub already is for it.
+router.get('/portal/install-app', (req, res) => {
+  if (!req.portalAccount) return res.redirect('/login?next=%2Fportal%2Finstall-app');
+  const navPortalTitle = isMainAdmin(req) ? 'Main Admin' : res.locals.sharedPortalTitle('Settings');
+  const backHref = navPortalTitle === 'Main Admin' ? '/main-admin/settings'
+    : navPortalTitle === 'Parent Portal' ? '/parent/family-school/settings-hub'
+    : (navPortalTitle === 'Student Portal' || navPortalTitle === 'Co-op Teacher Portal') ? '/portal/settings-hub'
+    : '/portal/settings';
+  res.render('portal-install-app', { title: 'Install App', navPortalTitle, backHref });
+});
+
 // A real request: "Clicking on the profile icon at the top on every
 // portal should be the member's full profile membership form so that
 // they can edit it. They still can't edit the birthday and grade level

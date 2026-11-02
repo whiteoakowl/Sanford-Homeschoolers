@@ -65,6 +65,10 @@ test('GET /main-admin/settings renders a card for every settings-area destinatio
   assert.match(res.text, /href="\/main-admin\/faq"[^]*?FAQ/);
   assert.match(res.text, /href="\/main-admin\/quick-links"[^]*?Quick Links/);
   assert.match(res.text, /href="\/main-admin\/audit-log"[^]*?Audit Log/);
+  // A real request: "Download app should be included in the settings
+  // gears of all portals, all." - links to the shared, account-agnostic
+  // /portal/install-app page (test/routes-portal-install-app.test.js).
+  assert.match(res.text, /href="\/portal\/install-app"[^]*?Download App/);
   // A real request: quick links to the public Request Membership form and
   // Privacy Policy page from Main Admin's own Settings hub - needed as a
   // handy reference (e.g. when filling out Telnyx's 10DLC campaign form,
