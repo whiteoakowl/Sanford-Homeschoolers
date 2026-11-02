@@ -375,12 +375,13 @@ router.get('/import-template/names.xlsx', requireAdmin, (req, res) => {
 // gear - those same messages are still edited from Main Admin's own
 // /main-admin/notifications page.
 const SETTINGS_TABS = ['account', 'classcheckin', 'kiosk', 'semesters', 'quicklinks', 'install'];
-// A real request: "Where are the semester creation settings... There
-// isn't a semester card" - a coop_admin member (not the master login)
-// couldn't see Semesters at all. Its add/edit/delete routes already
-// allow coop_admin (requireFullAdmin in routes/admin-schedule.js), so
-// only the master-admin-only credential/kiosk/PIN tabs stay gated here.
-const FULL_ADMIN_ONLY_TABS = ['account', 'classcheckin', 'kiosk'];
+// A real request: "Nothing should be hidden from the member given portal
+// permissions and admin manage permissions." A coop_admin member gets
+// every Co-op Admin setting (Semesters, Kiosk, Class Check-In PIN). Only
+// 'account' stays master-only: it edits the master login's own row via
+// req.session.adminId, isn't linked from the hub, and Main Admin's own
+// /main-admin/admin-login now covers it.
+const FULL_ADMIN_ONLY_TABS = ['account'];
 
 // requireAdmin/requireFullAdmin now also let a coop_admin-role member
 // into every /admin route on their own portal session (middleware/
@@ -466,7 +467,7 @@ router.get('/settings', requireAdmin, async (req, res) => {
 // Assignments, Setup/Cleanup, and Class Check-In/Check-Out all resolve
 // this same setting (see utils/kioskSettings.js) and scope their own
 // data to whichever semester is picked here.
-router.post('/settings/kiosk-semester', requireAdmin, requireFullAdmin, requireMasterAdmin, async (req, res) => {
+router.post('/settings/kiosk-semester', requireAdmin, requireFullAdmin, async (req, res) => {
   const semesterId = parseInt(req.body.semesterId, 10);
   if (!semesterId) {
     return res.redirect('/admin/settings?tab=kiosk&error=' + encodeURIComponent('Choose a semester first.'));
@@ -526,7 +527,7 @@ router.post('/settings/password', requireAdmin, requireFullAdmin, requireMasterA
 // logged in as full Admin, and the PIN itself is a lower-stakes secondary
 // check (kiosk class check-in access), not the credential that gates
 // everything else the way the admin password does.
-router.post('/settings/class-checkin-pin', requireAdmin, requireFullAdmin, requireMasterAdmin, async (req, res) => {
+router.post('/settings/class-checkin-pin', requireAdmin, requireFullAdmin, async (req, res) => {
   const newPin = (req.body.newPin || '').trim();
   if (!/^\d{4}$/.test(newPin)) {
     return renderSettings(req, res, 'PIN must be exactly 4 digits.', null, 'classcheckin');
