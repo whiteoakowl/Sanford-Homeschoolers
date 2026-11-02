@@ -39,6 +39,7 @@
 // destination, not four.
 const express = require('express');
 const router = express.Router();
+const { chunkQrPages } = require('../utils/qrSheetPages');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -931,7 +932,7 @@ router.post('/print-classcheckin-qr', async (req, res) => {
 
   res.render('main-admin-classcheckin-qr-print', {
     title: 'Print Class Check-In QR Codes',
-    pages,
+    pages: chunkQrPages(pages),
   });
 });
 
@@ -979,7 +980,7 @@ router.get('/print-classcheckin-qr/download.pdf', async (req, res) => {
 
   const pdf = await renderViewToPdf(req, 'main-admin-classcheckin-qr-print', {
     title: 'Print Class Check-In QR Codes',
-    pages,
+    pages: chunkQrPages(pages),
     isFullAdmin: false,
   });
   sendPdf(res, 'class-checkin-qr-codes.pdf', pdf);

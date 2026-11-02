@@ -271,10 +271,16 @@
       qrFilterSaveBtn.addEventListener('click', () => {
         const day = qrFilterDaySelect ? qrFilterDaySelect.value : '';
         const room = qrFilterRoomSelect ? qrFilterRoomSelect.value : '';
+        // A real bug report: "I filtered to Monday and selected all to
+        // print" printed Wednesday rooms too - rows the filter hid kept
+        // whatever was checked before, and still submitted. Hidden rows are
+        // unchecked so Print only ever sends what's on screen.
         qrList.querySelectorAll('.qr-picker-row').forEach((row) => {
           const matches = (!day || row.dataset.day === day) && (!room || row.dataset.room === room);
           row.style.display = matches ? '' : 'none';
+          if (!matches) row.querySelector('input[type="checkbox"]').checked = false;
         });
+        if (qrSelectAll) qrSelectAll.checked = false;
         qrFilterDialog.close();
       });
     }

@@ -190,3 +190,28 @@ test('downloading the QR sheet as a PDF renders a real, non-trivial PDF', async 
   // the tens of KB, not a trivial handful of bytes.
   assert.ok(res.body.length > 5000, `expected a non-trivial PDF, got ${res.body.length} bytes`);
 });
+
+// A real bug report (photos of a printed Room 5 Wednesday sheet with QR
+// cards overlapping each other and the next page's header): a room with
+// more than 4 classes in a day (several share an hour across semesters)
+// overflowed its one fixed 2x2 page. It now continues onto another page
+// for that same room/day, never more than 4 cards per page.
+test('a room with more than 4 classes that day continues onto another page instead of overflowing', async () => {
+  const { cookie, csrfToken } = await loginAsAdmin();
+  const ids = [];
+  for (const [hour, name] of [[1, 'Room 5 Class A'], [1, 'Room 5 Class B'], [2, 'Room 5 Class C'], [3, 'Room 5 Class D'], [3, 'Room 5 Class E'], [4, 'Room 5 Class F']]) {
+    ids.push(await createClass({ day: 'wednesday', hourPosition: hour, className: name, room: 'Room 5' }));
+  }
+  const res = await request(app)
+    .post('/admin/design/print-classcheckin-qr')
+    .set('Cookie', cookie)
+    .type('form')
+    .send({ classIds: ids.map(String), _csrf: csrfToken });
+  assert.equal(res.status, 200);
+  const sheets = res.text.split('class="qr-sheet-page"').slice(1);
+  assert.equal(sheets.length, 2, '6 classes in one room/day need 2 sheets');
+  assert.equal((sheets[0].match(/class="qr-sheet-cell"/g) || []).length, 4);
+  assert.equal((sheets[1].match(/class="qr-sheet-cell"/g) || []).length, 2);
+  for (const sheet of sheets) assert.match(sheet, /Room 5[\s\S]{0,30}Wednesday/, 'every sheet keeps its room/day header');
+
+});
