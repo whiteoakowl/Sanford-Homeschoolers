@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' && csrfToken ? csrfToken : '' %>" />
+  <meta name="robots" content="noindex" />
+  <title><%= title %> · Sanford Homeschoolers</title>
+  <link rel="icon" type="image/png" href="/img/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/css/site.css" />
+  <link rel="stylesheet" href="/css/site-editor.css" />
+  <script src="/js/csrf.js" defer></script>
+  <script src="/js/site-render.js" defer></script>
+  <script type="module" src="/js/site-editor/main.js"></script>
+</head>
+<body class="wxe">
+  <%# Wix's editor is desktop-only; on a phone we say so instead of
+      showing an unusable canvas (public/css/site-editor.css hides one or
+      the other by width). %>
+  <div class="wxe-phone-notice">
+    <img src="/img/logo.png" alt="" width="64" height="64" />
+    <h1>Please use a computer to edit your site</h1>
+    <p>The site editor needs a larger screen to drag, resize and arrange your pages.</p>
+    <a class="wxe-btn is-primary" href="<%= siteUrl %>">View Site</a>
+    <a class="wxe-btn" href="/main-admin/settings">Back to Settings</a>
+  </div>
+  <div id="wxe-root" class="wxe-root">
+    <div class="wxe-loading" role="status"><span class="wxe-spinner" aria-hidden="true"></span> Loading the editor…</div>
+  </div>
+  <div id="wxe-toasts" class="wxe-toasts" aria-live="polite"></div>
+</body>
+</html>
