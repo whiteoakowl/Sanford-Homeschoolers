@@ -4,5 +4,5 @@
     pre-rename spelling of 'rejected'. %>
 <% var approvalStatusKey = status === 'declined' ? 'rejected' : status; %>
 <% var approvalBadgeClass = { draft: 'badge-pill-gray', pending: 'badge-pill-orange', approved: 'badge-pill-green', rejected: 'badge-pill-red' }[approvalStatusKey] || 'badge-pill-gray'; %>
-<% var approvalBadgeLabel = { draft: 'Draft', pending: 'Pending', approved: 'Approved', rejected: 'Rejected' }[approvalStatusKey] || 'Draft'; %>
+<% var approvalBadgeLabel = { draft: 'Draft', pending: 'Submitted', approved: 'Approved', rejected: 'Rejected' }[approvalStatusKey] || 'Draft'; %>
 <span class="badge-pill <%= approvalBadgeClass %>"><%= approvalBadgeLabel %></span>

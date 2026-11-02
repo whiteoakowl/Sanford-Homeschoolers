@@ -161,7 +161,7 @@ test('submit -> pending on the approval page; approve -> visible to enrolled stu
   assert.equal(submitRes.status, 302);
   assert.equal(await statusOf(lesson.id), 'pending');
   const teacherManage = await request(app).get(`/teacher/assignments/${lesson.id}`).set('Cookie', teacher.cookie);
-  assert.match(teacherManage.text, /badge-pill-orange">Pending</);
+  assert.match(teacherManage.text, /badge-pill-orange">Submitted</);
   assert.doesNotMatch(teacherManage.text, /Submit for Approval/);
   // Still hidden while pending.
   const pendingStudent = await request(app).get(`/student/classes/${classId}?tab=lessons`).set('Cookie', family.student.cookie);

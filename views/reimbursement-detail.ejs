@@ -32,7 +32,7 @@
         <div><dt>Class</dt><dd><%= request.class_name %></dd></div>
         <div><dt>Submitted</dt><dd><%= formatTimestamp(request.submitted_at) %></dd></div>
         <% if (request.resubmitted_at) { %><div><dt>Resubmitted</dt><dd><%= formatTimestamp(request.resubmitted_at) %></dd></div><% } %>
-        <div><dt>Status</dt><dd><span class="reimbursement-status reimbursement-status-<%= request.status %>"><%= request.statusLabel %></span></dd></div>
+        <div><dt>Status</dt><dd><span class="badge-pill <%= { submitted: 'badge-pill-orange', approved: 'badge-pill-green', rejected: 'badge-pill-red' }[request.status] || 'badge-pill-gray' %>"><%= request.statusLabel %></span></dd></div>
       </dl>
 
       <table class="roster-table condensed-table reimbursement-items-table">

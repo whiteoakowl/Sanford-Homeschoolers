@@ -488,7 +488,7 @@ test('reject (message required) -> teacher sees it, edits and resubmits -> Submi
   assert.equal((await db.prepare('SELECT status FROM reimbursement_requests WHERE id = ?').get(id)).status, 'rejected');
 
   const list = await request(app).get('/teacher/reimbursements').set('Cookie', teacher.cookie);
-  assert.match(list.text, /reimbursement-status-rejected">Rejected/);
+  assert.match(list.text, /badge-pill-red">Rejected/);
   const view = await request(app).get(`/teacher/reimbursements/${id}`).set('Cookie', teacher.cookie);
   assert.match(view.text, /Please attach the receipt for the crayons\./);
   assert.match(view.text, new RegExp(`href="/teacher/reimbursements/${id}/edit"`));

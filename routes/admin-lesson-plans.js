@@ -148,7 +148,7 @@ router.post('/lesson-plans/approval/:id/reject', async (req, res) => {
   const assignment = await getAssignment(parseInt(req.params.id, 10));
   if (!assignment) return res.status(404).render('404', { title: 'Not Found' });
   const back = `/admin/lesson-plans/approval/${assignment.id}`;
-  const message = (req.body.message || '').trim().slice(0, 2000);
+  const message = (req.body.message || '').trim().slice(0, 4000);
   if (!message) return res.redirect(back + '?error=' + encodeURIComponent('A rejection message is required.'));
   const reviewerId = req.portalAccount ? req.portalAccount.id : null;
   const changed = await reviewAssignment(assignment.id, { approve: false, note: message, accountId: reviewerId });

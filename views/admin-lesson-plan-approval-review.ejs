@@ -109,7 +109,7 @@
           <form method="POST" action="/admin/lesson-plans/approval/<%= assignment.id %>/approve" class="inline-block-form">
             <button type="submit" class="primary-btn">Approve</button>
           </form>
-          <button type="button" class="roster-action-btn" onclick="document.getElementById('reject-lesson-dialog').showModal()">Reject</button>
+          <button type="button" class="btn-secondary" onclick="document.getElementById('reject-lesson-dialog').showModal()">Reject</button>
         </div>
       </div>
 
@@ -118,7 +118,7 @@
           <h3>Reject Lesson Plan</h3>
           <p class="hint">The teacher will see this message and can edit the lesson and resubmit it.</p>
           <label>Message to the teacher
-            <textarea name="message" rows="4" maxlength="2000" required placeholder="What needs to change before this can be approved?"></textarea>
+            <textarea name="message" rows="4" maxlength="4000" required placeholder="What needs to change before this can be approved?"></textarea>
           </label>
           <div class="notes-dialog-actions">
             <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>

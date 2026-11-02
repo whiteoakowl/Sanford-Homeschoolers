@@ -32,7 +32,7 @@
               <td><%= r.itemCount %></td>
               <td><%= r.receiptCount %></td>
               <td class="reimbursement-amount-col"><%= r.totalLabel %></td>
-              <td><span class="reimbursement-status reimbursement-status-<%= r.status %>"><%= r.statusLabel %></span></td>
+              <td><span class="badge-pill <%= { submitted: 'badge-pill-orange', approved: 'badge-pill-green', rejected: 'badge-pill-red' }[r.status] || 'badge-pill-gray' %>"><%= r.statusLabel %></span></td>
             </tr>
           <% }); %>
         </tbody>
