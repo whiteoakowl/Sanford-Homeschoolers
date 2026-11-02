@@ -227,10 +227,12 @@
     its own separate, untouched copy of that feature. A later real
     request ("Switch portal, profile icon, settings icon should all be
     top right of screen") moved Settings up here from
-    .admin-sidebar-bottom (still Log Out's home) - Co-op Admin has no
-    separate settings page from its own profile/account page, so both
-    links point at /admin/settings, same as they already did in the
-    mobile topbar below. %>
+    .admin-sidebar-bottom (still Log Out's home). A later real request:
+    "If you click the profile icon in co-op admin portal it should show
+    the signed in member's profile" - My Profile now opens /portal/profile
+    (the member's own profile, same as every other portal's), not
+    /admin/settings; signed out of a member account, that route sends
+    them to /login first. %>
 <header class="admin-page-corner-actions no-print">
   <% if (isFullAdmin) { %>
     <form method="GET" action="/admin/search" class="admin-corner-search">
@@ -243,7 +245,7 @@
     <svg class="icon"><use href="#icon-monitor"/></svg>
     My Portals
   </a>
-  <a class="admin-corner-link" href="/admin/settings">
+  <a class="admin-corner-link" href="/portal/profile">
     <svg class="icon"><use href="#icon-user-circle"/></svg>
     My Profile
   </a>
@@ -264,7 +266,7 @@
         <a class="admin-nav-right-link" href="/admin/search" aria-label="Search"><svg class="icon"><use href="#icon-search"/></svg></a>
       <% } %>
       <a class="admin-nav-right-link" href="/portal" aria-label="My Portals"><svg class="icon"><use href="#icon-monitor"/></svg></a>
-      <a class="admin-nav-right-link" href="/admin/settings" aria-label="My Profile"><svg class="icon"><use href="#icon-user-circle"/></svg></a>
+      <a class="admin-nav-right-link" href="/portal/profile" aria-label="My Profile"><svg class="icon"><use href="#icon-user-circle"/></svg></a>
       <a class="admin-nav-right-link" href="/admin/settings" aria-label="Settings"><svg class="icon"><use href="#icon-gear"/></svg></a>
       <form method="POST" action="/admin/logout" class="logout-form">
         <button type="submit" class="admin-nav-right-link" aria-label="Log out"><svg class="icon"><use href="#icon-log-out"/></svg></button>

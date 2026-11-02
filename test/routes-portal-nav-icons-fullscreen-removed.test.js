@@ -48,7 +48,7 @@ test('Co-op Admin (admin-nav.ejs): no Full Screen View button/script, My Portals
   assert.doesNotMatch(page.text, /fullscreen-exit-pin-dialog/);
 
   assert.match(page.text, /<a class="admin-corner-link" href="\/portal">\s*<svg class="icon"><use href="#icon-monitor"\/><\/svg>\s*My Portals/);
-  assert.match(page.text, /<a class="admin-corner-link" href="\/admin\/settings">\s*<svg class="icon"><use href="#icon-user-circle"\/><\/svg>\s*My Profile/);
+  assert.match(page.text, /<a class="admin-corner-link" href="\/portal\/profile">\s*<svg class="icon"><use href="#icon-user-circle"\/><\/svg>\s*My Profile/);
   assert.match(page.text, /aria-label="My Profile"><svg class="icon"><use href="#icon-user-circle"\/>/);
 });
 
