@@ -39,7 +39,7 @@
 // destination, not four.
 const express = require('express');
 const router = express.Router();
-const { chunkQrPages } = require('../utils/qrSheetPages');
+const { chunkQrPages, qrPickerFilterOptions } = require('../utils/qrSheetPages');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -213,6 +213,7 @@ router.get('/', async (req, res) => {
     // built from this same list.
     families: await allFamilies(),
     classesForQr,
+    qrFilterOptions: qrPickerFilterOptions(classesForQr, await listSemesters()),
     qrRoomOptions,
     libraryItems: await allLibraryItems(),
     libraryTypes: await allLibraryTypes(),

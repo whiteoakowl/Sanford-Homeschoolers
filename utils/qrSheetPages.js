@@ -22,4 +22,21 @@ function chunkQrPages(pages) {
   return out;
 }
 
-module.exports = { chunkQrPages, QR_CELLS_PER_PAGE };
+// A real request: "When printing qr codes for class check in there needs
+// to be a semester dropdown added to the filter." The picker's Filter
+// popup offers only the semesters and days its classes actually use, days
+// in calendar order (not a hardcoded Monday/Wednesday list).
+const { CLASS_DAYS } = require('./classDays');
+const { CLASS_DAY_LABELS_FULL } = require('./classSchedule');
+
+function qrPickerFilterOptions(classes, semesters) {
+  const usedSemesterIds = new Set(classes.map((c) => c.semester_id).filter((id) => id != null));
+  const semesterOptions = semesters.filter((s) => usedSemesterIds.has(s.id)).map((s) => ({ value: String(s.id), label: s.title }));
+  if (classes.some((c) => c.semester_id == null)) semesterOptions.push({ value: 'none', label: 'No semester' });
+  const usedDays = new Set(classes.map((c) => c.day));
+  const dayOptions = CLASS_DAYS.filter((d) => usedDays.has(d)).map((d) => ({ value: d, label: CLASS_DAY_LABELS_FULL[d] }));
+  const semesterTitles = Object.fromEntries(semesters.map((s) => [s.id, s.title]));
+  return { semesterOptions, dayOptions, semesterTitles };
+}
+
+module.exports = { chunkQrPages, qrPickerFilterOptions, QR_CELLS_PER_PAGE };

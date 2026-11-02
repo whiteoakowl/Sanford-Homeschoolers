@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { chunkQrPages } = require('../utils/qrSheetPages');
+const { chunkQrPages, qrPickerFilterOptions } = require('../utils/qrSheetPages');
 const db = require('../db');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
 const { BADGE_WIDTH, BADGE_HEIGHT, FIELDS_BY_TYPE, SHAPE_TYPES, FONT_FAMILIES, DEFAULT_LAYOUTS } = require('../utils/nameTagBadge');
@@ -158,6 +158,7 @@ router.get('/design', async (req, res) => {
     // built from this same list.
     families: await allFamilies(),
     classesForQr,
+    qrFilterOptions: qrPickerFilterOptions(classesForQr, await listSemesters()),
     qrRoomOptions,
     libraryItems: await allLibraryItems(),
     libraryTypes: await allLibraryTypes(),

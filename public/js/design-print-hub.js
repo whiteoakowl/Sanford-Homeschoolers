@@ -63,6 +63,36 @@
   typeSelect.addEventListener('change', () => apply(typeSelect.value));
   apply(typeSelect.value);
 
+  // A real request: "Should be able to choose all filters and save before
+  // it refreshes" - Print reloads this page (bulk-print-refresh.js), which
+  // used to drop back to Schedule Cards every time. The chosen print type
+  // is kept for this browser tab and reopened after the reload, unless the
+  // URL itself already picked one (an option rendered `selected`).
+  const PRINT_TYPE_KEY = 'printType:' + window.location.pathname;
+  typeSelect.addEventListener('change', () => {
+    try {
+      window.sessionStorage.setItem(PRINT_TYPE_KEY, typeSelect.value);
+    } catch (err) {
+      // Storage unavailable - the page just won't reopen this type.
+    }
+  });
+  if (!typeSelect.querySelector('option[selected]')) {
+    let savedType = null;
+    try {
+      savedType = window.sessionStorage.getItem(PRINT_TYPE_KEY);
+    } catch (err) {
+      savedType = null;
+    }
+    if (savedType && savedType !== typeSelect.value && sections[savedType]) {
+      // After every other handler on this page has attached, so the same
+      // 'change' each of them listens for runs as if it were picked by hand.
+      setTimeout(() => {
+        typeSelect.value = savedType;
+        typeSelect.dispatchEvent(new Event('change'));
+      }, 0);
+    }
+  }
+
   // The 6 print flows below all list the exact same active-member set
   // (only the checkbox selections differ per flow) - views/partials/
   // print-picker-table.ejs only renders real rows into the Schedule
@@ -267,20 +297,59 @@
     if (qrFilterBtn && qrFilterDialog) {
       qrFilterBtn.addEventListener('click', () => qrFilterDialog.showModal());
     }
-    if (qrFilterSaveBtn && qrFilterDialog) {
-      qrFilterSaveBtn.addEventListener('click', () => {
-        const day = qrFilterDaySelect ? qrFilterDaySelect.value : '';
-        const room = qrFilterRoomSelect ? qrFilterRoomSelect.value : '';
+    const qrFilterSemesterSelect = document.getElementById('classcheckin-qr-filter-semester-select');
+    // A real request: "there needs to be a semester dropdown added to the
+    // filter. Should be able to choose all filters and save before it
+    // refreshes" - Print reloads this page afterwards (bulk-print-
+    // refresh.js), which used to wipe the chosen filters. Saved filters are
+    // kept for this browser tab and re-applied on load.
+    const QR_FILTER_KEY = 'classcheckinQrFilter:' + window.location.pathname;
+    function applyQrFilter(filter) {
+      qrList.querySelectorAll('.qr-picker-row').forEach((row) => {
+        const matches = (!filter.semester || row.dataset.semester === filter.semester)
+          && (!filter.day || row.dataset.day === filter.day)
+          && (!filter.room || row.dataset.room === filter.room);
+        row.style.display = matches ? '' : 'none';
         // A real bug report: "I filtered to Monday and selected all to
         // print" printed Wednesday rooms too - rows the filter hid kept
-        // whatever was checked before, and still submitted. Hidden rows are
-        // unchecked so Print only ever sends what's on screen.
-        qrList.querySelectorAll('.qr-picker-row').forEach((row) => {
-          const matches = (!day || row.dataset.day === day) && (!room || row.dataset.room === room);
-          row.style.display = matches ? '' : 'none';
-          if (!matches) row.querySelector('input[type="checkbox"]').checked = false;
+        // whatever was checked before, and still submitted. Hidden rows
+        // are unchecked so Print only ever sends what's on screen.
+        if (!matches) row.querySelector('input[type="checkbox"]').checked = false;
+      });
+      if (qrSelectAll) qrSelectAll.checked = false;
+    }
+    function setSelect(select, value) {
+      if (select && Array.from(select.options).some((o) => o.value === value)) select.value = value;
+    }
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem(QR_FILTER_KEY) || 'null');
+      if (saved) {
+        setSelect(qrFilterSemesterSelect, saved.semester || '');
+        setSelect(qrFilterDaySelect, saved.day || '');
+        setSelect(qrFilterRoomSelect, saved.room || '');
+        applyQrFilter({
+          semester: qrFilterSemesterSelect ? qrFilterSemesterSelect.value : '',
+          day: qrFilterDaySelect ? qrFilterDaySelect.value : '',
+          room: qrFilterRoomSelect ? qrFilterRoomSelect.value : '',
         });
-        if (qrSelectAll) qrSelectAll.checked = false;
+      }
+    } catch (err) {
+      // Storage unavailable (private window, blocked) - filters just
+      // won't survive a refresh, everything else still works.
+    }
+    if (qrFilterSaveBtn && qrFilterDialog) {
+      qrFilterSaveBtn.addEventListener('click', () => {
+        const filter = {
+          semester: qrFilterSemesterSelect ? qrFilterSemesterSelect.value : '',
+          day: qrFilterDaySelect ? qrFilterDaySelect.value : '',
+          room: qrFilterRoomSelect ? qrFilterRoomSelect.value : '',
+        };
+        applyQrFilter(filter);
+        try {
+          window.sessionStorage.setItem(QR_FILTER_KEY, JSON.stringify(filter));
+        } catch (err) {
+          // See the restore block above.
+        }
         qrFilterDialog.close();
       });
     }

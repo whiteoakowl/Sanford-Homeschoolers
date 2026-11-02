@@ -82,7 +82,7 @@ test('Class Check-In QR Codes picker lists every class, with no description text
   assert.match(res.text, /id="classcheckin-qr-filter-room-select"/);
   assert.doesNotMatch(res.text, /id="classcheckin-qr-filter-hour-select"/);
   assert.match(res.text, /id="classcheckin-qr-filter-save-btn"/);
-  assert.match(res.text, new RegExp(`class="qr-picker-row" data-day="monday" data-room="Room 1"[\\s\\S]*?value="${classId}"`));
+  assert.match(res.text, new RegExp(`class="qr-picker-row" data-semester="[^"]*" data-day="monday" data-room="Room 1"[\\s\\S]*?value="${classId}"`));
   // Room column in the picker table itself, alongside Class/Day/Time.
   assert.match(res.text, /<th>Room<\/th>/);
   // A real request: "the download should be a pdf of exactly how it
@@ -214,4 +214,22 @@ test('a room with more than 4 classes that day continues onto another page inste
   assert.equal((sheets[1].match(/class="qr-sheet-cell"/g) || []).length, 2);
   for (const sheet of sheets) assert.match(sheet, /Room 5[\s\S]{0,30}Wednesday/, 'every sheet keeps its room/day header');
 
+});
+
+// A real request: "When printing qr codes for class check in there needs
+// to be a semester dropdown added to the filter." The Filter popup lists
+// only the semesters/days its classes use (days in calendar order), and
+// each picker row carries its semester so the filter can match it.
+test('the QR picker Filter popup has a Semester dropdown and each row carries its semester', async () => {
+  const { createSemester } = require('../utils/classSchedule');
+  const { cookie } = await loginAsAdmin();
+  const fall = await createSemester('QR Fall Semester');
+  const classId = await createClass({ day: 'monday', hourPosition: 2, className: 'QR Semester Class', room: 'Room 9', semesterId: fall.id });
+  const page = await request(app).get('/admin/design?tab=print').set('Cookie', cookie);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /<select id="classcheckin-qr-filter-semester-select">[\s\S]*?<option value="">All Semesters<\/option>[\s\S]*?<option value="\d+">QR Fall Semester<\/option>/);
+  assert.match(page.text, new RegExp(`data-semester="${fall.id}"[^>]*>\\s*<td><input type="checkbox" name="classIds" value="${classId}"`));
+  const daySelect = /<select id="classcheckin-qr-filter-day-select">([\s\S]*?)<\/select>/.exec(page.text)[1];
+  assert.match(daySelect, /<option value="monday">Monday<\/option>/);
+  assert.doesNotMatch(daySelect, /<option value="tuesday">/, 'only days that actually have classes are offered');
 });
