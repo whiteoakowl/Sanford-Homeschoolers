@@ -50,6 +50,7 @@ const { clearVolunteerMembershipIfNotParent } = require('../utils/volunteers');
 const { uploadIntakePhotos } = require('../utils/memberIntake');
 const { familyEditSections, applyFamilyEditSubmission } = require('../utils/memberFamilyEdit');
 const membershipFormFields = require('../utils/membershipFormFields');
+const { rememberMemberListUrl, memberListBackUrl } = require('../utils/memberListBack');
 
 router.use(requireFullAdmin);
 
@@ -221,6 +222,7 @@ async function filteredMembersForPrint(req) {
 }
 
 router.get('/members', async (req, res) => {
+  rememberMemberListUrl(req, '/admin/members');
   const { typeFilter, familyFilter, dayFilter, roleFilter, q, withRosters } = await filteredMembersForPrint(req);
   // The on-screen table only gets the current page's slice - the print
   // table (admin-members-print.ejs) still gets every filtered member,
@@ -581,6 +583,7 @@ router.get('/members/grade-level-report/download.pdf', async (req, res) => {
 // in utils/classSchedule.js); actually editing the profile itself is
 // still the dedicated Edit page, linked from the Profile tab.
 router.get('/members/:id', async (req, res) => {
+  res.locals.membersBackHref = memberListBackUrl(req, '/admin/members');
   const id = parseInt(req.params.id, 10);
   const member = await db.prepare('SELECT * FROM members WHERE id = ?').get(id);
   if (!member) return res.status(404).send('Not found');
@@ -650,6 +653,7 @@ router.get('/members/:id', async (req, res) => {
 });
 
 router.get('/members/:id/edit', async (req, res) => {
+  res.locals.membersBackHref = memberListBackUrl(req, '/admin/members');
   const id = parseInt(req.params.id, 10);
   const member = await db.prepare('SELECT * FROM members WHERE id = ?').get(id);
   if (!member) return res.status(404).send('Not found');
@@ -850,7 +854,8 @@ router.post('/members/:id/edit', uploadIntakePhotos((req) => `/admin/members/${r
   });
   if (familyError) return res.redirect(`/admin/members/${id}/edit?error=` + encodeURIComponent(familyError));
 
-  res.redirect('/admin/members?notice=' + encodeURIComponent(`${f.name} updated.`));
+  // A real request: "When you click save it should stay on the profile."
+  res.redirect(`/admin/members/${id}/edit?notice=` + encodeURIComponent(`${f.name} updated.`));
 });
 
 router.post('/members/:id/notes', async (req, res) => {

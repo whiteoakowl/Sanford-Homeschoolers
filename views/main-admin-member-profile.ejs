@@ -15,7 +15,7 @@
         (which have no banner of their own), skipped on Profile so the
         two headers don't show side by side. %>
     <% if (tab !== 'profile') { %>
-      <p class="subtitle no-print"><a href="/main-admin/members">&larr; Members</a></p>
+      <p class="subtitle no-print"><a href="<%= membersBackHref %>">&larr; Members</a></p>
       <div class="roster-toolbar">
         <h1><%= member.name %><% if (member.member_type === 'admin') { %> <span class="member-admin-star" title="Admin"><svg class="icon"><use href="#icon-star"/></svg></span><% } %></h1>
         <a class="primary-btn no-print" href="/main-admin/members/<%= member.id %>/edit"><svg class="icon"><use href="#icon-edit"/></svg> Edit</a>
@@ -60,7 +60,7 @@
           famChildren,
           memberSections,
           memberPortalRoles,
-          backHref: '/main-admin/members',
+          backHref: membersBackHref,
           backLabel: 'Back to Members',
           editHref: '/main-admin/members/' + member.id + '/edit',
           familyMemberHref: function(id) { return '/main-admin/members/' + id; },

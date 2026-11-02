@@ -77,6 +77,7 @@ const membershipFormFields = require('../utils/membershipFormFields');
 const gradeLevelSettings = require('../utils/gradeLevelSettings');
 const { listAccountingCategories } = require('../utils/events');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
+const { rememberMemberListUrl, memberListBackUrl } = require('../utils/memberListBack');
 
 router.use(requirePortalAuth, requirePortal('main_admin'), requirePortalPermission('manage_members'));
 
@@ -198,6 +199,7 @@ const MEMBERS_TAB_PERMISSION = {
 };
 
 router.get('/', async (req, res) => {
+  rememberMemberListUrl(req, '/main-admin/members');
   const activeTab = MEMBERS_TABS.includes(req.query.tab) ? req.query.tab : 'members';
   const tabPermission = MEMBERS_TAB_PERMISSION[activeTab];
   if (tabPermission && !req.portalPermissions.has(tabPermission)) {
@@ -1257,6 +1259,7 @@ const PROFILE_TABS = ['profile', 'schedule', 'attendance'];
 // main-admin-member-profile.ejs instead. See that route's own comment
 // for the family-view rationale.
 router.get('/:id', async (req, res) => {
+  res.locals.membersBackHref = memberListBackUrl(req, '/main-admin/members');
   const id = parseInt(req.params.id, 10);
   const member = await db.prepare('SELECT * FROM members WHERE id = ?').get(id);
   if (!member) return res.status(404).send('Not found');
@@ -1314,6 +1317,7 @@ router.get('/:id', async (req, res) => {
 // but plenty of ordinary members never sign up for portal access at
 // all, and there's nothing to grant on Save for those.
 router.get('/:id/edit', async (req, res) => {
+  res.locals.membersBackHref = memberListBackUrl(req, '/main-admin/members');
   const id = parseInt(req.params.id, 10);
   const member = await db.prepare('SELECT * FROM members WHERE id = ?').get(id);
   if (!member) return res.status(404).send('Not found');
@@ -1534,7 +1538,8 @@ router.post('/:id/edit', uploadIntakePhotos((req) => `/main-admin/members/${req.
   });
   if (familyError) return res.redirect(`/main-admin/members/${id}/edit?error=` + encodeURIComponent(familyError));
 
-  res.redirect('/main-admin/members?notice=' + encodeURIComponent(`${f.name} updated.`));
+  // A real request: "When you click save it should stay on the profile."
+  res.redirect(`/main-admin/members/${id}/edit?notice=` + encodeURIComponent(`${f.name} updated.`));
 });
 
 // --- Delete / archive (single row and Select-All-across-pages bulk,

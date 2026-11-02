@@ -12,7 +12,7 @@
         (which have no banner of their own), skipped on Profile so the
         two headers don't show side by side. %>
     <% if (tab !== 'profile') { %>
-      <p class="subtitle no-print"><a href="/admin/members">&larr; Members</a></p>
+      <p class="subtitle no-print"><a href="<%= membersBackHref %>">&larr; Members</a></p>
 
       <div class="roster-toolbar">
         <div>
@@ -49,7 +49,7 @@
           famChildren,
           memberSections,
           memberPortalRoles: portalRoles,
-          backHref: '/admin/members',
+          backHref: membersBackHref,
           backLabel: 'Back to Members',
           editHref: '/admin/members/' + member.id + '/edit',
           familyMemberHref: function(id) { return '/admin/members/' + id; },
