@@ -27,8 +27,10 @@ function localChromiumPath() {
   if (!fs.existsSync(browsersDir)) return null;
   const dir = fs.readdirSync(browsersDir).find((d) => /^chromium-\d+$/.test(d));
   if (!dir) return null;
-  const candidate = path.join(browsersDir, dir, 'chrome-linux', 'chrome');
-  return fs.existsSync(candidate) ? candidate : null;
+  // Newer Playwright Chromium builds unpack to chrome-linux64/ instead of
+  // chrome-linux/.
+  const candidates = ['chrome-linux', 'chrome-linux64'].map((sub) => path.join(browsersDir, dir, sub, 'chrome'));
+  return candidates.find((c) => fs.existsSync(c)) || null;
 }
 
 async function launchBrowser() {
