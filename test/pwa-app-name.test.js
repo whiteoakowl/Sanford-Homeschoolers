@@ -1,9 +1,10 @@
 // Real bug report: "When downloading the app its labeled SH Check In.
-// It should be labeled Co-op Admin Portal." public/manifest.json's
-// name/short_name (Android/Chrome's own install label) and the
-// apple-mobile-web-app-title meta tag (views/partials/head.ejs, iOS
-// Safari's "Add to Home Screen" - often ignores the web manifest
-// entirely) both need to agree on the same corrected name.
+// It should be labeled Co-op Admin Portal." Later changed again: "When
+// downloading the app it should say Sanford Homeschoolers."
+// public/manifest.json's name/short_name (Android/Chrome's own install
+// label) and the apple-mobile-web-app-title meta tag (views/partials/
+// head.ejs, iOS Safari's "Add to Home Screen" - often ignores the web
+// manifest entirely) both need to agree on the same corrected name.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -27,14 +28,14 @@ test.after(() => {
   fs.rmSync(testUploadsDir, { recursive: true, force: true });
 });
 
-test('the PWA manifest names the app "Co-op Admin Portal", not "SH Check-In"', () => {
+test('the PWA manifest names the app "Sanford Homeschoolers"', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'public', 'manifest.json'), 'utf8'));
-  assert.equal(manifest.name, 'Co-op Admin Portal');
-  assert.equal(manifest.short_name, 'Co-op Admin Portal');
+  assert.equal(manifest.name, 'Sanford Homeschoolers');
+  assert.equal(manifest.short_name, 'Sanford Homeschoolers');
 });
 
 test('every page carries an apple-mobile-web-app-title meta tag with the same corrected name, for iOS Add to Home Screen', async () => {
   const res = await request(app).get('/kiosk');
   assert.equal(res.status, 200);
-  assert.match(res.text, /<meta name="apple-mobile-web-app-title" content="Co-op Admin Portal" \/>/);
+  assert.match(res.text, /<meta name="apple-mobile-web-app-title" content="Sanford Homeschoolers" \/>/);
 });
