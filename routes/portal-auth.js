@@ -61,6 +61,17 @@ router.post('/login', async (req, res) => {
   }
   await db.prepare('UPDATE member_accounts SET last_login_at = now_text() WHERE id = ?').run(account.id);
   req.session.portalAccountId = account.id;
+  // A real request: "After a member signs in on the homepage, they
+  // should not be asked again to sign into any portal pages. Not even
+  // main admin or co-op admin... Nobody should get access to the single
+  // master admin session. Co-op admin portal shouldn't be locked behind
+  // that log in either." The Co-op Admin portal card still points at
+  // /admin, but middleware/requireAdmin.js/requireFullAdmin.js now let a
+  // coop_admin-role account straight in on this same portal session - no
+  // separate login screen, and nothing here ever touches
+  // req.session.adminId (the single master Admin's own, still exclusive
+  // to someone who actually signed in as it at /admin/login).
+  //
   // A real request: "be able to lock members and they won't be able to
   // log in, unless to see and pay their account balance" - a 'suspended'
   // (Locked) account now DOES get a session (middleware/portalAuth.js's
