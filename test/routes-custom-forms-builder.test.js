@@ -261,7 +261,7 @@ test('a page hidden by its own conditional logic hides every field on it from th
   const page2 = await db.prepare('SELECT * FROM custom_form_pages WHERE form_id = ? ORDER BY position DESC LIMIT 1').get(formId);
   assert.ok(customForms.parseConditionalLogic(page2.conditional_logic), 'the new page should have stored a conditional_logic rule');
 
-  const requiredOnHiddenPage = await addField(admin, formId, { fieldType: 'short_text', label: 'Last year\'s co-op', isRequired: 'on', pageId: String(page2.id) });
+  await addField(admin, formId, { fieldType: 'short_text', label: 'Last year\'s co-op', isRequired: 'on', pageId: String(page2.id) });
 
   await publish(admin, formId);
   const parent = await createParentAccount();

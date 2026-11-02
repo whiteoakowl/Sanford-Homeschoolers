@@ -18,7 +18,7 @@ function sendPdf(res, filename, pdfBuffer) {
   res.set('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(pdfBuffer);
 }
-const { formatDateLabel, formatDateNumeric, formatTime, ageFromBirthday, isChildAge, isValidISODate } = require('../utils/dates');
+const { formatDateLabel, formatDateNumeric, formatTime, ageFromBirthday, isChildAge } = require('../utils/dates');
 const { savePhotoFile, deletePhotoFile } = require('../utils/memberPhoto');
 const { BADGE_WIDTH, BADGE_HEIGHT } = require('../utils/nameTagBadge');
 const { getTemplate, badgeDataForMember } = require('../utils/nameTagData');

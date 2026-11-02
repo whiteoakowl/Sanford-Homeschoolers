@@ -1433,7 +1433,7 @@ router.post('/:id/edit', uploadIntakePhotos((req) => `/main-admin/members/${req.
   // email. Checked before the UPDATE below so a rejected password
   // doesn't still silently save the rest of the form with no feedback.
   const password = req.body.password || '';
-  let portalStatus = (await portalStatusForMembers([id]))[id];
+  const portalStatus = (await portalStatusForMembers([id]))[id];
   if (password && password.length < 8) {
     return res.redirect(`/main-admin/members/${id}/edit?error=` + encodeURIComponent('Password must be at least 8 characters.'));
   }
@@ -1472,12 +1472,11 @@ router.post('/:id/edit', uploadIntakePhotos((req) => `/main-admin/members/${req.
     // comment above. hashPassword(password || 'changeme123') is the
     // same default ensurePortalAccountForMember already falls back to
     // everywhere else in this app.
-    const info = await db
+    await db
       .prepare(
         "INSERT INTO member_accounts (member_id, email, password_hash, status, approved_at, approved_by_account_id) VALUES (?, ?, ?, 'active', now_text(), ?)"
       )
       .run(id, f.email, hashPassword(password || 'changeme123'), req.portalAccount.id);
-    portalStatus = { account: { id: info.lastInsertRowid }, roleIds: new Set() };
   }
 
   // Portal Settings' role controls - see views/partials/member-portal-
