@@ -717,6 +717,42 @@ async function backfillSetupCleanupBadgeLayout(db) {
 // element is purely additive, nothing else about the existing layout's
 // fields changed. Detects "already migrated" by field, not type, since
 // 'text' is far too generic a type to check alone.
+// A real request: "Members who already were on the list and imported
+// before changes were made. The primary parent should automatically have
+// the changeme123 password and be able to be assigned to sections and
+// portals." Every active primary parent with an email and no login gets
+// one (password changeme123, same default as every new member) plus the
+// Parent Portal role. Runs every boot but only touches members still
+// missing a login, so it's a no-op once they all have one. A primary
+// parent with no email, or whose email another login already uses, is
+// left alone - an admin adds/fixes the email and assigns portals then.
+async function backfillPrimaryParentAccounts(db) {
+  const missing = await db
+    .prepare(
+      `SELECT m.id, TRIM(m.email) AS email FROM members m
+        WHERE m.active = 1 AND m.is_primary_parent = 1
+          AND m.email IS NOT NULL AND TRIM(m.email) <> ''
+          AND NOT EXISTS (SELECT 1 FROM member_accounts a WHERE a.member_id = m.id)
+          AND NOT EXISTS (SELECT 1 FROM member_accounts a WHERE LOWER(a.email) = LOWER(TRIM(m.email)))`
+    )
+    .all();
+  if (missing.length === 0) return;
+  const parentRole = await db.prepare("SELECT id FROM roles WHERE key = 'parent'").get();
+  const passwordHash = bcrypt.hashSync('changeme123', 10);
+  const seenEmails = new Set();
+  for (const m of missing) {
+    const emailKey = m.email.toLowerCase();
+    if (seenEmails.has(emailKey)) continue;
+    seenEmails.add(emailKey);
+    const info = await db
+      .prepare("INSERT INTO member_accounts (member_id, email, password_hash, status, approved_at) VALUES (?, ?, ?, 'active', now_text())")
+      .run(m.id, m.email, passwordHash);
+    if (parentRole) {
+      await db.prepare('INSERT INTO member_account_roles (member_account_id, role_id) VALUES (?, ?) ON CONFLICT DO NOTHING').run(info.lastInsertRowid, parentRole.id);
+    }
+  }
+}
+
 async function backfillSetupCleanupTaskNumber(db) {
   const row = await db.prepare("SELECT layout_json FROM misc_badge_templates WHERE badge_type = 'setupCleanup'").get();
   if (!row) return;
@@ -1186,6 +1222,7 @@ module.exports = {
   backfillSetupCleanupTaskWraps,
   backfillSetupCleanupBadgeLayout,
   backfillSetupCleanupTaskNumber,
+  backfillPrimaryParentAccounts,
   backfillSetupCleanupBarcodeIdNumber,
   backfillSetupCleanupBadgeFields,
   backfillScheduleCardAllergy,

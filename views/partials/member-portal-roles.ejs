@@ -63,8 +63,14 @@ var portalRows = selfIsStudent
       <div class="member-family-portal-controls">
         <div class="member-family-portal-control">
           <span class="member-family-portal-control-label">Portals</span>
-          <% if (!row.portalAccount) { %>
-            <span class="hint">No portal account yet</span>
+          <%# A real request: members imported before logins were created
+              automatically should still be assignable to portals - with
+              an email on file, picking a portal and saving creates their
+              login (utils/portalPermissions.js's accountForRoleAssignment,
+              password changeme123). Without an email there's nothing to
+              log in with yet. %>
+          <% if (!row.portalAccount && !(row.member.email && row.member.email.trim())) { %>
+            <span class="hint">Add an email to this member to give them portal access</span>
           <% } else if (row.member.member_type === 'student') { %>
             <label class="checkbox-option">
               <input type="checkbox" name="roleIds_<%= row.member.id %>" value="<%= studentRole ? studentRole.id : '' %>" <%= studentRole && row.roleIds.has(studentRole.id) ? 'checked' : '' %> />
@@ -77,6 +83,9 @@ var portalRows = selfIsStudent
               selected: Array.from(row.roleIds).map(String),
               placeholder: 'Select portal role(s)',
             }) %>
+          <% } %>
+          <% if (!row.portalAccount && row.member.email && row.member.email.trim()) { %>
+            <span class="hint">No login yet - saving with a portal selected creates one (password changeme123).</span>
           <% } %>
         </div>
         <% if (sectionOptions.length > 0) { %>
