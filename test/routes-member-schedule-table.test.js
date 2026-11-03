@@ -70,7 +70,7 @@ function assertPrintPreview(res) {
 function assertActionRow(html, base, query) {
   const q = query ? `\\?${query}` : '';
   const re = new RegExp(
-    '<div class="roster-btn-row member-schedule-actions no-print" data-fixed-columns="3">\\s*' +
+    '<div class="member-schedule-actions no-print">\\s*' +
       `<a class="icon-btn" href="${base.csv}${q}" aria-label="Export CSV"[^>]*><svg class="icon"><use href="#icon-download"/></svg></a>\\s*` +
       `<a class="icon-btn" href="${base.pdf}${q}" aria-label="Download PDF"[^>]*><svg class="icon"><use href="#icon-pdf"/></svg></a>\\s*` +
       `<a class="icon-btn" href="${base.print}${q}" target="_blank" aria-label="Print"[^>]*><svg class="icon"><use href="#icon-printer"/></svg></a>`
