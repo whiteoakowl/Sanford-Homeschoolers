@@ -22,6 +22,18 @@
 const isTaskDerived = type === 'setupCleanup';
 const badgeBasePath = typeof basePath !== 'undefined' && basePath ? basePath : '/admin/design';
 const DAY_LABELS = { monday: 'Monday', wednesday: 'Wednesday' };
+// Team / Semester / Day Filter popup (partials/print-filter-popup.ejs) -
+// a badge's day is its team's day; badges aren't tied to a family, so the
+// member pickers' Family filter doesn't apply here.
+const CALENDAR_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const teamDayById = {};
+(typeof setupTeams !== 'undefined' && setupTeams ? setupTeams : []).forEach(function (t) { teamDayById[t.id] = t.day; });
+const usedTeamDays = new Set(Object.values(teamDayById));
+const badgeFilterFields = isTaskDerived ? [
+  { name: 'team', label: 'Team', allLabel: 'All Teams', options: (setupTeams || []).map(function (t) { return { value: String(t.id), label: '[' + (DAY_LABELS[t.day] || t.day) + '] ' + t.title }; }) },
+  { name: 'semester', label: 'Semester', allLabel: 'All Semesters', options: (semesters || []).map(function (sem) { return { value: String(sem.id), label: sem.title }; }) },
+  { name: 'day', label: 'Day', allLabel: 'All Days', options: CALENDAR_DAYS.filter(function (d) { return usedTeamDays.has(d); }).map(function (d) { return { value: d, label: DAY_LABELS[d] || (d.charAt(0).toUpperCase() + d.slice(1)) }; }) },
+] : [];
 %>
 <form method="POST" action="<%= badgeBasePath %>/badges/<%= type %>/print" target="_blank" id="<%= type %>-badge-print-form" data-bulk-print-refresh>
   <div class="roster-toolbar no-print">
@@ -53,7 +65,7 @@ const DAY_LABELS = { monday: 'Monday', wednesday: 'Wednesday' };
           setupCleanup - 'custom' badges have no team/semester concept at
           all (see their own task_item_id schema comment). %>
       <% if (isTaskDerived) { %>
-        <button type="button" class="roster-action-btn" onclick="document.getElementById('<%= type %>-badge-filter-dialog').showModal()">Filter</button>
+        <%- include('print-filter-popup', { prefix: type + '-badge', title: 'Filter ' + label + ' Badges', parts: ['button'], fields: badgeFilterFields }) %>
       <% } %>
       <button type="submit" class="primary-btn">Print</button>
       <%# Download PDF renders admin-misc-badges-print.ejs/main-admin-
@@ -66,13 +78,16 @@ const DAY_LABELS = { monday: 'Monday', wednesday: 'Wednesday' };
       <% } %>
     </div>
   </div>
+  <% if (isTaskDerived) { %>
+    <%- include('print-filter-popup', { prefix: type + '-badge', title: 'Filter ' + label + ' Badges', parts: ['summary'], fields: badgeFilterFields }) %>
+  <% } %>
 
   <% if (badges.length === 0) { %>
     <p class="hint"><%= isTaskDerived ? 'No tasks added to the Task List yet - add one under Setup/Cleanup > Tasks.' : `No ${label} badges imported yet.` %></p>
   <% } else { %>
     <div class="member-picker-list">
       <% badges.forEach(function(b) { %>
-        <label class="member-picker-row" <% if (isTaskDerived) { %>data-team-id="<%= b.team_id != null ? b.team_id : '' %>" data-semester-id="<%= b.semester_id != null ? b.semester_id : '' %>"<% } %>>
+        <label class="member-picker-row" <% if (isTaskDerived) { %>data-team-id="<%= b.team_id != null ? b.team_id : '' %>" data-semester-id="<%= b.semester_id != null ? b.semester_id : '' %>" data-day="<%= b.team_id != null && teamDayById[b.team_id] ? teamDayById[b.team_id] : '' %>"<% } %>>
           <input type="checkbox" name="badgeIds" value="<%= b.id %>" />
           <span><%= b.badge_number ? '#' + b.badge_number + ' — ' : '' %><%= b.title || 'Untitled' %></span>
           <% if (b.description) { %><span class="hint"><%= b.description %></span><% } %>
@@ -135,30 +150,8 @@ const DAY_LABELS = { monday: 'Monday', wednesday: 'Wednesday' };
 <%# Standalone, same as the import dialog above - not nested inside the
     print form so the Team/Semester <select>s can't accidentally get
     submitted as part of it (the filter is purely client-side - see
-    design-print-hub.js's own wireMiscBadgeTeamSemesterFilter - and never
+    design-print-hub.js's own wireFilterPopup - and never
     posts anything of its own). %>
 <% if (isTaskDerived) { %>
-  <dialog id="<%= type %>-badge-filter-dialog" class="member-picker-dialog dialog-label-stack">
-    <h3>Filter <%= label %> Badges</h3>
-    <label>Team
-      <select id="<%= type %>-badge-filter-team">
-        <option value="">All Teams</option>
-        <% (setupTeams || []).forEach(function(t) { %>
-          <option value="<%= t.id %>">[<%= DAY_LABELS[t.day] || t.day %>] <%= t.title %></option>
-        <% }); %>
-      </select>
-    </label>
-    <label>Semester
-      <select id="<%= type %>-badge-filter-semester">
-        <option value="">All Semesters</option>
-        <% (semesters || []).forEach(function(s) { %>
-          <option value="<%= s.id %>"><%= s.title %></option>
-        <% }); %>
-      </select>
-    </label>
-    <div class="notes-dialog-actions">
-      <button type="button" class="btn-secondary" onclick="document.getElementById('<%= type %>-badge-filter-team').value=''; document.getElementById('<%= type %>-badge-filter-semester').value=''; document.getElementById('<%= type %>-badge-filter-team').dispatchEvent(new Event('change'));">Clear</button>
-      <button type="button" class="primary-btn" onclick="this.closest('dialog').close()">Done</button>
-    </div>
-  </dialog>
+  <%- include('print-filter-popup', { prefix: type + '-badge', title: 'Filter ' + label + ' Badges', parts: ['dialog'], fields: badgeFilterFields }) %>
 <% } %>

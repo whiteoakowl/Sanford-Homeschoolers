@@ -6512,6 +6512,13 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
 .qr-filter-dialog-body { display: flex; flex-direction: column; gap: 0.35rem; }
 .qr-filter-dialog-body label { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-top: 0.5rem; }
 .qr-filter-dialog-body label:first-child { margin-top: 0; }
+/* Design/Print hub pickers' shared Filter popup (partials/print-filter-
+   popup.ejs): Clear filters sits under the selects, and the active
+   filter's own "Filtered: ..." summary sits next to the Filter button. */
+.qr-filter-dialog-body .print-filter-clear-btn { align-self: flex-start; margin-top: 0.85rem; }
+.print-filter-summary:empty { display: none; }
+.print-filter-summary { align-self: center; font-size: 0.85rem; }
+.roster-action-btn.is-filter-active { box-shadow: inset 0 0 0 2px var(--brand-dark); }
 
 /* ---------- Name tag design editor ---------- */
 

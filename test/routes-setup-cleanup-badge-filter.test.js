@@ -106,7 +106,13 @@ test('Design/Print page: the Setup/Cleanup Badges panel has a Filter button open
   // The Filter button and its dialog only exist for the setupCleanup panel.
   assert.match(page.text, /id="setupCleanup-badge-filter-dialog"/);
   assert.doesNotMatch(page.text, /id="custom-badge-filter-dialog"/);
-  assert.match(page.text, /onclick="document\.getElementById\('setupCleanup-badge-filter-dialog'\)\.showModal\(\)">Filter<\/button>/);
+  // Shared Filter popup (partials/print-filter-popup.ejs) - opened by
+  // design-print-hub.js's wireFilterPopup, applied only on Save.
+  assert.match(page.text, /id="setupCleanup-badge-filter-btn">Filter<\/button>/);
+  assert.match(page.text, /id="setupCleanup-badge-filter-save-btn">Save<\/button>/);
+  assert.match(page.text, /id="setupCleanup-badge-filter-clear-btn">Clear filters<\/button>/);
+  // Day comes from the team's own day.
+  assert.match(page.text, /<select id="setupCleanup-badge-filter-day-select" data-filter-field="day">[\s\S]*?<option value="wednesday">Wednesday<\/option>/);
 
   // Team dropdown lists the real team, labeled with its day.
   assert.match(page.text, new RegExp(`<option value="${teamId}">\\[Wednesday\\] Dropdown Team</option>`));
@@ -118,7 +124,7 @@ test('Design/Print page: the Setup/Cleanup Badges panel has a Filter button open
 
   // The badge's own row carries the matching data attributes for the
   // client-side filter (design-print-hub.js) to key off of.
-  const rowMatch = new RegExp(`data-team-id="${teamId}" data-semester-id="${semester.id}"[\\s\\S]{0,200}value="${badge.id}"`).exec(page.text);
+  const rowMatch = new RegExp(`data-team-id="${teamId}" data-semester-id="${semester.id}" data-day="wednesday"[\\s\\S]{0,200}value="${badge.id}"`).exec(page.text);
   assert.ok(rowMatch, 'expected the badge row to carry its own team/semester data attributes');
 });
 

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { chunkQrPages, qrPickerFilterOptions } = require('../utils/qrSheetPages');
 const { classQrKey, playgroundQrKey } = require('../utils/classQrKey');
+const { withClassFacets } = require('../utils/printPickerFilters');
 const db = require('../db');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
 const { BADGE_WIDTH, BADGE_HEIGHT, FIELDS_BY_TYPE, SHAPE_TYPES, FONT_FAMILIES, DEFAULT_LAYOUTS } = require('../utils/nameTagBadge');
@@ -80,7 +81,9 @@ router.get('/design', async (req, res) => {
   // the Print tab's bulk picker lists are meant to look and read like that
   // list (just with a selection checkbox instead of Actions), not a bare
   // name-only table.
-  const members = (await membersWithDetails()).filter((m) => m.active);
+  // filterSemesters/filterDays back every member picker's Semester/Day
+  // filter (utils/printPickerFilters.js).
+  const members = await withClassFacets((await membersWithDetails()).filter((m) => m.active));
 
   // Class Check-In QR Codes picker (Print tab) - every class across both
   // days, sorted the same way the Attendance page's own Class Rosters
@@ -145,6 +148,9 @@ router.get('/design', async (req, res) => {
       memberName: p.memberName,
       requestSummary: p.requestLabels.join(', '),
       familyId: (membersById.get(p.memberId) || {}).family_id ?? null,
+      // Same Type/Semester/Day filter facets the other member pickers'
+      // rows carry (views/partials/print-picker-table.ejs).
+      member: membersById.get(p.memberId) || null,
     }))
     .sort((a, b) => a.memberName.localeCompare(b.memberName, undefined, { sensitivity: 'base' }));
 

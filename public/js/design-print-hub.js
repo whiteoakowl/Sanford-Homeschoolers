@@ -114,304 +114,272 @@
     });
   }
 
-  // Member-type-filterable checkbox lists (Name Tags, Cards Both/Duplex,
-  // Barcodes, Barcode Labels, and now Schedule Cards): type filter +
-  // optional name search + optional family filter + select-all/select-
-  // none, mirrors the bulk print list wiring in name-tag-editor.js.
-  // Shared across every panel since they're the same member-picker-list
-  // markup with different id prefixes - searchInputId is only passed for
-  // Schedule Cards (the one panel that had a search box before it ever
-  // got a type filter; a real request - "separate primary parent and
-  // parent in the dropdown menu of choices for printing any name tag,
-  // schedule card, or barcode" - is what gave it one), everyone else
-  // passes nothing and just gets type (+ family) filtering.
-  // familyFilterSelectId (a real request: "all bulk printing should have
-  // filter by family name" - see views/partials/family-filter-select.ejs)
-  // layers a family match on top of type/search exactly the same way -
-  // a row only shows once it clears every active filter at once.
-  //
-  // A later real request: "bulk printing, there are currently two
-  // dropdown filters, we only need one, combine them." Every panel that
-  // had both a Type select and a separate Family select now has just
-  // one (views/partials/bulk-print-filter-select.ejs), whose Family
-  // options carry a "family:<id>" value instead of a bare id - filter
-  // still reads that single value below and splits it back into a type
-  // filter and a family id itself. Name Tag Requests is the one
-  // remaining panel that only ever had a Family select (no Type facet
-  // to combine it with), so it still passes its own separate
-  // familyFilterSelectId unchanged.
-  function wireBulkMemberList(listId, filterSelectId, selectAllId, selectNoneId, searchInputId, familyFilterSelectId) {
-    const bulkList = document.getElementById(listId);
-    if (!bulkList) return;
-    const filterSelect = filterSelectId ? document.getElementById(filterSelectId) : null;
-    const searchInput = searchInputId ? document.getElementById(searchInputId) : null;
-    const familyFilterSelect = familyFilterSelectId ? document.getElementById(familyFilterSelectId) : null;
-    if (filterSelect || searchInput || familyFilterSelect) {
-      const applyFilter = () => {
-        const raw = filterSelect ? filterSelect.value : 'all';
-        const isFamilyValue = raw.indexOf('family:') === 0;
-        const filter = isFamilyValue ? 'all' : raw;
-        const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
-        const familyId = familyFilterSelect ? familyFilterSelect.value : isFamilyValue ? raw.slice('family:'.length) : '';
-        bulkList.querySelectorAll('.print-picker-row').forEach((row) => {
-          // "Teachers" and "Primary Parents" are their own dataset
-          // (data-teacher/data-primary) rather than their own member_type
-          // value - a teacher/primary parent is still a parent-type member
-          // underneath (utils/members.js's teacherMemberIds and members.
-          // is_primary_parent), so each has to layer on top of, not
-          // replace, the type filter - and both layer on top of the name
-          // search the same way, a row only shows once it clears every
-          // active filter at once.
-          const typeMatches =
-            filter === 'all' ||
-            (filter === 'teacher' ? row.dataset.teacher === '1' : filter === 'primaryParent' ? row.dataset.primary === '1' : row.dataset.type === filter);
-          const searchMatches = !q || row.dataset.name.includes(q);
-          const familyMatches = !familyId || row.dataset.familyId === familyId;
-          row.style.display = typeMatches && searchMatches && familyMatches ? '' : 'none';
-        });
-      };
-      if (filterSelect) filterSelect.addEventListener('change', applyFilter);
-      if (searchInput) searchInput.addEventListener('input', applyFilter);
-      if (familyFilterSelect) familyFilterSelect.addEventListener('change', applyFilter);
-      // A real request: "we usually only need to print primary parent" -
-      // the Name Tags filter now defaults to Primary Parents Only (see
-      // admin-design.ejs), so the list has to start out already filtered
-      // to match what the select visibly shows, not wait for a 'change'
-      // event that a page load never fires on its own.
-      applyFilter();
-    }
-    const selectAllCheckbox = document.getElementById(selectAllId);
-    if (selectAllCheckbox) {
-      selectAllCheckbox.addEventListener('change', () => {
-        bulkList.querySelectorAll('.print-picker-row').forEach((row) => {
-          if (row.style.display !== 'none') row.querySelector('input[type="checkbox"]').checked = selectAllCheckbox.checked;
-        });
-      });
-    }
-    const selectNoneCheckbox = document.getElementById(selectNoneId);
-    if (selectNoneCheckbox) {
-      selectNoneCheckbox.addEventListener('change', () => {
-        if (selectNoneCheckbox.checked) {
-          bulkList.querySelectorAll('.print-picker-row').forEach((row) => {
-            if (row.style.display !== 'none') row.querySelector('input[type="checkbox"]').checked = false;
-          });
-          if (selectAllCheckbox) selectAllCheckbox.checked = false;
-          selectNoneCheckbox.checked = false;
-        }
-      });
-    }
-  }
-
-  wireBulkMemberList(
-    'schedule-print-list',
-    'schedule-print-filter-select',
-    'schedule-print-select-all-checkbox',
-    null,
-    'schedule-print-search-input'
-  );
-  wireBulkMemberList('name-tag-bulk-list', 'name-tag-bulk-filter-select', 'name-tag-select-all-checkbox', 'name-tag-select-none-checkbox');
-  wireBulkMemberList(
-    'name-tag-requests-bulk-list',
-    undefined,
-    'name-tag-requests-select-all-checkbox',
-    'name-tag-requests-select-none-checkbox',
-    undefined,
-    'name-tag-requests-family-select'
-  );
-  wireBulkMemberList('cards-duplex-bulk-list', 'cards-duplex-bulk-filter-select', 'cards-duplex-select-all-checkbox', 'cards-duplex-select-none-checkbox');
-  wireBulkMemberList('barcodes-bulk-list', 'barcodes-bulk-filter-select', 'barcodes-select-all-checkbox', 'barcodes-select-none-checkbox');
-  wireBulkMemberList(
-    'barcode-labels-bulk-list',
-    'barcode-labels-bulk-filter-select',
-    'barcode-labels-select-all-checkbox',
-    'barcode-labels-select-none-checkbox'
-  );
-
-  // Setup/Cleanup Badges picker's own Team/Semester filter (a real
-  // request: "add a filter button. Filter popup included dropdown to
-  // select team and dropdown to select semester or all") - a dialog
-  // (partials/misc-badge-print-panel.ejs) rather than an inline select
-  // like every wireBulkMemberList panel above, but the same row-hiding
-  // mechanics: each .member-picker-row already carries its own
-  // data-team-id/data-semester-id (set server-side from each badge's own
-  // team_id/semester_id - see utils/taskList.js's upsertTaskBadge), an
-  // empty select value means that facet's "All", and a row only shows
-  // once both facets agree. Lives in this file (not inline in the
-  // partial) since this same partial renders twice per page (Setup/
-  // Cleanup and Custom badges) but only 'setupCleanup' has the dialog at
-  // all - the id lookups below simply no-op when it doesn't.
-  function wireMiscBadgeTeamSemesterFilter(type) {
-    const list = document.querySelector(`#${type}-badge-print-form .member-picker-list`);
-    const teamSelect = document.getElementById(`${type}-badge-filter-team`);
-    const semesterSelect = document.getElementById(`${type}-badge-filter-semester`);
-    if (!list || !teamSelect || !semesterSelect) return;
-    const applyFilter = () => {
-      const teamId = teamSelect.value;
-      const semesterId = semesterSelect.value;
-      list.querySelectorAll('.member-picker-row').forEach((row) => {
-        const teamMatches = !teamId || row.dataset.teamId === teamId;
-        const semesterMatches = !semesterId || row.dataset.semesterId === semesterId;
-        row.style.display = teamMatches && semesterMatches ? '' : 'none';
-      });
+  // Select All for one picker. A real request: "Remove select none check
+  // box from pages. Simply unselecting select all will uncheck them." -
+  // checking/unchecking Select All checks/unchecks every row currently on
+  // screen (a row hidden by the Filter popup or search is left alone), and
+  // Select All itself stays in sync: it reads checked only while every
+  // visible row is checked, so manually unchecking one row (or a filter
+  // change) unchecks it again.
+  function wireSelectAll(container, rowSelector, checkboxSelector, selectAll) {
+    if (!container || !selectAll) return { sync() {} };
+    const visibleBoxes = () =>
+      Array.from(container.querySelectorAll(rowSelector))
+        .filter((row) => row.style.display !== 'none')
+        .map((row) => row.querySelector(checkboxSelector))
+        .filter(Boolean);
+    const sync = () => {
+      const boxes = visibleBoxes();
+      selectAll.checked = boxes.length > 0 && boxes.every((cb) => cb.checked);
     };
-    teamSelect.addEventListener('change', applyFilter);
-    semesterSelect.addEventListener('change', applyFilter);
+    selectAll.addEventListener('change', () => {
+      visibleBoxes().forEach((cb) => {
+        cb.checked = selectAll.checked;
+      });
+    });
+    container.addEventListener('change', (e) => {
+      if (e.target instanceof HTMLInputElement && e.target.matches(checkboxSelector)) sync();
+    });
+    return { sync };
   }
-  wireMiscBadgeTeamSemesterFilter('setupCleanup');
 
-  // Class Check-In QR Codes picker: select-all/select-none plus a Day/Hour
-  // filter popup, all over .qr-picker-row (classes, not members - a
-  // separate class from wireBulkMemberList's own .print-picker-row so it
-  // never gets swept up by that function's clone-from-schedule-list step
-  // above, which only ever targets the member lists by id).
-  const qrList = document.getElementById('classcheckin-qr-list');
-  if (qrList) {
-    const qrSelectAll = document.getElementById('classcheckin-qr-select-all-checkbox');
-    if (qrSelectAll) {
-      qrSelectAll.addEventListener('change', () => {
-        qrList.querySelectorAll('.qr-picker-row').forEach((row) => {
-          if (row.style.display !== 'none') row.querySelector('input[type="checkbox"]').checked = qrSelectAll.checked;
-        });
-      });
-    }
-    const qrSelectNone = document.getElementById('classcheckin-qr-select-none-checkbox');
-    if (qrSelectNone) {
-      qrSelectNone.addEventListener('change', () => {
-        if (qrSelectNone.checked) {
-          qrList.querySelectorAll('.qr-picker-row').forEach((row) => {
-            if (row.style.display !== 'none') row.querySelector('input[type="checkbox"]').checked = false;
-          });
-          if (qrSelectAll) qrSelectAll.checked = false;
-          qrSelectNone.checked = false;
-        }
-      });
-    }
+  // Filter button -> popup -> Save, shared by every picker on this page
+  // (views/partials/print-filter-popup.ejs renders the markup). A real
+  // request: "All printing should allow you to filter by family name,
+  // semester, day. Should be able to change multiple items in the filter
+  // popup without it refreshing and click save." Changing a select in the
+  // popup does nothing on its own - only Save (or Clear filters) applies
+  // the whole combination at once, client-side, never reloading the page.
+  // Rows the filter hides are also unchecked (a real bug report on the
+  // class QR picker: hidden rows kept their old checks and still printed),
+  // so Print only ever sends what's on screen. The saved filter is kept in
+  // sessionStorage per page + picker and re-applied on load, so it
+  // survives the reload that follows every Print (bulk-print-refresh.js).
+  // Options: prefix (the partial's id prefix), container/rowSelector/
+  // checkboxSelector (the rows it narrows, if any), matches(row, filter),
+  // extraMatch(row) (optional second, live narrowing - Schedule Cards'
+  // name search), selectAll (from wireSelectAll), onApply(filter)
+  // (optional, for a panel with no rows - Schedules' links).
+  function wireFilterPopup(opts) {
+    const dialog = document.getElementById(opts.prefix + '-filter-dialog');
+    if (!dialog) return { refresh() {} };
+    const button = document.getElementById(opts.prefix + '-filter-btn');
+    const saveBtn = document.getElementById(opts.prefix + '-filter-save-btn');
+    const clearBtn = document.getElementById(opts.prefix + '-filter-clear-btn');
+    const summary = document.getElementById(opts.prefix + '-filter-summary');
+    const selects = Array.from(dialog.querySelectorAll('select[data-filter-field]'));
+    const storageKey = 'printFilter:' + window.location.pathname + ':' + opts.prefix;
+    const checkboxSelector = opts.checkboxSelector || 'input[type="checkbox"]';
 
-    // Filter button -> Day/Room popup -> Save narrows the list to that one
-    // day+room combination (both left on "All ..." shows every class again).
-    const qrFilterBtn = document.getElementById('classcheckin-qr-filter-btn');
-    const qrFilterDialog = document.getElementById('classcheckin-qr-filter-dialog');
-    const qrFilterDaySelect = document.getElementById('classcheckin-qr-filter-day-select');
-    const qrFilterRoomSelect = document.getElementById('classcheckin-qr-filter-room-select');
-    const qrFilterSaveBtn = document.getElementById('classcheckin-qr-filter-save-btn');
-    if (qrFilterBtn && qrFilterDialog) {
-      qrFilterBtn.addEventListener('click', () => qrFilterDialog.showModal());
-    }
-    const qrFilterSemesterSelect = document.getElementById('classcheckin-qr-filter-semester-select');
-    // A real request: "there needs to be a semester dropdown added to the
-    // filter. Should be able to choose all filters and save before it
-    // refreshes" - Print reloads this page afterwards (bulk-print-
-    // refresh.js), which used to wipe the chosen filters. Saved filters are
-    // kept for this browser tab and re-applied on load.
-    const QR_FILTER_KEY = 'classcheckinQrFilter:' + window.location.pathname;
-    function applyQrFilter(filter) {
-      qrList.querySelectorAll('.qr-picker-row').forEach((row) => {
-        const matches = (!filter.semester || row.dataset.semester === filter.semester)
-          && (!filter.day || row.dataset.day === filter.day)
-          && (!filter.room || row.dataset.room === filter.room);
-        row.style.display = matches ? '' : 'none';
-        // A real bug report: "I filtered to Monday and selected all to
-        // print" printed Wednesday rooms too - rows the filter hid kept
-        // whatever was checked before, and still submitted. Hidden rows
-        // are unchecked so Print only ever sends what's on screen.
-        if (!matches) row.querySelector('input[type="checkbox"]').checked = false;
+    const readSelects = () => {
+      const filter = {};
+      selects.forEach((s) => {
+        filter[s.dataset.filterField] = s.value;
       });
-      if (qrSelectAll) qrSelectAll.checked = false;
-    }
-    function setSelect(select, value) {
-      if (select && Array.from(select.options).some((o) => o.value === value)) select.value = value;
-    }
-    try {
-      const saved = JSON.parse(window.sessionStorage.getItem(QR_FILTER_KEY) || 'null');
-      if (saved) {
-        setSelect(qrFilterSemesterSelect, saved.semester || '');
-        setSelect(qrFilterDaySelect, saved.day || '');
-        setSelect(qrFilterRoomSelect, saved.room || '');
-        applyQrFilter({
-          semester: qrFilterSemesterSelect ? qrFilterSemesterSelect.value : '',
-          day: qrFilterDaySelect ? qrFilterDaySelect.value : '',
-          room: qrFilterRoomSelect ? qrFilterRoomSelect.value : '',
+      return filter;
+    };
+    let current = readSelects();
+
+    function apply(filter, uncheckHidden) {
+      current = filter;
+      if (opts.container) {
+        opts.container.querySelectorAll(opts.rowSelector).forEach((row) => {
+          const shown = opts.matches(row, filter) && (!opts.extraMatch || opts.extraMatch(row));
+          row.style.display = shown ? '' : 'none';
+          if (!shown && uncheckHidden) {
+            row.querySelectorAll(checkboxSelector).forEach((cb) => {
+              cb.checked = false;
+            });
+          }
         });
       }
-    } catch (err) {
-      // Storage unavailable (private window, blocked) - filters just
-      // won't survive a refresh, everything else still works.
+      if (opts.selectAll) opts.selectAll.sync();
+      if (opts.onApply) opts.onApply(filter);
+      const labels = selects.filter((s) => s.value).map((s) => s.options[s.selectedIndex].text);
+      if (summary) summary.textContent = labels.length ? 'Filtered: ' + labels.join(' · ') : '';
+      if (button) button.classList.toggle('is-filter-active', labels.length > 0);
     }
-    if (qrFilterSaveBtn && qrFilterDialog) {
-      qrFilterSaveBtn.addEventListener('click', () => {
-        const filter = {
-          semester: qrFilterSemesterSelect ? qrFilterSemesterSelect.value : '',
-          day: qrFilterDaySelect ? qrFilterDaySelect.value : '',
-          room: qrFilterRoomSelect ? qrFilterRoomSelect.value : '',
-        };
-        applyQrFilter(filter);
-        try {
-          window.sessionStorage.setItem(QR_FILTER_KEY, JSON.stringify(filter));
-        } catch (err) {
-          // See the restore block above.
-        }
-        qrFilterDialog.close();
+
+    function save(filter) {
+      try {
+        window.sessionStorage.setItem(storageKey, JSON.stringify(filter));
+      } catch (err) {
+        // Storage unavailable (private window, blocked) - the filter just
+        // won't survive a reload; everything else still works.
+      }
+    }
+
+    let saved = null;
+    try {
+      saved = JSON.parse(window.sessionStorage.getItem(storageKey) || 'null');
+    } catch (err) {
+      saved = null;
+    }
+    if (saved && typeof saved === 'object') {
+      selects.forEach((s) => {
+        const value = saved[s.dataset.filterField] || '';
+        if (Array.from(s.options).some((o) => o.value === value)) s.value = value;
+      });
+      apply(readSelects(), true);
+    } else {
+      // No saved filter - still apply whatever the popup starts on (e.g.
+      // Name Tags' own Primary Parents Only default).
+      apply(readSelects(), true);
+    }
+
+    if (button) {
+      button.addEventListener('click', () => {
+        // Reopen showing what's actually applied, not leftover unsaved picks.
+        selects.forEach((s) => {
+          s.value = current[s.dataset.filterField] || '';
+        });
+        dialog.showModal();
       });
     }
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        const filter = readSelects();
+        apply(filter, true);
+        save(filter);
+        dialog.close();
+      });
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        selects.forEach((s) => {
+          s.value = '';
+        });
+        const filter = readSelects();
+        apply(filter, true);
+        save(filter);
+        dialog.close();
+      });
+    }
+    return { refresh: () => apply(current, false) };
   }
 
-  // Library Barcodes picker: category filter + select-all/select-none over
-  // .library-picker-row (library items, not members - its own class for
-  // the same reason .qr-picker-row above is its own class, so it's never
-  // swept up by wireBulkMemberList's member-list clone step).
-  const libraryList = document.getElementById('library-barcodes-list');
-  if (libraryList) {
-    const libraryFilterSelect = document.getElementById('library-barcodes-filter-select');
-    if (libraryFilterSelect) {
-      libraryFilterSelect.addEventListener('change', () => {
-        const filter = libraryFilterSelect.value;
-        libraryList.querySelectorAll('.library-picker-row').forEach((row) => {
-          row.style.display = filter === 'all' || row.dataset.type === filter ? '' : 'none';
-        });
-      });
-    }
-    const librarySelectAll = document.getElementById('library-barcodes-select-all-checkbox');
-    if (librarySelectAll) {
-      librarySelectAll.addEventListener('change', () => {
-        libraryList.querySelectorAll('.library-picker-row').forEach((row) => {
-          if (row.style.display !== 'none') row.querySelector('input[type="checkbox"]').checked = librarySelectAll.checked;
-        });
-      });
-    }
-    const librarySelectNone = document.getElementById('library-barcodes-select-none-checkbox');
-    if (librarySelectNone) {
-      librarySelectNone.addEventListener('change', () => {
-        if (librarySelectNone.checked) {
-          libraryList.querySelectorAll('.library-picker-row').forEach((row) => {
-            if (row.style.display !== 'none') row.querySelector('input[type="checkbox"]').checked = false;
-          });
-          if (librarySelectAll) librarySelectAll.checked = false;
-          librarySelectNone.checked = false;
-        }
-      });
-    }
+  const listOf = (value) => (value || '').split(' ').filter(Boolean);
+
+  // Member pickers' rows (views/partials/print-picker-table.ejs): Member
+  // Type / Family / Semester / Day (partials/member-print-filter.ejs).
+  // "Teachers" and "Primary Parents" are their own dataset (data-teacher/
+  // data-primary) rather than their own member_type value - a teacher/
+  // primary parent is still a parent-type member underneath. Semester/Day
+  // match if the member is enrolled in or staffs any class in that
+  // semester/on that day (data-semesters/data-days, utils/
+  // printPickerFilters.js).
+  function memberRowMatches(row, f) {
+    const type = f.type || '';
+    const typeOk =
+      !type || (type === 'teacher' ? row.dataset.teacher === '1' : type === 'primaryParent' ? row.dataset.primary === '1' : row.dataset.type === type);
+    const familyOk = !f.family || row.dataset.familyId === f.family;
+    const semesterOk = !f.semester || listOf(row.dataset.semesters).includes(f.semester);
+    const dayOk = !f.day || listOf(row.dataset.days).includes(f.day);
+    return typeOk && familyOk && semesterOk && dayOk;
   }
+
+  // Single-valued data attribute per popup field (field name -> dataset key).
+  function datasetMatcher(fieldToDataset) {
+    return (row, f) => Object.keys(fieldToDataset).every((field) => !f[field] || row.dataset[fieldToDataset[field]] === f[field]);
+  }
+
+  // Every member picker: its own Filter popup + Select All. Schedule Cards
+  // also keeps its live name search box, layered on top of the popup's
+  // saved filter (typing narrows the list as before, but never unchecks).
+  function wireBulkMemberList(listId, prefix, selectAllId, searchInputId) {
+    const bulkList = document.getElementById(listId);
+    if (!bulkList) return;
+    const selectAll = wireSelectAll(bulkList, '.print-picker-row', 'input[type="checkbox"]', document.getElementById(selectAllId));
+    const searchInput = searchInputId ? document.getElementById(searchInputId) : null;
+    const popup = wireFilterPopup({
+      prefix,
+      container: bulkList,
+      rowSelector: '.print-picker-row',
+      matches: memberRowMatches,
+      extraMatch: searchInput
+        ? (row) => {
+          const q = searchInput.value.trim().toLowerCase();
+          return !q || (row.dataset.name || '').includes(q);
+        }
+        : null,
+      selectAll,
+    });
+    if (searchInput) searchInput.addEventListener('input', () => popup.refresh());
+  }
+
+  wireBulkMemberList('schedule-print-list', 'schedule-print', 'schedule-print-select-all-checkbox', 'schedule-print-search-input');
+  wireBulkMemberList('name-tag-bulk-list', 'name-tag-bulk', 'name-tag-select-all-checkbox');
+  wireBulkMemberList('name-tag-requests-bulk-list', 'name-tag-requests', 'name-tag-requests-select-all-checkbox');
+  wireBulkMemberList('cards-duplex-bulk-list', 'cards-duplex', 'cards-duplex-select-all-checkbox');
+  wireBulkMemberList('barcodes-bulk-list', 'barcodes', 'barcodes-select-all-checkbox');
+  wireBulkMemberList('barcode-labels-bulk-list', 'barcode-labels', 'barcode-labels-select-all-checkbox');
 
   // Setup/Cleanup + Custom badge lists (partials/misc-badge-print-panel):
-  // one Select All checkbox per form, wired the same way as the schedule
-  // cards list above. Skips a row hidden by the Setup/Cleanup Team/
-  // Semester filter above (row.style.display === 'none') the same way
-  // wireBulkMemberList's own Select All does - otherwise "Select All"
-  // after filtering down to one team would silently also select every
-  // OTHER team's badges, not just the ones actually showing on screen.
+  // one Select All per form; Setup/Cleanup also gets a Team / Semester /
+  // Day Filter popup over each row's data-team-id/-semester-id/-day (set
+  // server-side from each badge's own team_id/semester_id and that team's
+  // day). Custom badges have no team/semester/day concept, so no popup.
   ['setupCleanup', 'custom'].forEach((type) => {
     const form = document.getElementById(type + '-badge-print-form');
     if (!form) return;
-    const selectAll = form.querySelector('.' + type + '-badge-select-all-checkbox');
-    if (!selectAll) return;
-    selectAll.addEventListener('change', () => {
-      form.querySelectorAll('.member-picker-row').forEach((row) => {
-        if (row.style.display === 'none') return;
-        const cb = row.querySelector('input[name="badgeIds"]');
-        if (cb) cb.checked = selectAll.checked;
-      });
+    const list = form.querySelector('.member-picker-list');
+    const selectAll = wireSelectAll(list, '.member-picker-row', 'input[name="badgeIds"]', form.querySelector('.' + type + '-badge-select-all-checkbox'));
+    wireFilterPopup({
+      prefix: type + '-badge',
+      container: list,
+      rowSelector: '.member-picker-row',
+      checkboxSelector: 'input[name="badgeIds"]',
+      matches: datasetMatcher({ team: 'teamId', semester: 'semesterId', day: 'day' }),
+      selectAll,
     });
   });
+
+  // Class Check-In QR Codes picker: Semester / Day / Room over
+  // .qr-picker-row (classes, not members - a separate row class from
+  // .print-picker-row so it never gets swept up by the member-list clone
+  // step above). Classes have no family, so no Family filter here.
+  const qrList = document.getElementById('classcheckin-qr-list');
+  wireFilterPopup({
+    prefix: 'classcheckin-qr',
+    container: qrList,
+    rowSelector: '.qr-picker-row',
+    matches: datasetMatcher({ semester: 'semester', day: 'day', room: 'room' }),
+    selectAll: wireSelectAll(qrList, '.qr-picker-row', 'input[type="checkbox"]', document.getElementById('classcheckin-qr-select-all-checkbox')),
+  });
+
+  // Library Barcodes picker: Category, in the same popup (it used to
+  // re-filter the list the moment its dropdown changed).
+  const libraryList = document.getElementById('library-barcodes-list');
+  wireFilterPopup({
+    prefix: 'library-barcodes',
+    container: libraryList,
+    rowSelector: '.library-picker-row',
+    matches: datasetMatcher({ category: 'type' }),
+    selectAll: wireSelectAll(libraryList, '.library-picker-row', 'input[type="checkbox"]', document.getElementById('library-barcodes-select-all-checkbox')),
+  });
+
+  // Schedules panel: no rows to pick, just print links. Day hides the
+  // other day's class grid link; Family/Day carry over onto the Member
+  // Schedules List link as /admin/schedule/print's own familyId/day params.
+  const scheduleLinks = document.getElementById('schedules-print-links');
+  if (scheduleLinks) {
+    wireFilterPopup({
+      prefix: 'schedules',
+      onApply(filter) {
+        scheduleLinks.querySelectorAll('.schedules-print-link[data-day]').forEach((link) => {
+          link.hidden = !!filter.day && link.dataset.day !== filter.day;
+        });
+        const memberList = scheduleLinks.querySelector('[data-member-list]');
+        if (memberList) {
+          const params = new URLSearchParams();
+          if (filter.family) params.set('familyId', filter.family);
+          if (filter.day) params.set('day', filter.day);
+          const qs = params.toString();
+          memberList.setAttribute('href', '/admin/schedule/print' + (qs ? '?' + qs : ''));
+        }
+      },
+    });
+  }
 
   // A big enough "Select All" (a co-op's full membership - potentially
   // several hundred to 1000+ people) can generate more badge HTML than
