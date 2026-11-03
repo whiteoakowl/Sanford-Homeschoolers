@@ -584,7 +584,18 @@ router.get('/members/grade-level-report/download.pdf', async (req, res) => {
 // still the dedicated Edit page, linked from the Profile tab.
 router.get('/members/:id', async (req, res) => {
   res.locals.membersBackHref = memberListBackUrl(req, '/admin/members');
+  res.locals.membersBackLabel = 'Members';
   const id = parseInt(req.params.id, 10);
+  // Opened from Attendance (views/admin-rosters.ejs's ?from=) - Back
+  // returns there, remembered for this member across the profile's tabs.
+  const from = typeof req.query.from === 'string' && /^\/admin\/rosters(\?[^\s]*)?$/.test(req.query.from) ? req.query.from : null;
+  if (from) req.session.memberProfileFrom = { memberId: id, url: from };
+  else if (!req.query.tab && !req.query.family) req.session.memberProfileFrom = null;
+  const remembered = req.session.memberProfileFrom;
+  if (remembered && remembered.memberId === id) {
+    res.locals.membersBackHref = remembered.url;
+    res.locals.membersBackLabel = 'Attendance';
+  }
   const member = await db.prepare('SELECT * FROM members WHERE id = ?').get(id);
   if (!member) return res.status(404).send('Not found');
   member.birthdayLabel = member.birthday ? formatDateNumeric(member.birthday) : null;
