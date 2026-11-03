@@ -16241,8 +16241,6 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 a.member-schedule-class-title { color: var(--brand-dark); }
 a.member-schedule-class-title:hover { color: var(--brand-darker); }
 .member-schedule-email { color: var(--brand-dark); overflow-wrap: anywhere; }
-.member-schedule-price-col,
-.member-schedule-table .member-schedule-price { width: 1%; white-space: nowrap; text-align: right; }
 .member-schedule-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.4rem; margin: 0 0 1rem; }
 .notes-dialog-actions .member-schedule-actions { margin: 0; }
 /* Keep each member's own table together on one printed page where it
@@ -16277,5 +16275,4 @@ a.member-schedule-class-title:hover { color: var(--brand-darker); }
   }
   /* The class title already reads as the card's own heading. */
   .member-schedule-table td.member-schedule-details::before { content: none; }
-  .member-schedule-table .member-schedule-price { width: 100%; text-align: left; }
 }

@@ -8,8 +8,9 @@
   member's schedule should look like this image" - member name as a large
   heading, a smaller role subheading ("Signed Up"; plus "Teaching"/
   "Assisting"/"Floater" for parents and staff, same visual style), then a
-  bordered, zebra-striped Class Details / Location/ Instructor / Price
-  table. Rows come pre-sorted (semester start date, day, time) from
+  bordered, zebra-striped Class Details / Location/ Instructor table
+  (no Price column - a real request: "Take the price off the class
+  schedules"). Rows come pre-sorted (semester start date, day, time) from
   utils/schedule.js's memberScheduleTables.
 
   locals:
@@ -44,7 +45,6 @@
           <tr>
             <th scope="col">Class Details</th>
             <th scope="col">Location/ Instructor</th>
-            <th scope="col" class="member-schedule-price-col">Price</th>
           </tr>
         </thead>
         <tbody>
@@ -69,7 +69,6 @@
                   <% if (i.phone) { %><span class="member-schedule-line member-schedule-phone"><%= i.phone %></span><% } %>
                 <% }); %>
               </td>
-              <td class="member-schedule-price" data-label="Price"><%= e.priceLabel || '—' %></td>
             </tr>
           <% }); %>
         </tbody>

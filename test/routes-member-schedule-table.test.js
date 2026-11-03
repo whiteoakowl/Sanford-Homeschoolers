@@ -4,7 +4,7 @@
 // schedule pages, tabs etc. Should have export, pdf and print icons, in a
 // row side by side." Every member schedule surface now renders the one
 // shared views/partials/member-schedule-table.ejs (Class Details /
-// Location/ Instructor / Price, "Signed Up"/"Teaching"/... groups) with
+// Location/ Instructor, "Signed Up"/"Teaching"/... groups) with
 // partials/member-schedule-actions.ejs's Export/PDF/Print row, backed by
 // utils/schedule.js's memberScheduleTables and utils/memberScheduleOutput.js.
 const test = require('node:test');
@@ -154,7 +154,9 @@ function assertStudentTable(html, f) {
   assert.match(html, new RegExp(`Room 3 / Lara Snyder ${f.n}`));
   assert.match(html, new RegExp(`<a class="member-schedule-line member-schedule-email" href="mailto:lara${f.n}@example.com">lara${f.n}@example.com</a>`));
   assert.match(html, /<span class="member-schedule-line member-schedule-phone">919-555-0142<\/span>/);
-  assert.match(html, /<td class="member-schedule-price" data-label="Price">\$15\.00<\/td>/);
+  // A real request: "Take the price off the class schedules."
+  assert.doesNotMatch(html, /member-schedule-price|>Price</);
+  assert.doesNotMatch(html, /\$15\.00/);
   // The class's own Start/End Date wins over its grid's.
   assert.match(html, /Aug\. 26, 2026 – Nov\. 18, 2026/);
   assert.match(html, /Wed 9:00 AM – 9:45 AM/);
@@ -178,11 +180,11 @@ test('Co-op Admin member profile Class Schedule tab: shared table + Export/PDF/P
   assert.equal(csv.status, 200);
   assert.match(csv.headers['content-type'], /text\/csv/);
   const lines = csv.text.replace(/^\uFEFF/, '').split('\n');
-  assert.equal(lines[0], '"Member Name","Role","Class","Semester","Start Date","End Date","Day","Time","Room","Instructor","Instructor Email","Instructor Phone","Price"');
+  assert.equal(lines[0], '"Member Name","Role","Class","Semester","Start Date","End Date","Day","Time","Room","Instructor","Instructor Email","Instructor Phone"');
   assert.equal(lines.length, 3, 'one line per class');
   assert.equal(
     lines[1],
-    `"Eden Vanderbilt ${f.n}","Signed Up","PE & Health ${f.n}","Fall 2026 #${f.n}","2026-08-24","2026-11-16","Mon","10:00 AM – 10:45 AM","Room 3","Lara Snyder ${f.n}","lara${f.n}@example.com","919-555-0142","$15.00"`
+    `"Eden Vanderbilt ${f.n}","Signed Up","PE & Health ${f.n}","Fall 2026 #${f.n}","2026-08-24","2026-11-16","Mon","10:00 AM – 10:45 AM","Room 3","Lara Snyder ${f.n}","lara${f.n}@example.com","919-555-0142"`
   );
 
   assertRealPdf(await getBuffer(`/admin/schedule/download.pdf?memberId=${f.studentId}`, cookie));
@@ -320,7 +322,7 @@ test('My Profile > Schedules: shared table + Export/PDF/Print scoped to the memb
   assert.match(anon.headers.location, /^\/login/);
 });
 
-test('a parent\'s Floater Assignments hour shows under its own "Floater" group, never priced', async () => {
+test('a parent\'s Floater Assignments hour shows under its own "Floater" group', async () => {
   const { getListByDay, sectionsForList, addMemberToSection } = require('../utils/volunteers');
   const { memberScheduleTables } = require('../utils/schedule');
   const floaterId = (await db.prepare("INSERT INTO members (name, barcode, member_type, active) VALUES ('Floater Fiona', 'floater-fiona', 'parent', 1)").run()).lastInsertRowid;
@@ -335,5 +337,4 @@ test('a parent\'s Floater Assignments hour shows under its own "Floater" group, 
   assert.equal(floater.entries.length, 1);
   assert.equal(floater.entries[0].title, 'Floater');
   assert.equal(floater.entries[0].dayShort, 'Mon');
-  assert.equal(floater.entries[0].priceLabel, '');
 });

@@ -259,7 +259,8 @@ async function scheduleMembers(filters) {
 // --- Member schedule table (views/partials/member-schedule-table.ejs) ---
 // A real request: "Each member's schedule should look like this image" -
 // one bordered, zebra-striped table per member (Class Details / Location/
-// Instructor / Price), grouped under a small subheading per role:
+// Instructor; a later real request: "Take the price off the class
+// schedules"), grouped under a small subheading per role:
 // "Signed Up" (enrolled as a student), "Teaching", "Assisting", and
 // "Floater" (the Floater Assignments hours liveMemberScheduleRowsForDay
 // already fills in). Unlike the fixed 4-slot byDay shape above, this is a
@@ -291,13 +292,6 @@ function dateRangeLabel(startDate, endDate) {
   if (start) return `Starts ${start}`;
   if (end) return `Ends ${end}`;
   return '';
-}
-
-function formatPrice(priceCents) {
-  if (priceCents == null || priceCents === '') return '';
-  const cents = Number(priceCents);
-  if (!Number.isFinite(cents)) return '';
-  return `$${(cents / 100).toFixed(2)}`;
 }
 
 function rangeLabel(startMin, endMin) {
@@ -419,7 +413,6 @@ async function memberScheduleEntries(memberIds) {
       instructors: teachersByClass[cls.id] || [],
       // The class fee only applies to the student signed up for it - a
       // teacher/assistant isn't charged for the class they staff.
-      priceLabel: link.role === 'student' ? formatPrice(cls.price_cents) : '',
     });
   }
 
@@ -455,7 +448,6 @@ async function memberScheduleEntries(memberIds) {
             dateRangeLabel: dateRangeLabel(startDate, endDate),
             room: '',
             instructors: [],
-            priceLabel: '',
           });
         });
     }
@@ -479,7 +471,7 @@ async function memberScheduleTables(members) {
   });
 }
 
-const SCHEDULE_CSV_HEADER = ['Member Name', 'Role', 'Class', 'Semester', 'Start Date', 'End Date', 'Day', 'Time', 'Room', 'Instructor', 'Instructor Email', 'Instructor Phone', 'Price'];
+const SCHEDULE_CSV_HEADER = ['Member Name', 'Role', 'Class', 'Semester', 'Start Date', 'End Date', 'Day', 'Time', 'Room', 'Instructor', 'Instructor Email', 'Instructor Phone'];
 
 // CSV lines (header first) for the same tables memberScheduleTables
 // builds - same rows, same order, one line per class.
@@ -502,7 +494,6 @@ function memberScheduleCsvLines(tables) {
             e.instructors.map((x) => x.name).join('; '),
             e.instructors.map((x) => x.email).filter(Boolean).join('; '),
             e.instructors.map((x) => x.phone).filter(Boolean).join('; '),
-            e.priceLabel,
           ])
         );
       });
