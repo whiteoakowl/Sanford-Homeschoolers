@@ -18,7 +18,7 @@
         .landing-grid-two is that same component's existing 2-column
         variant. Every card here shares the category's own color, same
         as the homepage's own category card. %>
-    <div class="landing-grid landing-grid-two landing-card-rect">
+    <div class="landing-grid landing-grid-two landing-card-rect landing-grid-sub-dashboard">
       <% category.links.forEach(function(link) { %>
         <a class="landing-card landing-card-<%= category.color %>" href="<%= link.href %>">
           <span class="landing-icon"><svg class="icon"><use href="#<%= link.icon %>"/></svg></span>

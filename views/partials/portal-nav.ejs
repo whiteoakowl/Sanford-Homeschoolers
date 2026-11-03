@@ -167,7 +167,7 @@ const MAIN_ADMIN_NAV_LINKS = [
     { href: '/main-admin/volunteers?tab=signup-lists', label: 'Sign-Up Lists', perm: 'view_volunteers_signup_lists' },
     { href: '/main-admin/volunteers?tab=volunteer-lists', label: 'Volunteer Lists', perm: 'view_volunteers_lists' },
   ] },
-  { href: '/main-admin/name-tags', icon: 'badge', label: 'Name Tags', perm: 'manage_name_tags', subpages: [
+  { href: '/main-admin/name-tags', icon: 'badge', label: 'Name Tags', mobileLabel: 'Name<br>Tags', perm: 'manage_name_tags', subpages: [
     { href: '/main-admin/name-tags', label: 'Design' },
     { href: '/main-admin/name-tags?tab=print', label: 'Print', perm: 'view_name_tags_print' },
     { href: '/main-admin/name-tags?tab=requests', label: 'Requests', perm: 'view_name_tags_requests' },
@@ -176,7 +176,7 @@ const MAIN_ADMIN_NAV_LINKS = [
     { href: '/main-admin/photos', label: 'Photos' },
     { href: '/main-admin/photos?tab=archive', label: 'Archive', perm: 'view_admin_photos_archive' },
   ] },
-  { href: '/main-admin/resource-links', icon: 'book', label: 'Resource Links', perm: 'manage_resources', subpages: [
+  { href: '/main-admin/resource-links', icon: 'book', label: 'Resource Links', mobileLabel: 'Resource<br>Links', perm: 'manage_resources', subpages: [
     { href: '/main-admin/resource-links', label: 'Resources' },
     { href: '/main-admin/resource-links?tab=approvals', label: 'Approvals', perm: 'view_resource_links_approvals' },
   ] },
@@ -197,7 +197,7 @@ const MAIN_ADMIN_NAV_LINKS = [
     { href: '/main-admin/store?tab=analytics', label: 'Analytics', perm: 'view_store_analytics' },
     { href: '/main-admin/store?tab=settings', label: 'Settings', perm: 'view_store_settings' },
   ] },
-  { href: '/main-admin/forms', icon: 'clipboard-list', label: 'Custom Forms', perm: 'manage_forms' },
+  { href: '/main-admin/forms', icon: 'clipboard-list', label: 'Custom Forms', mobileLabel: 'Custom<br>Forms', perm: 'manage_forms' },
   { href: '/main-admin/babysitters', icon: 'user', label: 'Babysitters', perm: 'manage_babysitters', subpages: [
     { href: '/main-admin/babysitters', label: 'Babysitter' },
     { href: '/main-admin/babysitters?tab=approvals', label: 'Approvals', perm: 'view_babysitters_approvals' },
@@ -210,7 +210,7 @@ const MAIN_ADMIN_NAV_LINKS = [
   // fiscal year picker lives on the page itself (same ?fiscalYearId=
   // query param convention Accounting's own Category/Fiscal Year
   // subpage already reads fiscal years from).
-  { href: '/main-admin/annual-calendar', icon: 'calendar-check', label: 'Annual Calendar', perm: 'manage_annual_calendar' },
+  { href: '/main-admin/annual-calendar', icon: 'calendar-check', label: 'Annual Calendar', mobileLabel: 'Annual<br>Calendar', perm: 'manage_annual_calendar' },
   // A real request: "Main admin portal add a support tab with Website
   // feedback subpage and [Support] subpage" - routes/main-admin-
   // support.js, each a log of Parent Portal's own Website Feedback and
@@ -325,7 +325,7 @@ const PARENT_NAV_LINKS = [
   { href: '/parent/documents', icon: 'file-text', label: 'Documents', perm: 'view_parent_documents' },
   { href: '/store', icon: 'grid', label: 'Store', perm: 'view_parent_store' },
   { href: '/photos?portal=parent', icon: 'camera', label: 'Photos', perm: 'view_parent_photos' },
-  { href: '/parent/name-tags', icon: 'badge', label: 'Name Tags', perm: 'view_parent_name_tags' },
+  { href: '/parent/name-tags', icon: 'badge', label: 'Name Tags', mobileLabel: 'Name<br>Tags', perm: 'view_parent_name_tags' },
   { href: '/parent/babysitters', icon: 'user', label: 'Babysitters', perm: 'view_parent_babysitters' },
   // A real request: "remove library log sub page. It is now a button on
   // the library page" - My Library Log dropped back out of this nav
@@ -395,7 +395,7 @@ const FAMILY_SCHOOL_NAV_LINKS = [
 const TEACHER_NAV_LINKS = [
   { href: '/teacher', icon: 'home', label: 'Home' },
   { href: '/teacher/attendance', icon: 'calendar-check', label: 'Attendance', perm: 'view_teacher_attendance' },
-  { href: '/teacher/classes', icon: 'graduation-cap', label: 'Class Schedule', perm: 'view_teacher_classes' },
+  { href: '/teacher/classes', icon: 'graduation-cap', label: 'Class Schedule', mobileLabel: 'Class<br>Schedule', perm: 'view_teacher_classes' },
   { href: '/teacher/training', icon: 'graduation-cap', label: 'Training', perm: 'view_teacher_training' },
   // A real request: "When the admin approves the lesson plan, it will
   // show on the teacher side on the lesson plan approved by admins."
@@ -502,9 +502,18 @@ const STUDENT_NAV_LINKS = [
   // whole Events tab, not a group - the other permission that used to
   // live here, view_student_event_registrations, now only matters for
   // the My Event Registrations button itself, not nav visibility.
-  { href: '/events?view=calendar&portal=student', icon: 'calendar-check', label: 'Events', perm: 'view_student_events' },
+  { href: '/events?view=calendar&portal=student', icon: 'calendar-check', label: 'Event Calendar', mobileLabel: 'Event<br>Calendar', perm: 'view_student_events' },
   { href: '/student/classes', icon: 'graduation-cap', label: 'Co-op Schedule', mobileLabel: 'Co-op<br>Schedule', perm: 'view_student_classes' },
-  { href: '/student/family-school/portfolio', icon: 'grid', label: 'Classroom Dashboard', desktopAsSection: true, subpages: [
+  // A real bug report: "on this page it switches back to co-op schedule
+  // tab. It should stay under classroom dashboard tab." This group's own
+  // Classes subpage (and the class detail pages it links into) live
+  // under /student/classes/dashboard/* - a literal URL prefix of Co-op
+  // Schedule's own /student/classes above, which public/js/admin-nav.js's
+  // longest-prefix matching would otherwise always pick instead (this
+  // group's own bare href, /student/family-school/portfolio, never
+  // matches that path at all). match claims that whole namespace back
+  // for this tab - its own prefix is longer, so it wins.
+  { href: '/student/family-school/portfolio', icon: 'grid', label: 'Classroom Dashboard', mobileLabel: 'Classroom<br>Dashboard', match: '/student/classes/dashboard', desktopAsSection: true, subpages: [
     { href: '/student/classes/dashboard', icon: 'graduation-cap', label: 'Classes', perm: 'view_student_classes_dashboard' },
     { href: '/student/family-school/grades', icon: 'clipboard-list', label: 'Grades', perm: 'view_student_grades' },
     { href: '/student/family-school/attendance', icon: 'calendar-check', label: 'Attendance', perm: 'view_student_attendance' },
@@ -515,7 +524,7 @@ const STUDENT_NAV_LINKS = [
   { href: '/forums?portal=student', icon: 'users', label: 'Chat', perm: 'view_student_chat' },
   { href: '/student/resources', icon: 'book', label: 'Resources', perm: 'view_student_resources' },
   { href: '/photos?portal=student', icon: 'camera', label: 'Photos', perm: 'view_student_photos' },
-  { href: '/student/babysitter', icon: 'user', label: 'Babysitter Profile', perm: 'view_student_babysitter_profile' },
+  { href: '/student/babysitter', icon: 'user', label: 'Babysitter Profile', mobileLabel: 'Babysitter<br>Profile', perm: 'view_student_babysitter_profile' },
 ];
 // Section 2, labeled "Activities" (classLinksTitle below) - Achievements
 // and Leaderboard used to be sections embedded inside the Reading
@@ -527,7 +536,7 @@ const STUDENT_NAV_LINKS = [
 // leaderboard."
 const STUDENT_ACTIVITY_LINKS = [
   { href: '/student/reading', icon: 'book', label: 'Reading Challenge', mobileLabel: 'Reading<br>Challenge', perm: 'view_student_reading' },
-  { href: '/student/nature-news', icon: 'sprout', label: 'Nature News', perm: 'view_student_nature_news' },
+  { href: '/student/nature-news', icon: 'sprout', label: 'Nature News', mobileLabel: 'Nature<br>News', perm: 'view_student_nature_news' },
   { href: '/student/vocabulary', icon: 'type', label: 'Vocabulary', perm: 'view_student_vocabulary' },
   { href: '/student/games', icon: 'gamepad', label: 'Games', perm: 'view_student_games' },
   { href: '/student/pets', icon: 'paw', label: 'Pet', perm: 'view_student_pets' },
@@ -632,7 +641,7 @@ const classLinksTitle = portalTitle === 'Student Portal' ? 'Activities' : portal
 const COMMUNITY_LINKS = [
   { href: '/events', icon: 'calendar-check', label: 'Events' },
   { href: '/forums', icon: 'users', label: 'Chat' },
-  { href: '/member-directory', icon: 'user', label: 'Member Directory' },
+  { href: '/member-directory', icon: 'user', label: 'Member Directory', mobileLabel: 'Member<br>Directory' },
   { href: '/directory', icon: 'map-pin', label: 'Business Directory', mobileLabel: 'Business<br>Directory' },
   { href: '/classifieds', icon: 'tag', label: 'Classifieds' },
   { href: '/forms', icon: 'clipboard-list', label: 'Forms' },
@@ -735,7 +744,20 @@ const communityLinksTitle = 'Community';
     <% primaryNavLinks.forEach(function(link) { %>
       <% if (link.desktopAsSection) { %>
         <%# Rendered as its own titled section below instead - see this
-            section's own real-request comment on STUDENT_NAV_LINKS. %>
+            section's own real-request comment on STUDENT_NAV_LINKS. A
+            real bug report: "on this page it switches back to co-op
+            schedule tab" - this section's own pages (/student/classes/
+            dashboard/*) are a literal URL prefix match for Co-op
+            Schedule's own href (/student/classes) too, and with no
+            candidate of its own competing inside THIS container,
+            public/js/admin-nav.js's longest-prefix matcher picked Co-op
+            Schedule every time. This hidden anchor exists purely to
+            compete for and win that match here (its own match prefix is
+            longer) - never shown, never clicked; the section's real,
+            visible links live in its own titled section below, which
+            gets its own separate highlightNav pass now too (see that
+            script's own comment). %>
+        <% if (link.match) { %><a href="<%= link.href %>" data-match="<%= link.match %>" hidden></a><% } %>
       <% } else if (link.subpages && link.subpages.length) { %>
         <details class="admin-nav-group">
           <summary><svg class="icon"><use href="#icon-<%= link.icon %>"/></svg> <%= link.label %> <svg class="icon admin-nav-group-chevron"><use href="#icon-chevron-down"/></svg></summary>

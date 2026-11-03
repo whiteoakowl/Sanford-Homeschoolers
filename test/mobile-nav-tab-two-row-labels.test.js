@@ -61,27 +61,32 @@ async function createPortalMember({ name, familyId, memberType, roleKey }) {
   return loginRes.headers['set-cookie'];
 }
 
-test('Co-op Admin mobile tabs: Floater Assignments and Teachers/Assistants split into two rows', async () => {
+test('Co-op Admin mobile tabs: Floater Assignments, Teachers/Assistants, Lesson Plans split into two rows', async () => {
   const cookie = await loginAsAdmin();
   const res = await request(app).get('/admin/members').set('Cookie', cookie);
   assert.equal(res.status, 200);
   assert.match(res.text, /Floater<br\/?>Assignments/);
   assert.match(res.text, /Teachers<br\/?>Assistants/);
+  assert.match(res.text, /Lesson<br\/?>Plans/);
 });
 
-test('Main Admin mobile tabs: Business Directory and Family School Management split into two rows', async () => {
+test('Main Admin mobile tabs: Business Directory, Family School Management, Name Tags, Resource Links, Custom Forms, Annual Calendar split into two rows', async () => {
   const familyId = (await db.prepare("INSERT INTO families (name) VALUES ('Mobile Tab Main Admin Family') RETURNING id").get()).id;
   const cookie = await createPortalMember({ name: 'Mobile Tab Main Admin', familyId, memberType: 'parent', roleKey: 'main_admin' });
   const res = await request(app).get('/main-admin').set('Cookie', cookie);
   assert.equal(res.status, 200);
   assert.match(res.text, /Business<br\/?>Directory/);
   assert.match(res.text, /Family School<br\/?>Management/);
+  assert.match(res.text, /Name<br\/?>Tags/);
+  assert.match(res.text, /Resource<br\/?>Links/);
+  assert.match(res.text, /Custom<br\/?>Forms/);
+  assert.match(res.text, /Annual<br\/?>Calendar/);
 });
 
 // Family School Management is no longer one of Parent Portal's own
 // tabs (it's its own portal now - see test/family-school-management.
 // test.js), so this no longer checks for it here.
-test('Parent Portal mobile tabs: Co-op Classes, Business Directory, and Reading Challenge split into two rows', async () => {
+test('Parent Portal mobile tabs: Co-op Classes, Business Directory, Reading Challenge, Name Tags split into two rows', async () => {
   const familyId = (await db.prepare("INSERT INTO families (name) VALUES ('Mobile Tab Parent Family') RETURNING id").get()).id;
   const cookie = await createPortalMember({ name: 'Mobile Tab Parent', familyId, memberType: 'parent', roleKey: 'parent' });
   const res = await request(app).get('/parent').set('Cookie', cookie);
@@ -89,22 +94,27 @@ test('Parent Portal mobile tabs: Co-op Classes, Business Directory, and Reading 
   assert.match(res.text, /Co-op<br\/?>Classes/);
   assert.match(res.text, /Business<br\/?>Directory/);
   assert.match(res.text, /Reading<br\/?>Challenge/);
+  assert.match(res.text, /Name<br\/?>Tags/);
 });
 
-test('Co-op Teacher Portal mobile tabs: Instructor Profile splits into two rows', async () => {
+test('Co-op Teacher Portal mobile tabs: Instructor Profile and Class Schedule split into two rows', async () => {
   const familyId = (await db.prepare("INSERT INTO families (name) VALUES ('Mobile Tab Teacher Family') RETURNING id").get()).id;
   const cookie = await createPortalMember({ name: 'Mobile Tab Teacher', familyId, memberType: 'parent', roleKey: 'teacher' });
   const res = await request(app).get('/teacher').set('Cookie', cookie);
   assert.equal(res.status, 200);
   assert.match(res.text, /Instructor<br\/?>Profile/);
+  assert.match(res.text, /Class<br\/?>Schedule/);
 });
 
-test('Student Portal mobile tabs: Reading Challenge splits into two rows', async () => {
+test('Student Portal mobile tabs: Reading Challenge, Classroom Dashboard, Babysitter Profile, Nature News split into two rows', async () => {
   const familyId = (await db.prepare("INSERT INTO families (name) VALUES ('Mobile Tab Student Family') RETURNING id").get()).id;
   const cookie = await createPortalMember({ name: 'Mobile Tab Student', familyId, memberType: 'student', roleKey: 'student' });
   const res = await request(app).get('/student').set('Cookie', cookie);
   assert.equal(res.status, 200);
   assert.match(res.text, /Reading<br\/?>Challenge/);
+  assert.match(res.text, /Classroom<br\/?>Dashboard/);
+  assert.match(res.text, /Babysitter<br\/?>Profile/);
+  assert.match(res.text, /Nature<br\/?>News/);
 });
 
 test('every full-width mobile tab link/button is only ever split by an explicit <br>, never a visible literal label with a slash', async () => {

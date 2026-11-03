@@ -84,7 +84,7 @@ test('Lessons tab shows a clickable sub-bar (title + due date + check mark) that
   const loginRes = await request(app).post('/login').type('form').send({ email: student.email, password: 'testpassword123', next: '/student' });
   const cookie = loginRes.headers['set-cookie'];
 
-  const lessonsTab = await request(app).get(`/student/classes/${cls.id}?tab=lessons`).set('Cookie', cookie);
+  const lessonsTab = await request(app).get(`/student/classes/dashboard/${cls.id}?tab=lessons`).set('Cookie', cookie);
   assert.equal(lessonsTab.status, 200);
   assert.match(lessonsTab.text, /Reading Notes/);
   assert.match(lessonsTab.text, /Due Fri 12\/25/);
@@ -97,7 +97,7 @@ test('Lessons tab shows a clickable sub-bar (title + due date + check mark) that
   assert.equal(detail.status, 200);
   assert.match(detail.text, /Here is the full text body/);
   assert.match(detail.text, /Due Fri 12\/25/);
-  assert.match(detail.text, new RegExp(`href="/student/classes/${cls.id}\\?tab=lessons"`), 'expected a back link to the Lessons tab');
+  assert.match(detail.text, new RegExp(`href="/student/classes/dashboard/${cls.id}\\?tab=lessons"`), 'expected a back link to the Lessons tab');
   assert.match(detail.text, /Part of: A Lesson/);
 });
 

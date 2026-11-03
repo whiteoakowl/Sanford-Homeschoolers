@@ -121,18 +121,48 @@ async function seedIfMissing(db) {
 // request ("Add description under each portal title. On choose portal
 // page...") - see views/portal-switcher.ejs's own comment on why this
 // field (already selected by utils/portalAuth.js's rolesForAccount) went
-// unrendered there for a while.
+// unrendered there for a while. A later real request gave each one its
+// own fuller, final wording - db/index.js's own backfillPortalRoleDescriptions
+// is what pushes an UPDATEd description out to a database that already
+// seeded these rows under the OLD wording (this array alone only ever
+// applies to a brand-new INSERT, see this file's own seedIfMissing loop
+// below).
 const PORTAL_ROLES = [
-  { key: 'parent', label: 'Parent', description: 'Class registration, event registration, family homeschool management, etc.', isSystem: true },
-  { key: 'student', label: 'Student', description: 'View and complete lessons, chat with friends. Challenges, play games etc.', isSystem: true },
+  {
+    key: 'parent',
+    label: 'Parent',
+    description: 'Class registration, event calendar, chat groups, business directory, classifieds, store, babysitters and parent reading challenge.',
+    isSystem: true,
+  },
+  {
+    key: 'student',
+    label: 'Student',
+    description: 'View and complete lessons, chat with friends, challenges, games, nature news and vocabulary.',
+    isSystem: true,
+  },
   // A real request: "Teacher portal should be called co-op teacher
   // portal." label renamed to match (parallel to 'Co-op Admin' just
   // below) - the in-portal nav shell itself (middleware/portalAuth.js's
   // own sharedPortalTitle, every teacher-*.ejs view's own portalTitle)
   // says the fuller "Co-op Teacher Portal".
-  { key: 'teacher', label: 'Co-op Teacher', description: 'Attendance, manage classes. Lesson plans. Etc.', isSystem: true },
-  { key: 'coop_admin', label: 'Co-op Admin', description: 'Co-op classes, schedules, floaters, name tags, attendance etc.', isSystem: true },
-  { key: 'main_admin', label: 'Main Admin', description: 'Group management, events, chat groups, approvals, website settings etc.', isSystem: true },
+  {
+    key: 'teacher',
+    label: 'Co-op Teacher',
+    description: 'Class attendance, manage classes, lesson plans, class chat, teacher reimbursement and training.',
+    isSystem: true,
+  },
+  {
+    key: 'coop_admin',
+    label: 'Co-op Admin',
+    description: 'Co-op classes, schedules, attendance, floaters, setup/cleanup, teacher reimbursement and orientation tracking.',
+    isSystem: true,
+  },
+  {
+    key: 'main_admin',
+    label: 'Main Admin',
+    description: 'Group management, events, chat groups, website settings and accounting.',
+    isSystem: true,
+  },
 ];
 
 // A real request: "these permissions should not be about being able to
@@ -1214,8 +1244,21 @@ async function backfillCustomFormDefaultPages(db) {
   }
 }
 
+// A real request: "My portals Choosing Screen... [exact wording per
+// portal]." PORTAL_ROLES above only ever applies its description on a
+// brand-new INSERT (seedIfMissing's own "if (existing) continue" loop) -
+// this pushes the new wording out to a roles row that already exists
+// from an earlier boot, the same "idempotent UPDATE, safe to run every
+// boot" shape every other backfill* function here already uses.
+async function backfillPortalRoleDescriptions(db) {
+  for (const role of PORTAL_ROLES) {
+    await db.prepare('UPDATE roles SET description = ? WHERE key = ? AND description IS DISTINCT FROM ?').run(role.description, role.key, role.description);
+  }
+}
+
 module.exports = {
   seedIfMissing,
+  backfillPortalRoleDescriptions,
   backfillNameTagLogo,
   backfillNameTagAutoFit,
   backfillMiscBadgeBarcode,

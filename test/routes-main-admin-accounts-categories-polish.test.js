@@ -149,6 +149,12 @@ test('Portal switcher (2+ roles): centered title cards, each with its own descri
   assert.equal(page.status, 200);
   assert.doesNotMatch(page.text, /Choose a portal to continue/);
   assert.match(page.text, /portal-picker-title/);
-  assert.match(page.text, /<span class="portal-picker-description">Class registration, event registration, family homeschool management, etc\.<\/span>/);
-  assert.match(page.text, /<span class="portal-picker-description">Attendance, manage classes\. Lesson plans\. Etc\.<\/span>/);
+  assert.match(
+    page.text,
+    /<span class="portal-picker-description">Class registration, event calendar, chat groups, business directory, classifieds, store, babysitters and parent reading challenge\.<\/span>/
+  );
+  assert.match(
+    page.text,
+    /<span class="portal-picker-description">Class attendance, manage classes, lesson plans, class chat, teacher reimbursement and training\.<\/span>/
+  );
 });

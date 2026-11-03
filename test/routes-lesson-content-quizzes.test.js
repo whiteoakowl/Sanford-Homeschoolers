@@ -300,7 +300,7 @@ test('A lesson gated by a future open date hides its content on the Lessons tab'
     .type('form')
     .send({ _csrf: admin.csrfToken, type: 'text', title: 'Hidden Text', body: 'Should not be visible yet.' });
 
-  const lessonsTab = await request(app).get(`/student/classes/${teacher.classId}?tab=lessons`).set('Cookie', student.cookie);
+  const lessonsTab = await request(app).get(`/student/classes/dashboard/${teacher.classId}?tab=lessons`).set('Cookie', student.cookie);
   assert.equal(lessonsTab.status, 200);
   assert.doesNotMatch(lessonsTab.text, /Should not be visible yet\./);
   // The Lessons tab redesign (accordion bars, a real request) shows a
@@ -339,7 +339,7 @@ test('A lesson past its close date hides its content again, like one that hasn\'
   const saved = await db.prepare('SELECT close_date FROM class_assignments WHERE id = ?').get(assignmentId);
   assert.equal(saved.close_date, '2020-01-01');
 
-  const lessonsTab = await request(app).get(`/student/classes/${teacher.classId}?tab=lessons`).set('Cookie', student.cookie);
+  const lessonsTab = await request(app).get(`/student/classes/dashboard/${teacher.classId}?tab=lessons`).set('Cookie', student.cookie);
   assert.equal(lessonsTab.status, 200);
   assert.doesNotMatch(lessonsTab.text, /closed content/);
   assert.match(lessonsTab.text, /Closed 2020-01-01/);
@@ -385,7 +385,7 @@ test('A closed-but-never-finished lesson does not permanently block the next les
     .send({ _csrf: admin.csrfToken, type: 'text', title: 'Reachable Content', body: 'reachable' });
   const secondItemId = (await db.prepare('SELECT id FROM lesson_content_items WHERE assignment_id = ?').get(secondId)).id;
 
-  const lessonsTab = await request(app).get(`/student/classes/${teacher.classId}?tab=lessons`).set('Cookie', student.cookie);
+  const lessonsTab = await request(app).get(`/student/classes/dashboard/${teacher.classId}?tab=lessons`).set('Cookie', student.cookie);
   assert.match(lessonsTab.text, new RegExp(`href="/student/content/${secondItemId}"`), 'the second lesson should still be reachable even though the first closed unfinished');
 
   const secondItemPage = await request(app).get(`/student/content/${secondItemId}`).set('Cookie', student.cookie);

@@ -57,5 +57,13 @@
       </div>
     <% } %>
   </main>
+  <%# A real request: "Student portal attendance, co-op attendance,
+      currently unable to click the dropdown menu and view attendance
+      days. Should be able to click and view." The Co-op Attendance view
+      above reuses partials/member-attendance-rosters.ejs's own
+      accordion-style roster toggles (same markup as the Member Profile
+      Attendance tab), but this page never loaded the one script that
+      actually wires those toggle buttons up - every click did nothing. %>
+  <% if (view === 'coop') { %><script src="/js/member-attendance-accordion.js"></script><% } %>
 </body>
 </html>

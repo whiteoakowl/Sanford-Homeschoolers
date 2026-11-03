@@ -695,6 +695,27 @@ textarea:focus-visible,
   .documents-grid { grid-template-columns: 170px; }
 }
 
+/* A real request: "Group dashboard, classroom dashboard, and fun
+   dashboard, when you click these buttons you can view more page cards.
+   These cards the font should shrink to fit on the card and in
+   generally be smaller on mobile." views/student-dashboard-category.ejs's
+   own sub-card grid (Group/Classroom/Fun Dashboard's own page lists) -
+   same smaller-icon/label/padding shrink .documents-grid's own mobile
+   rule already uses, plus a narrower column width (same pattern as
+   .documents-grid's own 170px at <=500px above) so the card itself
+   shrinks, not just its text. Placed after the plain .landing-grid
+   breakpoints above so this wins on specificity ties regardless of
+   viewport width within this range. */
+@media (max-width: 640px) {
+  .landing-grid-sub-dashboard { grid-template-columns: repeat(2, 160px); gap: 0.75rem; }
+  .landing-grid-sub-dashboard .landing-card { padding: 0.65rem 0.75rem; gap: 0.5rem; }
+  .landing-grid-sub-dashboard .landing-icon { width: 1.75rem; height: 1.75rem; font-size: 1rem; }
+  .landing-grid-sub-dashboard .landing-label { font-size: 0.9rem; }
+}
+@media (max-width: 400px) {
+  .landing-grid-sub-dashboard { grid-template-columns: repeat(2, 140px); gap: 0.5rem; }
+}
+
 /* ---------- Kiosk ---------- */
 
 .kiosk {
@@ -776,6 +797,12 @@ textarea:focus-visible,
    instead of just going blank on a day with nothing scheduled today. */
 .kiosk-header-text { display: flex; flex-direction: column; gap: 0.2rem; }
 .kiosk-subhead { margin: 0; color: var(--muted); font-size: 1rem; font-weight: 600; }
+
+/* A real request: "My portals Choosing Screen. Portals title should be
+   centered, description under title should be centered." Scoped to this
+   one page (not .kiosk-header-text itself, shared with the kiosk
+   attendance screens' own left-aligned title+subhead). */
+.portal-switcher-page .kiosk-header-text { align-items: center; text-align: center; }
 
 /* At 2.4rem, a longer title (e.g. "Anatomy & Physiology · Check In") wraps
    to 3-4 lines on a phone, made worse by the non-shrinking logo (see
@@ -8933,6 +8960,17 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
    just a tight pair of the sitewide .icon-btn, no extra chrome. */
 .class-schedule-view-toggle { display: flex; align-items: center; gap: 0.3rem; }
 
+/* Student Portal's own Co-op Schedule page (views/student-classes.ejs) -
+   a real request: "Add export, print and pdf icons. In a row, not a
+   column, clean side by side." Deliberately NOT .roster-btn-row (its own
+   unscoped @media max-width: 640px rule turns it into a full-width CSS
+   grid, which - with no .roster-action-btn/.btn-secondary children to
+   count, only plain .icon-btn here - would spread these three icons
+   apart into 3 equal full-row columns instead of keeping them snug next
+   to each other) - same tight, fixed-size icon-pair shape as
+   .class-schedule-view-toggle just above, at every width. */
+.co-op-schedule-file-icons { display: flex; align-items: center; gap: 0.3rem; }
+
 /* Parent Portal Class Registration's own List view - a real request:
    "add icons at the top for grid view vs list view of classes." Reuses
    the exact same .class-card partial the grid view's own cells use -
@@ -9757,6 +9795,19 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
 .class-detail-v2-side h3 .icon, .class-detail-v2-description-box h3 .icon { width: 1.1rem; height: 1.1rem; color: var(--muted); }
 @media (max-width: 800px) {
   .class-detail-v2 { grid-template-columns: 1fr; }
+}
+
+/* Student Portal's own Classroom Dashboard class detail page (views/
+   student-class-detail.ejs) - its tab row is a .roster-btn-row grid of
+   standalone green pill buttons now, not the connected file-tab strip
+   .view-tab-panel's own square top-left corner was built to visually
+   join (see .view-tab/.view-tab-panel, styles.css) - a normal, fully-
+   rounded card below that row instead, same as any other standalone
+   .view-tab-panel-less content box in the app. */
+.class-detail-tab-panel { border-radius: var(--radius); margin-top: 1rem; }
+.class-detail-tab-row { margin: 1.25rem 0 0; }
+@media (max-width: 640px) {
+  .class-detail-tab-row .roster-action-btn-green { font-size: 0.78rem; padding: 0.5rem 0.4rem; }
 }
 
 /* A real request: "Class attendance view for a student should fit in
@@ -12283,6 +12334,19 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 .roster-action-btn-registered { background: #fff; border-color: var(--green); color: var(--green); }
 .roster-action-btn-registered:hover { background: var(--green-bg); border-color: var(--green); color: var(--green); }
 
+/* Student Portal's own Classroom Dashboard class detail page (views/
+   student-class-detail.ejs) - a real request: "click on the class, it
+   shows tabs for the class such as details, assignments, lessons etc.
+   All the tabs should be green buttons." Solid green instead of the
+   sitewide orange .roster-action-btn, same solid-fill/hover shape as
+   .roster-action-btn-danger; .active marks whichever tab is currently
+   open with a darker shade (text tabs can't lean on an aria-pressed
+   background-color-only cue the way an icon-btn does, since there's no
+   separate "pressed" affordance here beyond the color itself). */
+.roster-action-btn-green { background: var(--green); border-color: var(--green); color: #fff; }
+.roster-action-btn-green:hover { background: #15803d; border-color: #15803d; }
+.roster-action-btn-green.active { background: #14532d; border-color: #14532d; }
+
 /* A real request: "shrink text of member names for the register card so
    that first and last name fit on one row in mobile." */
 @media (max-width: 640px) {
@@ -13354,44 +13418,109 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
   .event-calendar-nav-btn::before {
     font-size: 0.9rem;
   }
-  .event-calendar-nav-btn:first-child::before { content: '\2190'; }
-  .event-calendar-nav-btn:last-child::before { content: '\2192'; }
+  /* A real bug report: "next arrow doesn't have an arrow" - this used to
+     key off :first-child/:last-child, which silently broke the moment
+     Student Portal's own trailing Export/Print/PDF icons (real DOM
+     siblings in the same row) pushed the Next button out of the
+     :last-child position - its text was hidden (font-size: 0 above) but
+     its own pseudo-element never matched, leaving it visibly blank, no
+     arrow at all. data-nav-dir identifies Prev/Next directly, regardless
+     of whatever else shares the row. */
+  .event-calendar-nav-btn[data-nav-dir="prev"]::before { content: '\2190'; }
+  .event-calendar-nav-btn[data-nav-dir="next"]::before { content: '\2192'; }
 }
 
-/* A real request: "Student portal, events calendar, desktop only.
-   Export, pdf and print icons should be on the same row as the month
-   and year selection, after the next arrow. Calendar view and list view
-   icons should be top right of the calendar." Scoped to Student Portal
-   only (.student-events-portal, views/events-list.ejs) - Parent
-   Portal/Main Admin/a public visitor all share this exact same toolbar
-   and calendar partial and none of them asked for this, so they keep
-   their own existing layout untouched at every width.
-   views/partials/event-calendar-grid.ejs renders a second copy of the
-   Export/Print/PDF icons (desktopTrailingIcons, right inside its own
-   Prev/Month/Year/Next row) and of the view toggle (desktopTopRightToggle,
-   directly above the grid) - real DOM at every width, not JS-moved -
-   so this pair of media queries just swaps which copy is visible: the
-   duplicates by default (and the originals above 640px), the originals
-   by default (and the duplicates at/under 640px). 640px matches this
-   same file's own existing mobile breakpoint for this toolbar (see the
-   max-width: 480px/nav-row rules just above - the row itself already
-   never wraps above 640px). */
-.student-events-portal .event-calendar-desktop-trailing-icon,
-.student-events-portal .event-calendar-desktop-view-toggle {
-  display: none;
+/* A real request: "Student portal, events tab should say event calendar.
+   Export, pdf and print icons should be in a single row, not column,
+   side by side. Calendar and list view icons should be on the same row
+   as the calendar month/year picker, appearing on the left before the
+   back arrow... Shrink to fit entire row together clean on mobile.
+   Still should be able to read the full month and year." Replaces an
+   earlier "desktop only, Export/PDF/Print after Next, view toggle on
+   its own row above the grid" design that got the icons' position
+   wrong. Deliberately NOT .roster-btn-row (styles.css's own unscoped
+   mobile rule turns any .roster-btn-row into an evenly-columned CSS
+   grid sized for a handful of equal buttons - wrong tool for 9 mixed-
+   width controls that need to shrink to icon-size while the month/year
+   selects stay legible) - this is its own flex row with its own shrink
+   rules, at every width, Student Portal only (views/events-list.ejs's
+   own leadingViewToggle/trailingIcons locals). */
+.event-calendar-nav-row-unified {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
+  width: 100%;
+  overflow: hidden;
 }
-@media (min-width: 641px) {
-  .student-events-portal .roster-toolbar .roster-btn-row > .class-schedule-view-toggle,
-  .student-events-portal .roster-toolbar .roster-btn-row > .events-toolbar-file-icon {
-    display: none;
+.event-calendar-nav-row-unified .event-calendar-nav-trailing-icon {
+  flex: 0 0 auto;
+  width: 1.9rem;
+  height: 1.9rem;
+}
+/* .roster-action-btn's own unscoped mobile rule (@media max-width: 640px
+   above, "A toolbar action that's really a tiny <form>..." block) sets
+   width: 100% on EVERY .roster-action-btn below that breakpoint,
+   regardless of whether it's actually inside a .roster-btn-row grid -
+   Prev/Next carry that class too (for the orange button styling), so
+   without this override each one filled the unified row's entire
+   remaining width at phone sizes, pushing the month/year selects, Next,
+   and the Export/Print/PDF icons off past this row's own overflow:
+   hidden edge - a real, confirmed-via-screenshot bug ("Shrink to fit
+   entire row together clean on mobile"). */
+.event-calendar-nav-row-unified .event-calendar-nav-btn {
+  flex: 0 0 auto;
+  width: auto;
+}
+.event-calendar-nav-row-unified .event-month-select,
+.event-calendar-nav-row-unified .event-year-select {
+  flex: 1 1 0;
+  min-width: 3.4rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+@media (max-width: 560px) {
+  .event-calendar-nav-row-unified { gap: 0.15rem; }
+  .event-calendar-nav-row-unified .event-calendar-nav-trailing-icon {
+    width: 1.3rem;
+    height: 1.3rem;
   }
-  .student-events-portal .event-calendar-desktop-trailing-icon {
-    display: inline-flex;
+  .event-calendar-nav-row-unified .event-calendar-nav-trailing-icon .icon {
+    width: 0.7rem;
+    height: 0.7rem;
   }
-  .student-events-portal .event-calendar-desktop-view-toggle {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 0.5rem;
+  .event-calendar-nav-row-unified .event-calendar-nav-btn {
+    padding: 0.2rem 0.2rem;
+    font-size: 0;
+  }
+  .event-calendar-nav-row-unified .event-calendar-nav-btn::before {
+    font-size: 0.7rem;
+  }
+  .event-calendar-nav-row-unified .event-calendar-nav-btn[data-nav-dir="prev"]::before { content: '\2190'; }
+  .event-calendar-nav-row-unified .event-calendar-nav-btn[data-nav-dir="next"]::before { content: '\2192'; }
+  /* "Still should be able to read the full month and year" - September
+     (the longest month name) needs real room, not just whatever's left
+     after an even 50/50 split with the 4-digit year, so month gets a
+     bigger share of this row's flex-grow leftover than year (measured
+     against this breakpoint's own font-size/padding below via a canvas
+     text-measurement check, not eyeballed) instead of the identical
+     flex: 1 1 0 both used above this breakpoint. */
+  .event-calendar-nav-row-unified .event-month-select {
+    flex: 1.6 1 0;
+    font-size: 0.68rem;
+    padding: 0.2rem 0.55rem 0.2rem 0.25rem;
+    background-position: right 0.2rem center;
+    background-size: 0.5rem;
+    min-width: 0;
+  }
+  .event-calendar-nav-row-unified .event-year-select {
+    flex: 0.9 1 0;
+    font-size: 0.68rem;
+    padding: 0.2rem 0.55rem 0.2rem 0.25rem;
+    background-position: right 0.2rem center;
+    background-size: 0.5rem;
+    min-width: 0;
   }
 }
 

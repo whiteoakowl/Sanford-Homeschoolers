@@ -163,14 +163,14 @@ test('Student Portal class detail defaults to a Details tab showing the same fie
   const loginRes = await request(app).post('/login').type('form').send({ email, password: 'testpassword123', next: '/student' });
   const cookie = loginRes.headers['set-cookie'];
 
-  const page = await request(app).get(`/student/classes/${cls.id}`).set('Cookie', cookie);
+  const page = await request(app).get(`/student/classes/dashboard/${cls.id}`).set('Cookie', cookie);
   assert.equal(page.status, 200);
-  assert.match(page.text, /class="view-tab active" href="\?tab=details">Details/);
-  assert.match(page.text, /<strong>Start Date:<\/strong> 2026-09-01/);
-  assert.match(page.text, /<strong>End Date:<\/strong> 2026-12-15/);
+  assert.match(page.text, /class="roster-action-btn roster-action-btn-green active" href="\?tab=details">Details/);
+  assert.match(page.text, /<span class="class-view-info-label">Start Date<\/span>\s*<strong class="class-view-info-value">2026-09-01/);
+  assert.match(page.text, /<span class="class-view-info-label">End Date<\/span>\s*<strong class="class-view-info-value">2026-12-15/);
   assert.match(page.text, /A backpack/);
 
-  const assignmentsTab = await request(app).get(`/student/classes/${cls.id}?tab=assignments`).set('Cookie', cookie);
+  const assignmentsTab = await request(app).get(`/student/classes/dashboard/${cls.id}?tab=assignments`).set('Cookie', cookie);
   assert.equal(assignmentsTab.status, 200);
-  assert.match(assignmentsTab.text, /class="view-tab active" href="\?tab=assignments">Assignments/);
+  assert.match(assignmentsTab.text, /class="roster-action-btn roster-action-btn-green active" href="\?tab=assignments">Assignments/);
 });

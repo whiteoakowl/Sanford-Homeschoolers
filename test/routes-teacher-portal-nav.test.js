@@ -228,6 +228,12 @@ test('Co-op Teacher Portal nav: every page carries the same centralized nav, not
   for (const url of ['/teacher', '/teacher/classes', '/teacher/attendance', '/teacher/assignments']) {
     const res = await request(app).get(url).set('Cookie', cookie);
     assert.equal(res.status, 200, `expected ${url} to render`);
-    assert.match(res.text, />Class Schedule/, `expected ${url} to show the renamed Class Schedule tab`);
+    // A real request ("two word menu titles should be split onto two
+    // rows to save room") added mobileLabel: 'Class<br>Schedule' to this
+    // same nav entry - the mobile bottom-tab's own <span> legitimately
+    // breaks "Class Schedule" across a <br> now, so this checks for
+    // either that split or the desktop sidebar's own plain-text version
+    // instead of requiring one contiguous string.
+    assert.match(res.text, /Class(<br\/?>|\s)Schedule/, `expected ${url} to show the renamed Class Schedule tab`);
   }
 });

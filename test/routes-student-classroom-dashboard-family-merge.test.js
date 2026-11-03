@@ -114,15 +114,20 @@ test('Classroom Dashboard Filter narrows to just Co-op or just Family classes, a
     .type('form')
     .send({ studentIds: String(studentId), _csrf: parentCsrf });
 
-  const all = await request(app).get('/student/classes/dashboard').set('Cookie', studentCookie);
-  assert.match(all.text, /Merge Filter Co-op Class/);
-  assert.match(all.text, /Merge Filter Family Class/);
-  assert.match(all.text, /<h2>Homeschool Family Classes<\/h2>/);
+  // A real request: "Filter button should turn into a pill slider toggle
+  // switching from co-op classes to homeschool family classes" - the old
+  // All/Co-op/Family <select> (default 'all,' both sections at once) is
+  // gone; the bare URL (no ?type=) now lands on the pill's own default,
+  // Co-op Classes, same as explicitly passing ?type=coop below.
+  const bare = await request(app).get('/student/classes/dashboard').set('Cookie', studentCookie);
+  assert.match(bare.text, /Merge Filter Co-op Class/);
+  assert.doesNotMatch(bare.text, /Merge Filter Family Class/);
+  assert.doesNotMatch(bare.text, /<h2>Homeschool Family Classes<\/h2>/);
 
-  // The Filter dropdown's own option labels always say both "Co-op
-  // Classes" and "Homeschool Family Classes" regardless of which is
-  // currently selected, so every "is this section showing" check below
-  // anchors on the actual <h2> section heading, not the bare phrase.
+  // The pill toggle's own option labels always say both "Co-op Classes"
+  // and "Homeschool Family Classes" regardless of which is currently
+  // selected, so every "is this section showing" check below anchors on
+  // the actual <h2> section heading, not the bare phrase.
   const coopOnly = await request(app).get('/student/classes/dashboard?type=coop').set('Cookie', studentCookie);
   assert.match(coopOnly.text, /Merge Filter Co-op Class/);
   assert.doesNotMatch(coopOnly.text, /Merge Filter Family Class/);

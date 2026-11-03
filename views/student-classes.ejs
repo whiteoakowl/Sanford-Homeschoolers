@@ -23,12 +23,23 @@
       Teacher or Assistant" button. %>
   <main id="main-content" tabindex="-1" class="admin-main">
     <h1>Co-op Schedule</h1>
-    <p class="hint">The co-op's current class schedule - every class scheduled this day, for browsing only.</p>
+
+    <%
+      const semesterQuery = selectedSemesterId ? `&semesterId=${selectedSemesterId}` : '';
+    %>
+    <%# A real request: "Add export, print and pdf icons. In a row, not
+        a column, clean side by side. This row should be at the top
+        under title." Its own row, not folded into the semester/view-
+        toggle/day-toggle filter-row below it - same icon-row convention
+        as every other schedule-shaped page (e.g. Co-op Teacher Portal's
+        own /teacher/classes). %>
+    <div class="co-op-schedule-file-icons no-print">
+      <a class="icon-btn" href="/student/classes/export.csv?day=<%= day %><%= semesterQuery %>" aria-label="Export CSV" title="Export CSV"><svg class="icon"><use href="#icon-download"/></svg></a>
+      <a class="icon-btn" href="/student/classes/print?day=<%= day %><%= semesterQuery %>" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
+      <a class="icon-btn" href="/student/classes/download.pdf?day=<%= day %><%= semesterQuery %>" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
+    </div>
 
     <div class="filter-row no-print">
-      <%
-        const semesterQuery = selectedSemesterId ? `&semesterId=${selectedSemesterId}` : '';
-      %>
       <div class="category-filter">
         <label for="student-schedule-semester-select">Semester</label>
         <select id="student-schedule-semester-select" onchange="window.fullscreenNavigate(this.value)">
@@ -55,15 +66,23 @@
       day,
       view,
       enrolledClassIds,
-      clickable: false,
+      clickable: true,
       registeredTitle: 'You are enrolled in this class',
     }) %>
   </main>
 
   <%# Shrinks a long class title to fit its own grid cell/card, same as
       Parent Portal's own identical grid (public/js/shrink-title-to-fit.js
-      - a generic measure-and-shrink helper, not registration-specific,
-      so this page keeps it even with clickable: false above). %>
+      - a generic measure-and-shrink helper, not registration-specific). %>
   <script src="/js/shrink-title-to-fit.js"></script>
+  <%# A real request: "Student portal, co-op schedule, should be able to
+      click on each class and view the information, student is not able
+      to register for classes." clickable: true above wires each card
+      with the same data-view-class attribute Co-op Teacher Portal's own
+      identical grid uses - this dialog/script pair is the read-only
+      info popup, never a register/cancel form. %>
+  <dialog id="student-class-dialog" class="parent-class-dialog"></dialog>
+  <script src="/js/fragment-dialog.js"></script>
+  <script src="/js/student-class-view.js"></script>
 </body>
 </html>

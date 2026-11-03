@@ -7,47 +7,115 @@
   <%- include('partials/portal-nav', { portalTitle: 'Student Portal' }) %>
 
   <main id="main-content" tabindex="-1" class="admin-main">
-    <p class="subtitle"><a href="/student/classes">&larr; My Classes</a></p>
+    <p class="subtitle"><a href="/student/classes/dashboard">&larr; Classroom Dashboard</a></p>
     <h1><%= cls.class_name %></h1>
-    <p class="hint">
-      <%= cls.dayLabel %> &middot; <%= cls.timeLabel %>
-      <% if (cls.room) { %> &middot; <%= cls.room %><% } %>
-      <% if (cls.teacherNames.length) { %> &middot; <%= cls.teacherNames.join(', ') %><% } %>
-    </p>
-    <% if (cls.description) { %><div class="hint forum-editable-display"><%- cls.description %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
 
-    <%# One specific class's own tabs - no top-level nav entry to attach a
-        popup to (reached by clicking into a class, not from the nav), so
-        this stays the plain connected file-tab strip every other tabbed
-        page used before the orange-bar popup existed, instead of a popup
-        with nothing to open it from. %>
-    <div class="view-tabs no-print">
-      <a class="view-tab<%= tab === 'details' ? ' active' : '' %>" href="?tab=details">Details</a>
-      <a class="view-tab<%= tab === 'assignments' ? ' active' : '' %>" href="?tab=assignments">Assignments</a>
-      <a class="view-tab<%= tab === 'lessons' ? ' active' : '' %>" href="?tab=lessons">Lessons</a>
-      <a class="view-tab<%= tab === 'forum' ? ' active' : '' %>" href="?tab=forum">Class Forum</a>
-      <a class="view-tab<%= tab === 'resources' ? ' active' : '' %>" href="?tab=resources">Resources</a>
-      <a class="view-tab<%= tab === 'attendance' ? ' active' : '' %>" href="?tab=attendance">Attendance</a>
-      <a class="view-tab<%= tab === 'assessments' ? ' active' : '' %>" href="?tab=assessments">Assessments</a>
-      <a class="view-tab<%= tab === 'grades' ? ' active' : '' %>" href="?tab=grades">Grades</a>
+    <%# A real request: "click on the class, it shows tabs for the class
+        such as details, assignments, lessons etc. All the tabs should
+        be green buttons in two clean rows, shrink to fit text properly
+        on mobile." Same .roster-btn-row/roster-btn-row-grid.js system
+        every other many-button toolbar in the app already uses to lay
+        itself out in the fewest rows at <=4 columns (8 tabs here always
+        means exactly 2 rows of 4), just with a green .roster-action-btn
+        variant instead of orange, since these are page-section tabs, not
+        toolbar actions - no top-level nav entry to attach an orange-bar
+        popup to either (reached by clicking into a class, not from the
+        nav), so this stays its own in-page tab strip. %>
+    <div class="roster-btn-row class-detail-tab-row no-print">
+      <a class="roster-action-btn roster-action-btn-green<%= tab === 'details' ? ' active' : '' %>" href="?tab=details">Details</a>
+      <a class="roster-action-btn roster-action-btn-green<%= tab === 'assignments' ? ' active' : '' %>" href="?tab=assignments">Assignments</a>
+      <a class="roster-action-btn roster-action-btn-green<%= tab === 'lessons' ? ' active' : '' %>" href="?tab=lessons">Lessons</a>
+      <a class="roster-action-btn roster-action-btn-green<%= tab === 'forum' ? ' active' : '' %>" href="?tab=forum">Class Forum</a>
+      <a class="roster-action-btn roster-action-btn-green<%= tab === 'resources' ? ' active' : '' %>" href="?tab=resources">Resources</a>
+      <a class="roster-action-btn roster-action-btn-green<%= tab === 'attendance' ? ' active' : '' %>" href="?tab=attendance">Attendance</a>
+      <a class="roster-action-btn roster-action-btn-green<%= tab === 'assessments' ? ' active' : '' %>" href="?tab=assessments">Assessments</a>
+      <a class="roster-action-btn roster-action-btn-green<%= tab === 'grades' ? ' active' : '' %>" href="?tab=grades">Grades</a>
     </div>
 
-    <div class="view-tab-panel">
+    <div class="view-tab-panel class-detail-tab-panel">
       <% if (tab === 'details') { %>
         <%# A real request: "Details should have teachers, assistants,
             room number, start and end dates, start and end time, day of
-            the week, class description, supply list." Room/day/time/
-            teacher(s)/description already show in the page header above
-            these tabs - the rest lives here, matching Parent Portal's
-            own Details tab (views/parent-class-dashboard-detail.ejs). %>
-        <p><strong>Assistant(s):</strong> <%= cls.assistantNames && cls.assistantNames.length ? cls.assistantNames.join(', ') : 'None assigned' %></p>
-        <p><strong>Start Date:</strong> <%= cls.start_date || 'Not set' %></p>
-        <p><strong>End Date:</strong> <%= cls.end_date || 'Not set' %></p>
-        <p><strong>Grade/Age:</strong> <%= cls.gradeLabel || 'Not set' %></p>
-        <% if (cls.supply_list) { %>
-          <p><strong>Supply List:</strong></p>
-          <p class="hint" style="white-space: pre-wrap;"><%= cls.supply_list %></p>
+            the week, class description, supply list... click on the
+            class will show the class details, see image attached for
+            what to copy. Instead of the registration section include
+            the class details, and supply list." Same class-detail-v2
+            card Parent Portal's own Classroom Dashboard Details tab
+            already redesigned to match that reference image (views/
+            parent-class-dashboard-detail.ejs) - a row of labeled icon
+            fields next to a Supply List box, Class Description as its
+            own box underneath - instead of the old plain label/value
+            list this tab used to show. %>
+        <div class="class-detail-v2">
+          <div class="class-detail-v2-rows">
+            <div class="class-view-info-item">
+              <svg class="icon"><use href="#icon-calendar-check"/></svg>
+              <div>
+                <span class="class-view-info-label">Schedule</span>
+                <strong class="class-view-info-value"><%= cls.dayLabel %> &middot; <%= cls.timeLabel %></strong>
+              </div>
+            </div>
+            <div class="class-view-info-item">
+              <svg class="icon"><use href="#icon-user"/></svg>
+              <div>
+                <span class="class-view-info-label">Teacher(s)</span>
+                <strong class="class-view-info-value"><%= cls.teacherNames.length ? cls.teacherNames.join(', ') : 'None assigned' %></strong>
+              </div>
+            </div>
+            <div class="class-view-info-item">
+              <svg class="icon"><use href="#icon-users"/></svg>
+              <div>
+                <span class="class-view-info-label">Assistant(s)</span>
+                <strong class="class-view-info-value"><%= cls.assistantNames && cls.assistantNames.length ? cls.assistantNames.join(', ') : 'None assigned' %></strong>
+              </div>
+            </div>
+            <div class="class-view-info-item">
+              <svg class="icon"><use href="#icon-calendar-check"/></svg>
+              <div>
+                <span class="class-view-info-label">Start Date</span>
+                <strong class="class-view-info-value"><%= cls.start_date || 'Not set' %></strong>
+              </div>
+            </div>
+            <div class="class-view-info-item">
+              <svg class="icon"><use href="#icon-calendar-check"/></svg>
+              <div>
+                <span class="class-view-info-label">End Date</span>
+                <strong class="class-view-info-value"><%= cls.end_date || 'Not set' %></strong>
+              </div>
+            </div>
+            <div class="class-view-info-item">
+              <svg class="icon"><use href="#icon-graduation-cap"/></svg>
+              <div>
+                <span class="class-view-info-label">Grade/Age</span>
+                <strong class="class-view-info-value"><%= cls.gradeLabel || 'Not set' %></strong>
+              </div>
+            </div>
+            <div class="class-view-info-item">
+              <svg class="icon"><use href="#icon-map-pin"/></svg>
+              <div>
+                <span class="class-view-info-label">Room</span>
+                <strong class="class-view-info-value"><%= cls.room || 'Not set' %></strong>
+              </div>
+            </div>
+            <div class="class-view-info-item">
+              <svg class="icon"><use href="#icon-users"/></svg>
+              <div>
+                <span class="class-view-info-label">Enrolled</span>
+                <strong class="class-view-info-value"><%= cls.studentCount %><% if (cls.capacity != null) { %> / <%= cls.capacity %><% } %></strong>
+              </div>
+            </div>
+          </div>
+          <div class="class-detail-v2-side">
+            <h3><svg class="icon"><use href="#icon-clipboard-list"/></svg> Supply List</h3>
+            <p class="hint" style="white-space: pre-wrap;"><%= cls.supply_list || 'No supplies required.' %></p>
+          </div>
+        </div>
+        <% if (cls.description) { %>
+          <div class="class-detail-v2-description-box">
+            <h3><svg class="icon"><use href="#icon-megaphone"/></svg> Class Description</h3>
+            <div class="hint forum-editable-display"><%- cls.description %></div>
+          </div>
         <% } %>
       <% } else if (tab === 'assignments') { %>
         <% if (assignments.length === 0) { %>
