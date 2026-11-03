@@ -30,7 +30,7 @@ const { lessonAttachmentFileFilter, imageFileFilter } = require('../utils/upload
 // admin-authored plan - that flag didn't exist when this was first
 // built). isLessonPlanLocked is the one shared lock lookup (see its own
 // comment in utils/lessonPlans.js).
-const { listFamilySchoolLessonPlans, getLessonPlan, isLessonPlanLocked } = require('../utils/lessonPlans');
+const { listFamilySchoolLessonPlans, getLessonPlan, isLessonPlanLocked, contentItemsForLessonPlan } = require('../utils/lessonPlans');
 const {
   CONTENT_ITEM_TYPES,
   classesForFamily,
@@ -322,6 +322,27 @@ router.post('/family-school/classes/from-lesson-plan', requirePortalPermission('
   const id = await createClassFromLessonPlan(lessonPlanId, familyId, req.portalAccount.id);
   if (!id) return res.redirect('/parent/family-school/classes?tab=availableLessonPlans&error=' + encodeURIComponent('Choose a lesson plan from the library.'));
   res.redirect(`/parent/family-school/classes/${id}?notice=` + encodeURIComponent('Class created from the Lesson Plans library.'));
+});
+
+// A real request: "When view lesson plan library you see the classes
+// available. There should be a view button to view the lesson plan
+// entirely in view mode." Read-only preview of a single plan's content
+// before adding it to the Family Class List - no includeAnswerKey (same
+// reasoning as every other non-admin content read), just title/
+// description/content items, same shape views/partials/family-school-
+// content-manage.ejs's own sourcePlanLocal branch already renders
+// read-only once a plan IS linked into a class.
+router.get('/family-school/lesson-plans/:id', requirePortalPermission('view_fsm_classes'), async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const plan = id ? await getLessonPlan(id) : null;
+  if (!plan || !plan.allow_family_school_use) return res.status(404).send('Not found');
+  res.render('parent-lesson-plan-view', {
+    title: plan.title,
+    plan,
+    contentItems: await contentItemsForLessonPlan(id),
+    notice: req.query.notice || null,
+    error: req.query.error || null,
+  });
 });
 
 router.post('/family-school/classes/:id/delete', requirePortalPermission('view_fsm_classes'), async (req, res) => {

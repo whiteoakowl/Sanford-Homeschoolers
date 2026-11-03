@@ -33,8 +33,28 @@ function allMigrationSql() {
     .join('\n');
 }
 
+// A real Supabase project already has its own internal `storage` schema
+// (storage.buckets, storage.objects, ...) before any of OUR migrations
+// ever run - it's part of the platform, not something this app's own
+// supabase/migrations/*.sql creates. supabase/migrations/20261227010000_
+// storage_buckets.sql assumes that and just inserts rows into the
+// existing storage.buckets table - which a bare PGlite instance (no
+// Supabase platform underneath it) never has, breaking every single
+// test in the suite with "relation storage.buckets does not exist" the
+// moment that migration runs. This stub mirrors only the handful of
+// columns that one insert actually touches (id/name/public), same
+// "mirror what a real Supabase database already has" reasoning this
+// file's own header comment gives for applying every migration in
+// order - just for a piece of the platform that isn't a migration at
+// all.
+async function ensureStorageSchemaStub(pglite) {
+  await pglite.exec('create schema if not exists storage;');
+  await pglite.exec('create table if not exists storage.buckets (id text primary key, name text not null, public boolean not null default false);');
+}
+
 async function createTestDb({ seed = true } = {}) {
   const pglite = new PGlite();
+  await ensureStorageSchemaStub(pglite);
   await pglite.exec(allMigrationSql());
 
   const db = createPgliteDb(pglite);
