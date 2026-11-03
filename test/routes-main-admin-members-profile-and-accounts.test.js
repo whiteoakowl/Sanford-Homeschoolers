@@ -97,7 +97,9 @@ test('member profile page has Profile/Class Schedule/Attendance tabs, no Edit Pe
   const scheduleTab = await request(app).get(`/main-admin/members/${memberId}?tab=schedule`).set('Cookie', cookie);
   assert.equal(scheduleTab.status, 200);
   assert.match(scheduleTab.text, /<a class="view-tab active" href="\/main-admin\/members\/\d+\?tab=schedule">Class Schedule<\/a>/);
-  assert.match(scheduleTab.text, /No classes on Monday yet\./);
+  // The shared member schedule table's own empty state (a member with no
+  // classes at all), not per-day tables anymore.
+  assert.match(scheduleTab.text, /<p class="member-schedule-empty">No classes scheduled\.<\/p>/);
 
   const attendanceTab = await request(app).get(`/main-admin/members/${memberId}?tab=attendance`).set('Cookie', cookie);
   assert.equal(attendanceTab.status, 200);

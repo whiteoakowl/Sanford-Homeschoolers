@@ -24,7 +24,8 @@ const { BADGE_WIDTH, BADGE_HEIGHT } = require('../utils/nameTagBadge');
 const { getTemplate, badgeDataForMember } = require('../utils/nameTagData');
 const { CARD_WIDTH, CARD_HEIGHT } = require('../utils/scheduleCardBadge');
 const { scheduleCardDataForMember, getScheduleCardTemplate } = require('../utils/scheduleCardData');
-const { getMemberSchedule } = require('../utils/schedule');
+const { memberScheduleTables } = require('../utils/schedule');
+const { sortFamilyForPrint } = require('../utils/memberScheduleOutput');
 const NameTagRenderCore = require('../public/js/name-tag-render-core');
 const {
   familyOf,
@@ -349,7 +350,7 @@ router.get('/members/:id/cards-fragment', async (req, res) => {
 router.get('/members/:id/schedule-fragment', async (req, res) => {
   const member = await db.prepare('SELECT * FROM members WHERE id = ?').get(parseInt(req.params.id, 10));
   if (!member) return res.status(404).send('Not found');
-  res.render('member-schedule-fragment', { member, schedule: await getMemberSchedule(member.id), dayLabels: CLASS_DAY_LABELS_FULL });
+  res.render('member-schedule-fragment', { member, scheduleTables: await memberScheduleTables([member]) });
 });
 
 // Exports every field a member's profile can hold - the same information
@@ -647,12 +648,11 @@ router.get('/members/:id', async (req, res) => {
     // options so it can show who's selected.
     familyRoster,
     rosters: await rostersForMember(id),
-    schedule: await getMemberSchedule(id),
-    dayLabels: CLASS_DAY_LABELS_FULL,
     scheduleFamilyAll,
-    familySchedules: scheduleFamilyAll
-      ? await Promise.all(familyRoster.map(async (m) => ({ member: m, schedule: await getMemberSchedule(m.id) })))
-      : null,
+    // The shared member schedule table (partials/member-schedule-
+    // table.ejs) - just this member, or the whole family for "All"
+    // (parents first, then students oldest first, same as its Print).
+    scheduleTables: tab === 'schedule' ? await memberScheduleTables(scheduleFamilyAll ? sortFamilyForPrint(familyRoster) : [member]) : null,
     attendanceFamilyAll,
     history: attendanceFamilyAll ? null : groupAttendanceByRoster(formatAttendanceHistory(await attendanceHistoryForMember(id))),
     familyAttendanceHistories: attendanceFamilyAll

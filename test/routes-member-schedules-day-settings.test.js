@@ -92,8 +92,9 @@ test('a Tuesday class enrollment shows up on the member profile Schedule tab, it
 
   const csv = await request(app).get('/admin/schedule/export.csv').set('Cookie', admin.cookie);
   assert.equal(csv.status, 200);
-  assert.match(csv.text, /tuesday/);
-  assert.match(csv.text, /Tuesday Robotics/);
+  // Day column is the shared member schedule table's own short day name
+  // ("Mon"/"Tue"/... - see utils/schedule.js's memberScheduleCsvLines).
+  assert.match(csv.text, /"Tuesday Schedule Kid","Signed Up","Tuesday Robotics","","","","Tue"/);
 
   const manage = await request(app).get(`/admin/schedule/member/${studentId}/manage`).set('Cookie', admin.cookie);
   assert.equal(manage.status, 200);

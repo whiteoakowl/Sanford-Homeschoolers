@@ -6,10 +6,11 @@ const fs = require('fs');
 const db = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
-const { isValidISODate, easternInputToUtcText, utcTextToEasternInput, formatTimestamp, formatDateLabel, ageFromBirthday, todayISO, weekdayOf } = require('../utils/dates');
+const { isValidISODate, easternInputToUtcText, utcTextToEasternInput, formatTimestamp, formatDateLabel, todayISO, weekdayOf } = require('../utils/dates');
 const { listWindows, createWindow, updateWindow, deleteWindow, cloneRegistrationWindowsFromMostRecentSemester } = require('../utils/registrationWindows');
-const { toCsvRow, sendCsv, buildTemplateWorkbook, readRowsFromFile } = require('../utils/spreadsheet');
-const { getMemberSchedule, schedulesForMembers, scheduleList } = require('../utils/schedule');
+const { sendCsv, buildTemplateWorkbook, readRowsFromFile } = require('../utils/spreadsheet');
+const { schedulesForMembers, scheduleMembers, memberScheduleTables } = require('../utils/schedule');
+const { sendMemberSchedules, sortFamilyForPrint } = require('../utils/memberScheduleOutput');
 const { byLastName, allFamilies } = require('../utils/members');
 const { allClassRegistrationActions, buildClassRegistrationLogExportCsvLines } = require('../utils/classRegistration');
 const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('../utils/pagination');
@@ -107,6 +108,30 @@ function groupClassRegistrationActionsByDate(actions) {
 const SETTINGS_SUBTABS = ['general', 'registration-schedule'];
 const MEMBER_TYPE_FILTERS = ['student', 'parent'];
 const PAGE_SIZE = 25;
+
+// The Member Schedules tab's Filter popup (?type=/?familyId=/?memberId=)
+// - shared by the list itself and its Export/PDF/Print, so all four
+// always cover exactly the same members. A Parent-filtered (or
+// unfiltered) view includes admin/leader members too (see the list
+// route's own comment).
+function memberScheduleFilters(req) {
+  const typeFilter = MEMBER_TYPE_FILTERS.includes(req.query.type) ? req.query.type : '';
+  const memberType = typeFilter === 'student' ? 'student' : typeFilter === 'parent' ? ['parent', 'admin'] : ['student', 'parent', 'admin'];
+  const selectedMemberId = req.query.memberId ? parseInt(req.query.memberId, 10) || null : null;
+  // "add to the filter, filter by family name. then you can see the whole
+  // families schedules at once" - a real request.
+  const selectedFamilyId = req.query.familyId ? parseInt(req.query.familyId, 10) || null : null;
+  const filters = { memberType, memberId: selectedMemberId || undefined, familyId: selectedFamilyId || undefined };
+  return { typeFilter, memberType, selectedMemberId, selectedFamilyId, filters };
+}
+
+// Members for the Export/PDF/Print routes below - a family filter prints
+// parents first, then students oldest first (see sortFamilyForPrint).
+async function memberScheduleOutputMembers(req) {
+  const { filters, selectedFamilyId } = memberScheduleFilters(req);
+  const members = await scheduleMembers(filters);
+  return selectedFamilyId ? sortFamilyForPrint(members) : members;
+}
 
 // A real request: "I need to be able to switch between semester views
 // on... classes." The Classes grid itself still loads every class for
@@ -321,43 +346,14 @@ router.get('/schedule', requireAdmin, async (req, res) => {
   // show admins. wherever there is a parent filter it should include
   // admins too." Admins regularly teach/assist/floater/staff a team just
   // like any other adult, so their own schedule belongs here.
-  const typeFilter = MEMBER_TYPE_FILTERS.includes(req.query.type) ? req.query.type : '';
-  const memberType = typeFilter === 'student' ? 'student' : typeFilter === 'parent' ? ['parent', 'admin'] : ['student', 'parent', 'admin'];
-  const selectedMemberId = req.query.memberId ? parseInt(req.query.memberId, 10) : null;
-  // "add to the filter, filter by family name. then you can see the whole
-  // families schedules at once" - a real request. scheduleList already
-  // supported filters.familyId (the Print route has used it for a while,
-  // see /admin/schedule/print?familyId= below) - this just exposes the
-  // same filter on the main Member Schedules list.
-  const selectedFamilyId = req.query.familyId ? parseInt(req.query.familyId, 10) : null;
-  const filters = { memberType, memberId: selectedMemberId || undefined, familyId: selectedFamilyId || undefined };
+  const { typeFilter, memberType, selectedMemberId, selectedFamilyId, filters } = memberScheduleFilters(req);
 
-  const rows = await scheduleList(filters);
-
-  const scheduleCardTemplate = await getScheduleCardTemplate();
-  const scheduleCardBgCss = NameTagRenderCore.backgroundCss(scheduleCardTemplate.background, scheduleCardTemplate.backgroundOpacity);
-
-  // r already carries this member's own already-computed monday/wednesday
-  // rows (scheduleList batches the whole day once - see its own comment) -
-  // passing them through as scheduleByMember skips scheduleCardDataForMembers'
-  // own getMemberSchedule call, which would otherwise redo that same live
-  // computation a second time per member on this page. This also batches
-  // the primaryParentFor phone-number lookup that a per-member
-  // scheduleCardDataForMember call would otherwise redo once per row (the
-  // same N+1 shape a real ~800-card bulk print timed out on - see
-  // scheduleCardDataForMembers' own comment) - this page can list every
-  // active member of a type at once.
-  const scheduleByMember = {};
-  for (const r of rows) scheduleByMember[r.member.id] = { monday: r.byDay.monday, wednesday: r.byDay.wednesday };
-  const cardDataByMember = await scheduleCardDataForMembers(
-    rows.map((r) => r.member),
-    scheduleByMember
-  );
-  const summarized = rows.map((r) => ({
-    member: r.member,
-    scheduleCardHtml: NameTagRenderCore.renderBadgeElements(scheduleCardTemplate.elements, cardDataByMember[r.member.id]),
-  }));
-  summarized.sort((a, b) => byLastName(a.member, b.member));
+  // A real request: "Each member's schedule should look like this image"
+  // - each member is now the shared Class Details / Location/ Instructor
+  // / Price table (partials/member-schedule-table.ejs) instead of their
+  // designed Schedule Card (that card still lives on Design > Print).
+  // Only the current page's members get their table computed.
+  const members = await scheduleMembers(filters);
 
   const memberTypes = Array.isArray(memberType) ? memberType : [memberType];
   const allNames = (
@@ -367,21 +363,18 @@ router.get('/schedule', requireAdmin, async (req, res) => {
   ).sort(byLastName);
 
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-  const totalPages = Math.max(1, Math.ceil(summarized.length / PAGE_SIZE));
-  const pageRows = summarized.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
+  const pageMembers = members.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   res.render('admin-schedule', {
     title: 'Schedules',
     tab,
     topTab: tab,
     typeFilter,
-    rows: pageRows,
-    totalCount: summarized.length,
+    tables: await memberScheduleTables(pageMembers),
+    totalCount: members.length,
     page,
     totalPages,
-    scheduleCardBgCss,
-    cardWidth: CARD_WIDTH,
-    cardHeight: CARD_HEIGHT,
     allNames,
     selectedMemberId,
     families: await allFamilies(),
@@ -969,12 +962,10 @@ router.get('/schedule/member/:id/manage', requireFullAdmin, async (req, res) => 
   const id = parseInt(req.params.id, 10);
   const member = await db.prepare('SELECT * FROM members WHERE id = ?').get(id);
   if (!member) return res.status(404).send('Not found');
-  const schedule = await getMemberSchedule(id);
   res.render('admin-schedule-manage', {
     title: `Schedule - ${member.name}`,
     member,
-    schedule,
-    dayLabels: CLASS_DAY_LABELS,
+    scheduleTables: await memberScheduleTables([member]),
     // "All Schedules" back-link on the merged Member Schedules tab -
     // carries this member's own type along as the Filter popup's ?type=
     // so the admin lands back on a sensibly-scoped view instead of
@@ -1030,117 +1021,29 @@ router.get('/schedule/classregistrationlog/download.pdf', requireAdmin, async (r
   res.send(pdf);
 });
 
+// Member Schedules' own Export / PDF / Print (and the same three icons on
+// the Co-op Admin member profile's Class Schedule tab, the Members page's
+// Schedule dialog, and /schedule/member/:id/manage - all just these
+// routes with ?memberId= or ?familyId=). Same ?type=/?familyId=/?memberId=
+// filter the on-screen list uses (memberScheduleFilters), same shared
+// table (utils/memberScheduleOutput.js) - a real request: "the download
+// should be a pdf of exactly how it would also look when printing."
 router.get('/schedule/export.csv', requireFullAdmin, async (req, res) => {
-  const activeDays = await listActiveClassDays();
-  const filters = {
-    search: (req.query.search || '').trim(),
-    day: activeDays.includes(req.query.day) ? req.query.day : '',
-    grade: req.query.grade || '',
-    teacher: req.query.teacher || '',
-    room: req.query.room || '',
-    className: req.query.className || '',
-    rosterId: req.query.rosterId ? parseInt(req.query.rosterId, 10) : null,
-    memberId: req.query.memberId ? parseInt(req.query.memberId, 10) : null,
-  };
-  const rows = await scheduleList(filters);
-
-  const lines = [toCsvRow(['Member Name', 'Day', 'Class Number', 'Time', 'Class Name', 'Room', 'Teacher'])];
-  rows.forEach((r) => {
-    activeDays.forEach((day) => {
-      r.byDay[day].forEach((c) => {
-        if (!c.class_name && !c.room && !c.time && !c.teacher) return;
-        lines.push(toCsvRow([r.member.name, day, c.class_number, c.time || '', c.class_name || '', c.room || '', c.teacher || '']));
-      });
-    });
-  });
-
-  sendCsv(res, 'class-schedules.csv', lines);
+  await sendMemberSchedules(req, res, 'csv', { members: await memberScheduleOutputMembers(req), filenameBase: 'member-schedules' });
 });
 
 router.get('/schedule/print', requireFullAdmin, async (req, res) => {
-  const familyId = req.query.familyId ? parseInt(req.query.familyId, 10) : null;
-  const activeDays = await listActiveClassDays();
-  const filters = {
-    search: (req.query.search || '').trim(),
-    day: activeDays.includes(req.query.day) ? req.query.day : '',
-    grade: req.query.grade || '',
-    teacher: req.query.teacher || '',
-    room: req.query.room || '',
-    className: req.query.className || '',
-    rosterId: req.query.rosterId ? parseInt(req.query.rosterId, 10) : null,
-    memberId: req.query.memberId ? parseInt(req.query.memberId, 10) : null,
-    familyId,
-  };
-  let rows = await scheduleList(filters);
-  // A family's "View All" print (routes/admin-members.js's Class Schedule
-  // tab) uses a compact one-row-per-member table instead of the normal
-  // one-card-per-member layout below - a family of even 3-4 people
-  // already runs each member's own two full 4-row day tables past a
-  // single printed page, which defeats the entire point of printing them
-  // together.
-  // A real request: "List parents first, then students starting with the
-  // oldest." scheduleList's own default order is just byLastName - only
-  // reordered here, for this one family print, not the Class Schedules
-  // page's own list.
-  if (familyId) {
-    rows = [...rows].sort((a, b) => {
-      const aIsStudent = a.member.member_type === 'student';
-      const bIsStudent = b.member.member_type === 'student';
-      if (aIsStudent !== bIsStudent) return aIsStudent ? 1 : -1;
-      if (aIsStudent) {
-        const aAge = ageFromBirthday(a.member.birthday);
-        const bAge = ageFromBirthday(b.member.birthday);
-        if (aAge == null && bAge == null) return 0;
-        if (aAge == null) return 1;
-        if (bAge == null) return -1;
-        return bAge - aAge;
-      }
-      return 0;
-    });
-  }
-  res.render('admin-schedule-print', { title: 'Print Schedules', rows, activeDays, dayLabels: CLASS_DAY_LABELS, compact: !!familyId });
+  await sendMemberSchedules(req, res, 'print', { members: await memberScheduleOutputMembers(req) });
 });
 
-// A real request: "the download should be a pdf of exactly how it would
-// also look when printing" - same filtered/sorted rows the Print preview
-// above renders, now a PDF built from the exact same -print.ejs view.
 router.get('/schedule/download.pdf', requireFullAdmin, async (req, res) => {
-  const familyId = req.query.familyId ? parseInt(req.query.familyId, 10) : null;
-  const activeDays = await listActiveClassDays();
-  const filters = {
-    search: (req.query.search || '').trim(),
-    day: activeDays.includes(req.query.day) ? req.query.day : '',
-    grade: req.query.grade || '',
-    teacher: req.query.teacher || '',
-    room: req.query.room || '',
-    className: req.query.className || '',
-    rosterId: req.query.rosterId ? parseInt(req.query.rosterId, 10) : null,
-    memberId: req.query.memberId ? parseInt(req.query.memberId, 10) : null,
-    familyId,
-  };
-  let rows = await scheduleList(filters);
-  if (familyId) {
-    rows = [...rows].sort((a, b) => {
-      const aIsStudent = a.member.member_type === 'student';
-      const bIsStudent = b.member.member_type === 'student';
-      if (aIsStudent !== bIsStudent) return aIsStudent ? 1 : -1;
-      if (aIsStudent) {
-        const aAge = ageFromBirthday(a.member.birthday);
-        const bAge = ageFromBirthday(b.member.birthday);
-        if (aAge == null && bAge == null) return 0;
-        if (aAge == null) return 1;
-        if (bAge == null) return -1;
-        return bAge - aAge;
-      }
-      return 0;
-    });
-  }
   // See the Class Registration Log download.pdf route's own comment
   // above on why isFullAdmin has to be passed through by hand here.
-  const pdf = await renderViewToPdf(req, 'admin-schedule-print', { title: 'Print Schedules', rows, activeDays, dayLabels: CLASS_DAY_LABELS, compact: !!familyId, isFullAdmin: res.locals.isFullAdmin });
-  res.set('Content-Type', 'application/pdf');
-  res.set('Content-Disposition', 'attachment; filename="class-schedules.pdf"');
-  res.send(pdf);
+  await sendMemberSchedules(req, res, 'pdf', {
+    members: await memberScheduleOutputMembers(req),
+    filenameBase: 'member-schedules',
+    extraLocals: { isFullAdmin: res.locals.isFullAdmin },
+  });
 });
 
 module.exports = router;

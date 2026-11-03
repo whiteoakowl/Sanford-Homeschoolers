@@ -2,32 +2,18 @@
     the shared public/js/fragment-dialog.js helper - fetched only when the
     Schedule button is actually clicked, not server-rendered for every row
     on the Members page (see admin-members.ejs and
-    routes/admin-members.js's /members/:id/schedule-fragment for why: this
-    was one getMemberSchedule() query per member, on every page load,
-    whether or not anyone ever opened it). %>
-<h3>Class Schedule &mdash; <%= member.name %></h3>
-<%# A real request: "Full 7 day expansion..." - this used to be a fixed
-    Monday/Wednesday pair; schedule.activeDays is every day activated on
-    Settings > Day Settings. %>
-<% schedule.activeDays.forEach(function(d) { %>
-  <% var dayRows = schedule.byDay[d]; %>
-  <h4><%= dayLabels[d] %></h4>
-  <table class="roster-table schedule-print-table">
-    <thead><tr><th>#</th><th>Time</th><th>Class Name</th><th>Room</th></tr></thead>
-    <tbody>
-      <% dayRows.forEach(function(c, i) { %>
-        <tr>
-          <td><%= i + 1 %></td>
-          <td><%= c.time || '—' %></td>
-          <td><%= c.class_name || '—' %></td>
-          <td><%= c.room || '—' %></td>
-        </tr>
-      <% }); %>
-    </tbody>
-  </table>
-<% }); %>
+    routes/admin-members.js's /members/:id/schedule-fragment for why).
+    Same shared member schedule table every other member schedule
+    surface uses (partials/member-schedule-table.ejs), name heading
+    included, with the same Export/PDF/Print row. %>
+<div class="member-schedule-dialog-body">
+  <%- include('partials/member-schedule-table', { tables: scheduleTables, headingLevel: 2, classHref: function (id) { return '/admin/class-schedule/classes/' + id + '/manage'; } }) %>
+</div>
 <div class="notes-dialog-actions">
   <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Close</button>
-  <a class="primary-btn" href="/admin/schedule/print?memberId=<%= member.id %>" target="_blank">Print</a>
-  <a class="icon-btn" href="/admin/schedule/download.pdf?memberId=<%= member.id %>" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
+  <%- include('partials/member-schedule-actions', {
+    exportHref: '/admin/schedule/export.csv?memberId=' + member.id,
+    pdfHref: '/admin/schedule/download.pdf?memberId=' + member.id,
+    printHref: '/admin/schedule/print?memberId=' + member.id,
+  }) %>
 </div>

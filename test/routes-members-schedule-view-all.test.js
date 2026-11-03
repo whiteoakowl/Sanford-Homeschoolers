@@ -1,11 +1,9 @@
 // Coverage for the Members tab's Class Schedule "View All" feature: the
 // Family Member dropdown gets an "All" choice that shows every family
-// member's schedule on the profile page, and its Print link renders a
-// compact one-row-per-member table (routes/admin-schedule.js's /schedule/
-// print with a familyId filter, admin-schedule-print.ejs's compact mode)
-// instead of the normal one-full-card-per-member layout - a family of
-// even 3-4 people already runs the normal layout well past one printed
-// page.
+// member's schedule on the profile page, and its Print link renders every
+// family member's own name-headed schedule section (routes/admin-
+// schedule.js's /schedule/print with a familyId filter, the shared
+// partials/member-schedule-table.ejs).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -69,31 +67,31 @@ test('Members Class Schedule tab: "View All" and its compact family print', asyn
     assert.match(res.text, /View All Parent/);
     assert.match(res.text, /View All Student/);
     assert.match(res.text, /View All Test Class/);
-    // A real request: "print all schedules should say print schedules
-    // and should be at the top of the page."
-    assert.match(res.text, />Print Schedules</);
+    // A real request: "print all schedules ... should be at the top of
+    // the page" - now the shared Export/PDF/Print row (a later request:
+    // "All member schedule pages, tabs etc. Should have export, pdf and
+    // print icons, in a row side by side"), still ahead of every member.
     assert.doesNotMatch(res.text, /Print All Schedules/);
-    const printBtnIdx = res.text.indexOf('>Print Schedules<');
-    const firstMemberCardIdx = res.text.indexOf('member-profile-family-schedule-card');
-    assert.ok(printBtnIdx > -1 && printBtnIdx < firstMemberCardIdx, 'Print Schedules should come before the family members\' own cards');
+    const actionsIdx = res.text.indexOf('member-schedule-actions');
+    const firstMemberIdx = res.text.indexOf('<section class="member-schedule">');
+    assert.ok(actionsIdx > -1 && actionsIdx < firstMemberIdx, 'Export/PDF/Print should come before the family members\' own schedules');
     assert.match(res.text, new RegExp(`/admin/schedule/print\\?familyId=${familyId}`));
+    assert.match(res.text, new RegExp(`/admin/schedule/export\\.csv\\?familyId=${familyId}`));
   });
 
-  await t.test('the compact family print shows a stacked name-above-schedule section per family member, not the other family\'s parent', async () => {
+  await t.test('the family print shows a name-headed schedule section per family member, not the other family\'s parent', async () => {
     const res = await request(app).get(`/admin/schedule/print?familyId=${familyId}`).set('Cookie', cookie);
     assert.equal(res.status, 200);
     // A real bug report ("bleeds off the page... put the name above each
-    // members class schedule section") replaced the old shared 3-column
-    // (Name/Monday/Wednesday) table with a stacked section per member -
-    // see admin-schedule-print.ejs's own comment on why.
-    assert.match(res.text, /schedule-print-member-section/, 'expected the stacked name-above-schedule section layout, not the old name-column table');
-    assert.doesNotMatch(res.text, /schedule-print-compact-table/);
-    assert.match(res.text, /View All Parent/);
-    assert.match(res.text, /View All Student/);
+    // members class schedule section") - each member is its own section,
+    // name as a heading above their table (the shared member schedule
+    // table every on-screen schedule uses).
+    assert.match(res.text, /<section class="member-schedule">\s*<h2 class="member-schedule-name">View All Parent<\/h2>/);
+    assert.match(res.text, /<section class="member-schedule">\s*<h2 class="member-schedule-name">View All Student<\/h2>/);
     assert.match(res.text, /View All Test Class/);
     assert.doesNotMatch(res.text, /Other Family Parent/, 'a different family\'s member must not appear in this family\'s print');
-    // The normal per-member card layout must NOT also render alongside it.
-    assert.doesNotMatch(res.text, /schedule-print-card/);
+    // Parents first, then students.
+    assert.ok(res.text.indexOf('>View All Parent<') < res.text.indexOf('>View All Student<'));
   });
 
   await t.test('a solo member (no family) never gets the "All" option', async () => {

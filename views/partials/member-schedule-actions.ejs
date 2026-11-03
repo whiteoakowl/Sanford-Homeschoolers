@@ -1,0 +1,16 @@
+<%#
+  Export (CSV) / PDF / Print - one row, side by side, on every member
+  schedule page/tab/dialog (a real request: "All member schedule pages,
+  tabs etc. Should have export, pdf and print icons, in a row side by
+  side"). Same .icon-btn trio + data-fixed-columns="3" shape the Class
+  Registration Log toolbar already uses (views/admin-schedule.ejs), so it
+  stays one row on a phone too. Print opens the dedicated preview page in
+  a new tab (print-auto.js convention - it waits for the Print button).
+
+  locals: exportHref, pdfHref, printHref
+%>
+<div class="roster-btn-row member-schedule-actions no-print" data-fixed-columns="3">
+  <a class="icon-btn" href="<%= exportHref %>" aria-label="Export CSV" title="Export CSV"><svg class="icon"><use href="#icon-download"/></svg></a>
+  <a class="icon-btn" href="<%= pdfHref %>" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
+  <a class="icon-btn" href="<%= printHref %>" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
+</div>
