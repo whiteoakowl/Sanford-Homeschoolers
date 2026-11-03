@@ -488,6 +488,148 @@ async function removeReceiptRows(rows) {
   }
 }
 
+// --- Class supply-fee money - a real request: "the total amount available
+// for reimbursement based off the invoices paid for that class, how much
+// paid out according to how much has been approved, and how much left."
+// The one calculation behind the admin submission view, Class Fees, and
+// Teacher Portal's My Classes.
+//   available = real cash collected on the class's class_registration
+//     charges (utils/classRegistration.js): payment rows that are plain
+//     payments or genuine refunds (a refund is negative, so it reduces
+//     it). Discount/credit/exemption rows never moved cash
+//     (utils/payments.js's own netCashForCharge rule), and cancelled
+//     charges are excluded.
+//   payout = total of the class's Approved/Paid reimbursements only.
+//   leftover = available - payout, never clamped (negative = overspent).
+async function classFeeSummary(classIds) {
+  const ids = [...new Set((classIds || []).map(Number).filter(Boolean))];
+  const out = {};
+  if (!ids.length) return out;
+  const placeholders = ids.map(() => '?').join(', ');
+  const [paidRows, chargeRows, payoutRows] = await Promise.all([
+    db
+      .prepare(
+        `SELECT pc.source_id AS "classId", COALESCE(SUM(pp.amount_cents), 0) AS cents
+         FROM payment_charges pc JOIN payment_payments pp ON pp.charge_id = pc.id
+         WHERE pc.source_type = 'class_registration' AND pc.status <> 'cancelled'
+           AND (pp.adjustment_type IS NULL OR pp.adjustment_type = 'refund')
+           AND pc.source_id IN (${placeholders})
+         GROUP BY pc.source_id`
+      )
+      .all(...ids),
+    db
+      .prepare(
+        `SELECT source_id AS "classId", COUNT(*) AS n FROM payment_charges
+         WHERE source_type = 'class_registration' AND status <> 'cancelled' AND source_id IN (${placeholders})
+         GROUP BY source_id`
+      )
+      .all(...ids),
+    db
+      .prepare(
+        `SELECT class_id AS "classId", COALESCE(SUM(total_cents), 0) AS cents FROM reimbursement_requests
+         WHERE status = 'approved' AND class_id IN (${placeholders}) GROUP BY class_id`
+      )
+      .all(...ids),
+  ]);
+  const byId = (rows, key) => Object.fromEntries(rows.map((r) => [Number(r.classId), Number(r[key])]));
+  const paid = byId(paidRows, 'cents');
+  const charges = byId(chargeRows, 'n');
+  const payout = byId(payoutRows, 'cents');
+  for (const id of ids) {
+    out[id] = { ...summaryLabels(paid[id] || 0, payout[id] || 0), chargeCount: charges[id] || 0 };
+  }
+  return out;
+}
+
+// Class rows (title/day/time/semester) for the given class ids, each with
+// its classFeeSummary money attached. Reuses allClassesList for the same
+// timeLabel every other class listing shows.
+async function classFeeRows(classIds, semesterId) {
+  const wanted = new Set((classIds || []).map(Number));
+  const { allClassesList } = require('./classSchedule');
+  const [classes, semesters] = await Promise.all([allClassesList(null, semesterId || undefined), listSemesters()]);
+  const semesterTitle = Object.fromEntries(semesters.map((s) => [s.id, s.title]));
+  const picked = classes.filter((c) => wanted.has(c.id));
+  const money = await classFeeSummary(picked.map((c) => c.id));
+  return picked
+    .map((c) => ({
+      id: c.id,
+      className: c.class_name,
+      day: c.day,
+      dayLabel: c.dayLabel,
+      timeLabel: c.timeLabel || '',
+      semesterTitle: c.semester_id ? semesterTitle[c.semester_id] || '' : '',
+      priceCents: c.price_cents,
+      ...money[c.id],
+    }))
+    .sort((a, b) => CLASS_DAY_ORDER[a.day] - CLASS_DAY_ORDER[b.day] || a.className.localeCompare(b.className));
+}
+
+// Class Fees subpage: every class that "collected fees" - a price is set
+// and at least one (non-cancelled) registration charge exists, or real
+// money came in anyway - grouped under each of its TEACHERS (role
+// 'teacher'; a co-taught class appears under each teacher). A fee class
+// with no teacher yet is grouped under "No teacher assigned".
+async function classFeesByTeacher(semesterId) {
+  const allIds = (await db.prepare('SELECT id FROM classes').all()).map((r) => r.id);
+  const rows = (await classFeeRows(allIds, semesterId)).filter((r) => (r.priceCents > 0 && r.chargeCount > 0) || r.availableCents > 0);
+  if (!rows.length) return [];
+  const staff = await db
+    .prepare(
+      `SELECT cs.class_id, m.id, m.name FROM class_staff cs JOIN members m ON m.id = cs.member_id
+       WHERE cs.role = 'teacher' AND cs.class_id IN (${rows.map(() => '?').join(', ')})`
+    )
+    .all(...rows.map((r) => r.id));
+  const groups = new Map();
+  const assigned = new Set();
+  for (const s of staff) {
+    if (!groups.has(s.id)) groups.set(s.id, { id: s.id, name: s.name, classes: [] });
+    groups.get(s.id).classes.push(rows.find((r) => r.id === s.class_id));
+    assigned.add(s.class_id);
+  }
+  const teachers = [...groups.values()].sort(byLastName);
+  teachers.forEach((t) => t.classes.sort((a, b) => CLASS_DAY_ORDER[a.day] - CLASS_DAY_ORDER[b.day] || a.className.localeCompare(b.className)));
+  const unassigned = rows.filter((r) => !assigned.has(r.id));
+  if (unassigned.length) teachers.push({ id: null, name: 'No teacher assigned', classes: unassigned });
+  return teachers.map((t) => {
+    const totals = t.classes.reduce((acc, c) => ({ a: acc.a + c.availableCents, p: acc.p + c.payoutCents }), { a: 0, p: 0 });
+    return { ...t, totals: summaryLabels(totals.a, totals.p) };
+  });
+}
+
+function summaryLabels(availableCents, payoutCents) {
+  const leftoverCents = availableCents - payoutCents;
+  return {
+    availableCents,
+    payoutCents,
+    leftoverCents,
+    availableLabel: formatCents(availableCents),
+    payoutLabel: formatCents(payoutCents),
+    leftoverLabel: leftoverCents < 0 ? '-' + formatCents(-leftoverCents) : formatCents(leftoverCents),
+  };
+}
+
+async function classIdsForStaffMember(memberId) {
+  if (!memberId) return [];
+  return (await db.prepare('SELECT class_id FROM class_staff WHERE member_id = ?').all(memberId)).map((r) => r.class_id);
+}
+
+async function isStaffOnClass(memberId, classId) {
+  if (!memberId || !classId) return false;
+  return !!(await db.prepare('SELECT 1 FROM class_staff WHERE member_id = ? AND class_id = ?').get(memberId, classId));
+}
+
+async function requestsForClass(classId) {
+  const rows = await db
+    .prepare(
+      `SELECT r.*, (SELECT COUNT(*) FROM reimbursement_items i WHERE i.request_id = r.id) AS "itemCount",
+              (SELECT COUNT(*) FROM reimbursement_receipts rr WHERE rr.request_id = r.id) AS "receiptCount"
+       FROM reimbursement_requests r WHERE r.class_id = ? ORDER BY r.submitted_at DESC, r.id DESC`
+    )
+    .all(classId);
+  return rows.map(decorate);
+}
+
 async function deleteRequest(id) {
   await removeReceiptFiles(id);
   await db.prepare('DELETE FROM reimbursement_requests WHERE id = ?').run(id);
@@ -619,6 +761,13 @@ module.exports = {
   saveAdminSection,
   rejectRequest,
   resubmitRequest,
+  classFeeSummary,
+  classFeeRows,
+  classFeesByTeacher,
+  summaryLabels,
+  classIdsForStaffMember,
+  isStaffOnClass,
+  requestsForClass,
   deleteRequest,
   importRows,
 };

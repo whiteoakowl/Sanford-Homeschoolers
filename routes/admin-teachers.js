@@ -129,6 +129,63 @@ router.get('/teachers/assistants', requireAdmin, async (req, res) => {
   });
 });
 
+// --- Class Fees - a real request: "Class fees subpage should be added
+// under teachers/assistants tab. Here it will list each teacher and the
+// classes that collected fees that they are teaching listed underneath
+// them... title, day, time, semester, and supply fee total... payout
+// total and total leftover." Defaults to the active semester like the
+// Teachers/Assistants pages (resolveSemesterId); "All Semesters" shows
+// everything. Money comes from utils/reimbursements.js's classFeeSummary.
+async function classFeesLocals(req) {
+  const semesterId = await resolveSemesterId(req);
+  const teachers = await reimb.classFeesByTeacher(semesterId);
+  const seen = new Map();
+  teachers.forEach((t) => t.classes.forEach((c) => seen.set(c.id, c)));
+  const all = [...seen.values()];
+  const grand = reimb.summaryLabels(
+    all.reduce((s, c) => s + c.availableCents, 0),
+    all.reduce((s, c) => s + c.payoutCents, 0)
+  );
+  const semesters = await listSemesters();
+  const semester = semesters.find((s) => s.id === semesterId);
+  return {
+    title: 'Class Fees',
+    teachers,
+    grand,
+    semesters,
+    selectedSemesterId: semesterId,
+    semesterLabel: semester ? semester.title : 'All Semesters',
+    filterQuery: `?semesterId=${semesterId || ''}`,
+  };
+}
+
+router.get('/teachers/class-fees', requireAdmin, async (req, res) => {
+  res.render('admin-teachers-class-fees', { ...(await classFeesLocals(req)), printMode: false });
+});
+
+router.get('/teachers/class-fees/export.csv', requireAdmin, async (req, res) => {
+  const { teachers } = await classFeesLocals(req);
+  const lines = [toCsvRow(['Teacher', 'Class', 'Day', 'Time', 'Semester', 'Supply Fee Total', 'Payout Total', 'Leftover'])];
+  const money = (c) => (c / 100).toFixed(2);
+  teachers.forEach((t) =>
+    t.classes.forEach((c) => {
+      lines.push(toCsvRow([t.name, c.className, c.dayLabel, c.timeLabel, c.semesterTitle, money(c.availableCents), money(c.payoutCents), money(c.leftoverCents)]));
+    })
+  );
+  sendCsv(res, 'class-fees.csv', lines);
+});
+
+router.get('/teachers/class-fees/print', requireAdmin, async (req, res) => {
+  res.render('admin-teachers-class-fees', { ...(await classFeesLocals(req)), printMode: true });
+});
+
+router.get('/teachers/class-fees/download.pdf', requireAdmin, async (req, res) => {
+  const pdf = await renderViewToPdf(req, 'admin-teachers-class-fees', { ...(await classFeesLocals(req)), printMode: true, isFullAdmin: !!res.locals.isFullAdmin });
+  res.set('Content-Type', 'application/pdf');
+  res.set('Content-Disposition', 'attachment; filename="class-fees.pdf"');
+  res.send(pdf);
+});
+
 // Registered ahead of GET /teachers/instructor-profiles/:id below so
 // "instructor-profiles" itself is never swallowed as a member id, same
 // reasoning every other admin list's own literal-subpath-before-:id
@@ -367,6 +424,16 @@ router.post('/teachers/reimbursements', requireAdmin, uploadReceipts('/admin/tea
   });
 });
 
+// Admin Only money panel - the class's available/paid-out/left figures
+// (utils/reimbursements.js's classFeeSummary) plus what would be left if
+// THIS request were approved (already counted once it's Approved/Paid).
+async function classMoneyForRequest(request) {
+  if (!request.class_id) return null;
+  const summary = (await reimb.classFeeSummary([request.class_id]))[request.class_id];
+  const pending = request.status === 'approved' ? 0 : Number(request.total_cents);
+  return { ...summary, thisRequestLabel: request.totalLabel, ifApproved: reimb.summaryLabels(summary.availableCents, summary.payoutCents + pending) };
+}
+
 async function renderReimbursementDetail(req, res, request, { notice, error, status } = {}) {
   res.status(status || 200).render('reimbursement-detail', {
     title: 'Reimbursement',
@@ -376,6 +443,7 @@ async function renderReimbursementDetail(req, res, request, { notice, error, sta
     settings: await reimb.formSettings(),
     request,
     admins: await reimb.adminMembers(),
+    classMoney: await classMoneyForRequest(request),
     notice: notice || null,
     error: error || null,
     formatTimestamp,

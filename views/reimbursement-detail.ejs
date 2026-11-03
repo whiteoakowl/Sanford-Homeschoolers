@@ -20,7 +20,7 @@
       <div class="alert alert-error reimbursement-rejection" role="alert">
         <strong>This form was sent back for changes:</strong>
         <p class="reimbursement-rejection-message"><%= request.currentRejection.message %></p>
-        <a class="primary-btn" href="/teacher/reimbursements/<%= request.id %>/edit">Edit &amp; Resubmit</a>
+        <% if (typeof canEdit === 'undefined' || canEdit) { %><a class="primary-btn" href="/teacher/reimbursements/<%= request.id %>/edit">Edit &amp; Resubmit</a><% } %>
       </div>
     <% } %>
 
@@ -86,6 +86,21 @@
       <% } %>
       <section class="manage-section reimbursement-admin-section" data-admin-only>
         <h2>Admin Only</h2>
+        <% if (typeof classMoney !== 'undefined' && classMoney) { %>
+          <%# A real request: "it should say the total amount available for
+              reimbursement based off the invoices paid for that class, how
+              much paid out according to how much has been approved, and how
+              much left." %>
+          <dl class="reimbursement-summary reimbursement-class-money" data-class-money>
+            <div><dt>Total Available (<%= request.class_name %> supply fees paid)</dt><dd><%= classMoney.availableLabel %></dd></div>
+            <div><dt>Paid Out (approved)</dt><dd><%= classMoney.payoutLabel %></dd></div>
+            <div><dt>Left</dt><dd class="<%= classMoney.leftoverCents < 0 ? 'money-negative' : '' %>"><%= classMoney.leftoverLabel %></dd></div>
+            <div><dt>This Request</dt><dd><%= classMoney.thisRequestLabel %></dd></div>
+            <% if (request.status !== 'approved') { %>
+              <div><dt>Left If Approved</dt><dd class="<%= classMoney.ifApproved.leftoverCents < 0 ? 'money-negative' : '' %>"><%= classMoney.ifApproved.leftoverLabel %></dd></div>
+            <% } %>
+          </dl>
+        <% } %>
         <% if (request.status === 'rejected') { %>
           <p class="hint">Rejected - waiting for the teacher to edit and resubmit before it can be approved.</p>
         <% } %>

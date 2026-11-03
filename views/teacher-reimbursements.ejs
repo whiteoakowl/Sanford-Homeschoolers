@@ -14,6 +14,16 @@
     </div>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
 
+    <h2 class="reimbursement-items-heading">My Classes</h2>
+    <% if (myClasses.length === 0) { %>
+      <p class="roster-empty">You aren't listed as a teacher or assistant on any class yet.</p>
+    <% } else { %>
+      <p class="hint">Supply fees paid for each of your classes, what's been paid out in approved reimbursements, and what's left. Click a class to see every reimbursement submitted for it.</p>
+      <%- include('partials/class-fees-table', { classes: myClasses, totals: myClasses.length > 1 ? myTotals : null, classLinkBase: '/teacher/reimbursements/classes/' }) %>
+    <% } %>
+
+    <h2 class="reimbursement-items-heading">My Submissions</h2>
+
     <% if (requests.length === 0) { %>
       <p class="roster-empty">You haven't submitted any reimbursement forms yet.</p>
     <% } else { %>

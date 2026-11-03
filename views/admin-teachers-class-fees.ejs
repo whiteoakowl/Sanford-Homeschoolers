@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <% if (typeof pdfBaseUrl !== 'undefined' && pdfBaseUrl) { %><base href="<%= pdfBaseUrl %>/"><% } %>
+  <%- include('partials/head', { title }) %>
+  <% if (printMode) { %><style>@page { size: letter landscape; margin: 0.4in; }</style><% } %>
+</head>
+<body class="admin-page">
+  <%- include('partials/admin-nav') %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <% if (printMode) { %>
+      <div class="print-preview-header no-print">
+        <h1>Class Fees</h1>
+        <button type="button" class="roster-action-btn print-action-btn" onclick="window.print()">Print</button>
+      </div>
+      <div class="print-page">
+        <div class="print-header">
+          <img src="/img/logo.png" alt="" />
+          <div>
+            <p class="print-header-title">Sanford Homeschoolers</p>
+            <p class="print-header-sub">Class Fees - <%= semesterLabel %></p>
+          </div>
+        </div>
+    <% } else { %>
+      <div class="roster-toolbar no-print">
+        <h1>Class Fees</h1>
+      </div>
+      <p class="hint">Supply fees paid on each class's registration invoices, what has been paid out in approved reimbursements, and what's left.</p>
+      <div class="roster-toolbar no-print">
+        <div class="roster-btn-row roster-btn-row-fit-text">
+          <form method="GET" action="/admin/teachers/class-fees" class="reimbursement-filters">
+            <select name="semesterId" aria-label="Filter by semester" onchange="this.form.requestSubmit()">
+              <option value="">All Semesters</option>
+              <% semesters.forEach(function(s) { %>
+                <option value="<%= s.id %>" <%= selectedSemesterId === s.id ? 'selected' : '' %>><%= s.title %></option>
+              <% }); %>
+            </select>
+          </form>
+          <a class="icon-btn" href="/admin/teachers/class-fees/export.csv<%= filterQuery %>" aria-label="Export CSV" title="Export CSV"><svg class="icon"><use href="#icon-download"/></svg></a>
+          <a class="icon-btn" href="/admin/teachers/class-fees/print<%= filterQuery %>" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
+          <a class="icon-btn" href="/admin/teachers/class-fees/download.pdf<%= filterQuery %>" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
+        </div>
+      </div>
+    <% } %>
+
+    <% if (teachers.length === 0) { %>
+      <p class="roster-empty">No classes have collected supply fees<%= selectedSemesterId ? ' this semester' : '' %> yet.</p>
+    <% } else { %>
+      <% teachers.forEach(function(t) { %>
+        <section class="class-fees-teacher" data-class-fees-teacher="<%= t.name %>">
+          <h2><%= t.name %></h2>
+          <%- include('partials/class-fees-table', { classes: t.classes, totals: t.classes.length > 1 ? t.totals : null, classLinkBase: null }) %>
+        </section>
+      <% }); %>
+      <p class="reimbursement-total">All classes: supply fees <strong><%= grand.availableLabel %></strong> &middot; paid out <strong><%= grand.payoutLabel %></strong> &middot; left <strong class="<%= grand.leftoverCents < 0 ? 'money-negative' : '' %>"><%= grand.leftoverLabel %></strong></p>
+    <% } %>
+
+    <% if (printMode) { %></div><% } %>
+  </main>
+  <% if (printMode) { %><script src="/js/print-auto.js"></script><% } %>
+</body>
+</html>

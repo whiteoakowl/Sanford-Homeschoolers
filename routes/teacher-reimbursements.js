@@ -107,10 +107,44 @@ async function ownsRequest(req, request) {
   return (member && request.member_id === member.id) || request.submitted_by_account_id === req.portalAccount.id;
 }
 
+// Co-teachers (and assistants) on the same class may VIEW each other's
+// submissions for it - the supply-fee money is shared per class - but
+// only the owner can ever edit/resubmit.
+async function canViewRequest(req, request) {
+  if (!request) return false;
+  if (await ownsRequest(req, request)) return true;
+  const member = await memberForAccount(req.portalAccount.id);
+  return !!(member && (await reimb.isStaffOnClass(member.id, request.class_id)));
+}
+
+// A real request: "On teacher portal under reimbursement tab there should
+// be a list of the teachers classes and total class supply fees, total
+// payout, total leftover. When you click on the class you can view all of
+// the reimbursement submissions." My Classes = every class this member is
+// staffed on (teacher or assistant), money from classFeeSummary.
 router.get('/teacher/reimbursements', teacherGate, async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const requests = await reimb.listRequests({ owner: { memberId: member && member.id, accountId: req.portalAccount.id } });
-  res.render('teacher-reimbursements', { title: 'Reimbursements', requests, notice: req.query.notice || null, formatTimestamp });
+  const myClasses = await reimb.classFeeRows(await reimb.classIdsForStaffMember(member && member.id));
+  const myTotals = reimb.summaryLabels(
+    myClasses.reduce((s, c) => s + c.availableCents, 0),
+    myClasses.reduce((s, c) => s + c.payoutCents, 0)
+  );
+  res.render('teacher-reimbursements', { title: 'Reimbursements', requests, myClasses, myTotals, notice: req.query.notice || null, formatTimestamp });
+});
+
+router.get('/teacher/reimbursements/classes/:classId', teacherGate, async (req, res) => {
+  const classId = parseInt(req.params.classId, 10);
+  const member = await memberForAccount(req.portalAccount.id);
+  if (!classId || !member || !(await reimb.isStaffOnClass(member.id, classId))) return res.status(404).send('Not found');
+  const [cls] = await reimb.classFeeRows([classId]);
+  if (!cls) return res.status(404).send('Not found');
+  res.render('teacher-reimbursements-class', {
+    title: `Reimbursements - ${cls.className}`,
+    cls,
+    requests: await reimb.requestsForClass(classId),
+    formatTimestamp,
+  });
 });
 
 router.get('/teacher/reimbursements/new', teacherGate, async (req, res) => {
@@ -132,8 +166,9 @@ async function loadOwned(req) {
 }
 
 router.get('/teacher/reimbursements/:id', teacherGate, async (req, res) => {
-  const request = await loadOwned(req);
-  if (!request) return res.status(404).send('Not found');
+  const id = parseInt(req.params.id, 10);
+  const request = id ? await reimb.getRequest(id) : null;
+  if (!(await canViewRequest(req, request))) return res.status(404).send('Not found');
   res.render('reimbursement-detail', {
     title: 'Reimbursement',
     shell: 'Co-op Teacher Portal',
@@ -144,6 +179,7 @@ router.get('/teacher/reimbursements/:id', teacherGate, async (req, res) => {
     notice: req.query.notice || null,
     error: null,
     admins: [],
+    canEdit: await ownsRequest(req, request),
     formatTimestamp,
     formatDateShort,
   });
@@ -204,7 +240,7 @@ router.get('/reimbursement-receipts/:id', requirePortalAuth, async (req, res) =>
   if (!receipt) return res.status(404).send('Not found');
   if (!hasCoopAdminAccess(req)) {
     const request = await reimb.getRequest(receipt.request_id);
-    if (!(await ownsRequest(req, request))) return res.status(404).send('Not found');
+    if (!(await canViewRequest(req, request))) return res.status(404).send('Not found');
   }
   const buffer = await reimb.receiptBuffer(receipt);
   if (!buffer) return res.status(404).send('Not found');

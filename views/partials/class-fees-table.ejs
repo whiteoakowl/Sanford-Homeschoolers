@@ -1,0 +1,37 @@
+<%# Shared Class / Day / Time / Semester / Supply Fee Total / Payout Total /
+    Leftover table - Co-op Admin's Class Fees page and Teacher Portal's
+    My Classes (utils/reimbursements.js's classFeeSummary). classLinkBase,
+    when set, links each class name to classLinkBase + class id. %>
+<table class="roster-table condensed-table class-fees-table">
+  <thead>
+    <tr>
+      <th>Class</th><th>Day</th><th>Time</th><th>Semester</th>
+      <th class="reimbursement-amount-col">Supply Fee Total</th>
+      <th class="reimbursement-amount-col">Payout Total</th>
+      <th class="reimbursement-amount-col">Leftover</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% classes.forEach(function(c) { %>
+      <tr data-class-fee-row="<%= c.id %>">
+        <td><% if (typeof classLinkBase !== 'undefined' && classLinkBase) { %><a href="<%= classLinkBase %><%= c.id %>"><%= c.className %></a><% } else { %><%= c.className %><% } %></td>
+        <td><%= c.dayLabel %></td>
+        <td><%= c.timeLabel %></td>
+        <td><%= c.semesterTitle %></td>
+        <td class="reimbursement-amount-col"><%= c.availableLabel %></td>
+        <td class="reimbursement-amount-col"><%= c.payoutLabel %></td>
+        <td class="reimbursement-amount-col <%= c.leftoverCents < 0 ? 'money-negative' : '' %>"><%= c.leftoverLabel %></td>
+      </tr>
+    <% }); %>
+  </tbody>
+  <% if (typeof totals !== 'undefined' && totals) { %>
+    <tfoot>
+      <tr>
+        <th colspan="4">Total</th>
+        <th class="reimbursement-amount-col"><%= totals.availableLabel %></th>
+        <th class="reimbursement-amount-col"><%= totals.payoutLabel %></th>
+        <th class="reimbursement-amount-col <%= totals.leftoverCents < 0 ? 'money-negative' : '' %>"><%= totals.leftoverLabel %></th>
+      </tr>
+    </tfoot>
+  <% } %>
+</table>

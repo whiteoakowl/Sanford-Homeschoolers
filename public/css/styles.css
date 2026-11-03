@@ -16182,3 +16182,7 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 .reimbursement-receipt-file-icon { width: 3rem; height: 3rem; margin: 2rem 0; }
 .reimbursement-admin-fields { border: 0; padding: 0; margin: 0; }
 .reimbursement-rejection-history ul { padding-left: 1.1rem; }
+.money-negative { color: var(--red); font-weight: 600; }
+.reimbursement-class-money { padding: 0.75rem 1rem; background: var(--brand-soft); border-radius: var(--radius); }
+.class-fees-teacher { margin-bottom: 1.5rem; }
+.class-fees-teacher h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
