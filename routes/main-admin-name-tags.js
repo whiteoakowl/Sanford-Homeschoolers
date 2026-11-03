@@ -41,6 +41,7 @@ const express = require('express');
 const router = express.Router();
 const { chunkQrPages, qrPickerFilterOptions } = require('../utils/qrSheetPages');
 const { classQrKey, playgroundQrKey } = require('../utils/classQrKey');
+const { withClassFacets } = require('../utils/printPickerFilters');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -180,7 +181,9 @@ router.get('/', async (req, res) => {
   }
   const initialType = DESIGN_TYPES.includes(req.query.type) ? req.query.type : 'student';
 
-  const members = (await membersWithDetails()).filter((m) => m.active);
+  // filterSemesters/filterDays back every member picker's Semester/Day
+  // filter (utils/printPickerFilters.js).
+  const members = await withClassFacets((await membersWithDetails()).filter((m) => m.active));
 
   const classesForQr = await allClassesList();
   const qrRoomOptions = [...new Set(classesForQr.map((c) => c.room).filter(Boolean))].sort((a, b) =>

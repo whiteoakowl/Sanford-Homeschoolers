@@ -261,7 +261,7 @@
                     (not split apart by Select All) on narrow screens,
                     and the placeholder alone now explains the field. %>
                 <div class="schedule-search-group">
-                  <%- include('partials/bulk-print-filter-select', { id: 'schedule-print-filter-select', families: families }) %>
+                  <%- include('partials/member-print-filter', { prefix: 'schedule-print', families: families, qrFilterOptions: qrFilterOptions }) %>
                   <div class="category-filter schedule-search">
                     <label for="schedule-print-search-input" class="sr-only">Search</label>
                     <input type="search" id="schedule-print-search-input" placeholder="Search by member name&hellip;" />
@@ -285,14 +285,10 @@
         <div id="print-name-tags-section" hidden>
           <form method="POST" action="/main-admin/name-tags/print" target="_blank" id="bulk-print-form" data-bulk-print-refresh>
             <div class="name-tag-bulk-filter">
-              <%- include('partials/bulk-print-filter-select', { id: 'name-tag-bulk-filter-select', families: families, defaultValue: 'primaryParent' }) %>
+              <%- include('partials/member-print-filter', { prefix: 'name-tag-bulk', families: families, qrFilterOptions: qrFilterOptions, defaultType: 'primaryParent' }) %>
               <label class="checkbox-option name-tag-select-all">
                 <input type="checkbox" id="name-tag-select-all-checkbox" />
                 Select All
-              </label>
-              <label class="checkbox-option name-tag-select-none">
-                <input type="checkbox" id="name-tag-select-none-checkbox" />
-                Select None
               </label>
               <button type="submit" class="primary-btn name-tag-bulk-submit">Print</button>
               <button type="submit" formaction="/main-admin/name-tags/print/download.pdf" class="icon-btn" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></button>
@@ -309,14 +305,10 @@
           <form method="POST" action="/main-admin/name-tags/print-duplex" target="_blank" id="cards-duplex-print-form" data-bulk-print-refresh>
             <p class="hint">Prints each selected member's Name Tag on the front of a sheet and their Schedule Card on the back, in matching positions. Printer settings: Step 1 - flip on long edge. Step 2 - print double sided. Then cut apart for two-sided cards.</p>
             <div class="name-tag-bulk-filter">
-              <%- include('partials/bulk-print-filter-select', { id: 'cards-duplex-bulk-filter-select', families: families }) %>
+              <%- include('partials/member-print-filter', { prefix: 'cards-duplex', families: families, qrFilterOptions: qrFilterOptions }) %>
               <label class="checkbox-option name-tag-select-all">
                 <input type="checkbox" id="cards-duplex-select-all-checkbox" />
                 Select All
-              </label>
-              <label class="checkbox-option name-tag-select-none">
-                <input type="checkbox" id="cards-duplex-select-none-checkbox" />
-                Select None
               </label>
               <button type="submit" class="primary-btn name-tag-bulk-submit">Print</button>
               <button type="submit" formaction="/main-admin/name-tags/print-duplex/download.pdf" class="icon-btn" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></button>
@@ -330,14 +322,10 @@
         <div id="print-barcodes-section" hidden>
           <form method="POST" action="/main-admin/name-tags/print-barcodes" target="_blank" id="barcodes-print-form" data-bulk-print-refresh>
             <div class="name-tag-bulk-filter">
-              <%- include('partials/bulk-print-filter-select', { id: 'barcodes-bulk-filter-select', families: families }) %>
+              <%- include('partials/member-print-filter', { prefix: 'barcodes', families: families, qrFilterOptions: qrFilterOptions }) %>
               <label class="checkbox-option name-tag-select-all">
                 <input type="checkbox" id="barcodes-select-all-checkbox" />
                 Select All
-              </label>
-              <label class="checkbox-option name-tag-select-none">
-                <input type="checkbox" id="barcodes-select-none-checkbox" />
-                Select None
               </label>
               <button type="submit" class="primary-btn name-tag-bulk-submit">Print</button>
               <button type="submit" formaction="/main-admin/name-tags/print-barcodes/download.pdf" class="icon-btn" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></button>
@@ -352,14 +340,10 @@
           <form method="POST" action="/main-admin/name-tags/print-barcode-labels" target="_blank" id="barcode-labels-print-form" data-bulk-print-refresh>
             <p class="hint">Barcode, name, and ID number per label - sized for Avery 08160-style address label sheets (1in x 2-5/8in, 30 per sheet).</p>
             <div class="name-tag-bulk-filter">
-              <%- include('partials/bulk-print-filter-select', { id: 'barcode-labels-bulk-filter-select', families: families }) %>
+              <%- include('partials/member-print-filter', { prefix: 'barcode-labels', families: families, qrFilterOptions: qrFilterOptions }) %>
               <label class="checkbox-option name-tag-select-all">
                 <input type="checkbox" id="barcode-labels-select-all-checkbox" />
                 Select All
-              </label>
-              <label class="checkbox-option name-tag-select-none">
-                <input type="checkbox" id="barcode-labels-select-none-checkbox" />
-                Select None
               </label>
               <button type="submit" class="primary-btn name-tag-bulk-submit">Print</button>
               <button type="submit" formaction="/main-admin/name-tags/print-barcode-labels/download.pdf" class="icon-btn" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></button>
@@ -413,6 +397,15 @@
           <%- include('partials/misc-badge-print-panel', { type: 'custom', label: 'Custom', badges: customBadges, basePath: '/main-admin/name-tags', downloadPdf: true }) %>
         </div>
 
+        <%
+          // Semester / Day / Room - a class has no family, so the member
+          // pickers' Family filter doesn't apply here.
+          var qrPickerFilterFields = [
+            { name: 'semester', label: 'Semester', allLabel: 'All Semesters', options: qrFilterOptions.semesterOptions },
+            { name: 'day', label: 'Day', allLabel: 'All Days', options: qrFilterOptions.dayOptions },
+            { name: 'room', label: 'Room', allLabel: 'All Rooms', options: qrRoomOptions.map(function(r) { return { value: r, label: r }; }) },
+          ];
+        %>
         <div id="print-classCheckinQr-section" hidden>
           <form method="POST" action="/main-admin/name-tags/print-classcheckin-qr" target="_blank" id="classcheckin-qr-print-form" data-bulk-print-refresh>
             <div class="name-tag-bulk-filter">
@@ -420,11 +413,7 @@
                 <input type="checkbox" id="classcheckin-qr-select-all-checkbox" />
                 Select All
               </label>
-              <label class="checkbox-option name-tag-select-none">
-                <input type="checkbox" id="classcheckin-qr-select-none-checkbox" />
-                Select None
-              </label>
-              <button type="button" class="roster-action-btn" id="classcheckin-qr-filter-btn">Filter</button>
+              <%- include('partials/print-filter-popup', { prefix: 'classcheckin-qr', title: 'Filter Classes', parts: ['button', 'summary'], fields: qrPickerFilterFields }) %>
               <% if (classesForQr.length > 0) { %>
                 <button type="submit" class="primary-btn name-tag-bulk-submit">Print</button>
                 <%# A real request: "the download should be a pdf of exactly
@@ -459,38 +448,7 @@
             <% } %>
           </form>
 
-          <dialog id="classcheckin-qr-filter-dialog" class="qr-filter-dialog">
-            <div class="qr-filter-dialog-header">
-              <h2>Filter Classes</h2>
-              <div class="qr-filter-dialog-actions">
-                <button type="button" class="roster-action-btn" id="classcheckin-qr-filter-save-btn">Save</button>
-                <button type="button" class="class-form-dialog-close" onclick="this.closest('dialog').close()" aria-label="Close"><svg class="icon"><use href="#icon-x-circle"/></svg></button>
-              </div>
-            </div>
-            <div class="qr-filter-dialog-body">
-              <label for="classcheckin-qr-filter-semester-select">Semester</label>
-              <select id="classcheckin-qr-filter-semester-select">
-                <option value="">All Semesters</option>
-                <% qrFilterOptions.semesterOptions.forEach(function(o) { %>
-                  <option value="<%= o.value %>"><%= o.label %></option>
-                <% }); %>
-              </select>
-              <label for="classcheckin-qr-filter-day-select">Day</label>
-              <select id="classcheckin-qr-filter-day-select">
-                <option value="">All Days</option>
-                <% qrFilterOptions.dayOptions.forEach(function(o) { %>
-                  <option value="<%= o.value %>"><%= o.label %></option>
-                <% }); %>
-              </select>
-              <label for="classcheckin-qr-filter-room-select">Room</label>
-              <select id="classcheckin-qr-filter-room-select">
-                <option value="">All Rooms</option>
-                <% qrRoomOptions.forEach(function(r) { %>
-                  <option value="<%= r %>"><%= r %></option>
-                <% }); %>
-              </select>
-            </div>
-          </dialog>
+          <%- include('partials/print-filter-popup', { prefix: 'classcheckin-qr', title: 'Filter Classes', parts: ['dialog'], fields: qrPickerFilterFields }) %>
         </div>
 
         <div id="print-playgroundQr-section" hidden>
@@ -502,19 +460,10 @@
         <div id="print-libraryBarcodes-section" hidden>
           <form method="POST" action="/main-admin/name-tags/print-library-barcodes" target="_blank" id="library-barcodes-print-form" data-bulk-print-refresh>
             <div class="name-tag-bulk-filter">
-              <select class="name-tag-bulk-filter-select" id="library-barcodes-filter-select">
-                <option value="all">All Categories</option>
-                <% libraryTypes.forEach(function(t) { %>
-                  <option value="<%= t %>"><%= t %></option>
-                <% }); %>
-              </select>
+              <%- include('partials/print-filter-popup', { prefix: 'library-barcodes', title: 'Filter Library Items', fields: [{ name: 'category', label: 'Category', allLabel: 'All Categories', options: libraryTypes.map(function(t) { return { value: t, label: t }; }) }] }) %>
               <label class="checkbox-option name-tag-select-all">
                 <input type="checkbox" id="library-barcodes-select-all-checkbox" />
                 Select All
-              </label>
-              <label class="checkbox-option name-tag-select-none">
-                <input type="checkbox" id="library-barcodes-select-none-checkbox" />
-                Select None
               </label>
               <% if (libraryItems.length > 0) { %>
                 <button type="submit" class="primary-btn name-tag-bulk-submit">Print</button>

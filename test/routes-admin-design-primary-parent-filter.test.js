@@ -69,13 +69,13 @@ test('Design/Print hub offers Primary Parents Only on every member-based print p
   // Schedule Cards had no type filter at all (search only) until now.
   const primaryParentOptionCount = (res.text.match(/<option value="primaryParent"[^>]*>Primary Parents Only<\/option>/g) || []).length;
   assert.equal(primaryParentOptionCount, 5, 'Schedule Cards, Name Tags, Cards Duplex, Barcodes Only, and Barcode Labels should each offer it');
-  assert.match(res.text, /<select class="name-tag-bulk-filter-select" id="schedule-print-filter-select">/, 'Schedule Cards should now have its own type filter select');
+  assert.match(res.text, /<select id="schedule-print-filter-type-select" data-filter-field="type">/, 'Schedule Cards should have its own Member Type filter (in its Filter popup)');
 });
 
 // A real request: "search dropdown menu should be next to search bar.
 // Search bar doesn't need search title because it has a description in
 // the text bar."
-test('Schedule Cards search: the filter select and search box share one group, and the Search label is screen-reader only', async () => {
+test('Schedule Cards search: the Filter button and search box share one group, and the Search label is screen-reader only', async () => {
   const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
 
@@ -84,8 +84,8 @@ test('Schedule Cards search: the filter select and search box share one group, a
   assert.match(res.text, /<label for="schedule-print-search-input" class="sr-only">Search<\/label>/);
   assert.match(
     res.text,
-    /<div class="schedule-search-group">\s*<select class="name-tag-bulk-filter-select" id="schedule-print-filter-select">/,
-    'the filter select and the search box should share one wrapper, next to each other'
+    /<div class="schedule-search-group">\s*<button type="button" class="roster-action-btn" id="schedule-print-filter-btn">Filter<\/button>/,
+    'the Filter button and the search box should share one wrapper, next to each other'
   );
 });
 
@@ -98,7 +98,7 @@ test('Main Admin Name Tags page: same search-group fix as Co-op Admin', async ()
   assert.match(res.text, /<label for="schedule-print-search-input" class="sr-only">Search<\/label>/);
   assert.match(
     res.text,
-    /<div class="schedule-search-group">\s*<select class="name-tag-bulk-filter-select" id="schedule-print-filter-select">/,
-    'the filter select and the search box should share one wrapper, next to each other'
+    /<div class="schedule-search-group">\s*<button type="button" class="roster-action-btn" id="schedule-print-filter-btn">Filter<\/button>/,
+    'the Filter button and the search box should share one wrapper, next to each other'
   );
 });

@@ -1,0 +1,31 @@
+<%
+// Member-picker flavor of partials/print-filter-popup.ejs: Member Type
+// (incl. Teachers / Primary Parents), Family, Semester and Day - matched
+// against print-picker-table.ejs's data-type/-teacher/-primary/
+// -family-id/-semesters/-days by design-print-hub.js. Replaces the old
+// inline combined Type/Family dropdown (which re-filtered the list the
+// moment it changed). Semester/Day options are the same ones the Class
+// Check-In QR picker uses (utils/qrSheetPages.js's qrPickerFilterOptions -
+// only semesters and days that actually have classes, days in calendar
+// order). Locals: prefix, families (allFamilies(), already sorted by
+// name), qrFilterOptions, defaultType (optional, e.g. 'primaryParent').
+var memberFilterFields = [
+  {
+    name: 'type',
+    label: 'Member Type',
+    allLabel: 'All Members',
+    defaultValue: typeof defaultType !== 'undefined' ? defaultType : null,
+    options: [
+      { value: 'student', label: 'Students Only' },
+      { value: 'primaryParent', label: 'Primary Parents Only' },
+      { value: 'parent', label: 'Parents Only' },
+      { value: 'admin', label: 'Admins Only' },
+      { value: 'teacher', label: 'Teachers Only' },
+    ],
+  },
+  { name: 'family', label: 'Family Name', allLabel: 'All Families', options: families.map(function(f) { return { value: String(f.id), label: f.name + ' Family' }; }) },
+  { name: 'semester', label: 'Semester', allLabel: 'All Semesters', options: qrFilterOptions.semesterOptions },
+  { name: 'day', label: 'Day', allLabel: 'All Days', options: qrFilterOptions.dayOptions },
+];
+%>
+<%- include('print-filter-popup', { prefix: prefix, title: 'Filter Members', fields: memberFilterFields }) %>
