@@ -559,6 +559,66 @@ textarea:focus-visible,
 
 .document-view-image { max-width: 320px; width: 100%; border-radius: var(--radius); display: block; margin-bottom: 0.75rem; }
 
+/* A real request: "Add a print and pdf icons to all document pages." -
+   the title row on every document view page, with its Print/PDF icon
+   pair (views/partials/document-actions.ejs) on the right. */
+.document-view-title-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.document-view-actions { display: flex; gap: 0.4rem; }
+
+/* The same icon pair on each document's list card - a sibling of the
+   card's own <a> (see .document-card-wrap above), vertically centered on
+   its right edge, with the card padded so its title never runs under
+   the icons. Co-op Admin/Main Admin cards also hold the edit icon in the
+   same row (-3: three icons). */
+.document-card-actions {
+  position: absolute;
+  top: 50%;
+  right: 0.6rem;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 0.35rem;
+}
+.document-card-actions .document-card-edit-btn { position: static; }
+.document-card-action-btn { background: var(--surface); }
+.documents-grid .document-card-wrap-actions .landing-card { padding-right: 5.6rem; }
+.documents-grid .document-card-wrap-actions-3 .landing-card { padding-right: 8rem; }
+
+/* A .docx shown as its converted HTML (utils/documentRender.js) instead
+   of the <iframe> a PDF uses - browsers can't display a .docx at all. */
+.document-docx-view {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  padding: 1.5rem 1.75rem;
+  overflow-x: auto;
+}
+.document-docx-content { line-height: 1.5; overflow-wrap: break-word; }
+.document-docx-content img { max-width: 100%; height: auto; }
+.document-docx-content table { border-collapse: collapse; margin: 0.75rem 0; }
+.document-docx-content th,
+.document-docx-content td { border: 1px solid var(--border); padding: 0.3rem 0.5rem; vertical-align: top; }
+.document-view-unavailable,
+.document-print-unavailable { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+.document-print-unavailable { max-width: 640px; margin: 2rem auto; }
+
+/* Print preview (views/document-print.ejs). A PDF fills the whole
+   window under a slim header; a .docx is a letter-size .print-page sheet
+   whose margins come from the view's own @page rule once printing. */
+.document-print-body { margin: 0; background: var(--brand-soft); color: var(--ink); }
+.document-print-body-pdf { display: flex; flex-direction: column; height: 100vh; }
+.document-print-header { padding: 0.75rem 1rem; margin: 0; }
+.document-print-header h1 { font-size: 1.25rem; margin: 0; }
+.document-print-frame { flex: 1; width: 100%; border: none; }
+.document-print-page { display: block; margin-bottom: 2rem; }
+.document-print-title { margin-top: 0; }
+@media print {
+  .document-print-body { background: #fff; }
+  .print-page.document-print-page { padding: 0; min-height: 0; }
+  .document-docx-content th,
+  .document-docx-content td { border-color: #999; }
+}
+
 .admin-corner-link {
   display: inline-flex;
   align-items: center;

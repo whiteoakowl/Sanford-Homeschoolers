@@ -37,6 +37,7 @@ const { CLASS_DAY_ORDER } = require('../utils/classDays');
 const { comboSemesterId, findComboId } = require('../utils/scheduleComboLinks');
 const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
 const { listDocumentsForRole } = require('../utils/documents');
+const { documentKind } = require('../utils/documentRender');
 const { getHandbookHtml } = require('../utils/membershipHandbook');
 const { getTemplate, badgeDataForMembers } = require('../utils/nameTagData');
 const { BADGE_WIDTH, BADGE_HEIGHT } = require('../utils/nameTagBadge');
@@ -1188,6 +1189,9 @@ router.get('/documents', requirePortalPermission('view_parent_documents'), async
   // shows up here, same empty-means-everyone convention as every other
   // role-scoped list in this app.
   const documents = await listDocumentsForRole('parent');
+  documents.forEach((d) => {
+    d.kind = documentKind(d);
+  });
   res.render('parent-documents', { title: 'Documents', documents });
 });
 

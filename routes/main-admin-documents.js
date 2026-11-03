@@ -18,6 +18,7 @@ const { requirePortalAuth, requirePortal, requirePortalPermission } = require('.
 const { documentFileFilter, imageFileFilter, DOCUMENT_MIME_BY_EXT } = require('../utils/uploads');
 const { createStorageClient, uploadFile, deleteFile, downloadFile, generateKey, createSignedUploadUrl } = require('../utils/storage');
 const { roleKeysByDocument, setDocumentRoleKeys } = require('../utils/documents');
+const { documentKind, docxHtmlFor } = require('../utils/documentRender');
 const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('../utils/pagination');
 
 router.use(requirePortalAuth, requirePortal('main_admin'), requirePortalPermission('manage_documents'));
@@ -70,6 +71,7 @@ router.get('/', async (req, res) => {
   const rolesByDoc = await roleKeysByDocument();
   allDocuments.forEach((d) => {
     d.roleKeys = rolesByDoc.get(d.id) || [];
+    d.kind = documentKind(d);
   });
   const roles = await db.prepare('SELECT key, label FROM roles ORDER BY label').all();
   const pageSize = parsePageSize(req.query.pageSize, DEFAULT_PAGE_SIZE);
@@ -95,7 +97,8 @@ router.get('/', async (req, res) => {
 router.get('/:id/view', async (req, res) => {
   const doc = await db.prepare('SELECT * FROM documents WHERE id = ?').get(parseInt(req.params.id, 10));
   if (!doc) return res.status(404).render('404', { title: 'Not Found' });
-  res.render('main-admin-document-view', { title: doc.title, doc, publicOrigin: `${req.protocol}://${req.get('host')}` });
+  const docxHtml = await docxHtmlFor(doc);
+  res.render('main-admin-document-view', { title: doc.title, doc, kind: documentKind(doc), docxHtml, publicOrigin: `${req.protocol}://${req.get('host')}` });
 });
 
 router.get('/:id/file', async (req, res) => {

@@ -89,7 +89,7 @@ const ALLOWED_ATTRIBUTES = {
 
 const ALLOWED_STYLES = { '*': SAFE_STYLES };
 
-function sanitizePostBody(html) {
+function sanitizePostBody(html, extraOptions) {
   return sanitizeHtml(html || '', {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: ALLOWED_ATTRIBUTES,
@@ -122,7 +122,18 @@ function sanitizePostBody(html) {
       if (frame.tag === 'input') return frame.attribs.type !== 'checkbox';
       return false;
     },
+    ...extraOptions,
   }).trim();
 }
 
-module.exports = { sanitizePostBody, ALLOWED_TAGS };
+// Uploaded Word documents (routes/documents.js converts a .docx to HTML
+// with mammoth so it can be viewed/printed/PDF'd in the browser). Same
+// allowlist as a post body - the converted HTML is just as untrusted as
+// anything typed into the editor - except mammoth inlines a document's
+// own embedded pictures as data: URLs (there's no other URL for them),
+// so <img> may use data: here. Only <img>: links stay http(s)/mailto.
+function sanitizeDocumentHtml(html) {
+  return sanitizePostBody(html, { allowedSchemesByTag: { img: ['http', 'https', 'data'] } });
+}
+
+module.exports = { sanitizePostBody, sanitizeDocumentHtml, ALLOWED_TAGS };

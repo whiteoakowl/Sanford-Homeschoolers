@@ -9,6 +9,7 @@ const requireFullAdmin = require('../middleware/requireFullAdmin');
 const { documentFileFilter, imageFileFilter, DOCUMENT_MIME_BY_EXT } = require('../utils/uploads');
 const { createStorageClient, uploadFile, deleteFile, downloadFile, generateKey, createSignedUploadUrl } = require('../utils/storage');
 const { roleKeysByDocument, setDocumentRoleKeys } = require('../utils/documents');
+const { documentKind, docxHtmlFor } = require('../utils/documentRender');
 
 router.use(requireFullAdmin);
 
@@ -106,6 +107,7 @@ router.get('/documents', async (req, res) => {
   const rolesByDoc = await roleKeysByDocument();
   documents.forEach((d) => {
     d.roleKeys = rolesByDoc.get(d.id) || [];
+    d.kind = documentKind(d);
   });
   const roles = await db.prepare('SELECT key, label FROM roles ORDER BY label').all();
   res.render('admin-documents', {
@@ -122,7 +124,8 @@ router.get('/documents', async (req, res) => {
 router.get('/documents/:id/view', async (req, res) => {
   const doc = await db.prepare('SELECT * FROM documents WHERE id = ?').get(parseInt(req.params.id, 10));
   if (!doc) return res.status(404).render('404', { title: 'Not Found' });
-  res.render('admin-document-view', { title: doc.title, doc, publicOrigin: `${req.protocol}://${req.get('host')}` });
+  const docxHtml = await docxHtmlFor(doc);
+  res.render('admin-document-view', { title: doc.title, doc, kind: documentKind(doc), docxHtml, publicOrigin: `${req.protocol}://${req.get('host')}` });
 });
 
 router.get('/documents/:id/file', async (req, res) => {

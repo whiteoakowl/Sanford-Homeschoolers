@@ -16,10 +16,14 @@
     <% if (doc.image_path) { %>
       <img class="document-view-image" src="/main-admin/documents/<%= doc.id %>/image" alt="" />
     <% } %>
-    <h1><%= doc.title %></h1>
-    <div class="document-view-frame-wrap">
-      <iframe class="document-view-frame" src="/main-admin/documents/<%= doc.id %>/file" title="<%= doc.title %>"></iframe>
+    <div class="document-view-title-row">
+      <h1><%= doc.title %></h1>
+      <div class="document-view-actions">
+        <%- include('partials/document-actions', { doc, kind }) %>
+      </div>
     </div>
+    <% if (kind === 'doc') { %><p class="hint">This older Word (.doc) file can't be turned into a PDF - the download icon saves the original file.</p><% } %>
+    <%- include('partials/document-body', { doc, kind, docxHtml, fileUrl: '/main-admin/documents/' + doc.id + '/file' }) %>
   </main>
   <script src="/js/copy-link.js"></script>
 </body>
