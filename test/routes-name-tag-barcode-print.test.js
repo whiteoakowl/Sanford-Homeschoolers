@@ -55,7 +55,7 @@ test.after(() => {
 });
 
 test('barcode-only print sheet loads the shrink-to-fit script, not the generic auto-print script', async (t) => {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin/name-tag?tab=print').set('Cookie', cookie);
   const csrfToken = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];
@@ -93,7 +93,7 @@ test('barcode-only print sheet loads the shrink-to-fit script, not the generic a
 // A real request: "printing barcodes only, should have the member ID
 // number on there as well."
 test('barcode-only print sheet shows each member\'s own ID number', async () => {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin/name-tag?tab=print').set('Cookie', cookie);
   const csrfToken = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];

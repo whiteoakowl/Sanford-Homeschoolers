@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Co-op Teacher Portal' }) %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <div class="roster-toolbar">
+      <h1>Reimbursements</h1>
+      <div class="roster-btn-row roster-btn-row-fit-text">
+        <a class="roster-action-btn roster-action-btn-fit" href="/teacher/reimbursements/new">+ Fill Out Reimbursement Form</a>
+      </div>
+    </div>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+
+    <h2 class="reimbursement-items-heading">My Classes</h2>
+    <% if (myClasses.length === 0) { %>
+      <p class="roster-empty">You aren't listed as a teacher or assistant on any class yet.</p>
+    <% } else { %>
+      <p class="hint">Supply fees paid for each of your classes, what's been paid out in approved reimbursements, and what's left. Click a class to see every reimbursement submitted for it.</p>
+      <%- include('partials/class-fees-table', { classes: myClasses, totals: myClasses.length > 1 ? myTotals : null, classLinkBase: '/teacher/reimbursements/classes/' }) %>
+    <% } %>
+
+    <h2 class="reimbursement-items-heading">My Submissions</h2>
+
+    <% if (requests.length === 0) { %>
+      <p class="roster-empty">You haven't submitted any reimbursement forms yet.</p>
+    <% } else { %>
+      <table class="roster-table condensed-table reimbursement-log-table">
+        <thead>
+          <tr><th>Submitted</th><th>Name</th><th>Semester</th><th>Day</th><th>Class</th><th>Items</th><th>Receipts</th><th class="reimbursement-amount-col">Total</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <% requests.forEach(function(r) { %>
+            <tr>
+              <td><a href="/teacher/reimbursements/<%= r.id %>"><%= formatTimestamp(r.submitted_at) %></a></td>
+              <td><%= r.member_name %></td>
+              <td><%= r.semester_title %></td>
+              <td><%= r.dayLabel %></td>
+              <td><%= r.class_name %></td>
+              <td><%= r.itemCount %></td>
+              <td><%= r.receiptCount %></td>
+              <td class="reimbursement-amount-col"><%= r.totalLabel %></td>
+              <td><span class="badge-pill <%= { submitted: 'badge-pill-orange', approved: 'badge-pill-green', rejected: 'badge-pill-red' }[r.status] || 'badge-pill-gray' %>"><%= r.statusLabel %></span></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </main>
+</body>
+</html>

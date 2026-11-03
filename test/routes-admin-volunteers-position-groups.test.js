@@ -35,7 +35,7 @@ test.after(() => {
 });
 
 async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin/volunteers/monday/manage').set('Cookie', cookie);
   const csrfToken = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];

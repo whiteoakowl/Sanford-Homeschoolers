@@ -36,7 +36,7 @@ async function loginAsMainAdmin() {
   return loginRes.headers['set-cookie'];
 }
 
-test('Main Admin member profile Schedule tab "View All": one card per family member, name as its title, Print Schedules at the top', async () => {
+test('Main Admin member profile Schedule tab "View All": one shared schedule section per family member, name as its heading, Export/PDF/Print at the top', async () => {
   const cookie = await loginAsMainAdmin();
 
   const familyId = (await db.prepare("INSERT INTO families (name) VALUES ('Schedule Card Test Family') RETURNING id").get()).id;
@@ -51,18 +51,22 @@ test('Main Admin member profile Schedule tab "View All": one card per family mem
   assert.equal(res.status, 200);
   assert.match(res.text, /Schedule Card Test Class/);
 
-  assert.match(res.text, />Print Schedules</);
+  // A later real request ("member profile, schedules should also look
+  // like this [image]... export, pdf and print icons, in a row side by
+  // side") replaced the Print Schedules button with the shared Export/
+  // PDF/Print row - still at the top, ahead of every member's section.
   assert.doesNotMatch(res.text, /Print All Schedules/);
-  const printBtnIdx = res.text.indexOf('>Print Schedules<');
-  const firstCardIdx = res.text.indexOf('member-profile-family-schedule-card');
-  assert.ok(printBtnIdx > -1 && firstCardIdx > -1 && printBtnIdx < firstCardIdx, 'Print Schedules should come before the family members\' own cards');
+  const actionsIdx = res.text.indexOf('member-schedule-actions');
+  const firstSectionIdx = res.text.indexOf('<section class="member-schedule">');
+  assert.ok(actionsIdx > -1 && firstSectionIdx > -1 && actionsIdx < firstSectionIdx, 'Export/PDF/Print should come before the family members\' own schedules');
+  assert.match(res.text, new RegExp(`href="/main-admin/members/schedule-print\\?familyId=${familyId}" target="_blank" aria-label="Print"`));
 
-  // Each member is one .form-section card, their name as its own <h2>.
-  const cardRe = /<div class="form-section member-profile-family-schedule-card">\s*<h2 class="member-profile-family-schedule-name">([^<]+)<\/h2>/g;
-  const names = [...res.text.matchAll(cardRe)].map((m) => m[1]);
+  // Each member is one shared member-schedule section, their name as its
+  // own heading (the member being viewed isn't a link to themselves).
+  const sectionRe = /<section class="member-schedule">\s*<h2 class="member-schedule-name">(?:<a [^>]*>)?([^<]+)(?:<\/a>)?<\/h2>/g;
+  const names = [...res.text.matchAll(sectionRe)].map((m) => m[1]);
   assert.deepEqual(names.sort(), ['Schedule Card Parent', 'Schedule Card Student']);
-
-  // No more per-day .form-section cards nested inside - just one card
-  // per member, holding both days' tables.
-  assert.doesNotMatch(res.text, /<div class="form-section member-profile-family-schedule-card">[\s\S]*?<div class="form-section">/);
+  // The parent teaches it, the student is signed up for it.
+  assert.match(res.text, />Teaching</);
+  assert.match(res.text, />Signed Up</);
 });

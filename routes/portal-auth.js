@@ -5,13 +5,14 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { findAccountByEmail, verifyPassword, hashPassword, memberForAccount, familyForAccount } = require('../utils/portalAuth');
+const { findAccountByEmail, verifyPassword, hashPassword, memberForAccount, familyForAccount, sortByPortalSwitcherOrder } = require('../utils/portalAuth');
 const { generateMemberCode, setPrimaryParent } = require('../utils/members');
 const { savePhotoFile: saveMemberPhotoFile, deletePhotoFile: deleteMemberPhotoFile } = require('../utils/memberPhoto');
 const { createFailureRateLimiter } = require('../utils/loginRateLimit');
 const { GRADE_OPTIONS } = require('../utils/membership');
 const { CLASS_DAY_LABELS_FULL } = require('../utils/classSchedule');
-const { CLASS_DAYS } = require('../utils/classDays');
+const { memberScheduleTables } = require('../utils/schedule');
+const { sendMemberSchedules } = require('../utils/memberScheduleOutput');
 const { isValidISODate, formatDateLongNoWeekday } = require('../utils/dates');
 const { portalStatusForMembers, sectionIdsForMembers } = require('../utils/portalPermissions');
 const membershipHandbook = require('../utils/membershipHandbook');
@@ -530,15 +531,13 @@ function expandPortalRoles(roles) {
 // callers of that same function rely on it just being "every role this
 // account holds" with no particular order promised - so this is a
 // display-only re-sort of the switcher's own card list, not a change to
-// that query. Any role key not listed here (there isn't one today) just
-// keeps falling in after every key that is, in whatever order it was in.
-const PORTAL_SWITCHER_CARD_ORDER = ['parent', 'teacher', 'family_school', 'main_admin', 'coop_admin', 'student'];
+// that query. The order itself now lives in utils/portalAuth.js's own
+// PORTAL_SWITCHER_CARD_ORDER/sortByPortalSwitcherOrder - a later real
+// request ("Portal permissions page order should be the same as portal
+// choosing order") reuses the exact same order for views/main-admin-
+// roles.ejs's own role-card list (routes/main-admin.js).
 function sortForPortalSwitcher(roles) {
-  return [...roles].sort((a, b) => {
-    const ai = PORTAL_SWITCHER_CARD_ORDER.indexOf(a.key);
-    const bi = PORTAL_SWITCHER_CARD_ORDER.indexOf(b.key);
-    return (ai === -1 ? PORTAL_SWITCHER_CARD_ORDER.length : ai) - (bi === -1 ? PORTAL_SWITCHER_CARD_ORDER.length : bi);
-  });
+  return sortByPortalSwitcherOrder(roles, (r) => r.key);
 }
 
 router.get('/portal', async (req, res) => {
@@ -549,7 +548,14 @@ router.get('/portal', async (req, res) => {
   // (its locked-redirect lives there), so a locked account needs the
   // same check here directly.
   if (req.portalAccount.status === 'suspended') return res.redirect('/accounting?locked=1');
-  const roles = sortForPortalSwitcher(expandPortalRoles(req.portalRoles));
+  const allRoles = [...req.portalRoles];
+  // The master account gets every portal (middleware/requireAdmin.js) -
+  // offer Co-op Admin here even though it doesn't hold that role itself.
+  if (req.isMasterAccount && !allRoles.some((r) => r.key === 'coop_admin')) {
+    const coopAdmin = await db.prepare("SELECT * FROM roles WHERE key = 'coop_admin'").get();
+    if (coopAdmin) allRoles.push(coopAdmin);
+  }
+  const roles = sortForPortalSwitcher(expandPortalRoles(allRoles));
   if (roles.length === 1) return res.redirect(PORTAL_HOME_ROUTES[roles[0].key] || '/portal');
   res.render('portal-switcher', { title: 'My Portals', roles, portalHomeRoutes: PORTAL_HOME_ROUTES });
 });
@@ -580,6 +586,32 @@ router.get('/portal/settings', (req, res) => {
 router.get('/portal/settings-hub', (req, res) => {
   if (!req.portalAccount) return res.redirect('/login?next=%2Fportal%2Fsettings-hub');
   res.render('portal-settings-hub', { title: 'Settings', navPortalTitle: res.locals.sharedPortalTitle('Settings') });
+});
+
+// A real request: "Download app should be included in the settings
+// gears of all portals, all." The install-as-app content itself (same
+// Install App button/steps views/admin-settings.ejs's own ?tab=install
+// already has) has nothing Co-op Admin-specific about it and that route
+// is requireAdmin-gated (the separate legacy admin login), so every
+// other portal's own Settings hub links here instead - one shared,
+// account-agnostic page any signed-in portal account can reach. Main
+// Admin isn't covered by sharedPortalTitle (it only ever resolves
+// parent/student/teacher), so it's special-cased the same way isMainAdmin
+// is already used elsewhere in this file; every other role falls back to
+// sharedPortalTitle exactly like /portal/settings and /portal/settings-
+// hub above already do. Student Portal deliberately has no settings gear
+// of its own (a real request: "Student Portal should not have a settings
+// gear" - portal-nav.ejs's own showSettingsGear) - that's left alone
+// here, this route is simply unreachable from Student Portal's own nav,
+// same as /portal/settings-hub already is for it.
+router.get('/portal/install-app', (req, res) => {
+  if (!req.portalAccount) return res.redirect('/login?next=%2Fportal%2Finstall-app');
+  const navPortalTitle = isMainAdmin(req) ? 'Main Admin' : res.locals.sharedPortalTitle('Settings');
+  const backHref = navPortalTitle === 'Main Admin' ? '/main-admin/settings'
+    : navPortalTitle === 'Parent Portal' ? '/parent/family-school/settings-hub'
+    : (navPortalTitle === 'Student Portal' || navPortalTitle === 'Co-op Teacher Portal') ? '/portal/settings-hub'
+    : '/portal/settings';
+  res.render('portal-install-app', { title: 'Install App', navPortalTitle, backHref });
 });
 
 // A real request: "Clicking on the profile icon at the top on every
@@ -613,41 +645,18 @@ async function renderProfile(req, res, error, notice, activeTab) {
 
   // A real request: "It will also have a tab for schedules, event
   // signups" followed by "Schedules tab should be organized by family
-  // member and then by day under each family member" - the flat row set
-  // below is unchanged (still every class_enrollments/class_staff row
-  // across the whole family), just grouped into member -> day -> classes
-  // here instead of rendered as one flat table. CLASS_DAYS (utils/
-  // classDays.js) gives the sun-sat iteration order; family (already
-  // fetched above, self first then otherFamilyMembers order) gives a
-  // stable per-member section order instead of an alphabetical resort.
+  // member" - one section per family member, in family's own order (self
+  // first, then the rest) rather than an alphabetical resort.
+  //
+  // A later real request: "member profile, schedules should also look
+  // like this [image]" - each family member is now the same shared
+  // member schedule table every admin-side schedule uses (partials/
+  // member-schedule-table.ejs, utils/schedule.js's memberScheduleTables):
+  // "Signed Up" / "Teaching" / "Assisting" / "Floater" groups instead of
+  // per-day tables, with Export/PDF/Print (see /portal/profile/schedules/*
+  // below, scoped to this same family).
   if (tab === 'schedules') {
-    const rows = await db
-      .prepare(
-        `SELECT c.day, c.hour_position, c.class_name, c.room, c.start_time, c.end_time, m.id AS "memberId", m.name AS "memberName", 'Student' AS "role"
-         FROM class_enrollments ce JOIN classes c ON c.id = ce.class_id JOIN members m ON m.id = ce.student_id
-         WHERE ce.student_id IN (${placeholders})
-         UNION ALL
-         SELECT c.day, c.hour_position, c.class_name, c.room, c.start_time, c.end_time, m.id AS "memberId", m.name AS "memberName",
-           CASE cs.role WHEN 'teacher' THEN 'Teacher' ELSE 'Assistant' END AS "role"
-         FROM class_staff cs JOIN classes c ON c.id = cs.class_id JOIN members m ON m.id = cs.member_id
-         WHERE cs.member_id IN (${placeholders})
-         ORDER BY day, hour_position`
-      )
-      .all(...familyIds, ...familyIds);
-    const byMemberId = new Map();
-    for (const r of rows) {
-      if (!byMemberId.has(r.memberId)) byMemberId.set(r.memberId, new Map());
-      const byDay = byMemberId.get(r.memberId);
-      if (!byDay.has(r.day)) byDay.set(r.day, []);
-      byDay.get(r.day).push(r);
-    }
-    schedule = family.map((m) => {
-      const byDay = byMemberId.get(m.id);
-      return {
-        memberName: m.name,
-        days: byDay ? CLASS_DAYS.filter((d) => byDay.has(d)).map((d) => ({ day: d, classes: byDay.get(d) })) : [],
-      };
-    });
+    schedule = await memberScheduleTables(family);
   } else if (tab === 'signups') {
     // A later real request: "Event signup tab should be organized by
     // month and then by event with drop down from the event to show who
@@ -760,6 +769,35 @@ async function renderProfile(req, res, error, notice, activeTab) {
 router.get('/portal/profile', async (req, res) => {
   if (!req.portalAccount) return res.redirect('/login?next=%2Fportal%2Fprofile');
   await renderProfile(req, res, req.query.error || null, req.query.notice || null, req.query.tab);
+});
+
+// My Profile > Schedules' own Export / PDF / Print (a real request: "All
+// member schedule pages, tabs etc. Should have export, pdf and print
+// icons"). Scoped to the signed-in account's own family
+// (familyForAccount - the same roster the tab itself shows): no
+// ?memberId= means the whole family, and a ?memberId= outside that
+// family (someone else's, or a typo) is a 404 - never a raw, unscoped
+// member lookup, same rule requireOwnFamilyMember below enforces.
+async function ownScheduleMembers(req) {
+  const family = await familyForAccount(req.portalAccount.id);
+  if (!req.query.memberId) return family;
+  const memberId = parseInt(req.query.memberId, 10);
+  const member = family.find((m) => m.id === memberId);
+  return member ? [member] : null;
+}
+
+const OWN_SCHEDULE_FORMATS = { 'export.csv': 'csv', 'download.pdf': 'pdf', print: 'print' };
+router.get('/portal/profile/schedules/:output', async (req, res) => {
+  if (!req.portalAccount) return res.redirect('/login?next=%2Fportal%2Fprofile%3Ftab%3Dschedules');
+  const format = OWN_SCHEDULE_FORMATS[req.params.output];
+  if (!format) return res.status(404).send('Not found');
+  const members = await ownScheduleMembers(req);
+  if (!members || members.length === 0) return res.status(404).send('Not found');
+  // portal-nav's title - res.locals.sharedPortalTitle is the same helper
+  // portal-profile.ejs itself uses; resolved here since the PDF render
+  // (req.app.render) never sees res.locals.
+  const portalTitle = typeof res.locals.sharedPortalTitle === 'function' ? res.locals.sharedPortalTitle('My Profile') : 'My Profile';
+  await sendMemberSchedules(req, res, format, { members, filenameBase: 'my-schedules', extraLocals: { portalTitle } });
 });
 
 // A real request: "Member profile for co-op admin portal, main admin

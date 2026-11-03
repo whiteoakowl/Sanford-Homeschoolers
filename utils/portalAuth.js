@@ -26,6 +26,26 @@ function hashPassword(password) {
   return bcrypt.hashSync(password, 10);
 }
 
+// A real request: "Portal Choosing page. Change order. Parent portal,
+// Co-op Teacher, Family School Management Portal, Main Admin Portal,
+// Co-op Admin Portal, Student Portal." Originally just the Portal
+// Switcher's own display-only re-sort (routes/portal-auth.js's
+// sortForPortalSwitcher) - moved here so a later real request ("Portal
+// permissions page order should be the same as portal choosing order")
+// could reuse the exact same order for views/main-admin-roles.ejs's own
+// role-card list (routes/main-admin.js) without duplicating it. Any role
+// key not listed here (there isn't one today) just keeps falling in
+// after every key that is, in whatever order it was in.
+const PORTAL_SWITCHER_CARD_ORDER = ['parent', 'teacher', 'family_school', 'main_admin', 'coop_admin', 'student'];
+function sortByPortalSwitcherOrder(items, keyOf) {
+  const order = PORTAL_SWITCHER_CARD_ORDER;
+  return [...items].sort((a, b) => {
+    const ai = order.indexOf(keyOf(a));
+    const bi = order.indexOf(keyOf(b));
+    return (ai === -1 ? order.length : ai) - (bi === -1 ? order.length : bi);
+  });
+}
+
 // Every role a member account currently holds, e.g. [{key:'parent',...},
 // {key:'teacher',...}] - the source of truth for both the portal
 // switcher (one entry per role whose key is a real portal) and every
@@ -123,7 +143,34 @@ async function ensurePortalAccountForMember(memberId, email, createdByAccountId,
   return { status: 'created' };
 }
 
+// A real request: "The main admin portal is now where the master lives.
+// Master log in as full control of everything... This should not affect
+// member admin access to portals." The master is ONE account - the
+// original Main Admin login (the first account ever given the main_admin
+// role, i.e. db/bootstrapPg.js's seeded "Main Admin"), recorded once in
+// app_settings so it stays fixed even if its email changes or more Main
+// Admin members are added later. Other members keep exactly the access
+// their own roles/permissions give them.
+let masterAccountIdCache = null;
+async function masterAccountId() {
+  if (masterAccountIdCache) return masterAccountIdCache;
+  const saved = await db.prepare("SELECT value FROM app_settings WHERE key = 'master_account_id'").get();
+  if (saved && Number(saved.value)) {
+    masterAccountIdCache = Number(saved.value);
+    return masterAccountIdCache;
+  }
+  const first = await db
+    .prepare("SELECT MIN(mar.member_account_id) AS id FROM member_account_roles mar JOIN roles r ON r.id = mar.role_id WHERE r.key = 'main_admin'")
+    .get();
+  if (!first || !first.id) return null;
+  await db.prepare("INSERT INTO app_settings (key, value) VALUES ('master_account_id', ?) ON CONFLICT (key) DO NOTHING").run(String(first.id));
+  const stored = await db.prepare("SELECT value FROM app_settings WHERE key = 'master_account_id'").get();
+  masterAccountIdCache = Number(stored.value);
+  return masterAccountIdCache;
+}
+
 module.exports = {
+  masterAccountId,
   findAccountByEmail,
   findAccountById,
   verifyPassword,
@@ -133,4 +180,6 @@ module.exports = {
   memberForAccount,
   familyForAccount,
   ensurePortalAccountForMember,
+  PORTAL_SWITCHER_CARD_ORDER,
+  sortByPortalSwitcherOrder,
 };

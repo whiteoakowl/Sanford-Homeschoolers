@@ -58,41 +58,22 @@
       }) %>
     <% } else if (activeTab === 'schedules') { %>
       <%# A real request: "Schedules tab should be organized by family
-          member and then by day under each family member." One section
-          per family member (self first, then the rest - same order the
-          Profile tab's own My Family list uses), each with its own
-          day-by-day class tables instead of one flat table with a Name
-          column. %>
-      <% if (!schedule.some(function(m) { return m.days.length > 0; })) { %>
+          member" - one section per family member (self first, then the
+          rest - same order the Profile tab's own My Family list uses). A
+          later real request: "member profile, schedules should also look
+          like this [image]" - each section is the same shared member
+          schedule table (partials/member-schedule-table.ejs) every admin
+          schedule uses, with the same Export/PDF/Print row, scoped to
+          this family (routes/portal-auth.js's /portal/profile/schedules/*). %>
+      <%- include('partials/member-schedule-actions', {
+        exportHref: '/portal/profile/schedules/export.csv',
+        pdfHref: '/portal/profile/schedules/download.pdf',
+        printHref: '/portal/profile/schedules/print',
+      }) %>
+      <% if (!schedule.some(function(t) { return t.entryCount > 0; })) { %>
         <p class="hint">No class schedule on file yet.</p>
       <% } else { %>
-        <% schedule.forEach(function(memberSchedule) { %>
-          <div class="form-section">
-            <h2><%= memberSchedule.memberName %></h2>
-            <% if (memberSchedule.days.length === 0) { %>
-              <p class="hint">No classes scheduled.</p>
-            <% } else { %>
-              <% memberSchedule.days.forEach(function(d) { %>
-                <h3 class="profile-schedule-day-heading"><%= dayLabels[d.day] || d.day %></h3>
-                <div class="roster-scroll">
-                  <table class="roster-table profile-schedule-table">
-                    <thead><tr><th>Time</th><th>Class</th><th>Room</th><th>Role</th></tr></thead>
-                    <tbody>
-                      <% d.classes.forEach(function(row) { %>
-                        <tr>
-                          <td><%= row.start_time || '' %><% if (row.end_time) { %>&ndash;<%= row.end_time %><% } %></td>
-                          <td><%= row.class_name %></td>
-                          <td><%= row.room || '' %></td>
-                          <td><%= row.role %></td>
-                        </tr>
-                      <% }); %>
-                    </tbody>
-                  </table>
-                </div>
-              <% }); %>
-            <% } %>
-          </div>
-        <% }); %>
+        <%- include('partials/member-schedule-table', { tables: schedule }) %>
       <% } %>
     <% } else { %>
       <%# A real request: "Event signup tab should be organized by month

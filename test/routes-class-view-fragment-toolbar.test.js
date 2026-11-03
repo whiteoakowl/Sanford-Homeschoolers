@@ -32,7 +32,7 @@ test.after(() => {
 });
 
 test('the class view fragment lists the roster toolbar before Teachers & Assistants, not after Student Roster', async () => {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
 
   const classId = await createClass({ day: 'monday', hourPosition: 1, className: 'Toolbar Order Test Class' });

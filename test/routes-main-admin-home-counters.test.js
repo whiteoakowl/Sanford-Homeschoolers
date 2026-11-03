@@ -133,9 +133,12 @@ test('a non-Main-Admin portal keeps its own Settings link, no gear dropdown', as
   // portal. It needs to become its own portal") made the 'parent' role
   // reach TWO portals now (Parent + Family School Management - see
   // routes/portal-auth.js's own expandPortalRoles), so a parent-only
-  // account sees the Switch Portal dropdown too, even with one real
-  // role - the Settings link below stays a plain link regardless.
-  assert.match(res.text, /portal-switcher-details/);
+  // account sees the Switch Portal link too, even with one real role -
+  // the Settings link below stays a plain link regardless (a later real
+  // request made Switch Portal itself a plain link too, not a dropdown
+  // - see this file's own test on the corner-link styling further
+  // down).
+  assert.match(res.text, /<a class="admin-corner-link" href="\/portal">/);
   // A later real request moved Parent Portal's own gear to the same
   // card-view settings hub Family School Management uses (test/family-
   // school-settings.test.js's own "Settings gear" test covers that hub
@@ -219,7 +222,10 @@ test('Admin count: distinct active members holding an Admin Position (Settings >
 // admin-mobile-topbar-compositing.test.js's own note on why.
 test('The top-right My Profile/Settings/Switch Portal buttons use the app\'s own background blue, not the lighter logo blue', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'styles.css'), 'utf8');
-  const match = /\.admin-page-corner-actions \.admin-corner-link,\s*\n\.admin-page-corner-actions \.portal-switcher-details summary \{([^}]*)\}/.exec(css);
+  // Switch Portal is now a plain .admin-corner-link too (no more
+  // .portal-switcher-details summary of its own - see this file's
+  // earlier test), so one shared selector covers all three buttons.
+  const match = /\.admin-page-corner-actions \.admin-corner-link \{([^}]*)\}/.exec(css);
   assert.ok(match, 'expected the .admin-page-corner-actions blue-buttons rule');
   assert.match(match[1], /background:\s*var\(--bg\)/, 'should reuse var(--bg), not var(--brand)');
 });

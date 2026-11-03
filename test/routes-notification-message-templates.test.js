@@ -49,7 +49,7 @@ async function loginAsMainAdmin() {
 }
 
 async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin').set('Cookie', cookie);
   return { cookie, csrfToken: extractCsrf(page.text) };
@@ -110,27 +110,22 @@ test('Main Admin: saving an unknown template key 404s instead of inserting a str
   assert.equal(res.status, 404);
 });
 
-test('Co-op Admin: Settings hub has a Text/Email Notifications card, and the tab shows/saves the same templates', async () => {
+// A later real request: "Co-op admin portal settings gear... Remove
+// text/email notifications." The card, tab and Co-op Admin save route are
+// gone; these templates are edited only from Main Admin (tests above).
+test('Co-op Admin: Settings hub no longer has a Text/Email Notifications card or save route', async () => {
   const admin = await loginAsAdmin();
   const hub = await request(app).get('/admin/settings').set('Cookie', admin.cookie);
-  assert.match(hub.text, /href="\/admin\/settings\?tab=notificationtemplates"/);
+  assert.doesNotMatch(hub.text, /tab=notificationtemplates/);
+  assert.doesNotMatch(hub.text, /Text\/Email Notifications/);
 
-  const tab = await request(app).get('/admin/settings?tab=notificationtemplates').set('Cookie', admin.cookie);
-  assert.equal(tab.status, 200);
-  assert.match(tab.text, /Floater Assignments/);
-  assert.match(tab.text, /Event Waitlist/);
-
-  const csrfToken = extractCsrf(tab.text);
+  const csrfToken = extractCsrf(hub.text);
   const saveRes = await request(app)
     .post('/admin/settings/notification-templates/floater_assignment_default')
     .set('Cookie', admin.cookie)
     .type('form')
-    .send({ body: "You've been assigned {{position}}.", _csrf: csrfToken });
-  assert.equal(saveRes.status, 200, 'Co-op Admin settings POST handlers render directly, same as class-checkin-pin');
-  assert.match(saveRes.text, /Message saved\./);
-
-  const row = await db.prepare("SELECT * FROM notification_message_templates WHERE template_key = 'floater_assignment_default'").get();
-  assert.equal(row.body, "You've been assigned {{position}}.");
+    .send({ body: 'Should not save', _csrf: csrfToken });
+  assert.equal(saveRes.status, 404);
 });
 
 test('a class_waitlist_promoted notification actually sent uses the stored (possibly edited) template, not hardcoded text', async () => {

@@ -1,0 +1,48 @@
+<%
+// Shared Filter button + popup for every Design/Print hub picker - a real
+// request: "All printing should allow you to filter by family name,
+// semester, day. Should be able to change multiple items in the filter
+// popup without it refreshing and click save." Nothing here filters on
+// 'change': the selects are only read when Save is clicked, by
+// public/js/design-print-hub.js's wireFilterPopup (keyed off these ids),
+// which hides non-matching rows, unchecks them so Print only sends what's
+// on screen, and keeps the choice in sessionStorage so it survives the
+// post-Print reload (bulk-print-refresh.js). The selects carry no name
+// attribute, so even rendered inside a print form they never submit.
+// Locals: prefix (id prefix - ids are <prefix>-filter-btn/-dialog/
+// -save-btn/-clear-btn/-summary and <prefix>-filter-<field>-select),
+// title (dialog heading), fields ([{ name, label, allLabel, options:
+// [{ value, label }], defaultValue? }]), parts (optional - any of
+// 'button', 'summary', 'dialog'; default all three, for a toolbar that
+// needs the button in one spot and the summary/dialog in another).
+var popupParts = typeof parts !== 'undefined' && parts ? parts : ['button', 'summary', 'dialog'];
+%>
+<% if (popupParts.indexOf('button') !== -1) { %>
+<button type="button" class="roster-action-btn" id="<%= prefix %>-filter-btn">Filter</button>
+<% } %>
+<% if (popupParts.indexOf('summary') !== -1) { %>
+<span class="hint print-filter-summary" id="<%= prefix %>-filter-summary" aria-live="polite"></span>
+<% } %>
+<% if (popupParts.indexOf('dialog') !== -1) { %>
+<dialog id="<%= prefix %>-filter-dialog" class="qr-filter-dialog">
+  <div class="qr-filter-dialog-header">
+    <h2><%= title %></h2>
+    <div class="qr-filter-dialog-actions">
+      <button type="button" class="roster-action-btn" id="<%= prefix %>-filter-save-btn">Save</button>
+      <button type="button" class="class-form-dialog-close" onclick="this.closest('dialog').close()" aria-label="Close"><svg class="icon"><use href="#icon-x-circle"/></svg></button>
+    </div>
+  </div>
+  <div class="qr-filter-dialog-body">
+    <% fields.forEach(function(f) { %>
+      <label for="<%= prefix %>-filter-<%= f.name %>-select"><%= f.label %></label>
+      <select id="<%= prefix %>-filter-<%= f.name %>-select" data-filter-field="<%= f.name %>">
+        <option value=""><%= f.allLabel %></option>
+        <% f.options.forEach(function(o) { %>
+          <option value="<%= o.value %>"<% if (f.defaultValue && f.defaultValue === o.value) { %> selected<% } %>><%= o.label %></option>
+        <% }); %>
+      </select>
+    <% }); %>
+    <button type="button" class="btn-secondary print-filter-clear-btn" id="<%= prefix %>-filter-clear-btn">Clear filters</button>
+  </div>
+</dialog>
+<% } %>

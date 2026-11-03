@@ -40,7 +40,7 @@ function extractCsrf(html) {
 }
 
 async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin/schedule?tab=settings').set('Cookie', cookie);
   return { cookie, csrfToken: extractCsrf(page.text) };
@@ -92,8 +92,9 @@ test('a Tuesday class enrollment shows up on the member profile Schedule tab, it
 
   const csv = await request(app).get('/admin/schedule/export.csv').set('Cookie', admin.cookie);
   assert.equal(csv.status, 200);
-  assert.match(csv.text, /tuesday/);
-  assert.match(csv.text, /Tuesday Robotics/);
+  // Day column is the shared member schedule table's own short day name
+  // ("Mon"/"Tue"/... - see utils/schedule.js's memberScheduleCsvLines).
+  assert.match(csv.text, /"Tuesday Schedule Kid","Signed Up","Tuesday Robotics","","","","Tue"/);
 
   const manage = await request(app).get(`/admin/schedule/member/${studentId}/manage`).set('Cookie', admin.cookie);
   assert.equal(manage.status, 200);

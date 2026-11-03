@@ -49,8 +49,11 @@ test('FAQ has its own Settings page, separate from Website', async () => {
   assert.equal(faqPage.status, 200);
   assert.match(faqPage.text, /<a href="\/main-admin\/settings">&larr; Back to Settings Menu<\/a>/);
 
+  // /main-admin/website is now the Wix-style site dashboard card whose
+  // Edit Site button opens the full-screen editor.
   const websitePage = await request(app).get('/main-admin/website').set('Cookie', cookie);
   assert.equal(websitePage.status, 200);
+  assert.match(websitePage.text, /href="\/main-admin\/website\/editor"/);
   assert.doesNotMatch(websitePage.text, />FAQs</, 'FAQ section should no longer render on the Website page');
   assert.match(websitePage.text, /<a href="\/main-admin\/settings">&larr; Back to Settings Menu<\/a>/);
 });
@@ -89,4 +92,8 @@ test('the Website page has no top-of-page description', async () => {
   const res = await request(app).get('/main-admin/website').set('Cookie', cookie);
   assert.equal(res.status, 200);
   assert.doesNotMatch(res.text, /Edit the public homepage's copy, announcements, and FAQs without touching code\./);
+  // The site editor itself, and the public FAQ widget's data source.
+  const editor = await request(app).get('/main-admin/website/editor').set('Cookie', cookie);
+  assert.equal(editor.status, 200);
+  assert.match(editor.text, /\/js\/site-editor\/main\.js/);
 });

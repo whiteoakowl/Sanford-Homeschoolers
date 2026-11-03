@@ -50,7 +50,7 @@ async function getBuffer(url, cookie) {
 }
 
 async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin/design?tab=print').set('Cookie', cookie);
   const csrfToken = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];
@@ -82,7 +82,7 @@ test('Class Check-In QR Codes picker lists every class, with no description text
   assert.match(res.text, /id="classcheckin-qr-filter-room-select"/);
   assert.doesNotMatch(res.text, /id="classcheckin-qr-filter-hour-select"/);
   assert.match(res.text, /id="classcheckin-qr-filter-save-btn"/);
-  assert.match(res.text, new RegExp(`class="qr-picker-row" data-day="monday" data-room="Room 1"[\\s\\S]*?value="${classId}"`));
+  assert.match(res.text, new RegExp(`class="qr-picker-row" data-semester="[^"]*" data-day="monday" data-room="Room 1"[\\s\\S]*?value="${classId}"`));
   // Room column in the picker table itself, alongside Class/Day/Time.
   assert.match(res.text, /<th>Room<\/th>/);
   // A real request: "the download should be a pdf of exactly how it
@@ -145,7 +145,7 @@ test('the print sheet groups classes into one page per (day, room), sorted by ho
 
   await t.test('each cell carries the class name and an absolute Class Check-In URL', async () => {
     for (const classId of classIds) {
-      assert.match(res.text, new RegExp(`data-qr-value="http://[^"]*/kiosk/class-checkin/classes/${classId}/attendance"`));
+      assert.match(res.text, new RegExp(`data-qr-value="http://[^"]*/kiosk/class-checkin/classes/${classId}/attendance\\?k=[0-9a-f]{20}"`));
     }
     assert.match(res.text, /Room A Hour 1/);
     assert.match(res.text, /Room B Solo Class/);
@@ -189,4 +189,86 @@ test('downloading the QR sheet as a PDF renders a real, non-trivial PDF', async 
   // a real one-page sheet with a rendered QR code comes back well into
   // the tens of KB, not a trivial handful of bytes.
   assert.ok(res.body.length > 5000, `expected a non-trivial PDF, got ${res.body.length} bytes`);
+});
+
+// A real bug report (photos of a printed Room 5 Wednesday sheet with QR
+// cards overlapping each other and the next page's header): a room with
+// more than 4 classes in a day (several share an hour across semesters)
+// overflowed its one fixed 2x2 page. It now continues onto another page
+// for that same room/day, never more than 4 cards per page.
+test('a room with more than 4 classes that day continues onto another page instead of overflowing', async () => {
+  const { cookie, csrfToken } = await loginAsAdmin();
+  const ids = [];
+  for (const [hour, name] of [[1, 'Room 5 Class A'], [1, 'Room 5 Class B'], [2, 'Room 5 Class C'], [3, 'Room 5 Class D'], [3, 'Room 5 Class E'], [4, 'Room 5 Class F']]) {
+    ids.push(await createClass({ day: 'wednesday', hourPosition: hour, className: name, room: 'Room 5' }));
+  }
+  const res = await request(app)
+    .post('/admin/design/print-classcheckin-qr')
+    .set('Cookie', cookie)
+    .type('form')
+    .send({ classIds: ids.map(String), _csrf: csrfToken });
+  assert.equal(res.status, 200);
+  const sheets = res.text.split('class="qr-sheet-page"').slice(1);
+  assert.equal(sheets.length, 2, '6 classes in one room/day need 2 sheets');
+  assert.equal((sheets[0].match(/class="qr-sheet-cell"/g) || []).length, 4);
+  assert.equal((sheets[1].match(/class="qr-sheet-cell"/g) || []).length, 2);
+  for (const sheet of sheets) assert.match(sheet, /Room 5[\s\S]{0,30}Wednesday/, 'every sheet keeps its room/day header');
+
+});
+
+// A real request: "When printing qr codes for class check in there needs
+// to be a semester dropdown added to the filter." The Filter popup lists
+// only the semesters/days its classes use (days in calendar order), and
+// each picker row carries its semester so the filter can match it.
+test('the QR picker Filter popup has a Semester dropdown and each row carries its semester', async () => {
+  const { createSemester } = require('../utils/classSchedule');
+  const { cookie } = await loginAsAdmin();
+  const fall = await createSemester('QR Fall Semester');
+  const classId = await createClass({ day: 'monday', hourPosition: 2, className: 'QR Semester Class', room: 'Room 9', semesterId: fall.id });
+  const page = await request(app).get('/admin/design?tab=print').set('Cookie', cookie);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /<select id="classcheckin-qr-filter-semester-select" data-filter-field="semester">[\s\S]*?<option value="">All Semesters<\/option>[\s\S]*?<option value="\d+">QR Fall Semester<\/option>/);
+  assert.match(page.text, new RegExp(`data-semester="${fall.id}"[^>]*>\\s*<td><input type="checkbox" name="classIds" value="${classId}"`));
+  const daySelect = /<select id="classcheckin-qr-filter-day-select" data-filter-field="day">([\s\S]*?)<\/select>/.exec(page.text)[1];
+  assert.match(daySelect, /<option value="monday">Monday<\/option>/);
+  assert.doesNotMatch(daySelect, /<option value="tuesday">/, 'only days that actually have classes are offered');
+});
+
+// A real request: "When scanning qr codes to do class attendance, check in
+// and out, it should not ask for a pin #. Scanning the class qr code goes
+// directly to the class attendance page." The printed URL's per-class key
+// opens that class (and its check-in/out) with no PIN; no key, a wrong
+// key, or another class's key still lands on the PIN screen.
+test('a printed class QR code opens that class attendance page with no PIN, but only that class', async () => {
+  const { classQrKey } = require('../utils/classQrKey');
+  const classA = await createClass({ day: 'monday', hourPosition: 1, className: 'QR No PIN Class A', room: 'Room Q' });
+  const classB = await createClass({ day: 'monday', hourPosition: 2, className: 'QR No PIN Class B', room: 'Room Q' });
+  const keyA = await classQrKey(classA);
+
+  const noKey = await request(app).get(`/kiosk/class-checkin/classes/${classA}/attendance`);
+  assert.equal(noKey.status, 302);
+  assert.match(noKey.headers.location, /^\/kiosk\/class-checkin\?next=/);
+
+  const wrongKey = await request(app).get(`/kiosk/class-checkin/classes/${classA}/attendance?k=${'0'.repeat(20)}`);
+  assert.match(wrongKey.headers.location, /^\/kiosk\/class-checkin\?next=/);
+
+  const agent = request.agent(app);
+  const scanned = await agent.get(`/kiosk/class-checkin/classes/${classA}/attendance?k=${keyA}`);
+  assert.equal(scanned.status, 302, 'the key is accepted and stripped from the URL');
+  assert.equal(scanned.headers.location, `/kiosk/class-checkin/classes/${classA}/attendance`);
+  const page = await agent.get(`/kiosk/class-checkin/classes/${classA}/attendance`);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /QR No PIN Class A/);
+  const scanPage = await agent.get(`/kiosk/class-checkin/classes/${classA}/scan?mode=checkin`);
+  assert.equal(scanPage.status, 200);
+  const checkin = await agent.post(`/kiosk/class-checkin/classes/${classA}/scan/checkin`).type('form').send({ barcode: 'no-such-barcode' });
+  assert.equal(checkin.status, 200, 'check-in scanning works on the unlocked class (an unknown barcode just reports not recognized)');
+
+  const otherClass = await agent.get(`/kiosk/class-checkin/classes/${classB}/attendance`);
+  assert.equal(otherClass.status, 302, 'one class\'s QR key does not unlock a different class');
+  const otherWithAKey = await agent.get(`/kiosk/class-checkin/classes/${classB}/attendance?k=${keyA}`);
+  assert.equal(otherWithAKey.status, 302);
+  assert.match(otherWithAKey.headers.location, /^\/kiosk\/class-checkin\?next=/);
+  const list = await agent.get('/kiosk/class-checkin/classes');
+  assert.equal(list.status, 302, 'the class list itself still needs the PIN');
 });

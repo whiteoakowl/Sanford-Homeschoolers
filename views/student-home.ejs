@@ -94,7 +94,19 @@
       </section>
     </div>
 
-    <div class="portal-dashboard-grid">
+    <%# A real request: "My classes and nature news the buttons should be
+        the same size and fit to text." .portal-dashboard-card is a flex
+        column with no cross-axis alignment set, so its default
+        align-items: stretch silently stretches every direct-child button
+        to the card's full width, and .roster-action-btn's own flex: 1 0
+        auto then has that full width to grow into - the exact same root
+        cause (and fix) as the identical real request already solved for
+        Parent Portal's own home page (.parent-home-main .roster-action-btn
+        below in this file). Scoped to this one grid (not .portal-
+        dashboard-card/.roster-action-btn themselves, both shared by every
+        other portal's own home dashboard - Main Admin, Teacher,
+        Babysitters, ...) via this page's own wrapper class instead. %>
+    <div class="portal-dashboard-grid student-home-dashboard-grid">
       <section class="portal-dashboard-card">
         <h2>My Classes</h2>
         <p class="portal-dashboard-stat"><%= classes.length %></p>

@@ -36,8 +36,8 @@ function mockRes() {
 
 for (const [name, middleware] of [['requireAdmin', requireAdmin], ['requireFullAdmin', requireFullAdmin]]) {
   test(name, async (t) => {
-    await t.test('calls next() when a session is present', () => {
-      const req = { session: { adminId: 1 }, headers: {}, originalUrl: '/admin/members' };
+    await t.test('calls next() for a signed-in coop_admin member', () => {
+      const req = { session: { portalAccountId: 1 }, portalRoles: [{ key: 'coop_admin' }], headers: {}, originalUrl: '/admin/members' };
       const res = mockRes();
       let calledNext = false;
       middleware(req, res, () => {
@@ -45,7 +45,41 @@ for (const [name, middleware] of [['requireAdmin', requireAdmin], ['requireFullA
       });
       assert.equal(calledNext, true);
       assert.equal(res.redirectedTo, null);
-      assert.equal(res.jsonBody, null);
+    });
+
+    await t.test('calls next() for the master account', () => {
+      const req = { session: { portalAccountId: 1 }, isMasterAccount: true, portalRoles: [{ key: 'main_admin' }], headers: {}, originalUrl: '/admin/members' };
+      const res = mockRes();
+      let calledNext = false;
+      middleware(req, res, () => {
+        calledNext = true;
+      });
+      assert.equal(calledNext, true);
+    });
+
+    // "This should not affect member admin access to portals" - holding
+    // main_admin alone (not the master account) doesn't add Co-op Admin.
+    await t.test('a non-master main_admin member without coop_admin is turned away', () => {
+      const req = { session: { portalAccountId: 3 }, isMasterAccount: false, portalRoles: [{ key: 'main_admin' }], headers: {}, originalUrl: '/admin/members', method: 'GET' };
+      const res = mockRes();
+      middleware(req, res, () => assert.fail('next() should not be called'));
+      assert.equal(res.redirectedTo, '/login?next=%2Fadmin%2Fmembers');
+    });
+
+    // A real request retired the old separate username/password master
+    // login - a leftover req.session.adminId no longer grants anything.
+    await t.test('a leftover old-master-login session (adminId) no longer grants access', () => {
+      const req = { session: { adminId: 1 }, headers: {}, originalUrl: '/admin/members', method: 'GET' };
+      const res = mockRes();
+      middleware(req, res, () => assert.fail('next() should not be called'));
+      assert.equal(res.redirectedTo, '/login?next=%2Fadmin%2Fmembers');
+    });
+
+    await t.test('a signed-in account without coop_admin or main_admin is turned away', () => {
+      const req = { session: { portalAccountId: 2 }, portalRoles: [{ key: 'parent' }], headers: {}, originalUrl: '/admin/members', method: 'GET' };
+      const res = mockRes();
+      middleware(req, res, () => assert.fail('next() should not be called'));
+      assert.equal(res.redirectedTo, '/login?next=%2Fadmin%2Fmembers');
     });
 
     await t.test('redirects to login (with the original URL preserved) when there is no session and no JSON was requested', () => {
@@ -57,7 +91,7 @@ for (const [name, middleware] of [['requireAdmin', requireAdmin], ['requireFullA
       const req = { session: null, headers: {}, originalUrl: '/admin/members?tab=x', method: 'GET' };
       const res = mockRes();
       middleware(req, res, () => assert.fail('next() should not be called'));
-      assert.equal(res.redirectedTo, '/admin/login?next=%2Fadmin%2Fmembers%3Ftab%3Dx');
+      assert.equal(res.redirectedTo, '/login?next=%2Fadmin%2Fmembers%3Ftab%3Dx');
       assert.equal(res.jsonBody, null);
     });
 
@@ -70,11 +104,11 @@ for (const [name, middleware] of [['requireAdmin', requireAdmin], ['requireFullA
       assert.equal(res.redirectedTo, null);
     });
 
-    await t.test('a session with no adminId is treated the same as no session', () => {
+    await t.test('an empty session is treated the same as no session', () => {
       const req = { session: {}, headers: {}, originalUrl: '/admin/members', method: 'GET' };
       const res = mockRes();
       middleware(req, res, () => assert.fail('next() should not be called'));
-      assert.equal(res.redirectedTo, '/admin/login?next=%2Fadmin%2Fmembers');
+      assert.equal(res.redirectedTo, '/login?next=%2Fadmin%2Fmembers');
     });
 
     // A real bug report: "after adding 4 categories it asks me to log in
@@ -87,7 +121,7 @@ for (const [name, middleware] of [['requireAdmin', requireAdmin], ['requireFullA
       const req = { session: null, headers: {}, originalUrl: '/admin/accounting/accounting-categories', method: 'POST' };
       const res = mockRes();
       middleware(req, res, () => assert.fail('next() should not be called'));
-      assert.equal(res.redirectedTo, '/admin/login');
+      assert.equal(res.redirectedTo, '/login');
     });
   });
 }

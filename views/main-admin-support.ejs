@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Main Admin' }) %>
+
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <div class="grid-box-header">
+      <h1><%= type.label %></h1>
+      <%# "Both pages have a create form button, allows you to add
+          different fields like jotform" - opens the Custom Forms builder
+          on this type's own hidden backing form (created on first click). %>
+      <form method="POST" action="/main-admin/support/<%= type.key %>/form" class="inline-block-form">
+        <button type="submit" class="roster-action-btn"><%= form ? 'Edit Form' : '+ Create Form' %></button>
+      </form>
+    </div>
+    <p class="hint">
+      Entries sent from Parent Portal's Website Feedback and Support form with <strong><%= type.key === 'feedback' ? 'Feedback' : 'Support' %></strong> selected.
+      The form always asks for a Subject and Message<% if (extraFieldCount) { %>, plus <%= extraFieldCount %> extra field<%= extraFieldCount === 1 ? '' : 's' %> you've added<% } %>.
+    </p>
+
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+
+    <div class="roster-toolbar no-print">
+      <div class="roster-btn-row">
+        <% [['all', 'All'], ['open', 'Open'], ['completed', 'Completed']].forEach(function(f) { %>
+          <a class="roster-action-btn archived-toggle-btn<%= status === f[0] ? ' active' : '' %>" href="<%= type.adminHref %><%= f[0] === 'all' ? '' : '?status=' + f[0] %>"><%= f[1] %></a>
+        <% }); %>
+      </div>
+    </div>
+
+    <div class="roster-scroll">
+      <table class="roster-table members-table condensed-table">
+        <thead>
+          <tr><th>Date</th><th>Submitted By</th><th>Subject</th><th>Message</th><th>Other Answers</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          <% if (entries.length === 0) { %>
+            <tr><td colspan="7" class="roster-empty">No <%= status === 'all' ? '' : status + ' ' %>entries yet.</td></tr>
+          <% } %>
+          <% entries.forEach(function(e) { %>
+            <tr class="<%= e.completed_at ? 'support-request-completed' : '' %>">
+              <td><%= e.submittedLabel %></td>
+              <td><%= e.memberName || '(unknown)' %></td>
+              <td><%= e.subject %></td>
+              <td class="support-message-cell"><%= e.message %></td>
+              <td>
+                <% if (e.extraAnswers.length === 0) { %>
+                  <span class="hint">&mdash;</span>
+                <% } else { %>
+                  <ul class="support-extra-answers">
+                    <% e.extraAnswers.forEach(function(a) { %>
+                      <li><strong><%= a.label %>:</strong>
+                        <% if (a.fieldType === 'multiple_choice') { %>
+                          <%= (a.choiceLabels || []).length ? a.choiceLabels.join(', ') : '(no selection)' %>
+                        <% } else if (a.fieldType === 'checkbox') { %>
+                          <%= a.valueText === '1' ? 'Yes' : 'No' %>
+                        <% } else if (a.fieldType === 'file') { %>
+                          <% if (a.valueText) { %><a href="/main-admin/support/<%= type.key %>/<%= e.id %>/files/<%= a.fieldId %>">Download File</a><% } else { %>(no file)<% } %>
+                        <% } else if (a.fieldType === 'signature') { %>
+                          <% if (a.valueText) { %><img src="<%= a.valueText %>" alt="Signature" class="cf-signature-answer-preview" /><% } else { %>(no signature)<% } %>
+                        <% } else if (a.fieldType === 'fill_blank') { %>
+                          <% var blanks = customForms.parseFillBlankAnswer(a.valueText); %><%= blanks.length ? blanks.join(', ') : '(blank)' %>
+                        <% } else if (a.fieldType === 'input_table') { %>
+                          <% var matrix = customForms.parseInputTableAnswer(a.valueText); %><%= Object.keys(matrix).length ? Object.entries(matrix).map(function(en) { return en[0] + ': ' + en[1]; }).join('; ') : '(no selections)' %>
+                        <% } else { %>
+                          <%= a.valueText || '(blank)' %>
+                        <% } %>
+                      </li>
+                    <% }); %>
+                  </ul>
+                <% } %>
+              </td>
+              <td>
+                <% if (e.completed_at) { %>
+                  <span class="badge-pill badge-pill-green">Completed</span>
+                  <div class="hint"><%= e.completedLabel %><%= e.completedByName ? ' by ' + e.completedByName : '' %></div>
+                <% } else { %>
+                  <span class="badge-pill badge-pill-orange">Open</span>
+                <% } %>
+              </td>
+              <td class="no-print">
+                <form method="POST" action="/main-admin/support/<%= type.key %>/<%= e.id %>/<%= e.completed_at ? 'reopen' : 'complete' %>">
+                  <input type="hidden" name="status" value="<%= status %>" />
+                  <button type="submit" class="<%= e.completed_at ? 'btn-secondary' : 'roster-action-btn' %> condensed-btn"><%= e.completed_at ? 'Reopen' : 'Complete' %></button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>

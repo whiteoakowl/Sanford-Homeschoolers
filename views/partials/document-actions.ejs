@@ -1,0 +1,17 @@
+<%# A real request: "Members should be able to print and download a pdf
+    of all documents. Add a print and pdf icons to all document pages." -
+    one Print + PDF icon pair per document, used on every document view
+    and list page (Parent Portal, Co-op Admin, Main Admin, the public
+    /documents/<token> page). Both point at routes/documents.js's own
+    token-based routes, so they work for exactly the people who can
+    already open the document. An old binary .doc can't be converted to a
+    PDF, so it gets a plain Download icon instead of pretending to be one.
+    Locals: doc (a documents row), kind (utils/documentRender.js's
+    documentKind), extraClass (optional, added to each link). %>
+<% var docActionClass = 'icon-btn' + (typeof extraClass !== 'undefined' && extraClass ? ' ' + extraClass : ''); %>
+<a class="<%= docActionClass %>" href="/documents/<%= doc.public_token %>/print" target="_blank" rel="noopener" aria-label="Print <%= doc.title %>" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
+<% if (kind === 'doc') { %>
+  <a class="<%= docActionClass %>" href="/documents/<%= doc.public_token %>/download.pdf" download aria-label="Download <%= doc.title %> (Word .doc file)" title="Download (a .doc Word file can't be turned into a PDF - this downloads the original)"><svg class="icon"><use href="#icon-download"/></svg></a>
+<% } else { %>
+  <a class="<%= docActionClass %>" href="/documents/<%= doc.public_token %>/download.pdf" download aria-label="Download <%= doc.title %> as PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
+<% } %>

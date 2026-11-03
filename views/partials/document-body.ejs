@@ -1,0 +1,19 @@
+<%# The document itself on every document view page (public /documents/
+    <token>, Co-op Admin and Main Admin view pages). A PDF shows in an
+    <iframe> exactly as before; a .docx used to sit in that same iframe
+    too, but browsers can't display one (they just download it), so it's
+    shown as its converted HTML (utils/documentRender.js) instead; an old
+    binary .doc can't be shown in a browser at all, so it says so and
+    offers the original file. Locals: doc, kind, docxHtml, fileUrl. %>
+<% if (kind === 'docx' && docxHtml !== null) { %>
+  <div class="document-docx-view document-docx-content"><%- docxHtml %></div>
+<% } else if (kind === 'docx' || kind === 'doc') { %>
+  <div class="document-view-unavailable">
+    <p><%= kind === 'doc' ? 'This is an older Word (.doc) file, which can\'t be shown in the browser.' : 'This Word file couldn\'t be shown in the browser.' %> Download it to open it in Word or another word processor.</p>
+    <a class="primary-btn" href="/documents/<%= doc.public_token %>/download.pdf" download>Download</a>
+  </div>
+<% } else { %>
+  <div class="document-view-frame-wrap">
+    <iframe class="document-view-frame" src="<%= fileUrl %>" title="<%= doc.title %>"></iframe>
+  </div>
+<% } %>

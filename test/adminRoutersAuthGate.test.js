@@ -53,7 +53,7 @@ test('routers gated by a blanket router.use(requireFullAdmin) reject an unauthen
     await t.test(`${route} (${file}) redirects to login with no session`, async () => {
       const res = await request(app).get(route);
       assert.equal(res.status, 302, `${route} should redirect, not serve content, to an unauthenticated request`);
-      assert.match(res.headers.location, /^\/admin\/login/, `${route} should redirect to the login page`);
+      assert.match(res.headers.location, /^\/login/, `${route} should redirect to the login page`);
     });
   }
 });

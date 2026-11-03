@@ -31,7 +31,7 @@ test.after(() => {
 });
 
 async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   return loginRes.headers['set-cookie'];
 }
 
@@ -42,7 +42,11 @@ test('GET /admin/settings with no tab renders a card for every settings destinat
   assert.match(res.text, /<h1>Settings<\/h1>/);
   assert.match(res.text, /<div class="team-card-grid settings-hub-card-grid">/);
 
-  assert.match(res.text, /href="\/admin\/settings\?tab=account"[^]*?Username\/Password/);
+  // A real request: "Main admin log in settings should be moved from
+  // co-op admin portal to main admin portal" - Username/Password no
+  // longer has its own card here (see test/routes-main-admin-settings-
+  // hub.test.js for its new home).
+  assert.doesNotMatch(res.text, /Username\/Password/, 'Username/Password should no longer have a card on the Co-op Admin settings hub');
   assert.match(res.text, /href="\/admin\/settings\?tab=classcheckin"[^]*?Class Check-In PIN/);
   assert.match(res.text, /href="\/admin\/settings\?tab=kiosk"[^]*?Kiosk/);
   assert.match(res.text, /href="\/admin\/settings\?tab=quicklinks"[^]*?Quick Links/);
@@ -53,7 +57,7 @@ test('GET /admin/settings with no tab renders a card for every settings destinat
 
 test('each settings tab page shows a Back to Settings Menu link instead of the tab strip', async () => {
   const cookie = await loginAsAdmin();
-  for (const tab of ['account', 'classcheckin', 'kiosk', 'quicklinks', 'install']) {
+  for (const tab of ['classcheckin', 'kiosk', 'semesters', 'quicklinks', 'install']) {
     const res = await request(app).get(`/admin/settings?tab=${tab}`).set('Cookie', cookie);
     assert.equal(res.status, 200, `tab=${tab}`);
     assert.match(res.text, /<a href="\/admin\/settings">&larr; Back to Settings Menu<\/a>/, `tab=${tab}`);
@@ -61,18 +65,18 @@ test('each settings tab page shows a Back to Settings Menu link instead of the t
   }
 });
 
-test('a saved notice (e.g. after updating the username) still renders that tab\'s own panel, not the hub', async () => {
+test('a saved notice (e.g. after updating the Class Check-In PIN) still renders that tab\'s own panel, not the hub', async () => {
   const cookie = await loginAsAdmin();
-  const page = await request(app).get('/admin/settings?tab=account').set('Cookie', cookie);
+  const page = await request(app).get('/admin/settings?tab=classcheckin').set('Cookie', cookie);
   const csrfToken = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];
 
   const res = await request(app)
-    .post('/admin/settings/username')
+    .post('/admin/settings/class-checkin-pin')
     .set('Cookie', cookie)
     .type('form')
-    .send({ newUsername: 'renamedtestadmin', _csrf: csrfToken });
+    .send({ newPin: '4321', _csrf: csrfToken });
   assert.equal(res.status, 200);
-  assert.match(res.text, /Username updated\./);
+  assert.match(res.text, /Class Check-In PIN updated\./);
   assert.match(res.text, /<a href="\/admin\/settings">&larr; Back to Settings Menu<\/a>/);
   assert.doesNotMatch(res.text, /<div class="team-card-grid">/);
 });

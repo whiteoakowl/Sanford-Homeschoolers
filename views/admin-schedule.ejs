@@ -315,9 +315,12 @@
 
           <div class="roster-btn-row" data-fixed-columns="4">
             <button type="button" class="icon-btn" onclick="document.getElementById('schedule-import-dialog').showModal()" aria-label="Import" title="Import"><svg class="icon"><use href="#icon-upload"/></svg></button>
+            <%# Export / PDF / Print - same order as every other member
+                schedule surface (partials/member-schedule-actions.ejs),
+                covering exactly this filtered list. %>
             <a class="icon-btn" href="/admin/schedule/export.csv<%= buildQuery({}) %>" aria-label="Export CSV" title="Export CSV"><svg class="icon"><use href="#icon-download"/></svg></a>
-            <a class="icon-btn" href="/admin/schedule/print<%= buildQuery({}) %>" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
             <a class="icon-btn" href="/admin/schedule/download.pdf<%= buildQuery({}) %>" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
+            <a class="icon-btn" href="/admin/schedule/print<%= buildQuery({}) %>" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
           </div>
         </div>
 
@@ -382,24 +385,18 @@
           </form>
         </dialog>
 
-        <% if (rows.length === 0) { %>
+        <% if (tables.length === 0) { %>
           <div class="roster-empty-state">
             <svg class="icon roster-empty-icon"><use href="#icon-clock"/></svg>
             <p class="roster-empty-title">No schedules found</p>
           </div>
         <% } else { %>
-          <div class="schedule-card-grid">
-            <% rows.forEach(function(r) { %>
-              <div class="schedule-card-grid-item">
-                <a class="schedule-card-grid-name" href="/admin/schedule/member/<%= r.member.id %>/manage">
-                  <%= r.member.name %>
-                  <% if (!typeFilter) { %>
-                    <span class="schedule-card-type-badge schedule-card-type-<%= r.member.member_type %>"><%= r.member.member_type === 'student' ? 'Student' : (r.member.member_type === 'admin' ? 'Admin' : 'Parent') %></span>
-                  <% } %>
-                </a>
-                <%- include('partials/name-tag-badge', { html: r.scheduleCardHtml, bgCss: scheduleCardBgCss, badgeWidth: cardWidth, badgeHeight: cardHeight }) %>
-              </div>
-            <% }); %>
+          <%# A real request: "Each member's schedule should look like this
+              image" - one shared table per member (partials/member-
+              schedule-table.ejs), same layout as every member profile's
+              own Class Schedule tab, its Print/PDF, and My Profile. %>
+          <div class="member-schedule-list">
+            <%- include('partials/member-schedule-table', { tables, classHref: function (id) { return '/admin/class-schedule/classes/' + id + '/manage'; }, memberHref: function (m) { return '/admin/schedule/member/' + m.id + '/manage'; } }) %>
           </div>
         <% } %>
 

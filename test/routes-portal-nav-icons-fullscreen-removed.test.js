@@ -36,7 +36,7 @@ test.after(() => {
 });
 
 test('Co-op Admin (admin-nav.ejs): no Full Screen View button/script, My Portals uses a computer icon, My Profile appears', async () => {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin').set('Cookie', cookie);
   assert.equal(page.status, 200);
@@ -48,7 +48,7 @@ test('Co-op Admin (admin-nav.ejs): no Full Screen View button/script, My Portals
   assert.doesNotMatch(page.text, /fullscreen-exit-pin-dialog/);
 
   assert.match(page.text, /<a class="admin-corner-link" href="\/portal">\s*<svg class="icon"><use href="#icon-monitor"\/><\/svg>\s*My Portals/);
-  assert.match(page.text, /<a class="admin-corner-link" href="\/admin\/settings">\s*<svg class="icon"><use href="#icon-user-circle"\/><\/svg>\s*My Profile/);
+  assert.match(page.text, /<a class="admin-corner-link" href="\/portal\/profile">\s*<svg class="icon"><use href="#icon-user-circle"\/><\/svg>\s*My Profile/);
   assert.match(page.text, /aria-label="My Profile"><svg class="icon"><use href="#icon-user-circle"\/>/);
 });
 
@@ -114,7 +114,10 @@ test('Main Admin (portal-nav.ejs, multi-role account): Switch Portal link uses a
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/parent').set('Cookie', cookie);
   assert.equal(page.status, 200);
-  assert.match(page.text, /<summary><svg class="icon"><use href="#icon-monitor"\/><\/svg> Switch Portal<\/summary>/);
+  // A later real request: "On desktop... clicking the portal button
+  // should simply take you to the portal page" - Switch Portal is now a
+  // plain .admin-corner-link (no more <details>/<summary> dropdown).
+  assert.match(page.text, /<a class="admin-corner-link" href="\/portal">\s*<svg class="icon"><use href="#icon-monitor"\/><\/svg>\s*Switch Portal/);
   assert.match(page.text, /aria-label="Switch Portal"><svg class="icon"><use href="#icon-monitor"\/>/);
 });
 
@@ -122,7 +125,15 @@ test('Main Admin (portal-nav.ejs, multi-role account): Switch Portal link uses a
 // the card setup." Student Portal and Co-op Teacher Portal used to open
 // the bare generic account-settings page directly - they now open the
 // same card-view hub every other portal's own gear already uses.
-test('Student Portal and Co-op Teacher Portal gears open a card-view settings hub, each with a My Privacy card', async () => {
+//
+// A still later real request: "Student Portal should not have a settings
+// gear" - the corner gear link is gone for Student Portal specifically
+// (both desktop and mobile - views/partials/portal-nav.ejs's own
+// showSettingsGear), Co-op Teacher Portal's own unaffected. The
+// /portal/settings-hub route itself is untouched (purely shared
+// scaffolding - just a My Privacy card, nothing student-only), so it
+// still renders fine for a student who reaches it directly.
+test('Student Portal has no settings gear; Co-op Teacher Portal still opens its own card-view settings hub', async () => {
   const { generateMemberCode } = require('../utils/members');
   const { hashPassword } = require('../utils/portalAuth');
   const db = require('../db');
@@ -143,8 +154,12 @@ test('Student Portal and Co-op Teacher Portal gears open a card-view settings hu
   const studentCookie = studentLogin.headers['set-cookie'];
   const studentHome = await request(app).get('/student').set('Cookie', studentCookie);
   assert.equal(studentHome.status, 200);
-  assert.match(studentHome.text, /class="admin-corner-link" href="\/portal\/settings-hub\?portal=student">\s*<svg class="icon"><use href="#icon-gear"\/>/);
+  assert.doesNotMatch(studentHome.text, /class="admin-corner-link" href="\/portal\/settings-hub\?portal=student"/);
+  assert.doesNotMatch(studentHome.text, /aria-label="Settings"/);
 
+  // Not linked from the nav any more, but the route itself is untouched
+  // (shared scaffolding Teacher still needs) - still reachable and still
+  // renders fine for a student who navigates there directly.
   const studentHub = await request(app).get('/portal/settings-hub?portal=student').set('Cookie', studentCookie);
   assert.equal(studentHub.status, 200);
   assert.match(studentHub.text, /class="team-card-grid settings-hub-card-grid"/);

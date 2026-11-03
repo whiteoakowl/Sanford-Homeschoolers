@@ -118,6 +118,7 @@ const adminNameTagRouter = require('./routes/admin-name-tag');
 const adminScheduleRouter = require('./routes/admin-schedule');
 const adminClassScheduleRouter = require('./routes/admin-class-schedule');
 const adminLessonPlansRouter = require('./routes/admin-lesson-plans');
+const { pendingApprovalCount: pendingLessonApprovalCount } = require('./utils/academics');
 const adminOrientationRouter = require('./routes/admin-orientation');
 const contactAdminsRouter = require('./routes/contact-admins');
 const membershipRouter = require('./routes/membership');
@@ -180,10 +181,9 @@ const mainAdminTrainingRouter = require('./routes/main-admin-training');
 // on Track A's hard-boundary list).
 const eventsRouter = require('./routes/events');
 const adminEventsRouter = require('./routes/admin-events');
-// Public Homepage block builder - sibling router at /main-admin/website,
-// same shape as adminEventsRouter above (routes/main-admin.js's old
-// /website, /website/settings, /website/announcements/:id/delete routes
-// moved here and rebuilt around homepage_blocks).
+// Wix-style site editor (dashboard + full-screen editor + its JSON API)
+// - sibling router at /main-admin/website, same shape as adminEventsRouter
+// above. See utils/siteBuilder.js.
 const adminWebsiteRouter = require('./routes/admin-website');
 // Item 4: Business Directory at /directory, Classifieds at /classifieds,
 // same sibling-router shape as Events above.
@@ -212,6 +212,10 @@ const adminCustomFormsRouter = require('./routes/admin-custom-forms');
 const accountingRouter = require('./routes/accounting');
 const adminAccountingRouter = require('./routes/admin-accounting');
 const mainAdminAnnualCalendarRouter = require('./routes/main-admin-annual-calendar');
+// Parent Portal's Website Feedback & Support contact form and Main
+// Admin's Support tab that logs it (utils/supportRequests.js).
+const parentSupportRouter = require('./routes/parent-support');
+const mainAdminSupportRouter = require('./routes/main-admin-support');
 // Item 8: Store at /store (members-only online checkout, wired through
 // the payment abstraction above), admin at /main-admin/store (also
 // records in-person sales, recorded distinctly from an online order).
@@ -259,6 +263,7 @@ const adminAuditLogRouter = require('./routes/admin-audit-log');
 // own header comment.
 const searchRouter = require('./routes/search');
 const teacherPortalRouter = require('./routes/teacher-portal');
+const teacherReimbursementsRouter = require('./routes/teacher-reimbursements');
 const studentPortalRouter = require('./routes/student-portal');
 const studentFamilySchoolRouter = require('./routes/student-family-school');
 const { loadPortalSession } = require('./middleware/portalAuth');
@@ -290,6 +295,12 @@ app.set('views', path.join(viewsRoot, 'views'));
 // (1001 params with _csrf) 500'd instead of rendering. Raised well past
 // the requested 1000-card ceiling so a real co-op has headroom to grow.
 app.use(express.urlencoded({ extended: true, parameterLimit: 20000 }));
+// The site editor autosaves the whole site document as one JSON body -
+// a multi-page site easily passes express.json()'s 100kb default. Scoped
+// to just that API (Main Admin-gated inside the router) so every other
+// route keeps the small default; the global parser below then skips an
+// already-parsed body.
+app.use('/main-admin/website/api', express.json({ limit: '4mb' }));
 app.use(express.json());
 
 // Stops a browser from ever re-guessing a served file's type from its
@@ -431,12 +442,11 @@ function trainingResourceUrl(key) {
 // or portalAccountId set, so an anonymous visitor to a public page never
 // gets a session created just to hold this.
 app.use((req, res, next) => {
-  const isAdmin = !!(req.session && req.session.adminId);
   const isPortalSession = !!(req.session && req.session.portalAccountId);
-  res.locals.isFullAdmin = isAdmin || hasCoopAdminAccess(req);
+  res.locals.isFullAdmin = hasCoopAdminAccess(req);
   res.locals.photoUrl = photoUrl;
   res.locals.trainingResourceUrl = trainingResourceUrl;
-  if (isAdmin || isPortalSession) {
+  if (isPortalSession) {
     if (!req.session.csrfToken) req.session.csrfToken = crypto.randomBytes(24).toString('hex');
     res.locals.csrfToken = req.session.csrfToken;
   } else {
@@ -465,6 +475,7 @@ app.use('/kiosk/class-checkin', kioskClassCheckinRouter);
 // both the kiosk's no-login model and the single shared Admin login.
 app.use('/', require('./middleware/csrfProtection'));
 app.use('/', portalAuthRouter);
+app.use('/parent/support', parentSupportRouter);
 app.use('/parent', parentPortalRouter);
 app.use('/parent', parentFamilySchoolRouter);
 // Mounted at the bare root, not under /parent or /student - see
@@ -516,6 +527,7 @@ app.use('/main-admin/forms', adminCustomFormsRouter);
 app.use('/accounting', accountingRouter);
 app.use('/main-admin/accounting', adminAccountingRouter);
 app.use('/main-admin/annual-calendar', mainAdminAnnualCalendarRouter);
+app.use('/main-admin/support', mainAdminSupportRouter);
 app.use('/store', storeRouter);
 app.use('/main-admin/store', adminStoreRouter);
 app.use('/newsletter', newsletterRouter);
@@ -533,6 +545,7 @@ app.use('/main-admin/publications', adminPublicationsRouter);
 app.use('/main-admin/audit-log', adminAuditLogRouter);
 app.use('/search', searchRouter);
 app.use('/teacher', teacherPortalRouter);
+app.use('/', teacherReimbursementsRouter);
 app.use('/student', studentPortalRouter);
 app.use('/student', studentFamilySchoolRouter);
 // contact-admins.js and membership.js (both mounted below) gate every one
@@ -563,6 +576,14 @@ app.use('/', trainingRouter);
 // every other /admin router ensures the latter's own requireAdmin routes
 // get first chance to handle the request, instead of being hijacked by an
 // unrelated router's blanket gate before they're ever reached.
+// Pending count for the Co-op Admin nav's own "Lesson Plan Approval"
+// subpage badge (views/partials/admin-nav.ejs) - GET page renders only.
+app.use('/admin', async (req, res, next) => {
+  if (req.method === 'GET' && res.locals.isFullAdmin) {
+    res.locals.pendingLessonApprovalCount = await pendingLessonApprovalCount();
+  }
+  next();
+});
 app.use('/admin', require('./middleware/csrfProtection'));
 app.use('/admin', adminRouter);
 app.use('/admin', adminRostersRouter);
@@ -584,6 +605,11 @@ app.use('/admin', adminMembersRouter);
 app.use('/admin', adminSearchRouter);
 app.use('/admin', adminNameTagRouter);
 app.use('/admin', adminAnnouncementsRouter);
+
+// Site editor pages (/<slug>) - mounted LAST, after every app route, so a
+// page can never shadow one; utils/siteBuilder.js's RESERVED_SLUGS also
+// refuses those names up front so the editor never offers a dead URL.
+app.use('/', publicSiteRouter.pageRouter);
 
 app.use((req, res) => {
   res.status(404).render('404', { title: 'Not Found' });

@@ -49,15 +49,25 @@ test('GET /main-admin/settings renders a card for every settings-area destinatio
   // permissions."
   assert.match(res.text, /href="\/main-admin\/roles"[^]*?Portal Permissions/);
   assert.match(res.text, /href="\/main-admin\/admins"[^]*?Admins/);
+  // A real request: "Main admin log in settings should be moved from
+  // co-op admin portal to main admin portal" - the shared master admin
+  // account's own username/password (routes/admin.js's ?tab=account,
+  // still the same requireFullAdmin-gated legacy login, just linked to
+  // from here now instead of views/admin-settings.ejs's own card grid,
+  // see test/routes-admin-settings-hub.test.js for that removal).
+  assert.match(res.text, /href="\/main-admin\/admin-login"[^]*?Admin Login/);
   // A real request: "settings gear, website. Should say public
-  // homepage." Later real request (with a Shopify Themes-page
-  // screenshot): "should look and function exactly like Shopify" - the
-  // card now opens the new Themes landing page (test/routes-admin-
-  // website-themes-page.test.js), not straight into the full editor.
-  assert.match(res.text, /href="\/main-admin\/website\/themes"[^]*?Public Homepage/);
+  // homepage." Later real request: "switch that to wix" - the card opens
+  // the Wix-style site dashboard (Edit Site / View Site), see
+  // test/routes-site-builder.test.js.
+  assert.match(res.text, /href="\/main-admin\/website"[^]*?Public Homepage/);
   assert.match(res.text, /href="\/main-admin\/faq"[^]*?FAQ/);
   assert.match(res.text, /href="\/main-admin\/quick-links"[^]*?Quick Links/);
   assert.match(res.text, /href="\/main-admin\/audit-log"[^]*?Audit Log/);
+  // A real request: "Download app should be included in the settings
+  // gears of all portals, all." - links to the shared, account-agnostic
+  // /portal/install-app page (test/routes-portal-install-app.test.js).
+  assert.match(res.text, /href="\/portal\/install-app"[^]*?Download App/);
   // A real request: quick links to the public Request Membership form and
   // Privacy Policy page from Main Admin's own Settings hub - needed as a
   // handy reference (e.g. when filling out Telnyx's 10DLC campaign form,

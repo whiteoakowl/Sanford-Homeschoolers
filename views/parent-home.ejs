@@ -8,6 +8,7 @@
 
   <main id="main-content" tabindex="-1" class="admin-main parent-home-main">
     <h1>Welcome, <%= member.name %></h1>
+    <% if (typeof notice !== 'undefined' && notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
 
     <%# A real request: "On desktop quicklinks should be next to
         announcements on the same row. On mobile announcements is first,
@@ -65,6 +66,10 @@
                   parent-portal.js's own read-only view. %>
               <li><a href="/parent/annual-calendar">Annual Calendar</a></li>
             </ul>
+            <%# A real request: "Parent portal homepage. Add button called
+                Website Feedback and support" - a full contact-form page
+                (routes/parent-support.js), logged on Main Admin > Support. %>
+            <a class="parent-home-cta parent-home-cta-outline-blue" href="/parent/support"><svg><use href="#icon-message-square"/></svg> Website Feedback and Support</a>
           </div>
         </section>
 

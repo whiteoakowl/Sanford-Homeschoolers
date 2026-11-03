@@ -15,23 +15,133 @@ const { createStorageClient, uploadFile, deleteFile, generateKey, publicUrl } = 
 // one exists - a lesson with no due date at all no longer needs the old
 // "due_date IS NULL, due_date DESC" tiebreak to sort sensibly.
 async function assignmentsForClass(classId) {
-  return db.prepare('SELECT * FROM class_assignments WHERE class_id = ? ORDER BY position, due_date IS NULL, due_date DESC, created_at DESC').all(classId);
+  const rows = await db.prepare('SELECT * FROM class_assignments WHERE class_id = ? ORDER BY position, due_date IS NULL, due_date DESC, created_at DESC').all(classId);
+  return rows.map(withNormalizedStatus);
 }
 
 async function getAssignment(id) {
-  return db.prepare('SELECT * FROM class_assignments WHERE id = ?').get(id);
+  return withNormalizedStatus(await db.prepare('SELECT * FROM class_assignments WHERE id = ?').get(id));
 }
 
-async function createAssignment({ classId, className, title, description, dueDate, openDate, closeDate, pointsPossible, createdByAccountId }) {
+// approvalStatus: see the lesson_plan_approval migration. Defaults to
+// 'approved' because every caller except Co-op Teacher Portal's own "New
+// Assignment" form is a Co-op Admin (the class's Lessons tab, Lesson
+// Plans' "Assign to Class") - only a teacher-created lesson starts as a
+// 'draft' that needs a Co-op Admin's approval before students see it.
+async function createAssignment({ classId, className, title, description, dueDate, openDate, closeDate, pointsPossible, createdByAccountId, approvalStatus = 'approved' }) {
   const { next_position: nextPosition } = await db
     .prepare('SELECT COALESCE(MAX(position), 0) + 1 AS next_position FROM class_assignments WHERE class_id = ?')
     .get(classId);
   const info = await db
     .prepare(
-      'INSERT INTO class_assignments (class_id, class_name, title, description, due_date, open_date, close_date, points_possible, position, created_by_account_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO class_assignments (class_id, class_name, title, description, due_date, open_date, close_date, points_possible, position, created_by_account_id, approval_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
-    .run(classId, className, title, description || null, dueDate || null, openDate || null, closeDate || null, pointsPossible || null, nextPosition, createdByAccountId);
+    .run(classId, className, title, description || null, dueDate || null, openDate || null, closeDate || null, pointsPossible || null, nextPosition, createdByAccountId, approvalStatus);
   return info.lastInsertRowid;
+}
+
+// --- Lesson plan approval (teacher submits -> Co-op Admin approves or
+// rejects with a required message). Only 'approved' lessons are ever
+// shown to students/parents (lessonsForStudentView, assignmentsForStudent*,
+// below). A real request: edits to an already-approved lesson keep it
+// approved - pulling a lesson away from students mid-class over a typo
+// fix would be worse than the risk of an unreviewed correction. Every
+// submit/approve/reject is also logged to lesson_approval_events so a
+// resubmit never loses earlier rejection messages. ---
+
+const APPROVAL_STATUS_LABELS = { draft: 'Draft', pending: 'Pending', approved: 'Approved', rejected: 'Rejected' };
+
+// 'declined' is the pre-rename spelling of 'rejected' (see the
+// lesson_plan_rejections migration) - read it as 'rejected' so a
+// row written mid-deploy still behaves correctly.
+function normalizeApprovalStatus(status) {
+  return status === 'declined' ? 'rejected' : status;
+}
+function withNormalizedStatus(row) {
+  return row ? { ...row, approval_status: normalizeApprovalStatus(row.approval_status) } : row;
+}
+
+async function actorNameForAccount(accountId) {
+  if (!accountId) return null;
+  const row = await db.prepare('SELECT m.name, ma.email FROM member_accounts ma LEFT JOIN members m ON m.id = ma.member_id WHERE ma.id = ?').get(accountId);
+  return row ? row.name || row.email : null;
+}
+
+async function recordApprovalEvent(assignmentId, action, { message = null, accountId = null } = {}) {
+  await db
+    .prepare('INSERT INTO lesson_approval_events (assignment_id, action, message, actor_account_id, actor_name) VALUES (?, ?, ?, ?, ?)')
+    .run(assignmentId, action, message, accountId, await actorNameForAccount(accountId));
+}
+
+async function approvalEventsForAssignment(assignmentId) {
+  const rows = await db.prepare('SELECT * FROM lesson_approval_events WHERE assignment_id = ? ORDER BY id').all(assignmentId);
+  return rows.map((r) => ({ ...r, createdAtLabel: formatFriendlyTimestamp(r.created_at) }));
+}
+
+// Only a draft or rejected lesson can be (re)submitted; it goes back to
+// pending. The lesson's own review_note is cleared (the rejection
+// message itself stays in lesson_approval_events). Returns true when the
+// status actually changed.
+async function submitAssignmentForApproval(id, accountId) {
+  const info = await db
+    .prepare(
+      "UPDATE class_assignments SET approval_status = 'pending', submitted_at = now_text(), submitted_by_account_id = ?, reviewed_at = NULL, reviewed_by_account_id = NULL, review_note = NULL WHERE id = ? AND approval_status IN ('draft', 'rejected', 'declined')"
+    )
+    .run(accountId, id);
+  const changed = Number(info.changes) > 0;
+  if (changed) await recordApprovalEvent(id, 'submitted', { accountId });
+  return changed;
+}
+
+// Approve/reject only act on a lesson that's actually pending, so a
+// stale double-click (or a replayed POST) can't flip a lesson twice. A
+// rejection requires a message (the caller validates it too).
+async function reviewAssignment(id, { approve, note, accountId }) {
+  const message = approve ? null : (note || '').trim();
+  if (!approve && !message) return false;
+  const info = await db
+    .prepare("UPDATE class_assignments SET approval_status = ?, reviewed_at = now_text(), reviewed_by_account_id = ?, review_note = ? WHERE id = ? AND approval_status = 'pending'")
+    .run(approve ? 'approved' : 'rejected', accountId, message, id);
+  const changed = Number(info.changes) > 0;
+  if (changed) await recordApprovalEvent(id, approve ? 'approved' : 'rejected', { message, accountId });
+  return changed;
+}
+
+const APPROVAL_QUEUE_FILTERS = ['pending', 'approved', 'rejected', 'all'];
+
+// The Co-op Admin "Lesson Plan Approval" list. status is one of
+// APPROVAL_QUEUE_FILTERS. Only lessons that were actually submitted by
+// a teacher are listed (submitted_at set) - not every lesson that was
+// simply backfilled/admin-created as approved.
+async function lessonsForApprovalQueue(status) {
+  const statusClause = {
+    pending: "ca.approval_status = 'pending'",
+    approved: "ca.approval_status = 'approved'",
+    rejected: "ca.approval_status IN ('rejected', 'declined')",
+    all: "ca.approval_status IN ('pending', 'approved', 'rejected', 'declined')",
+  }[status];
+  const rows = await db
+    .prepare(
+      `SELECT ca.*, m.name AS submitted_by_name, cl.day AS class_day
+       FROM class_assignments ca
+       LEFT JOIN member_accounts ma ON ma.id = ca.submitted_by_account_id
+       LEFT JOIN members m ON m.id = ma.member_id
+       LEFT JOIN classes cl ON cl.id = ca.class_id
+       WHERE ${statusClause} AND ca.submitted_at IS NOT NULL
+       ORDER BY ${status === 'pending' ? 'ca.submitted_at ASC' : 'COALESCE(ca.reviewed_at, ca.submitted_at) DESC'}
+       LIMIT 200`
+    )
+    .all();
+  return rows.map((r) => ({
+    ...withNormalizedStatus(r),
+    submittedAtLabel: r.submitted_at ? formatFriendlyTimestamp(r.submitted_at) : null,
+    reviewedAtLabel: r.reviewed_at ? formatFriendlyTimestamp(r.reviewed_at) : null,
+  }));
+}
+
+async function pendingApprovalCount() {
+  const { c } = await db.prepare("SELECT COUNT(*) AS c FROM class_assignments WHERE approval_status = 'pending'").get();
+  return Number(c);
 }
 
 async function updateAssignment(id, { title, description, dueDate, openDate, closeDate, pointsPossible }) {
@@ -105,8 +215,9 @@ async function assignmentsForStudent(studentId, currentClassIds) {
       `SELECT ca.*, ag.points_earned, ag.feedback
        FROM class_assignments ca
        LEFT JOIN assignment_grades ag ON ag.assignment_id = ca.id AND ag.student_id = ?
-       WHERE ca.class_id IN (${placeholders})
-          OR ca.id IN (SELECT assignment_id FROM assignment_grades WHERE student_id = ?)
+       WHERE (ca.class_id IN (${placeholders})
+          OR ca.id IN (SELECT assignment_id FROM assignment_grades WHERE student_id = ?))
+         AND ca.approval_status = 'approved'
        ORDER BY ca.due_date IS NULL, ca.due_date DESC, ca.created_at DESC`
     )
     .all(studentId, ...currentClassIds, studentId);
@@ -130,7 +241,7 @@ async function assignmentsForStudentInClass(studentId, classId) {
       `SELECT ca.*, ag.points_earned, ag.feedback
        FROM class_assignments ca
        LEFT JOIN assignment_grades ag ON ag.assignment_id = ca.id AND ag.student_id = ?
-       WHERE ca.class_id = ?
+       WHERE ca.class_id = ? AND ca.approval_status = 'approved'
        ORDER BY ca.due_date IS NULL, ca.due_date DESC, ca.created_at DESC`
     )
     .all(studentId, classId);
@@ -742,8 +853,13 @@ async function scoreAnswer({ answerId, isCorrect, pointsEarned, gradedByAccountI
 // passes their child's own studentId and gets the exact same shape back
 // - the only difference is which portal renders a "Take Quiz" link at
 // all (never Parent Portal, per the confirmed student-only access model).
-async function lessonsForStudentView(classId, studentId) {
-  const assignments = await assignmentsForClass(classId);
+// includeUnapproved: only Co-op Teacher Portal's own views of a teacher's
+// own class pass true - every student/parent caller gets approved lessons
+// only (see the lesson_plan_approval migration), which also keeps a
+// not-yet-approved lesson out of the sequencing gate below and makes
+// isLessonLockedForStudent treat it as not found.
+async function lessonsForStudentView(classId, studentId, { includeUnapproved = false } = {}) {
+  const assignments = (await assignmentsForClass(classId)).filter((a) => includeUnapproved || a.approval_status === 'approved');
   const today = todayISO();
   const lessons = await Promise.all(
     assignments.map(async (a) => {
@@ -903,6 +1019,14 @@ module.exports = {
   assignmentsForClass,
   getAssignment,
   createAssignment,
+  APPROVAL_STATUS_LABELS,
+  APPROVAL_QUEUE_FILTERS,
+  normalizeApprovalStatus,
+  submitAssignmentForApproval,
+  reviewAssignment,
+  approvalEventsForAssignment,
+  lessonsForApprovalQueue,
+  pendingApprovalCount,
   updateAssignment,
   deleteAssignment,
   reorderAssignments,

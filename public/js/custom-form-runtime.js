@@ -41,7 +41,7 @@
   }
 
   // Reads every field currently in the DOM into {fieldId: value}, in
-  // the exact same shape routes/custom-forms.js's own rawValueForField
+  // the exact same shape utils/customFormAnswers.js's own rawValueForField
   // builds server-side (a plain string for most types, an array of
   // selected option LABELS for a multiple_choice group - never ids,
   // since a conditional rule's own `value` is always a label).

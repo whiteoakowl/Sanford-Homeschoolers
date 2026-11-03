@@ -90,51 +90,7 @@
       <% } %>
     </div>
 
-    <% if (view === 'list') { %>
-      <div class="parent-class-list">
-        <% if (classList.length === 0) { %>
-          <p class="roster-empty">No classes have been scheduled yet.</p>
-        <% } else { %>
-          <% classList.forEach(function(cls) { %>
-            <%- include('partials/parent-class-card', { cls, day, view, enrolledClassIds }) %>
-          <% }); %>
-        <% } %>
-      </div>
-    <% } else { %>
-      <div class="roster-scroll">
-        <table class="roster-table class-schedule-room-grid">
-          <thead>
-            <tr>
-              <th class="class-schedule-room-col">Room</th>
-              <% roomGrid.hours.forEach(function(h) { %>
-                <th><%= h.label %></th>
-              <% }); %>
-            </tr>
-          </thead>
-          <tbody>
-            <% if (roomGrid.rows.length === 0) { %>
-              <tr><td colspan="<%= roomGrid.hours.length + 1 %>" class="roster-empty">No classes have been scheduled yet.</td></tr>
-            <% } %>
-            <% roomGrid.rows.forEach(function(row) { %>
-              <tr>
-                <td class="class-schedule-room-col"><span class="class-schedule-room-name" title="<%= row.room %>"><%= row.room %></span></td>
-                <% row.cells.forEach(function(cell) { %>
-                  <td colspan="<%= cell.span %>" class="class-schedule-cell">
-                    <% if (cell.classes.length === 0) { %>
-                      &nbsp;
-                    <% } else { %>
-                      <% cell.classes.forEach(function(cls) { %>
-                        <%- include('partials/parent-class-card', { cls, day, view, enrolledClassIds }) %>
-                      <% }); %>
-                    <% } %>
-                  </td>
-                <% }); %>
-              </tr>
-            <% }); %>
-          </tbody>
-        </table>
-      </div>
-    <% } %>
+    <%- include('partials/member-class-schedule-grid', { roomGrid, classList, day, view, enrolledClassIds }) %>
   </main>
 
   <dialog id="parent-class-dialog" class="parent-class-dialog"></dialog>

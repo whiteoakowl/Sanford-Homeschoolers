@@ -36,13 +36,13 @@ test.after(() => {
 test('requireAdmin: an unauthenticated POST to a write-only admin action URL redirects to login with no next= (would 404 on replay)', async () => {
   const res = await request(app).post('/admin/announcements/email/send').type('form').send({});
   assert.equal(res.status, 302);
-  assert.equal(res.headers.location, '/admin/login');
+  assert.equal(res.headers.location, '/login');
 });
 
 test('requireAdmin: an unauthenticated GET still carries next= (replaying it with GET is safe)', async () => {
   const res = await request(app).get('/admin/announcements');
   assert.equal(res.status, 302);
-  assert.equal(res.headers.location, `/admin/login?next=${encodeURIComponent('/admin/announcements')}`);
+  assert.equal(res.headers.location, `/login?next=${encodeURIComponent('/admin/announcements')}`);
 });
 
 test('requirePortalAuth/requirePortal/requirePortalPermission: an unauthenticated POST to a write-only Main Admin action URL redirects to login with no next=', async () => {

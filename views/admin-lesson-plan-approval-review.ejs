@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body class="admin-page">
+  <%- include('partials/admin-nav') %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p class="hint"><a href="/admin/lesson-plans/approval">&larr; Back to Lesson Plan Approval</a></p>
+    <h1><%= assignment.title %> <%- include('partials/lesson-approval-badge', { status: assignment.approval_status }) %></h1>
+    <p class="hint">
+      <%= assignment.class_name %>
+      <% if (submitterName) { %> &middot; Submitted by <%= submitterName %><% } %>
+      <% if (submittedAtLabel) { %> &middot; <%= submittedAtLabel %><% } %>
+      <% if (reviewedAtLabel) { %> &middot; Reviewed <%= reviewedAtLabel %><% } %>
+    </p>
+
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <% if (assignment.approval_status === 'rejected' && assignment.review_note) { %>
+      <div class="alert alert-error plain-text-display">Rejection message: <%= assignment.review_note %></div>
+    <% } %>
+
+    <div class="manage-section">
+      <h2>Lesson Details</h2>
+      <% if (assignment.description) { %><p class="plain-text-display"><%= assignment.description %></p><% } else { %><p class="hint">No description.</p><% } %>
+      <p class="hint">
+        Opens: <%= assignment.open_date || '—' %> &middot; Closes: <%= assignment.close_date || '—' %>
+        <% if (assignment.points_possible != null) { %> &middot; <%= assignment.points_possible %> points<% } %>
+      </p>
+    </div>
+
+    <div class="manage-section">
+      <h2>Content (<%= contentItems.length %>)</h2>
+      <% if (contentItems.length === 0) { %>
+        <p class="roster-empty">This lesson has no content items yet.</p>
+      <% } %>
+      <% contentItems.forEach(function(item, idx) { %>
+        <div class="portal-dashboard-card portal-dashboard-card-wide">
+          <h3><%= idx + 1 %>. <%= item.title || 'Untitled' %> <span class="badge-pill badge-pill-gray"><%= { video: 'Video', text: 'Text', file: 'File', quiz: 'Quiz', assignment_upload: 'Assignment', assignment_submission: 'Assignment Submission' }[item.type] || item.type %></span></h3>
+          <% if (item.dueDateLabel) { %><p class="hint">Due <%= item.dueDateLabel %></p><% } %>
+          <% if (item.type === 'video') { %>
+            <% if (item.description) { %><p><%= item.description %></p><% } %>
+            <% if (item.video_url) { %><p><a href="<%= item.video_url %>" target="_blank" rel="noopener"><%= item.video_url %></a></p><% } %>
+          <% } else if (item.type === 'text') { %>
+            <% if (item.body) { %><div class="plain-text-display"><%= item.body %></div><% } %>
+          <% } else if (item.type === 'file') { %>
+            <% if (item.description) { %><p><%= item.description %></p><% } %>
+            <% if (item.file_url) { %><p><a href="<%= item.file_url %>" target="_blank" rel="noopener"><%= item.file_url %></a></p><% } %>
+          <% } else if (item.type === 'assignment_upload' || item.type === 'assignment_submission') { %>
+            <% if (item.body) { %><div class="forum-editable-display"><%- item.body %></div><% } %>
+            <% if (item.attachmentUrl) { %><p><a href="<%= item.attachmentUrl %>" target="_blank" rel="noopener"><%= item.attachment_name || 'Download Attachment' %></a></p><% } %>
+            <% if (item.points_possible != null) { %><p class="hint"><%= item.points_possible %> points</p><% } %>
+          <% } else if (item.type === 'quiz') { %>
+            <% if (!item.questions || item.questions.length === 0) { %>
+              <p class="hint">No questions yet.</p>
+            <% } else { %>
+              <ol>
+                <% item.questions.forEach(function(q) { %>
+                  <li>
+                    <%= q.prompt %> <span class="hint">(<%= q.points_possible %> pt<%= Number(q.points_possible) === 1 ? '' : 's' %><%= q.type === 'short_answer' ? ', short answer' : '' %>)</span>
+                    <% if (q.choices.length) { %>
+                      <ul>
+                        <% q.choices.forEach(function(c) { %>
+                          <li><%= c.label %><% if (c.is_correct) { %> <span class="badge-pill badge-pill-green">Correct</span><% } %></li>
+                        <% }); %>
+                      </ul>
+                    <% } %>
+                  </li>
+                <% }); %>
+              </ol>
+            <% } %>
+          <% } %>
+        </div>
+      <% }); %>
+    </div>
+
+    <div class="manage-section">
+      <h2>Approval History</h2>
+      <% if (events.length === 0) { %>
+        <p class="roster-empty">No approval activity yet.</p>
+      <% } else { %>
+        <div class="roster-scroll">
+          <table class="roster-table members-table condensed-table table-stack-mobile">
+            <thead>
+              <tr><th>When</th><th>Action</th><th>By</th><th>Message</th></tr>
+            </thead>
+            <tbody>
+              <% events.forEach(function(e) { %>
+                <tr>
+                  <td class="table-stack-heading"><%= e.createdAtLabel %></td>
+                  <td data-label="Action">
+                    <% if (e.action === 'submitted') { %><span class="badge-pill badge-pill-orange">Submitted</span><% } else if (e.action === 'approved') { %><span class="badge-pill badge-pill-green">Approved</span><% } else { %><span class="badge-pill badge-pill-red">Rejected</span><% } %>
+                  </td>
+                  <td data-label="By"><%= e.actor_name || '—' %></td>
+                  <td data-label="Message" class="plain-text-display"><%= e.message || '' %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
+    <% if (assignment.approval_status === 'pending') { %>
+      <div class="manage-section">
+        <h2>Decision</h2>
+        <div class="roster-btn-row">
+          <form method="POST" action="/admin/lesson-plans/approval/<%= assignment.id %>/approve" class="inline-block-form">
+            <button type="submit" class="primary-btn">Approve</button>
+          </form>
+          <button type="button" class="btn-secondary" onclick="document.getElementById('reject-lesson-dialog').showModal()">Reject</button>
+        </div>
+      </div>
+
+      <dialog id="reject-lesson-dialog" class="member-picker-dialog">
+        <form method="POST" action="/admin/lesson-plans/approval/<%= assignment.id %>/reject">
+          <h3>Reject Lesson Plan</h3>
+          <p class="hint">The teacher will see this message and can edit the lesson and resubmit it.</p>
+          <label>Message to the teacher
+            <textarea name="message" rows="4" maxlength="4000" required placeholder="What needs to change before this can be approved?"></textarea>
+          </label>
+          <div class="notes-dialog-actions">
+            <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+            <button type="submit" class="primary-btn">Send</button>
+          </div>
+        </form>
+      </dialog>
+    <% } %>
+  </main>
+</body>
+</html>

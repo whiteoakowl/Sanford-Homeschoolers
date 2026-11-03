@@ -36,7 +36,7 @@ test.after(() => {
 });
 
 async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin/members').set('Cookie', cookie);
   const match = /name="csrf-token" content="([^"]*)"/.exec(page.text);
@@ -99,7 +99,7 @@ test('member deletion', async (t) => {
       .run();
     const res = await request(app).post(`/admin/members/${memberId}/delete`).type('form').send({});
     assert.equal(res.status, 302);
-    assert.match(res.headers.location, /\/admin\/login/);
+    assert.match(res.headers.location, /\/login/);
     assert.ok(await db.prepare('SELECT * FROM members WHERE id = ?').get(memberId), 'expected the member to still exist');
   });
 

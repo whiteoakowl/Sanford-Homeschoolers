@@ -24,6 +24,21 @@
           <h3 class="team-info-title">My Privacy</h3>
         </a>
       </div>
+      <%# A real request: "Download app should be included in the settings
+          gears of all portals, all." Same shared /portal/install-app page
+          (routes/portal-auth.js) every other portal's own Settings hub now
+          links to. This hub itself is shared by Student and Co-op Teacher
+          Portal, but Student Portal deliberately has no settings gear of
+          its own (a real request: "Student Portal should not have a
+          settings gear" - portal-nav.ejs's own showSettingsGear), so this
+          card is only ever actually reachable via Co-op Teacher Portal's
+          own gear in practice. %>
+      <div class="team-col">
+        <a class="team-info-card" href="/portal/install-app">
+          <span class="team-info-icon"><svg class="icon"><use href="#icon-download"/></svg></span>
+          <h3 class="team-info-title">Download App</h3>
+        </a>
+      </div>
     </div>
   </main>
 </body>

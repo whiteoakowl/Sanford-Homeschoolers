@@ -24,9 +24,14 @@ var isSettingsTab = activeTab === 'settings';
       <h1><%= form.title %></h1>
       <span class="badge-pill badge-pill-<%= form.status === 'published' ? 'green' : form.status === 'closed' ? 'gray' : 'orange' %>"><%= form.status.charAt(0).toUpperCase() + form.status.slice(1) %></span>
     </div>
-    <p><a href="/main-admin/forms">&larr; All Forms</a></p>
+    <% if (typeof supportType !== 'undefined' && supportType) { %>
+      <p><a href="<%= supportType.adminHref %>">&larr; Back to <%= supportType.label %></a></p>
+      <p class="hint">These fields are added to Parent Portal's Website Feedback and Support form whenever <strong><%= supportType.key === 'feedback' ? 'Feedback' : 'Support' %></strong> is selected, below its own Subject and Message. Answers show in the <%= supportType.label %> log.</p>
+    <% } else { %>
+      <p><a href="/main-admin/forms">&larr; All Forms</a></p>
 
-    <%- include('partials/custom-form-tabs', { form: form, activeTab: activeTab }) %>
+      <%- include('partials/custom-form-tabs', { form: form, activeTab: activeTab }) %>
+    <% } %>
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>

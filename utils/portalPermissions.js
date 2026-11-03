@@ -20,6 +20,7 @@
 // utils/sections.js's own header comment - so it's always editable
 // regardless of whether a member has a portal login yet.
 const db = require('../db');
+const { ensurePortalAccountForMember } = require('./portalAuth');
 
 // { account, roleIds: Set<number> } - roleIds is empty (not null) when
 // there's no account, so callers can treat "no account" and "account
@@ -87,8 +88,24 @@ async function setMemberSections(memberId, sectionIds) {
 // login still goes through Main Admin > Users > Create Account (the only
 // place that also collects the email/password a real login needs), not
 // this bulk checkbox row.
+// A real request: "Members who already were on the list and imported
+// before changes were made... should automatically have the changeme123
+// password and be able to be assigned to sections and portals." Choosing
+// a portal for a member who never got a login (anyone imported before
+// accounts were created automatically) creates that login on the spot -
+// password changeme123, same default as every new member - instead of the
+// choice being silently dropped. Needs an email on file (the login).
+async function accountForRoleAssignment(memberId, roleIds, grantedByAccountId) {
+  const existing = await db.prepare('SELECT id FROM member_accounts WHERE member_id = ?').get(memberId);
+  if (existing || roleIds.length === 0) return existing;
+  const member = await db.prepare('SELECT email FROM members WHERE id = ?').get(memberId);
+  if (!member) return null;
+  await ensurePortalAccountForMember(memberId, member.email, grantedByAccountId || null);
+  return db.prepare('SELECT id FROM member_accounts WHERE member_id = ?').get(memberId);
+}
+
 async function setMemberRoles(memberId, roleIds, grantedByAccountId) {
-  const account = await db.prepare('SELECT id FROM member_accounts WHERE member_id = ?').get(memberId);
+  const account = await accountForRoleAssignment(memberId, roleIds, grantedByAccountId);
   if (!account) return false;
   await db.withTransaction(async (tx) => {
     await tx.prepare('DELETE FROM member_account_roles WHERE member_account_id = ?').run(account.id);
@@ -112,10 +129,9 @@ async function addMemberSections(memberId, sectionIds) {
   }
 }
 
-// Same "no account yet, nothing to attach a role to" no-op as
-// setMemberRoles above.
+// Same login-on-first-portal behavior as setMemberRoles above.
 async function addMemberRoles(memberId, roleIds, grantedByAccountId) {
-  const account = await db.prepare('SELECT id FROM member_accounts WHERE member_id = ?').get(memberId);
+  const account = await accountForRoleAssignment(memberId, roleIds, grantedByAccountId);
   if (!account) return false;
   for (const roleId of roleIds) {
     await db.prepare('INSERT INTO member_account_roles (member_account_id, role_id, granted_by_account_id) VALUES (?, ?, ?) ON CONFLICT DO NOTHING').run(account.id, roleId, grantedByAccountId || null);

@@ -1,12 +1,10 @@
-// Real HTTP-level coverage for the admin login flow (audit finding
-// TEST-01) - the one workflow every other admin action depends on, so a
-// silent regression here (a bad merge to the redirect-safety check, the
-// rate limiter no longer actually blocking, a session cookie that stops
-// getting set) would be worse than almost anything else breaking.
-// Boots the real app (server.js, exported for exactly this - see its own
-// comment) against a throwaway DB_PATH, the same override pattern used
-// by test/designImageGC.test.js and friends, rather than mocking any of
-// the pieces involved.
+// A real request: "The main admin portal is now where the master lives.
+// Master log in as full control of everything." The old separate
+// username/password master login (/admin/login) is retired - the master is
+// the Main Admin portal account, signed in on the one shared /login, and
+// it gets all of Co-op Admin. Covers that the old login is gone, old links
+// land on /login with their destination preserved, and the master's
+// session really opens Co-op Admin.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -18,15 +16,16 @@ const testUploadsDir = path.join(os.tmpdir(), `routes-login-test-uploads-${proce
 process.env.DB_PATH = testDbPath;
 process.env.UPLOADS_DIR = testUploadsDir;
 process.env.SESSION_SECRET = 'test-secret-not-for-real-use';
-process.env.ADMIN_USERNAME = 'testadmin';
-process.env.ADMIN_PASSWORD = 'testpassword123';
+process.env.MAIN_ADMIN_EMAIL = 'mainadmin@coop.local';
+process.env.MAIN_ADMIN_PASSWORD = 'changeme123';
 
 const request = require('supertest');
 const app = require('../server');
+const db = require('../db');
+const { generateMemberCode } = require('../utils/members');
+const { hashPassword } = require('../utils/portalAuth');
 
 test.before(() => app.ready);
-const { MAX_ATTEMPTS } = require('../utils/loginRateLimit');
-
 test.after(() => {
   fs.rmSync(testDbPath, { force: true });
   fs.rmSync(`${testDbPath}-wal`, { force: true });
@@ -34,99 +33,109 @@ test.after(() => {
   fs.rmSync(testUploadsDir, { recursive: true, force: true });
 });
 
-test('login', async (t) => {
-  await t.test('correct credentials set a session cookie and redirect to /admin', async () => {
+test('master login', async (t) => {
+  await t.test('the Main Admin master signs in on /login and that session opens Co-op Admin', async () => {
     const res = await request(app)
-      .post('/admin/login')
+      .post('/login')
       .type('form')
-      .send({ username: 'testadmin', password: 'testpassword123' });
+      .send({ email: 'mainadmin@coop.local', password: 'changeme123', next: '/admin' });
     assert.equal(res.status, 302);
     assert.equal(res.headers.location, '/admin');
     const cookie = res.headers['set-cookie'];
     assert.ok(cookie && cookie.length > 0, 'expected a session cookie to be set');
 
-    // The cookie actually grants access, not just exists - hit an
-    // admin-only route with it and confirm no login redirect.
     const dashboard = await request(app).get('/admin').set('Cookie', cookie);
     assert.equal(dashboard.status, 200);
+    const settings = await request(app).get('/admin/settings').set('Cookie', cookie);
+    assert.equal(settings.status, 200);
+    for (const card of ['Quick Links', 'Install App', 'Kiosk', 'Class Check-In PIN', 'Semesters']) {
+      assert.match(settings.text, new RegExp(card));
+    }
+    assert.doesNotMatch(settings.text, /tab=account/);
   });
 
-  await t.test('username matching is case-insensitive (e.g. a mobile keyboard auto-capitalizing the first letter should not lock someone out)', async () => {
-    const res = await request(app)
-      .post('/admin/login')
-      .type('form')
-      .send({ username: 'TestAdmin', password: 'testpassword123' });
+  await t.test('GET /admin/login redirects to the shared /login, keeping a safe destination', async () => {
+    const res = await request(app).get('/admin/login?next=%2Fadmin%2Fmembers');
     assert.equal(res.status, 302);
-    assert.equal(res.headers.location, '/admin');
-    assert.ok(res.headers['set-cookie'] && res.headers['set-cookie'].length > 0);
+    assert.equal(res.headers.location, '/login?next=%2Fadmin%2Fmembers');
+
+    const offsite = await request(app).get('/admin/login?next=https%3A%2F%2Fevil.example');
+    assert.equal(offsite.headers.location, '/login?next=%2Fadmin');
   });
 
-  await t.test('wrong password re-renders the login page and does not grant access', async () => {
-    const res = await request(app)
-      .post('/admin/login')
-      .type('form')
-      .send({ username: 'testadmin', password: 'wrong-password' });
-    assert.equal(res.status, 200); // re-renders admin-login, not a redirect
-    assert.match(res.text, /Invalid username or password/);
-    assert.equal(res.headers['set-cookie'], undefined);
+  await t.test('the old username/password POST no longer signs anyone in', async () => {
+    const res = await request(app).post('/admin/login').type('form').send({ username: 'admin', password: 'changeme123' });
+    assert.notEqual(res.headers.location, '/admin');
+    const after = await request(app).get('/admin').set('Cookie', res.headers['set-cookie'] || []);
+    assert.equal(after.status, 302);
+    assert.match(after.headers.location, /^\/login/);
   });
 
-  await t.test('an unauthenticated request to an admin route redirects to login with the original URL preserved', async () => {
+  await t.test('an unauthenticated request to an admin route redirects to /login with the original URL preserved', async () => {
     const res = await request(app).get('/admin/members?tab=classes');
     assert.equal(res.status, 302);
-    assert.equal(res.headers.location, '/admin/login?next=%2Fadmin%2Fmembers%3Ftab%3Dclasses');
+    assert.equal(res.headers.location, '/login?next=%2Fadmin%2Fmembers%3Ftab%3Dclasses');
   });
 
-  await t.test('an off-site next value is rejected and falls back to /admin (open-redirect guard)', async () => {
-    const res = await request(app)
-      .post('/admin/login')
+  await t.test('Main Admin > Admin Login changes the signed-in master account\'s own login email', async () => {
+    const login = await request(app).post('/login').type('form').send({ email: 'mainadmin@coop.local', password: 'changeme123', next: '/main-admin' });
+    const cookie = login.headers['set-cookie'];
+    const page = await request(app).get('/main-admin/admin-login').set('Cookie', cookie);
+    assert.equal(page.status, 200);
+    assert.match(page.text, /value="mainadmin@coop\.local"/);
+    const csrfToken = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];
+
+    const wrongPw = await request(app)
+      .post('/main-admin/admin-login/password')
+      .set('Cookie', cookie)
       .type('form')
-      .send({ username: 'testadmin', password: 'testpassword123', next: 'https://evil.example/phish' });
-    assert.equal(res.status, 302);
-    assert.equal(res.headers.location, '/admin');
-  });
+      .send({ currentPassword: 'nope', newPassword: 'whatever123', _csrf: csrfToken });
+    assert.match(wrongPw.text, /Current password is incorrect/);
 
-  await t.test('a protocol-relative next value ("//evil.example") is also rejected', async () => {
-    const res = await request(app)
-      .post('/admin/login')
+    const changed = await request(app)
+      .post('/main-admin/admin-login/email')
+      .set('Cookie', cookie)
       .type('form')
-      .send({ username: 'testadmin', password: 'testpassword123', next: '//evil.example' });
-    assert.equal(res.status, 302);
-    assert.equal(res.headers.location, '/admin');
+      .send({ newEmail: 'master@coop.local', _csrf: csrfToken });
+    assert.match(changed.text, /Login email updated/);
+
+    const relogin = await request(app).post('/login').type('form').send({ email: 'master@coop.local', password: 'changeme123', next: '/main-admin' });
+    assert.equal(relogin.status, 302);
+    assert.equal(relogin.headers.location, '/main-admin');
   });
 
-  await t.test('a valid same-origin next value is honored', async () => {
-    const res = await request(app)
-      .post('/admin/login')
-      .type('form')
-      .send({ username: 'testadmin', password: 'testpassword123', next: '/admin/members' });
-    assert.equal(res.status, 302);
-    assert.equal(res.headers.location, '/admin/members');
-  });
-
-  await t.test('repeated failures from the same IP are rate-limited after the threshold', async () => {
-    // supertest requests from this file all share the test framework's
-    // loopback address, so consecutive failures accumulate against the
-    // same key isRateLimited(req.ip) checks - MAX_ATTEMPTS wrong
-    // passwords should be enough to trip it (some headroom already used
-    // by the "wrong password" case above, from the same IP).
-    let lastRes;
-    for (let i = 0; i < MAX_ATTEMPTS + 1; i++) {
-      lastRes = await request(app)
-        .post('/admin/login')
-        .type('form')
-        .send({ username: 'testadmin', password: 'still-wrong' });
+  async function memberWithRoles(email, roleKeys) {
+    const code = await generateMemberCode();
+    const memberId = (await db.prepare("INSERT INTO members (name, barcode, member_code, member_type, active) VALUES (?, ?, ?, 'parent', 1)").run(email, code, code)).lastInsertRowid;
+    await db.prepare("INSERT INTO member_accounts (member_id, email, password_hash, status, approved_at) VALUES (?, ?, ?, 'active', now_text())").run(memberId, email, hashPassword('memberpass123'));
+    const acct = await db.prepare('SELECT id FROM member_accounts WHERE email = ?').get(email);
+    for (const key of roleKeys) {
+      const role = await db.prepare('SELECT id FROM roles WHERE key = ?').get(key);
+      await db.prepare('INSERT INTO member_account_roles (member_account_id, role_id) VALUES (?, ?)').run(acct.id, role.id);
     }
-    assert.match(lastRes.text, /Too many login attempts/);
+    const login = await request(app).post('/login').type('form').send({ email, password: 'memberpass123', next: '/portal' });
+    return login.headers['set-cookie'];
+  }
 
-    // Confirm it blocks even a CORRECT password once tripped - the guard
-    // exists specifically to slow down a guesser who eventually gets
-    // lucky, not just to reject known-bad attempts.
-    const correctButBlocked = await request(app)
-      .post('/admin/login')
-      .type('form')
-      .send({ username: 'testadmin', password: 'testpassword123' });
-    assert.match(correctButBlocked.text, /Too many login attempts/);
-    assert.equal(correctButBlocked.headers['set-cookie'], undefined);
+  // "This should not affect member admin access to portals" - only the one
+  // master account gets everything; members keep their own roles' access.
+  await t.test('a Main Admin member (not the master) does not gain Co-op Admin; a coop_admin member keeps it', async () => {
+    const mainAdminMember = await memberWithRoles('second-main-admin@example.com', ['main_admin']);
+    const blocked = await request(app).get('/admin').set('Cookie', mainAdminMember);
+    assert.equal(blocked.status, 302);
+    assert.match(blocked.headers.location, /^\/login/);
+    const mainAdminHome = await request(app).get('/main-admin').set('Cookie', mainAdminMember);
+    assert.equal(mainAdminHome.status, 200);
+
+    const coopAdminMember = await memberWithRoles('coop-admin-member@example.com', ['coop_admin']);
+    const allowed = await request(app).get('/admin').set('Cookie', coopAdminMember);
+    assert.equal(allowed.status, 200);
+  });
+
+  await t.test('the master sees a Co-op Admin card on My Portals', async () => {
+    const login = await request(app).post('/login').type('form').send({ email: 'master@coop.local', password: 'changeme123', next: '/portal' });
+    const portals = await request(app).get('/portal').set('Cookie', login.headers['set-cookie']);
+    assert.equal(portals.status, 200);
+    assert.match(portals.text, /Co-op Admin/);
   });
 });

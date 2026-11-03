@@ -18,13 +18,14 @@ function sendPdf(res, filename, pdfBuffer) {
   res.set('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(pdfBuffer);
 }
-const { formatDateLabel, formatDateNumeric, formatTime, ageFromBirthday, isChildAge, isValidISODate } = require('../utils/dates');
+const { formatDateLabel, formatDateNumeric, formatTime, ageFromBirthday, isChildAge } = require('../utils/dates');
 const { savePhotoFile, deletePhotoFile } = require('../utils/memberPhoto');
 const { BADGE_WIDTH, BADGE_HEIGHT } = require('../utils/nameTagBadge');
 const { getTemplate, badgeDataForMember } = require('../utils/nameTagData');
 const { CARD_WIDTH, CARD_HEIGHT } = require('../utils/scheduleCardBadge');
 const { scheduleCardDataForMember, getScheduleCardTemplate } = require('../utils/scheduleCardData');
-const { getMemberSchedule } = require('../utils/schedule');
+const { memberScheduleTables } = require('../utils/schedule');
+const { sortFamilyForPrint } = require('../utils/memberScheduleOutput');
 const NameTagRenderCore = require('../public/js/name-tag-render-core');
 const {
   familyOf,
@@ -50,6 +51,7 @@ const { clearVolunteerMembershipIfNotParent } = require('../utils/volunteers');
 const { uploadIntakePhotos } = require('../utils/memberIntake');
 const { familyEditSections, applyFamilyEditSubmission } = require('../utils/memberFamilyEdit');
 const membershipFormFields = require('../utils/membershipFormFields');
+const { rememberMemberListUrl, memberListBackUrl } = require('../utils/memberListBack');
 
 router.use(requireFullAdmin);
 
@@ -221,6 +223,7 @@ async function filteredMembersForPrint(req) {
 }
 
 router.get('/members', async (req, res) => {
+  rememberMemberListUrl(req, '/admin/members');
   const { typeFilter, familyFilter, dayFilter, roleFilter, q, withRosters } = await filteredMembersForPrint(req);
   // The on-screen table only gets the current page's slice - the print
   // table (admin-members-print.ejs) still gets every filtered member,
@@ -347,7 +350,7 @@ router.get('/members/:id/cards-fragment', async (req, res) => {
 router.get('/members/:id/schedule-fragment', async (req, res) => {
   const member = await db.prepare('SELECT * FROM members WHERE id = ?').get(parseInt(req.params.id, 10));
   if (!member) return res.status(404).send('Not found');
-  res.render('member-schedule-fragment', { member, schedule: await getMemberSchedule(member.id), dayLabels: CLASS_DAY_LABELS_FULL });
+  res.render('member-schedule-fragment', { member, scheduleTables: await memberScheduleTables([member]) });
 });
 
 // Exports every field a member's profile can hold - the same information
@@ -581,7 +584,19 @@ router.get('/members/grade-level-report/download.pdf', async (req, res) => {
 // in utils/classSchedule.js); actually editing the profile itself is
 // still the dedicated Edit page, linked from the Profile tab.
 router.get('/members/:id', async (req, res) => {
+  res.locals.membersBackHref = memberListBackUrl(req, '/admin/members');
+  res.locals.membersBackLabel = 'Members';
   const id = parseInt(req.params.id, 10);
+  // Opened from Attendance (views/admin-rosters.ejs's ?from=) - Back
+  // returns there, remembered for this member across the profile's tabs.
+  const from = typeof req.query.from === 'string' && /^\/admin\/rosters(\?[^\s]*)?$/.test(req.query.from) ? req.query.from : null;
+  if (from) req.session.memberProfileFrom = { memberId: id, url: from };
+  else if (!req.query.tab && !req.query.family) req.session.memberProfileFrom = null;
+  const remembered = req.session.memberProfileFrom;
+  if (remembered && remembered.memberId === id) {
+    res.locals.membersBackHref = remembered.url;
+    res.locals.membersBackLabel = 'Attendance';
+  }
   const member = await db.prepare('SELECT * FROM members WHERE id = ?').get(id);
   if (!member) return res.status(404).send('Not found');
   member.birthdayLabel = member.birthday ? formatDateNumeric(member.birthday) : null;
@@ -633,12 +648,11 @@ router.get('/members/:id', async (req, res) => {
     // options so it can show who's selected.
     familyRoster,
     rosters: await rostersForMember(id),
-    schedule: await getMemberSchedule(id),
-    dayLabels: CLASS_DAY_LABELS_FULL,
     scheduleFamilyAll,
-    familySchedules: scheduleFamilyAll
-      ? await Promise.all(familyRoster.map(async (m) => ({ member: m, schedule: await getMemberSchedule(m.id) })))
-      : null,
+    // The shared member schedule table (partials/member-schedule-
+    // table.ejs) - just this member, or the whole family for "All"
+    // (parents first, then students oldest first, same as its Print).
+    scheduleTables: tab === 'schedule' ? await memberScheduleTables(scheduleFamilyAll ? sortFamilyForPrint(familyRoster) : [member]) : null,
     attendanceFamilyAll,
     history: attendanceFamilyAll ? null : groupAttendanceByRoster(formatAttendanceHistory(await attendanceHistoryForMember(id))),
     familyAttendanceHistories: attendanceFamilyAll
@@ -650,6 +664,7 @@ router.get('/members/:id', async (req, res) => {
 });
 
 router.get('/members/:id/edit', async (req, res) => {
+  res.locals.membersBackHref = memberListBackUrl(req, '/admin/members');
   const id = parseInt(req.params.id, 10);
   const member = await db.prepare('SELECT * FROM members WHERE id = ?').get(id);
   if (!member) return res.status(404).send('Not found');
@@ -850,7 +865,8 @@ router.post('/members/:id/edit', uploadIntakePhotos((req) => `/admin/members/${r
   });
   if (familyError) return res.redirect(`/admin/members/${id}/edit?error=` + encodeURIComponent(familyError));
 
-  res.redirect('/admin/members?notice=' + encodeURIComponent(`${f.name} updated.`));
+  // A real request: "When you click save it should stay on the profile."
+  res.redirect(`/admin/members/${id}/edit?notice=` + encodeURIComponent(`${f.name} updated.`));
 });
 
 router.post('/members/:id/notes', async (req, res) => {

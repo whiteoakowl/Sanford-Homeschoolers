@@ -674,7 +674,7 @@ test('the pre-existing Floater Assignments feature (utils/volunteers.js) is unto
   // briefly, accidentally overwritten while building this new feature,
   // which crashed server boot entirely via
   // classSchedule.js's autoAssignFloatersForDay).
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: process.env.ADMIN_USERNAME, password: process.env.ADMIN_PASSWORD });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const res = await request(app).get('/admin/volunteers/monday/manage').set('Cookie', cookie);
   assert.equal(res.status, 200);

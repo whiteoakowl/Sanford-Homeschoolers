@@ -7,46 +7,16 @@
   <%- include('partials/admin-nav') %>
   <main id="main-content" tabindex="-1" class="admin-main">
     <p class="subtitle no-print"><a href="/admin/schedule?tab=members&type=<%= returnType %>">&larr; All Schedules</a></p>
-    <div class="roster-toolbar">
-      <div><h1><%= member.name %></h1></div>
-      <div class="roster-btn-row no-print">
-        <a class="roster-action-btn print-action-btn" href="/admin/schedule/print?memberId=<%= member.id %>" target="_blank">Print Schedule</a>
-        <a class="icon-btn" href="/admin/schedule/download.pdf?memberId=<%= member.id %>" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
-      </div>
+    <div class="roster-toolbar no-print">
+      <p class="hint">Generated automatically from the Class Schedule - enroll or staff <%= member.name %> on a class there to change what shows up here.</p>
+      <%- include('partials/member-schedule-actions', {
+        exportHref: '/admin/schedule/export.csv?memberId=' + member.id,
+        pdfHref: '/admin/schedule/download.pdf?memberId=' + member.id,
+        printHref: '/admin/schedule/print?memberId=' + member.id,
+      }) %>
     </div>
 
-    <p class="hint no-print">Generated automatically from the Class Schedule - enroll or staff <%= member.name %> on a class there to change what shows up here.</p>
-
-    <div class="schedule-day-columns">
-      <% schedule.activeDays.forEach(function (dayKey) { %>
-        <% var dayLabel = dayLabels[dayKey], rows = schedule.byDay[dayKey]; %>
-        <div class="form-section">
-          <h2><%= dayLabel %> Schedule</h2>
-          <div class="roster-scroll schedule-table-scroll">
-            <table class="roster-table schedule-edit-table">
-              <thead>
-                <tr><th>#</th><th>Time</th><th>Class Name</th><th>Room</th></tr>
-              </thead>
-              <tbody>
-                <% var anyRows = rows.some(function (r) { return r.class_name || r.time || r.room || r.teacher; }); %>
-                <% if (!anyRows) { %>
-                  <tr><td colspan="4" class="roster-empty">No classes on <%= dayLabel %> yet.</td></tr>
-                <% } %>
-                <% rows.forEach(function (r, i) { %>
-                  <% if (!r.class_name && !r.time && !r.room && !r.teacher) return; %>
-                  <tr>
-                    <td class="schedule-edit-label"><%= i + 1 %></td>
-                    <td><%= r.time || '—' %></td>
-                    <td><%= r.class_name || '—' %></td>
-                    <td><%= r.room || '—' %></td>
-                  </tr>
-                <% }); %>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      <% }); %>
-    </div>
+    <%- include('partials/member-schedule-table', { tables: scheduleTables, headingLevel: 1, classHref: function (id) { return '/admin/class-schedule/classes/' + id + '/manage'; } }) %>
   </main>
 </body>
 </html>

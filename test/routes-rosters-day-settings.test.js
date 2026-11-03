@@ -43,7 +43,7 @@ function extractCsrf(html) {
 }
 
 async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin/rosters').set('Cookie', cookie);
   return { cookie, csrfToken: extractCsrf(page.text) };
@@ -57,7 +57,7 @@ async function activateTuesday(admin) {
     .send({ title: 'Tuesday Enrichment', dayOfWeek: 'tuesday', _csrf: admin.csrfToken });
 }
 
-test('a newly-activated Tuesday day schedule makes a real tuesday-parent/tuesday-student Attendance tab, with Edit Dates/Add Member/Resync/Print/Export all reachable', async () => {
+test('a newly-activated Tuesday day schedule makes a real tuesday-parent/tuesday-student Attendance tab, with Edit Dates/Add Member/Print/Export all reachable', async () => {
   const admin = await loginAsAdmin();
   await activateTuesday(admin);
   await createClass({ day: 'tuesday', hourPosition: 1, className: 'Tuesday Art' });
@@ -97,14 +97,6 @@ test('a newly-activated Tuesday day schedule makes a real tuesday-parent/tuesday
     .get('/admin/rosters?tab=tuesday-parent')
     .set('Cookie', admin.cookie);
   assert.notEqual(addMember.status, 404);
-
-  const resync = await request(app)
-    .post('/admin/rosters/tuesday/resync')
-    .set('Cookie', admin.cookie)
-    .type('form')
-    .send({ tab: 'tuesday-student', _csrf: admin.csrfToken });
-  assert.notEqual(resync.status, 404);
-  assert.match(resync.headers.location, /tab=tuesday-student/);
 
   const print = await request(app).get('/admin/rosters/print?tab=tuesday-parent').set('Cookie', admin.cookie);
   assert.equal(print.status, 200);

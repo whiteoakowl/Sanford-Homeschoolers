@@ -53,7 +53,7 @@
         <div class="grid-box-header">
           <h1>Photos</h1>
           <% if (typeof portalAccount !== 'undefined' && portalAccount && albums.length > 0) { %>
-            <button type="button" class="roster-action-btn" onclick="document.getElementById('add-photo-dialog').showModal()">+ Add Photo</button>
+            <a class="roster-action-btn" href="/photos/add">+ Add Photo</a>
           <% } %>
         </div>
 
@@ -78,38 +78,18 @@
     </section>
   </main>
 
-  <% if (typeof portalAccount !== 'undefined' && portalAccount && albums.length > 0) { %>
-    <%
-      // A real request: "when you click the photos tab it goes to a
-      // completely different page than the whole dashboard. It should
-      // look like other pages with an add photo button." The list page
-      // has no album selected yet - unlike photos-detail.ejs's own
-      // upload form (one fixed album) - so this one also asks which
-      // album to add to, then posts to that exact same /photos/:id/upload
-      // route (members can add photos to an existing album, never create
-      // one - see routes/photos.js's own comment on why there's no
-      // create-album route here at all).
-    %>
-    <dialog id="add-photo-dialog" class="member-picker-dialog dialog-label-stack">
-      <form method="POST" action="/photos" enctype="multipart/form-data" onsubmit="this.action = '/photos/' + this.albumId.value + '/upload';">
-        <h3>Add Photo</h3>
-        <label>Album
-          <select name="albumId" required>
-            <% albums.forEach(function(a) { %><option value="<%= a.id %>"><%= a.title %></option><% }); %>
-          </select>
-        </label>
-        <label>Photo(s)
-          <input type="file" name="images" accept="image/*" multiple required />
-        </label>
-        <label>Caption <span class="hint">(optional, applies to all photos in this upload)</span>
-          <input type="text" name="caption" placeholder="e.g. Field trip day" />
-        </label>
-        <div class="notes-dialog-actions">
-          <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
-          <button type="submit" class="primary-btn">Upload</button>
-        </div>
-      </form>
-    </dialog>
-  <% } %>
+  <%
+    // A real request: "when you click the photos tab it goes to a
+    // completely different page than the whole dashboard. It should
+    // look like other pages with an add photo button." A later request:
+    // "Add photo button should also allow you to upload multiple photos
+    // at once. This should not be a pop up. It should be an page with a
+    // back button." - the album-picker + multi-file upload form that
+    // used to live in a <dialog> here now lives on its own page,
+    // views/photos-add.ejs, which posts to that exact same
+    // /photos/:id/upload route (members can add photos to an existing
+    // album, never create one - see routes/photos.js's own comment on
+    // why there's no create-album route here at all).
+  %>
 </body>
 </html>

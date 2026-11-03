@@ -1,173 +1,47 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="<%= smoothScroll ? 'wx-smooth' : '' %>">
 <head>
-  <%- include('partials/head', { title }) %>
-  <%# A real request: "Should have the exact webpage editing features as
-      Shopify" - Logo & Favicon theme section (Main Admin > Settings >
-      Public Homepage). Placed AFTER partials/head's own default
-      <link rel="icon">, so it overrides the favicon on just this page
-      (every other page in the app keeps the default owl icon) without
-      touching that shared partial. %>
-  <% if (theme.faviconUrl) { %><link rel="icon" href="<%= theme.faviconUrl %>" /><% } %>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <%# Empty unless signed in - public/js/csrf.js no-ops on a blank token. %>
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' && csrfToken ? csrfToken : '' %>" />
+  <title><%= title %></title>
+  <% if (description) { %><meta name="description" content="<%= description %>" /><% } %>
+  <% if (noindex) { %><meta name="robots" content="noindex, nofollow" /><% } %>
+  <link rel="canonical" href="<%= canonical %>" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="<%= title %>" />
+  <meta property="og:url" content="<%= canonical %>" />
+  <% if (description) { %><meta property="og:description" content="<%= description %>" /><% } %>
+  <% if (ogImage) { %><meta property="og:image" content="<%= ogImage %>" /><% } %>
+  <link rel="icon" href="<%= faviconUrl %>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <% if (fontsHref) { %><link href="<%= fontsHref %>" rel="stylesheet" /><% } %>
+  <link rel="stylesheet" href="/css/site.css" />
+  <%# Generated from the validated site document only (numbers, palette
+      colors, the fixed font list) - never free text - so it's safe raw.
+      See public/js/site-render.js's pageCss/designCss. %>
+  <style><%- siteCss %></style>
+  <script>document.documentElement.classList.add('wx-js');</script>
+  <% if (analyticsId) { %>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=<%= analyticsId %>"></script>
+    <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', '<%= analyticsId %>');</script>
+  <% } %>
+  <script src="/js/csrf.js" defer></script>
+  <script src="/js/site-runtime.js" defer></script>
 </head>
-<%# Theme CSS custom properties (utils/homepage.js's own themeStyleAttr)
-    scoped to just this page via the public-home-page class - never the
-    site-wide --bg/--accent/etc. tokens every admin page also uses (see
-    public/css/styles.css's own comment on this section for why a new,
-    page-scoped variable set exists instead of repointing those). %>
-<body class="public-home-page" style="<%- themeStyle %>">
-  <%- include('partials/icon-sprite') %>
-
-  <%# Preview-only banner (routes/admin-website.js's own /preview route) -
-      never shown on the real public /welcome page. %>
-  <% if (typeof isPreview !== 'undefined' && isPreview) { %>
-    <div class="homepage-preview-banner">Preview &mdash; not the live site</div>
-  <% } %>
-
-  <%# Announcement Bar theme section - a real request: "Should have the
-      exact webpage editing features as Shopify" (the screenshot's own
-      "Announcement bar" section). Off by default (announcement_enabled
-      starts false) - shown only once an admin both turns it on AND
-      gives it text. %>
-  <% if (theme.announcementEnabled && theme.announcementText) { %>
-    <div class="site-announcement-bar"><%= theme.announcementText %></div>
-  <% } %>
-
-  <header class="site-header">
-    <%# A real request: "Homepage should now link to homepage" - / is now
-        the site root (server.js), so the brand link uses that instead
-        of the old /welcome alias (still works, just no longer the
-        canonical URL this page's own logo points at). %>
-    <a class="site-header-brand" href="/">
-      <img src="<%= theme.logoUrl || '/img/logo.png' %>" alt="" />
-      <%= settings.org_name %>
-    </a>
-    <%# A real request: "Should be able to edit or add menu tabs to the
-        homepage." An admin-editable list of label+URL links (Main
-        Admin > Settings > Public Homepage's own Menu Tabs section,
-        utils/homepage.js) - empty by default (this section simply
-        doesn't render until an admin adds at least one), not a fixed
-        set of hardcoded page links. %>
-    <% if (menuItems.length > 0) { %>
-      <nav class="site-header-menu" aria-label="Site menu">
-        <% menuItems.forEach(function(item) { %>
-          <a href="<%= item.url %>"><%= item.label %></a>
-        <% }); %>
-      </nav>
-    <% } %>
-    <%# A real request: "No we removed the become a member orange button
-        at the top" - the header now only ever offers Log in (/login);
-        joining still happens via the "Ready to join" CTA further down
-        this same page. %>
-    <div class="site-header-actions">
-      <% if (typeof portalAccount !== 'undefined' && portalAccount) { %>
-        <a class="primary-btn" href="/portal">My Portals</a>
-      <% } else { %>
-        <a class="btn-secondary" href="/login">Log in</a>
-      <% } %>
+<body class="wx-public<%= headerSticky ? ' has-sticky-header' : '' %>">
+  <a class="wx-skip" href="#main-content">Skip to content</a>
+  <% if (isPreview) { %><div class="wx-preview-banner">Preview &mdash; not the live site</div><% } %>
+  <div id="wx-site">
+    <%- bodyHtml %>
+  </div>
+  <% if (cookieBanner) { %>
+    <div class="wx-cookie" role="region" aria-label="Cookie notice" hidden data-wx-cookie>
+      <p><%= cookieBanner.text || 'We use cookies to understand how our site is used.' %><% if (cookieBanner.policyUrl) { %> <a href="<%= cookieBanner.policyUrl %>">Learn more</a><% } %></p>
+      <button type="button" class="wx-btn" data-wx-cookie-accept><%= cookieBanner.buttonLabel || 'OK' %></button>
     </div>
-  </header>
-
-  <main id="main-content" tabindex="-1">
-    <%
-      // A real request: "edit the entire homepage like you would on
-      // Spotify or wix. Drag and drop images and text of different size
-      // choices. Add buttons and links." Replaces the old fixed Hero/
-      // About/Why Families Join Us sections (each a single hardcoded
-      // textarea on site_settings) with homepage_blocks - an ordered
-      // list of text/image/button blocks the admin builds from Main
-      // Admin > Settings > Public Homepage. Announcements/FAQ/the "Ready
-      // to join" CTA below stay their own fixed, data-driven sections -
-      // unrelated systems, not blocks.
-    %>
-    <section class="site-section" id="homepage-blocks">
-      <div class="site-section-inner">
-        <% blocks.forEach(function(b) { %>
-          <% if (b.block_type === 'text') { %>
-            <div class="homepage-block homepage-block-text homepage-text-<%= b.text_size || 'medium' %>"><%= b.text_body %></div>
-          <% } else if (b.block_type === 'image' && b.imageUrl) { %>
-            <div class="homepage-block homepage-block-image homepage-image-<%= b.image_size || 'medium' %>">
-              <img src="<%= b.imageUrl %>" alt="<%= b.image_alt || '' %>" />
-            </div>
-          <% } else if (b.block_type === 'button') { %>
-            <div class="homepage-block homepage-block-button">
-              <a class="primary-btn" href="<%= b.button_url %>"><%= b.button_label %></a>
-            </div>
-          <% } %>
-        <% }); %>
-      </div>
-    </section>
-
-    <%# A real request: "Check box to be viewable to public on public
-        homepage" - a read-only showcase of whichever Schedule Grids an
-        admin opted into (Co-op Admin > Classes > Edit Schedule Grids'
-        own new checkbox, routes/public-site.js's own publicShowcaseClasses).
-        Registering still requires Member Registration/Login, same as the
-        "Ready to join" CTA already at the bottom of this page. %>
-    <% if (showcaseClasses.length > 0) { %>
-      <section class="site-section site-section-alt">
-        <div class="site-section-inner">
-          <h2>Classes We Offer</h2>
-          <div class="site-class-showcase-list">
-            <% showcaseClasses.forEach(function(c) { %>
-              <div class="site-class-showcase-card" style="border-left-color: <%= c.color || '#EE9A4D' %>;">
-                <span class="site-class-showcase-day"><%= c.dayLabel %></span>
-                <h3><%= c.className %></h3>
-                <% if (c.timeLabel) { %><p class="site-class-showcase-time"><%= c.timeLabel %></p><% } %>
-              </div>
-            <% }); %>
-          </div>
-          <a class="primary-btn" href="/register">Member Registration to Enroll</a>
-        </div>
-      </section>
-    <% } %>
-
-    <% if (announcements.length > 0) { %>
-      <section class="site-section">
-        <div class="site-section-inner">
-          <h2>Announcements</h2>
-          <div class="site-announcement-list">
-            <% announcements.forEach(function(a) { %>
-              <div class="site-announcement-card">
-                <span class="site-announcement-date"><%= a.publishedLabel %></span>
-                <h3><%= a.title %></h3>
-                <div class="forum-editable-display"><%- a.body %></div>
-              </div>
-            <% }); %>
-          </div>
-        </div>
-      </section>
-    <% } %>
-
-    <% if (faqs.length > 0) { %>
-      <section class="site-section site-section-alt">
-        <div class="site-section-inner">
-          <h2>Frequently Asked Questions</h2>
-          <div class="site-faq-list">
-            <% faqs.forEach(function(faq) { %>
-              <details class="site-faq-item">
-                <summary><%= faq.question %></summary>
-                <p><%= faq.answer %></p>
-              </details>
-            <% }); %>
-          </div>
-        </div>
-      </section>
-    <% } %>
-
-    <section class="site-cta">
-      <h2>Ready to join <%= settings.org_name %>?</h2>
-      <p>Create your account and we'll take it from there.</p>
-      <a class="primary-btn" href="/register">Member Registration</a>
-    </section>
-  </main>
-
-  <footer class="site-footer">
-    <p>
-      <% if (settings.contact_email) { %><a href="mailto:<%= settings.contact_email %>"><%= settings.contact_email %></a><% } %>
-      <% if (settings.contact_phone) { %> &middot; <%= settings.contact_phone %><% } %>
-    </p>
-    <p>&copy; <%= new Date().getFullYear() %> <%= settings.org_name %>. All rights reserved.</p>
-  </footer>
+  <% } %>
 </body>
 </html>

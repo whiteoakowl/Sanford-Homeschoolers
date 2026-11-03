@@ -67,7 +67,7 @@ function cfVideoEmbedUrl(raw) {
       this the same way, from the field's own matrix_columns column).
       Each row posts as field_<id>[<row label>] = <selected column
       label> - combined server-side into one JSON-object answer
-      (routes/custom-forms.js's own combinedMatrixValue). %>
+      (utils/customFormAnswers.js's own combinedMatrixValue). %>
   <div class="member-form-full cf-field cf-matrix-field" data-cf-field-id="<%= field.id %>"<%- conditionAttr %>>
     <label><%= field.label %><% if (req) { %> <span class="cf-required-star">*</span><% } %></label>
     <% if (field.help_text) { %><p class="hint"><%= field.help_text %></p><% } %>

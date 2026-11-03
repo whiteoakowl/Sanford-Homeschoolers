@@ -43,7 +43,7 @@ async function loginAsMainAdmin() {
 }
 
 async function loginAsCoopAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: process.env.ADMIN_USERNAME, password: process.env.ADMIN_PASSWORD });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   return loginRes.headers['set-cookie'];
 }
 

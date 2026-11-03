@@ -119,6 +119,8 @@
         { href: '/admin/teachers', label: 'Teachers' },
         { href: '/admin/teachers/assistants', label: 'Assistants' },
         { href: '/admin/teachers/instructor-profiles', label: 'Instructor Profiles' },
+        { href: '/admin/teachers/reimbursements', label: 'Teacher Reimbursements' },
+        { href: '/admin/teachers/class-fees', label: 'Class Fees' },
       ] },
       // A real request: "Co-op admin portal add a tab called lesson
       // plans... Admins can create lessons plans and assign them to a
@@ -127,7 +129,14 @@
       // lesson-plans.js) - full-admin-only (routes/admin-lesson-plans.js's
       // own router.use(requireFullAdmin)), same gate Settings above the
       // Classes group already applies.
-      ...(isFullAdmin ? [{ href: '/admin/lesson-plans', icon: 'clipboard-list', label: 'Lesson Plans' }] : []),
+      // A later real request: "Add a page under lesson plans tab called
+      // lesson plan approval" - teacher-submitted class lessons wait
+      // there for a Co-op Admin's approval (routes/admin-lesson-plans.js).
+      // `badge` is the pending count (server.js's own /admin middleware).
+      ...(isFullAdmin ? [{ href: '/admin/lesson-plans', icon: 'clipboard-list', label: 'Lesson Plans', subpages: [
+        { href: '/admin/lesson-plans', label: 'Lesson Plans' },
+        { href: '/admin/lesson-plans/approval', label: 'Lesson Plan Approval', badge: typeof pendingLessonApprovalCount !== 'undefined' ? pendingLessonApprovalCount : 0 },
+      ] }] : []),
       { href: '/admin/logs', icon: 'clipboard-list', label: 'Logs', subpages: [
         // Same bug/fix as Classes' own identical comment above - GET
         // /admin/logs with no ?tab= renders the Absence/Late tab
@@ -201,7 +210,7 @@
           <summary><svg class="icon"><use href="#icon-<%= link.icon %>"/></svg> <%= link.label %> <svg class="icon admin-nav-group-chevron"><use href="#icon-chevron-down"/></svg></summary>
           <div class="admin-nav-subpages">
             <% link.subpages.forEach(function(sp) { %>
-              <a href="<%= sp.href %>"><%= sp.label %></a>
+              <a href="<%= sp.href %>"><%= sp.label %><% if (sp.badge) { %> <span class="badge-pill badge-pill-orange"><%= sp.badge %><span class="sr-only"> pending</span></span><% } %></a>
             <% }); %>
           </div>
         </details>
@@ -211,7 +220,7 @@
     <% }); %>
   </nav>
   <div class="admin-sidebar-bottom">
-    <form method="POST" action="/admin/logout" class="logout-form">
+    <form method="POST" action="/logout" class="logout-form">
       <button type="submit"><svg class="icon"><use href="#icon-log-out"/></svg> Log out</button>
     </form>
   </div>
@@ -227,10 +236,12 @@
     its own separate, untouched copy of that feature. A later real
     request ("Switch portal, profile icon, settings icon should all be
     top right of screen") moved Settings up here from
-    .admin-sidebar-bottom (still Log Out's home) - Co-op Admin has no
-    separate settings page from its own profile/account page, so both
-    links point at /admin/settings, same as they already did in the
-    mobile topbar below. %>
+    .admin-sidebar-bottom (still Log Out's home). A later real request:
+    "If you click the profile icon in co-op admin portal it should show
+    the signed in member's profile" - My Profile now opens /portal/profile
+    (the member's own profile, same as every other portal's), not
+    /admin/settings; signed out of a member account, that route sends
+    them to /login first. %>
 <header class="admin-page-corner-actions no-print">
   <% if (isFullAdmin) { %>
     <form method="GET" action="/admin/search" class="admin-corner-search">
@@ -243,7 +254,7 @@
     <svg class="icon"><use href="#icon-monitor"/></svg>
     My Portals
   </a>
-  <a class="admin-corner-link" href="/admin/settings">
+  <a class="admin-corner-link" href="/portal/profile">
     <svg class="icon"><use href="#icon-user-circle"/></svg>
     My Profile
   </a>
@@ -264,9 +275,9 @@
         <a class="admin-nav-right-link" href="/admin/search" aria-label="Search"><svg class="icon"><use href="#icon-search"/></svg></a>
       <% } %>
       <a class="admin-nav-right-link" href="/portal" aria-label="My Portals"><svg class="icon"><use href="#icon-monitor"/></svg></a>
-      <a class="admin-nav-right-link" href="/admin/settings" aria-label="My Profile"><svg class="icon"><use href="#icon-user-circle"/></svg></a>
+      <a class="admin-nav-right-link" href="/portal/profile" aria-label="My Profile"><svg class="icon"><use href="#icon-user-circle"/></svg></a>
       <a class="admin-nav-right-link" href="/admin/settings" aria-label="Settings"><svg class="icon"><use href="#icon-gear"/></svg></a>
-      <form method="POST" action="/admin/logout" class="logout-form">
+      <form method="POST" action="/logout" class="logout-form">
         <button type="submit" class="admin-nav-right-link" aria-label="Log out"><svg class="icon"><use href="#icon-log-out"/></svg></button>
       </form>
     </div>

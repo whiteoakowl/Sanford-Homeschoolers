@@ -4,9 +4,17 @@
 // stayed on the roster forever because syncDayMemberRosters only reruns
 // reactively on an actual enrollment/staffing/floater edit - a family
 // nobody happened to touch since the fix kept showing the stale result.
-// Adds a "Resync" button (POST /admin/rosters/:day/resync) that reruns
-// the same sync on demand, so an admin isn't stuck waiting for or faking
-// a throwaway edit just to force a day's rosters to recompute.
+//
+// This used to be covered through a manual "Resync" button (POST
+// /admin/rosters/:day/resync) an admin could click to force the same
+// sync on demand - a real request ("Co-op admin portal. Attendance.
+// Delete sync button and feature it is no longer needed") removed that
+// button and route, since syncDayMemberRosters already runs automatically
+// on every enrollment/staffing/floater edit and the manual trigger was
+// redundant. The underlying sync behavior this test actually cares about
+// still matters (it still runs automatically, just never via a button
+// now), so this exercises syncDayMemberRosters directly instead of going
+// through the now-deleted HTTP route.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -24,7 +32,7 @@ process.env.ADMIN_PASSWORD = 'testpassword123';
 const request = require('supertest');
 const app = require('../server');
 const db = require('../db');
-const { createClass, setEnrollment, ensureDayRoster } = require('../utils/classSchedule');
+const { createClass, setEnrollment, ensureDayRoster, syncDayMemberRosters } = require('../utils/classSchedule');
 
 test.before(() => app.ready);
 test.after(() => {
@@ -34,14 +42,7 @@ test.after(() => {
   fs.rmSync(testUploadsDir, { recursive: true, force: true });
 });
 
-async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
-  return { cookie: loginRes.headers['set-cookie'] };
-}
-
-test('POST /admin/rosters/:day/resync clears a stale non-primary-parent auto entry and keeps a manual one', async () => {
-  const { cookie } = await loginAsAdmin();
-
+test('syncDayMemberRosters clears a stale non-primary-parent auto entry and keeps a manual one', async () => {
   const familyId = (await db.prepare("INSERT INTO families (name) VALUES ('Resync Family')").run()).lastInsertRowid;
   const primaryParentId = (
     await db
@@ -75,20 +76,21 @@ test('POST /admin/rosters/:day/resync clears a stale non-primary-parent auto ent
     .prepare("INSERT INTO roster_members (roster_id, member_id, source) VALUES (?, ?, 'manual') ON CONFLICT (roster_id, member_id) DO NOTHING")
     .run(parentRosterId, manualParentId);
 
-  const page = await request(app).get('/admin/rosters?tab=monday-parent').set('Cookie', cookie);
-  const csrfToken = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];
-
-  const res = await request(app)
-    .post('/admin/rosters/monday/resync')
-    .set('Cookie', cookie)
-    .type('form')
-    .send({ tab: 'monday-parent', _csrf: csrfToken });
-  assert.equal(res.status, 302);
-  assert.match(res.headers.location, /tab=monday-parent/);
-  assert.match(res.headers.location, /notice=/);
+  await syncDayMemberRosters('monday');
 
   const memberIds = (await db.prepare('SELECT member_id FROM roster_members WHERE roster_id = ?').all(parentRosterId)).map((r) => r.member_id);
-  assert.ok(memberIds.includes(primaryParentId), 'the family\'s primary parent should be on the roster after resync');
-  assert.ok(!memberIds.includes(staleParentId), 'the stale auto-added non-primary parent should be removed by resync');
-  assert.ok(memberIds.includes(manualParentId), 'a manually-added parent must survive resync untouched');
+  assert.ok(memberIds.includes(primaryParentId), 'the family\'s primary parent should be on the roster after a sync');
+  assert.ok(!memberIds.includes(staleParentId), 'the stale auto-added non-primary parent should be removed by a sync');
+  assert.ok(memberIds.includes(manualParentId), 'a manually-added parent must survive a sync untouched');
+});
+
+test('the manual Resync button/route is gone - POST /admin/rosters/:day/resync no longer exists', async () => {
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
+  const cookie = loginRes.headers['set-cookie'];
+  const page = await request(app).get('/admin/rosters?tab=monday-parent').set('Cookie', cookie);
+  assert.doesNotMatch(page.text, /\/admin\/rosters\/monday\/resync/, 'the Resync button/form should no longer be on the page');
+
+  const csrfToken = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];
+  const res = await request(app).post('/admin/rosters/monday/resync').set('Cookie', cookie).type('form').send({ tab: 'monday-parent', _csrf: csrfToken });
+  assert.equal(res.status, 404);
 });

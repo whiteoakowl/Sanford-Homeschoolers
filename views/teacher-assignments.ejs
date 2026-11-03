@@ -28,13 +28,14 @@
                   <div class="training-lesson-row-main">
                     <svg class="icon"><use href="#icon-clipboard-list"/></svg>
                     <div class="training-lesson-info">
-                      <strong><%= a.title %></strong>
+                      <strong><%= a.title %></strong> <%- include('partials/lesson-approval-badge', { status: a.approval_status }) %>
+                      <% if (a.approval_status === 'rejected' && a.review_note) { %><span class="hint">Rejection message: <%= a.review_note %></span><% } %>
                       <span class="hint">
                         <% if (a.dueDateLabel) { %>Due <%= a.dueDateLabel %><% } else { %>No due date<% } %>
                         <% if (a.points_possible) { %> &middot; <%= a.points_possible %> points<% } %>
                       </span>
                     </div>
-                    <a class="roster-action-btn" href="/teacher/assignments/<%= a.id %>">Grade</a>
+                    <a class="roster-action-btn" href="/teacher/assignments/<%= a.id %>"><%= a.approval_status === 'rejected' ? 'Edit & Resubmit' : a.approval_status === 'draft' ? 'Edit / Submit' : 'Grade' %></a>
                   </div>
                 </div>
               <% }); %>

@@ -11,38 +11,77 @@
 // not one grid per page - so nothing has to re-align between a page's
 // own row and its own subpages' rows. Each .checkbox-option below is
 // `display: contents` (public/css/styles.css), so its own <input> and
-// <span> become the actual grid cells (column 1 / column 2) rather
-// than the label itself being one cell - every row's checkbox and
-// every row's text line up in those same two columns regardless of
-// label text length or how deep a subpage list runs.
+// two <span>s become the actual grid cells (column 1 / 2 / 3) rather
+// than the label itself being one cell - every row's checkbox, marker,
+// and text land in those same three columns regardless of text length
+// or how deep a subpage list runs.
+//
+// A later real request: "the check boxes should show the actual
+// description, not just a hover tooltip" - column 3 below is each
+// permission's own full description (item.description/sp.description,
+// e.g. "Manage the Members page's Approvals tab." on Admin Positions,
+// or "View the Events page from Parent Portal." on Portal Permissions
+// - the SAME underlying permissions.description column, worded
+// differently per screen because of which `portal` each row's own
+// permission belongs to, not two different fields) - the short catalog
+// label (item.label) is no longer the visible row text at all, it only
+// ever fed the description-as-tooltip this replaces. A permission
+// whose description is ever missing falls back to its own label rather
+// than rendering a blank row.
+//
+// A further real request: "Signify that its a subpage under a page by
+// creating row lines to separate sections, bullet points for the main
+// pages and dash lines for subpages." .permission-marker (column 2,
+// between the checkbox and the description text) holds a plain bullet
+// for every top-level page row and a dash for every one of its own
+// subpage rows - its own fixed-width column (not just prefixed onto
+// the description text itself) is what keeps column 3's own text
+// starting at the exact same x position on EVERY row, main page or
+// subpage alike, bullet/dash included - the literal "first word of the
+// description... in its own clean column" requirement above still
+// holds with these markers in play, not just without them.
+// .permission-group-divider (a plain, non-.checkbox-option block
+// spanning every column) is inserted after each top-level page's own
+// complete group - the page's own row (or heading) plus every one of
+// its own subpages - so a long list reads as separated sections instead
+// of one undifferentiated wall of rows; the very last group in a
+// section gets no trailing divider.
 //
 // A page with no permission of its own (key: null in the catalog - e.g.
 // Parent Portal's "Co-op Classes," whose bare URL is identical to its
 // own first subpage) renders as a plain, non-interactive group heading
-// (.permission-group-label, spanning both columns) instead of a
-// checkbox - its own subpages (indented via .permission-subpage) are
-// still real, independent checkboxes.
+// (.permission-group-label, spanning every column) instead of a
+// checkbox - still prefixed with the same bullet every real top-level
+// checkbox row gets, since it's still a main-page-level entry in this
+// list, just one with no checkbox of its own to hang a marker column
+// off of. Its own subpages (indented via .permission-subpage) are still
+// real, independent checkboxes.
 %>
 <% (sections || []).forEach(function(section) { %>
   <% if (section.items && section.items.length) { %>
     <div class="permission-section">
       <p class="permission-section-title"><%= section.title %></p>
       <div class="permission-checkbox-grid">
-        <% section.items.forEach(function(item) { %>
+        <% section.items.forEach(function(item, itemIndex) { %>
           <% if (item.permId) { %>
-            <label class="checkbox-option" title="<%= item.description || '' %>">
+            <label class="checkbox-option">
               <input type="checkbox" name="permissionIds" value="<%= item.permId %>" <%= item.checked ? 'checked' : '' %> />
-              <span><%= item.label %></span>
+              <span class="permission-marker" aria-hidden="true">&bull;</span>
+              <span class="permission-text"><%= item.description || item.label %></span>
             </label>
           <% } else { %>
-            <span class="permission-group-label"><%= item.label %></span>
+            <span class="permission-group-label">&bull; <%= item.label %></span>
           <% } %>
           <% (item.subpages || []).forEach(function(sp) { %>
-            <label class="checkbox-option permission-subpage" title="<%= sp.description || '' %>">
+            <label class="checkbox-option permission-subpage">
               <input type="checkbox" name="permissionIds" value="<%= sp.permId %>" <%= sp.checked ? 'checked' : '' %> />
-              <span><%= sp.label %></span>
+              <span class="permission-marker" aria-hidden="true">&ndash;</span>
+              <span class="permission-text"><%= sp.description || sp.label %></span>
             </label>
           <% }); %>
+          <% if (itemIndex < section.items.length - 1) { %>
+            <div class="permission-group-divider"></div>
+          <% } %>
         <% }); %>
       </div>
     </div>

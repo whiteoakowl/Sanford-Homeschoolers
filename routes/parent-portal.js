@@ -37,6 +37,7 @@ const { CLASS_DAY_ORDER } = require('../utils/classDays');
 const { comboSemesterId, findComboId } = require('../utils/scheduleComboLinks');
 const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
 const { listDocumentsForRole } = require('../utils/documents');
+const { documentKind } = require('../utils/documentRender');
 const { getHandbookHtml } = require('../utils/membershipHandbook');
 const { getTemplate, badgeDataForMembers } = require('../utils/nameTagData');
 const { BADGE_WIDTH, BADGE_HEIGHT } = require('../utils/nameTagBadge');
@@ -301,6 +302,7 @@ router.get('/', async (req, res) => {
     classifiedsListings,
     readingLeaders,
     trainingAssignments,
+    notice: req.query.notice || null,
   });
 });
 
@@ -1187,6 +1189,9 @@ router.get('/documents', requirePortalPermission('view_parent_documents'), async
   // shows up here, same empty-means-everyone convention as every other
   // role-scoped list in this app.
   const documents = await listDocumentsForRole('parent');
+  documents.forEach((d) => {
+    d.kind = documentKind(d);
+  });
   res.render('parent-documents', { title: 'Documents', documents });
 });
 
@@ -1541,6 +1546,10 @@ router.post('/babysitters/:memberId', requirePortalPermission('view_parent_babys
       certifications: (req.body.certifications || '').trim(),
       hourlyRate: (req.body.hourlyRate || '').trim(),
       contactMethod: (req.body.contactMethod || '').trim(),
+      email: (req.body.email || '').trim(),
+      contactText: req.body.contactText === '1',
+      contactCall: req.body.contactCall === '1',
+      contactEmail: req.body.contactEmail === '1',
       photoKey,
     },
     req.portalAccount.id

@@ -4,8 +4,12 @@ const {
   liveMemberScheduleRowsForDay,
   minutesToClockLabelLocal,
   listActiveClassDays,
+  hoursForDay,
+  parseClockMinutesLocal,
 } = require('./classSchedule');
+const { CLASS_DAY_ORDER } = require('./classDays');
 const { byLastName } = require('./members');
+const { toCsvRow } = require('./spreadsheet');
 
 const CLASS_NUMBERS = [1, 2, 3, 4];
 
@@ -177,36 +181,7 @@ const STATUS_LABELS = { none: 'No Schedule', partial: 'Incomplete', complete: 'C
 // Class Schedules table. Filters are all optional/AND-combined.
 async function scheduleList(filters) {
   filters = filters || {};
-  let members = (await db.prepare('SELECT * FROM members WHERE active = 1').all()).sort(byLastName);
-
-  if (filters.search) {
-    const q = filters.search.toLowerCase();
-    members = members.filter((m) => m.name.toLowerCase().includes(q));
-  }
-  if (filters.grade) {
-    members = members.filter((m) => (m.grade_level || '') === filters.grade);
-  }
-  if (filters.rosterId) {
-    const memberIds = new Set(
-      (await db.prepare('SELECT member_id FROM roster_members WHERE roster_id = ?').all(filters.rosterId)).map((r) => r.member_id)
-    );
-    members = members.filter((m) => memberIds.has(m.id));
-  }
-  if (filters.memberId) {
-    members = members.filter((m) => m.id === filters.memberId);
-  }
-  if (filters.familyId) {
-    members = members.filter((m) => m.family_id === filters.familyId);
-  }
-  if (filters.memberType) {
-    // Accepts either a single type or an array - the Schedules page's
-    // Parent tab passes ['parent', 'admin'] so admin/leader members show
-    // up there too (a real bug report: "when viewing parent schedules
-    // under parent tab it won't show admins" - wherever there's a parent
-    // filter site-wide, admins should still be included).
-    const types = Array.isArray(filters.memberType) ? filters.memberType : [filters.memberType];
-    members = members.filter((m) => types.includes(m.member_type));
-  }
+  const members = await scheduleMembers(filters);
 
   // Computed once for the whole filtered list, not once per member -
   // getMemberSchedule's own per-member version would otherwise redo each
@@ -241,7 +216,297 @@ async function scheduleList(filters) {
   return rows;
 }
 
+// Just the member-level half of scheduleList's filters (search/grade/
+// roster/member/family/member type) - every active member matching
+// them, by last name, without computing anyone's schedule. The Member
+// Schedules list/Print/PDF/Export only ever filter on these, then hand
+// the result to memberScheduleTables below.
+async function scheduleMembers(filters) {
+  filters = filters || {};
+  let members = (await db.prepare('SELECT * FROM members WHERE active = 1').all()).sort(byLastName);
+
+  if (filters.search) {
+    const q = filters.search.toLowerCase();
+    members = members.filter((m) => m.name.toLowerCase().includes(q));
+  }
+  if (filters.grade) {
+    members = members.filter((m) => (m.grade_level || '') === filters.grade);
+  }
+  if (filters.rosterId) {
+    const memberIds = new Set(
+      (await db.prepare('SELECT member_id FROM roster_members WHERE roster_id = ?').all(filters.rosterId)).map((r) => r.member_id)
+    );
+    members = members.filter((m) => memberIds.has(m.id));
+  }
+  if (filters.memberId) {
+    members = members.filter((m) => m.id === filters.memberId);
+  }
+  if (filters.familyId) {
+    members = members.filter((m) => m.family_id === filters.familyId);
+  }
+  if (filters.memberType) {
+    // Accepts either a single type or an array - the Schedules page's
+    // Parent tab passes ['parent', 'admin'] so admin/leader members show
+    // up there too (a real bug report: "when viewing parent schedules
+    // under parent tab it won't show admins" - wherever there's a parent
+    // filter site-wide, admins should still be included).
+    const types = Array.isArray(filters.memberType) ? filters.memberType : [filters.memberType];
+    members = members.filter((m) => types.includes(m.member_type));
+  }
+  return members;
+}
+
+// --- Member schedule table (views/partials/member-schedule-table.ejs) ---
+// A real request: "Each member's schedule should look like this image" -
+// one bordered, zebra-striped table per member (Class Details / Location/
+// Instructor; a later real request: "Take the price off the class
+// schedules"), grouped under a small subheading per role:
+// "Signed Up" (enrolled as a student), "Teaching", "Assisting", and
+// "Floater" (the Floater Assignments hours liveMemberScheduleRowsForDay
+// already fills in). Unlike the fixed 4-slot byDay shape above, this is a
+// flat, sorted list of every real class the member is on - so two classes
+// sharing an hour slot both show up here.
+
+const DAY_SHORT = { sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat' };
+// AP-style month abbreviations - the reference screenshot's own
+// "Aug. 24, 2026 - Nov. 16, 2026".
+const MONTH_SHORT = ['Jan.', 'Feb.', 'March', 'April', 'May', 'June', 'July', 'Aug.', 'Sept.', 'Oct.', 'Nov.', 'Dec.'];
+const SCHEDULE_GROUPS = [
+  { key: 'student', label: 'Signed Up' },
+  { key: 'teacher', label: 'Teaching' },
+  { key: 'assistant', label: 'Assisting' },
+  { key: 'floater', label: 'Floater' },
+];
+const GROUP_LABELS = Object.fromEntries(SCHEDULE_GROUPS.map((g) => [g.key, g.label]));
+
+function formatScheduleDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  if (!m) return '';
+  return `${MONTH_SHORT[parseInt(m[2], 10) - 1]} ${parseInt(m[3], 10)}, ${m[1]}`;
+}
+
+function dateRangeLabel(startDate, endDate) {
+  const start = formatScheduleDate(startDate);
+  const end = formatScheduleDate(endDate);
+  if (start && end) return `${start} – ${end}`;
+  if (start) return `Starts ${start}`;
+  if (end) return `Ends ${end}`;
+  return '';
+}
+
+function rangeLabel(startMin, endMin) {
+  if (startMin == null) return '';
+  return endMin != null ? `${minutesToClockLabelLocal(startMin)} – ${minutesToClockLabelLocal(endMin)}` : minutesToClockLabelLocal(startMin);
+}
+
+function compareEntries(a, b) {
+  // Semester start date first (a class with no date at all sorts last),
+  // then calendar day, then start time - Mon classes before Wed, earliest
+  // first, same as the reference screenshot.
+  const aDate = a.startDate || '9999-99-99';
+  const bDate = b.startDate || '9999-99-99';
+  if (aDate !== bDate) return aDate < bDate ? -1 : 1;
+  if (a.day !== b.day) return (CLASS_DAY_ORDER[a.day] ?? 9) - (CLASS_DAY_ORDER[b.day] ?? 9);
+  const aMin = a.startMin == null ? 24 * 60 : a.startMin;
+  const bMin = b.startMin == null ? 24 * 60 : b.startMin;
+  if (aMin !== bMin) return aMin - bMin;
+  return (a.title || '').localeCompare(b.title || '');
+}
+
+// Batched for any number of members (the Member Schedules list can show
+// every active member at once) - a fixed handful of queries no matter
+// how many members, plus one liveMemberScheduleRowsForDay per active day
+// for floater hours (the same live computation every other schedule
+// surface already runs). Returns { [memberId]: entry[] }, each list
+// already sorted (see compareEntries).
+//
+// Class dates: the class's own Start/End Date (its Details tab) when set,
+// otherwise its semester+day Class Schedule Grid's own Start/End Date
+// (class_schedules - the "Fall 2026 - Monday" combo it belongs to),
+// otherwise that day's untagged grid's dates. Time: the class's own
+// start/end time, falling back to its hour block's (effectiveClassRange's
+// same rule), then the hour's raw label.
+async function memberScheduleEntries(memberIds) {
+  const ids = [...new Set((memberIds || []).filter((id) => id != null).map(Number))];
+  const result = {};
+  ids.forEach((id) => { result[id] = []; });
+  if (ids.length === 0) return result;
+
+  const activeDays = await listActiveClassDays();
+  if (activeDays.length === 0) return result;
+  const dayPh = activeDays.map(() => '?').join(',');
+  const classes = await db
+    .prepare(`SELECT c.*, s.title AS semester_title FROM classes c LEFT JOIN semesters s ON s.id = c.semester_id WHERE c.day IN (${dayPh})`)
+    .all(...activeDays);
+  const classById = {};
+  classes.forEach((c) => { classById[c.id] = c; });
+
+  const grids = await db.prepare('SELECT day_of_week, semester_id, start_date, end_date FROM class_schedules').all();
+  const sameSemester = (a, b) => (a == null ? null : Number(a)) === (b == null ? null : Number(b));
+  const gridFor = (day, semesterId) =>
+    grids.find((g) => g.day_of_week === day && sameSemester(g.semester_id, semesterId)) ||
+    grids.find((g) => g.day_of_week === day && g.semester_id == null);
+
+  const hoursCache = {};
+  async function hourFor(day, semesterId, position) {
+    const key = `${day}|${semesterId == null ? '' : semesterId}`;
+    if (!hoursCache[key]) hoursCache[key] = await hoursForDay(day, semesterId == null ? null : semesterId);
+    return hoursCache[key].find((h) => Number(h.position) === Number(position)) || null;
+  }
+
+  const idPh = ids.map(() => '?').join(',');
+  const enrollments = classes.length
+    ? await db
+      .prepare(`SELECT ce.class_id, ce.student_id AS member_id FROM class_enrollments ce JOIN members m ON m.id = ce.student_id WHERE ce.student_id IN (${idPh}) AND m.active = 1`)
+      .all(...ids)
+    : [];
+  // Every class's staff (not just the requested members' own rows) - the
+  // Location/Instructor column needs each class's teacher(s).
+  const staffRows = classes.length
+    ? await db
+      .prepare('SELECT cs.class_id, cs.member_id, cs.role, m.name, m.email, m.phone FROM class_staff cs JOIN members m ON m.id = cs.member_id WHERE m.active = 1')
+      .all()
+    : [];
+  const teachersByClass = {};
+  staffRows
+    .filter((r) => r.role === 'teacher')
+    .sort(byLastName)
+    .forEach((r) => {
+      if (!teachersByClass[r.class_id]) teachersByClass[r.class_id] = [];
+      teachersByClass[r.class_id].push({ id: r.member_id, name: r.name, email: r.email || '', phone: r.phone || '' });
+    });
+
+  const idSet = new Set(ids);
+  const links = [
+    ...enrollments.map((r) => ({ classId: r.class_id, memberId: Number(r.member_id), role: 'student' })),
+    ...staffRows
+      .filter((r) => idSet.has(Number(r.member_id)))
+      .map((r) => ({ classId: r.class_id, memberId: Number(r.member_id), role: r.role === 'teacher' ? 'teacher' : 'assistant' })),
+  ];
+
+  for (const link of links) {
+    const cls = classById[link.classId];
+    if (!cls || !result[link.memberId]) continue;
+    const hour = await hourFor(cls.day, cls.semester_id, cls.hour_position);
+    const ownStart = parseClockMinutesLocal(cls.start_time);
+    const ownEnd = parseClockMinutesLocal(cls.end_time);
+    const startMin = ownStart != null ? ownStart : hour ? parseClockMinutesLocal(hour.start_time) : null;
+    const endMin = ownEnd != null ? ownEnd : hour ? parseClockMinutesLocal(hour.end_time) : null;
+    const grid = gridFor(cls.day, cls.semester_id);
+    const startDate = cls.start_date || (grid && grid.start_date) || '';
+    const endDate = cls.end_date || (grid && grid.end_date) || '';
+    result[link.memberId].push({
+      kind: link.role,
+      roleLabel: GROUP_LABELS[link.role],
+      classId: cls.id,
+      title: cls.class_name,
+      semesterTitle: cls.semester_title || '',
+      day: cls.day,
+      dayShort: DAY_SHORT[cls.day] || cls.day,
+      startMin,
+      endMin,
+      timeLabel: rangeLabel(startMin, endMin) || (hour && hour.label) || '',
+      startDate,
+      endDate,
+      dateRangeLabel: dateRangeLabel(startDate, endDate),
+      room: cls.room || '',
+      instructors: teachersByClass[cls.id] || [],
+      // The class fee only applies to the student signed up for it - a
+      // teacher/assistant isn't charged for the class they staff.
+    });
+  }
+
+  // Floater hours (Floater Assignments) - the same live rows every other
+  // schedule surface shows as "Floater", matched by that row's own shape
+  // (no room/teacher) so a real class that happens to be named Floater
+  // still shows up above as a class, never twice.
+  const rowsByDay = await Promise.all(activeDays.map((d) => liveMemberScheduleRowsForDay(d)));
+  activeDays.forEach((day, i) => {
+    const grid = gridFor(day, null);
+    for (const id of ids) {
+      Object.values(rowsByDay[i][id] || {})
+        .filter((r) => r.class_name === 'Floater' && !r.room && !r.teacher)
+        .forEach((r) => {
+          const parts = String(r.time || '').split(' - ');
+          const startMin = parseClockMinutesLocal(parts[0]);
+          const endMin = parts[1] ? parseClockMinutesLocal(parts[1]) : null;
+          const startDate = (grid && grid.start_date) || '';
+          const endDate = (grid && grid.end_date) || '';
+          result[id].push({
+            kind: 'floater',
+            roleLabel: GROUP_LABELS.floater,
+            classId: null,
+            title: 'Floater',
+            semesterTitle: '',
+            day,
+            dayShort: DAY_SHORT[day] || day,
+            startMin,
+            endMin,
+            timeLabel: rangeLabel(startMin, endMin) || r.time || '',
+            startDate,
+            endDate,
+            dateRangeLabel: dateRangeLabel(startDate, endDate),
+            room: '',
+            instructors: [],
+          });
+        });
+    }
+  });
+
+  ids.forEach((id) => result[id].sort(compareEntries));
+  return result;
+}
+
+// [{ member, groups: [{ key, label, entries }], entryCount }] - exactly
+// what views/partials/member-schedule-table.ejs renders, one per member
+// in the order given.
+async function memberScheduleTables(members) {
+  const entriesById = await memberScheduleEntries(members.map((m) => m.id));
+  return members.map((member) => {
+    const entries = entriesById[Number(member.id)] || [];
+    const groups = SCHEDULE_GROUPS.map((g) => ({ key: g.key, label: g.label, entries: entries.filter((e) => e.kind === g.key) })).filter(
+      (g) => g.entries.length > 0
+    );
+    return { member, groups, entryCount: entries.length };
+  });
+}
+
+const SCHEDULE_CSV_HEADER = ['Member Name', 'Role', 'Class', 'Semester', 'Start Date', 'End Date', 'Day', 'Time', 'Room', 'Instructor', 'Instructor Email', 'Instructor Phone'];
+
+// CSV lines (header first) for the same tables memberScheduleTables
+// builds - same rows, same order, one line per class.
+function memberScheduleCsvLines(tables) {
+  const lines = [toCsvRow(SCHEDULE_CSV_HEADER)];
+  tables.forEach((t) => {
+    t.groups.forEach((g) => {
+      g.entries.forEach((e) => {
+        lines.push(
+          toCsvRow([
+            t.member.name,
+            e.roleLabel,
+            e.title,
+            e.semesterTitle,
+            e.startDate,
+            e.endDate,
+            e.dayShort,
+            e.timeLabel,
+            e.room,
+            e.instructors.map((x) => x.name).join('; '),
+            e.instructors.map((x) => x.email).filter(Boolean).join('; '),
+            e.instructors.map((x) => x.phone).filter(Boolean).join('; '),
+          ])
+        );
+      });
+    });
+  });
+  return lines;
+}
+
 module.exports = {
+  memberScheduleEntries,
+  memberScheduleTables,
+  memberScheduleCsvLines,
+  formatScheduleDate,
   CLASS_NUMBERS,
   STATUS_LABELS,
   getMemberSchedule,
@@ -250,6 +515,7 @@ module.exports = {
   rowIsBlank,
   scheduleStatus,
   scheduleList,
+  scheduleMembers,
   arrivalDepartureLabels,
   arrivalDepartureLabelsForMembers,
   parseClockMinutes,

@@ -1579,29 +1579,22 @@
       });
     }
 
-    // "Select All Shown" toggles every currently-visible row's checkbox to
-    // match it. "Select None Shown" is a one-shot action rendered as a
-    // checkbox to match: checking it clears every visible row, then resets
-    // itself back to unchecked.
+    // "Select All" checks/unchecks every currently-visible row. A real
+    // request: "Remove select none check box... Simply unselecting select
+    // all will uncheck them." It also follows the rows: unchecking any row
+    // clears it, and checking every visible row checks it.
     const selectAllCheckbox = document.getElementById('name-tag-select-all-checkbox');
     if (selectAllCheckbox) {
+      const visibleBoxes = () => Array.from(bulkList.querySelectorAll('.member-picker-row'))
+        .filter((row) => row.style.display !== 'none')
+        .map((row) => row.querySelector('input[type="checkbox"]'));
       selectAllCheckbox.addEventListener('change', () => {
-        bulkList.querySelectorAll('.member-picker-row').forEach((row) => {
-          if (row.style.display !== 'none') row.querySelector('input[type="checkbox"]').checked = selectAllCheckbox.checked;
-        });
+        visibleBoxes().forEach((cb) => { cb.checked = selectAllCheckbox.checked; });
       });
-    }
-
-    const selectNoneCheckbox = document.getElementById('name-tag-select-none-checkbox');
-    if (selectNoneCheckbox) {
-      selectNoneCheckbox.addEventListener('change', () => {
-        if (selectNoneCheckbox.checked) {
-          bulkList.querySelectorAll('.member-picker-row').forEach((row) => {
-            if (row.style.display !== 'none') row.querySelector('input[type="checkbox"]').checked = false;
-          });
-          if (selectAllCheckbox) selectAllCheckbox.checked = false;
-          selectNoneCheckbox.checked = false;
-        }
+      bulkList.addEventListener('change', (e) => {
+        if (!e.target.closest('.member-picker-row')) return;
+        const boxes = visibleBoxes();
+        selectAllCheckbox.checked = boxes.length > 0 && boxes.every((cb) => cb.checked);
       });
     }
   }

@@ -151,7 +151,7 @@ test('Event Signups tab lists the family\'s event registrations', async () => {
 
 // A later real request: "Schedules tab should be organized by family
 // member and then by day under each family member."
-test('Schedules tab is grouped by family member, then by day under each member', async () => {
+test('Schedules tab is grouped by family member, each member\'s classes sorted by day', async () => {
   const parent = await createParentAccount();
   const mondayClass = await db
     .prepare("INSERT INTO classes (day, hour_position, class_name, room, start_time, end_time) VALUES ('monday', 1, 'Monday Art', 'Room 5', '9:00 AM', '10:00 AM')")
@@ -164,13 +164,17 @@ test('Schedules tab is grouped by family member, then by day under each member',
 
   const page = await request(app).get('/portal/profile?tab=schedules').set('Cookie', parent.cookie);
   assert.equal(page.status, 200);
-  const kidIndex = page.text.indexOf('Profile Test Kid');
-  const mondayIndex = page.text.indexOf('>Monday<');
+  // A later real request ("member profile, schedules should also look
+  // like this [image]") swapped the per-day tables for the shared member
+  // schedule table: one section per member, each class's own day+time
+  // ("Mon 9:00 AM – 10:00 AM") on its row, sorted Monday before Wednesday.
+  const kidIndex = page.text.indexOf('<h2 class="member-schedule-name">Profile Test Kid');
   const mondayArtIndex = page.text.indexOf('Monday Art');
-  const wednesdayIndex = page.text.indexOf('>Wednesday<');
+  const mondayTimeIndex = page.text.indexOf('Mon 9:00 AM – 10:00 AM');
   const wednesdayScienceIndex = page.text.indexOf('Wednesday Science');
-  assert.ok(kidIndex !== -1 && mondayIndex !== -1 && mondayArtIndex !== -1 && wednesdayIndex !== -1 && wednesdayScienceIndex !== -1, 'the member heading and both day headings must be present');
-  assert.ok(kidIndex < mondayIndex && mondayIndex < mondayArtIndex && mondayArtIndex < wednesdayIndex && wednesdayIndex < wednesdayScienceIndex, 'the member section must come before Monday, Monday before its class, Monday before Wednesday, and Wednesday before its own class');
+  const wednesdayTimeIndex = page.text.indexOf('Wed 11:00 AM – 12:00 PM');
+  assert.ok(kidIndex !== -1 && mondayArtIndex !== -1 && mondayTimeIndex !== -1 && wednesdayScienceIndex !== -1 && wednesdayTimeIndex !== -1, 'the member heading and both classes with their day/time must be present');
+  assert.ok(kidIndex < mondayArtIndex && mondayArtIndex < mondayTimeIndex && mondayTimeIndex < wednesdayScienceIndex && wednesdayScienceIndex < wednesdayTimeIndex, 'the member section must come first, then the Monday class, then the Wednesday class');
 
   // The parent themselves has no enrollments/staff rows - their own
   // section still renders, just with the "no classes" fallback instead

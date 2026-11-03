@@ -38,7 +38,7 @@ function csrfFrom(html) {
 
 async function loginAsAdmin() {
   const agent = request.agent(app);
-  await agent.post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  await agent.post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   return agent;
 }
 
@@ -64,11 +64,11 @@ test('every admin Training route redirects an unauthenticated request to login',
   ]) {
     const res = await request(app).get(path);
     assert.equal(res.status, 302, `${path} should redirect when logged out`);
-    assert.match(res.headers.location, /\/admin\/login/);
+    assert.match(res.headers.location, /\/login/);
   }
   const res = await request(app).post('/admin/training').type('form').send({ title: 'Should Not Work' });
   assert.equal(res.status, 302);
-  assert.match(res.headers.location, /\/admin\/login/);
+  assert.match(res.headers.location, /\/login/);
 });
 
 test('a member cannot complete a locked lesson through a direct API call, even naming it explicitly', async () => {

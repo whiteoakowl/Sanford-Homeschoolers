@@ -15,7 +15,7 @@
 // expandPortalRoles - so "Switch Portal" needs to show for a parent-
 // only account too, not just a genuinely multi-role one.
 const hasParentRole = typeof portalRoles !== 'undefined' && portalRoles.some(function (r) { return r.key === 'parent'; });
-const showSwitcher = typeof portalRoles !== 'undefined' && (portalRoles.length > 1 || hasParentRole);
+const showSwitcher = typeof portalRoles !== 'undefined' && (portalRoles.length > 1 || hasParentRole || (typeof isMasterAccount !== 'undefined' && isMasterAccount));
 
 // A real request: "under main admin portal the users tab should be
 // under the settings icon at the top" (and later, Website too) - Main
@@ -59,6 +59,14 @@ const settingsHref = portalTitle === 'Main Admin' ? '/main-admin/settings'
 // instead, the exact "always guess Parent first" bug class this whole
 // query-tagging mechanism exists to prevent.
 const cornerPortalQuery = portalTitle === 'Parent Portal' ? '?portal=parent' : portalTitle === 'Student Portal' ? '?portal=student' : portalTitle === 'Co-op Teacher Portal' ? '?portal=teacher' : '';
+// A real request: "Student Portal should not have a settings gear." -
+// settingsHref above (/portal/settings-hub for Student) only ever opens
+// a card linking to the generic account-settings page (views/portal-
+// settings-hub.ejs's own My Privacy card) - no content unique to a
+// student, purely the same shared scaffolding Co-op Teacher Portal still
+// uses that same hub for, so hiding just this nav entry (both corner
+// links below) leaves nothing orphaned.
+const showSettingsGear = portalTitle !== 'Student Portal';
 
 // A real request: "On parent, student and teacher portal on mobile add an
 // email icon at the top for contacting group leaders. On desktop it says
@@ -203,6 +211,14 @@ const MAIN_ADMIN_NAV_LINKS = [
   // query param convention Accounting's own Category/Fiscal Year
   // subpage already reads fiscal years from).
   { href: '/main-admin/annual-calendar', icon: 'calendar-check', label: 'Annual Calendar', perm: 'manage_annual_calendar' },
+  // A real request: "Main admin portal add a support tab with Website
+  // feedback subpage and [Support] subpage" - routes/main-admin-
+  // support.js, each a log of Parent Portal's own Website Feedback and
+  // Support contact form entries.
+  { href: '/main-admin/support', icon: 'message-square', label: 'Support', perm: 'manage_support', subpages: [
+    { href: '/main-admin/support', label: 'Website Feedback' },
+    { href: '/main-admin/support/requests', label: 'Support', perm: 'view_support_requests' },
+  ] },
   // A real request: "Main admin portal, remove academics tab and
   // features. Only parent portal has those pages and admin doesn't need
   // to control them with any settings." Diplomas/transcripts used to be
@@ -331,9 +347,9 @@ const PARENT_NAV_LINKS = [
 // every /parent/family-school/* URL is completely unchanged.
 const FAMILY_SCHOOL_NAV_LINKS = [
   { href: '/parent/family-school', icon: 'home', label: 'Home' },
-  { href: '/parent/family-school/classes', icon: 'graduation-cap', label: 'Family Classes', perm: 'view_fsm_classes' },
-  { href: '/parent/family-school/grades', icon: 'clipboard-list', label: 'Family Grades', perm: 'view_fsm_grades' },
-  { href: '/parent/family-school/attendance', icon: 'calendar-check', label: 'Family Attendance', perm: 'view_fsm_attendance' },
+  { href: '/parent/family-school/classes', icon: 'graduation-cap', label: 'Family Classes', mobileLabel: 'Family<br>Classes', perm: 'view_fsm_classes' },
+  { href: '/parent/family-school/grades', icon: 'clipboard-list', label: 'Family Grades', mobileLabel: 'Family<br>Grades', perm: 'view_fsm_grades' },
+  { href: '/parent/family-school/attendance', icon: 'calendar-check', label: 'Family Attendance', mobileLabel: 'Family<br>Attendance', perm: 'view_fsm_attendance' },
   { href: '/parent/family-school/journal', icon: 'book', label: 'Daily Learning Log', mobileLabel: 'Learning<br>Log', perm: 'view_fsm_journal' },
   { href: '/parent/family-school/volunteer-hours', icon: 'clock', label: 'Volunteer Hours', mobileLabel: 'Volunteer<br>Hours', perm: 'view_fsm_volunteer_hours' },
   { href: '/parent/family-school/annual-planner', icon: 'calendar-check', label: 'Annual Planner', mobileLabel: 'Annual<br>Planner', perm: 'view_fsm_annual_planner' },
@@ -381,7 +397,12 @@ const TEACHER_NAV_LINKS = [
   { href: '/teacher/attendance', icon: 'calendar-check', label: 'Attendance', perm: 'view_teacher_attendance' },
   { href: '/teacher/classes', icon: 'graduation-cap', label: 'Class Schedule', perm: 'view_teacher_classes' },
   { href: '/teacher/training', icon: 'graduation-cap', label: 'Training', perm: 'view_teacher_training' },
-  { href: '/teacher/assignments', icon: 'clipboard-list', label: 'Assignments', perm: 'view_teacher_assignments' },
+  // A real request: "When the admin approves the lesson plan, it will
+  // show on the teacher side on the lesson plan approved by admins."
+  { href: '/teacher/assignments', icon: 'clipboard-list', label: 'Assignments', subpages: [
+    { href: '/teacher/assignments', label: 'Assignments', perm: 'view_teacher_assignments' },
+    { href: '/teacher/lesson-plans/approved', label: 'Approved by Admins', perm: 'view_teacher_assignments' },
+  ] },
   { href: '/forums?portal=teacher', icon: 'users', label: 'Chat', perm: 'view_teacher_chat' },
   { href: '/photos?portal=teacher', icon: 'camera', label: 'Photos', perm: 'view_teacher_photos' },
   // A real request: "Teachers can edit their instructor profile on the
@@ -393,6 +414,7 @@ const TEACHER_NAV_LINKS = [
   // plain "not enabled yet" message instead of the edit form rather than
   // this nav conditionally disappearing.
   { href: '/teacher/instructor-profile', icon: 'user-check', label: 'Instructor Profile', mobileLabel: 'Instructor<br>Profile', perm: 'view_teacher_instructor_profile' },
+  { href: '/teacher/reimbursements', icon: 'coin', label: 'Reimbursements', perm: 'view_teacher_reimbursements' },
 ];
 // Student Portal's own primary nav - a real request: "dashboard panel
 // tabs. They should be these titles and in this order," plus a labeled
@@ -469,17 +491,24 @@ const TEACHER_NAV_LINKS = [
 // subpages-dialog it always has, exactly as before this request.
 const STUDENT_NAV_LINKS = [
   { href: '/student', icon: 'home', label: 'Home' },
-  { href: '/events?view=calendar&portal=student', icon: 'calendar-check', label: 'Events', subpages: [
-    { href: '/events?view=calendar&portal=student', label: 'Calendar', perm: 'view_student_events' },
-    { href: '/student/events', label: 'My Event Registrations', perm: 'view_student_event_registrations' },
-  ] },
+  // A real request: "events tab should just be the event calendar. My
+  // event signups should be a button on the calendar page. No subpages
+  // under the events tab" - dropped back out of this nav entry's own
+  // subpages array, same fix as PARENT_NAV_LINKS's own Events entry
+  // above; events-list.ejs's own "My Event Registrations" button (its
+  // toolbar, now Parent AND Student Portal) is the only way there now.
+  // Tagged with the exact permission that used to gate just its own
+  // "Calendar" subpage (view_student_events) now that this link is the
+  // whole Events tab, not a group - the other permission that used to
+  // live here, view_student_event_registrations, now only matters for
+  // the My Event Registrations button itself, not nav visibility.
+  { href: '/events?view=calendar&portal=student', icon: 'calendar-check', label: 'Events', perm: 'view_student_events' },
   { href: '/student/classes', icon: 'graduation-cap', label: 'Co-op Schedule', mobileLabel: 'Co-op<br>Schedule', perm: 'view_student_classes' },
   { href: '/student/family-school/portfolio', icon: 'grid', label: 'Classroom Dashboard', desktopAsSection: true, subpages: [
     { href: '/student/classes/dashboard', icon: 'graduation-cap', label: 'Classes', perm: 'view_student_classes_dashboard' },
     { href: '/student/family-school/grades', icon: 'clipboard-list', label: 'Grades', perm: 'view_student_grades' },
     { href: '/student/family-school/attendance', icon: 'calendar-check', label: 'Attendance', perm: 'view_student_attendance' },
     { href: '/student/family-school/weekly-planner', icon: 'calendar-check', label: 'Weekly Planner', perm: 'view_student_weekly_planner' },
-    { href: '/forums?portal=student', icon: 'users', label: 'Chat', perm: 'view_student_chat' },
     { href: '/student/family-school/portfolio', icon: 'file-text', label: 'Portfolio', perm: 'view_student_portfolio' },
     { href: '/student/transcript', icon: 'file-text', label: 'Transcripts', perm: 'view_student_transcript' },
   ] },
@@ -493,14 +522,17 @@ const STUDENT_NAV_LINKS = [
 // Challenge page itself; a real request to list them as their own tabs
 // here split them into their own routes/views (routes/student-portal.js's
 // own /student/achievements, /student/leaderboard).
+// A real request: "Dashboard, activities section. Reorder tabs. Reading
+// challenge, Nature news, vocabulary, games, pets, achievements,
+// leaderboard."
 const STUDENT_ACTIVITY_LINKS = [
-  { href: '/student/games', icon: 'gamepad', label: 'Games', perm: 'view_student_games' },
-  { href: '/student/pets', icon: 'paw', label: 'Pet', perm: 'view_student_pets' },
   { href: '/student/reading', icon: 'book', label: 'Reading Challenge', mobileLabel: 'Reading<br>Challenge', perm: 'view_student_reading' },
-  { href: '/student/achievements', icon: 'star', label: 'Achievements', perm: 'view_student_achievements' },
-  { href: '/student/leaderboard', icon: 'trophy', label: 'Leaderboard', perm: 'view_student_leaderboard' },
   { href: '/student/nature-news', icon: 'sprout', label: 'Nature News', perm: 'view_student_nature_news' },
   { href: '/student/vocabulary', icon: 'type', label: 'Vocabulary', perm: 'view_student_vocabulary' },
+  { href: '/student/games', icon: 'gamepad', label: 'Games', perm: 'view_student_games' },
+  { href: '/student/pets', icon: 'paw', label: 'Pet', perm: 'view_student_pets' },
+  { href: '/student/achievements', icon: 'star', label: 'Achievements', perm: 'view_student_achievements' },
+  { href: '/student/leaderboard', icon: 'trophy', label: 'Leaderboard', perm: 'view_student_leaderboard' },
 ];
 // A real request: "admin can check the boxes if that portal is allowed
 // to view that page or subpage. Unchecking removes the permission and
@@ -789,17 +821,29 @@ const communityLinksTitle = 'Community';
     <svg class="icon"><use href="#icon-user-circle"/></svg>
     My Profile
   </a>
-  <a class="admin-corner-link" href="<%= settingsHref %><%= cornerPortalQuery %>">
-    <svg class="icon"><use href="#icon-gear"/></svg>
-    Settings
-  </a>
+  <%# A real request: "Student Portal should not have a settings gear." -
+      showSettingsGear is false only for Student Portal; Co-op Teacher
+      Portal, which shares the same settingsHref branch, is unaffected. %>
+  <% if (showSettingsGear) { %>
+    <a class="admin-corner-link" href="<%= settingsHref %><%= cornerPortalQuery %>">
+      <svg class="icon"><use href="#icon-gear"/></svg>
+      Settings
+    </a>
+  <% } %>
+  <%# A real request: "On desktop when you click the portal button at the
+      top of every portal there should not be a dropdown to click choose
+      portals. Clicking the portal button should simply take you to the
+      portal page." Was a <details>/<summary> dropdown whose only item
+      was this exact same /portal link - two clicks to get there instead
+      of one, and the only one of these three corner links that worked
+      that way (My Profile/Settings above are already plain links, and
+      the mobile topbar's own Switch Portal icon right below was already
+      a plain link too - this now matches both). %>
   <% if (showSwitcher) { %>
-    <details class="portal-switcher-details">
-      <summary><svg class="icon"><use href="#icon-monitor"/></svg> Switch Portal</summary>
-      <div class="portal-switcher-menu">
-        <a href="/portal">All My Portals</a>
-      </div>
-    </details>
+    <a class="admin-corner-link" href="/portal">
+      <svg class="icon"><use href="#icon-monitor"/></svg>
+      Switch Portal
+    </a>
   <% } %>
 </header>
 
@@ -814,7 +858,9 @@ const communityLinksTitle = 'Community';
         <a class="admin-nav-right-link" href="/contact-admins<%= contactAdminsPortalQuery %>" aria-label="Contact Admins"><svg class="icon"><use href="#icon-mail"/></svg></a>
       <% } %>
       <a class="admin-nav-right-link" href="/portal/profile<%= cornerPortalQuery %>" aria-label="My Profile"><svg class="icon"><use href="#icon-user-circle"/></svg></a>
-      <a class="admin-nav-right-link" href="<%= settingsHref %><%= cornerPortalQuery %>" aria-label="Settings"><svg class="icon"><use href="#icon-gear"/></svg></a>
+      <% if (showSettingsGear) { %>
+        <a class="admin-nav-right-link" href="<%= settingsHref %><%= cornerPortalQuery %>" aria-label="Settings"><svg class="icon"><use href="#icon-gear"/></svg></a>
+      <% } %>
       <% if (showSwitcher) { %>
         <a class="admin-nav-right-link" href="/portal" aria-label="Switch Portal"><svg class="icon"><use href="#icon-monitor"/></svg></a>
       <% } %>

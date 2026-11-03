@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<% const isAdminShell = shell === 'admin'; %>
+<body class="<%= isAdminShell ? 'admin-page' : '' %>">
+  <% if (isAdminShell) { %>
+    <%- include('partials/admin-nav') %>
+  <% } else { %>
+    <%- include('partials/portal-nav', { portalTitle: shell }) %>
+  <% } %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p class="subtitle no-print"><a href="<%= backHref %>">&larr; <%= backLabel %></a></p>
+    <h1><%= settings.title %></h1>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error" role="alert"><%= error %></div><% } %>
+
+    <% if (!isAdminShell && request.currentRejection) { %>
+      <div class="alert alert-error reimbursement-rejection" role="alert">
+        <strong>This form was sent back for changes:</strong>
+        <p class="reimbursement-rejection-message"><%= request.currentRejection.message %></p>
+        <% if (typeof canEdit === 'undefined' || canEdit) { %><a class="primary-btn" href="/teacher/reimbursements/<%= request.id %>/edit">Edit &amp; Resubmit</a><% } %>
+      </div>
+    <% } %>
+
+    <section class="manage-section reimbursement-detail">
+      <dl class="reimbursement-summary">
+        <div><dt>Name</dt><dd><%= request.member_name %></dd></div>
+        <div><dt>Semester</dt><dd><%= request.semester_title %></dd></div>
+        <div><dt>Day of Co-op</dt><dd><%= request.dayLabel %></dd></div>
+        <div><dt>Class</dt><dd><%= request.class_name %></dd></div>
+        <div><dt>Submitted</dt><dd><%= formatTimestamp(request.submitted_at) %></dd></div>
+        <% if (request.resubmitted_at) { %><div><dt>Resubmitted</dt><dd><%= formatTimestamp(request.resubmitted_at) %></dd></div><% } %>
+        <div><dt>Status</dt><dd><span class="badge-pill <%= { submitted: 'badge-pill-orange', approved: 'badge-pill-green', rejected: 'badge-pill-red' }[request.status] || 'badge-pill-gray' %>"><%= request.statusLabel %></span></dd></div>
+      </dl>
+
+      <table class="roster-table condensed-table reimbursement-items-table">
+        <thead><tr><th>Item</th><th>Date</th><th class="reimbursement-amount-col">Amount</th></tr></thead>
+        <tbody>
+          <% request.items.forEach(function(it) { %>
+            <tr>
+              <td><%= it.description %></td>
+              <td><%= it.purchase_date ? formatDateShort(it.purchase_date) : '' %></td>
+              <td class="reimbursement-amount-col"><%= it.amountLabel %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+        <tfoot><tr><th colspan="2">Total</th><th class="reimbursement-amount-col"><%= request.totalLabel %></th></tr></tfoot>
+      </table>
+
+      <h2 class="reimbursement-items-heading">Receipts</h2>
+      <% if (request.receipts.length === 0) { %>
+        <p class="roster-empty">No receipts were attached.</p>
+      <% } else { %>
+        <ul class="reimbursement-receipt-grid">
+          <% request.receipts.forEach(function(rc) { %>
+            <li>
+              <a href="<%= rc.url %>" target="_blank" rel="noopener" class="reimbursement-receipt-tile" title="<%= rc.original_name %>">
+                <% if (rc.isThumbnail) { %>
+                  <img src="<%= rc.url %>" alt="Receipt <%= rc.original_name %>" loading="lazy" />
+                <% } else { %>
+                  <svg class="icon reimbursement-receipt-file-icon"><use href="<%= rc.isPdf ? '#icon-pdf' : '#icon-file-text' %>"/></svg>
+                <% } %>
+                <span><%= rc.original_name || 'Receipt' %></span>
+              </a>
+            </li>
+          <% }); %>
+        </ul>
+      <% } %>
+    </section>
+
+    <% if (isAdminShell) { %>
+      <%# Admin Only - only ever rendered from Co-op Admin; the teacher-facing
+          detail page renders this same view with shell set to the portal
+          title, so this block never reaches a teacher. %>
+      <% if (request.rejections.length) { %>
+        <section class="manage-section reimbursement-rejection-history">
+          <h2>Rejection History</h2>
+          <ul>
+            <% request.rejections.forEach(function(rj) { %>
+              <li><strong><%= formatTimestamp(rj.rejected_at) %></strong><%= rj.rejected_by_name ? ' by ' + rj.rejected_by_name : '' %> (submission <%= rj.submission_number %>): <%= rj.message %></li>
+            <% }); %>
+          </ul>
+        </section>
+      <% } %>
+      <section class="manage-section reimbursement-admin-section" data-admin-only>
+        <h2>Admin Only</h2>
+        <% if (typeof classMoney !== 'undefined' && classMoney) { %>
+          <%# A real request: "it should say the total amount available for
+              reimbursement based off the invoices paid for that class, how
+              much paid out according to how much has been approved, and how
+              much left." %>
+          <dl class="reimbursement-summary reimbursement-class-money" data-class-money>
+            <div><dt>Total Available (<%= request.class_name %> supply fees paid)</dt><dd><%= classMoney.availableLabel %></dd></div>
+            <div><dt>Paid Out (approved)</dt><dd><%= classMoney.payoutLabel %></dd></div>
+            <div><dt>Left</dt><dd class="<%= classMoney.leftoverCents < 0 ? 'money-negative' : '' %>"><%= classMoney.leftoverLabel %></dd></div>
+            <div><dt>This Request</dt><dd><%= classMoney.thisRequestLabel %></dd></div>
+            <% if (request.status !== 'approved') { %>
+              <div><dt>Left If Approved</dt><dd class="<%= classMoney.ifApproved.leftoverCents < 0 ? 'money-negative' : '' %>"><%= classMoney.ifApproved.leftoverLabel %></dd></div>
+            <% } %>
+          </dl>
+        <% } %>
+        <% if (request.status === 'rejected') { %>
+          <p class="hint">Rejected - waiting for the teacher to edit and resubmit before it can be approved.</p>
+        <% } %>
+        <form method="POST" action="/admin/teachers/reimbursements/<%= request.id %>/admin">
+          <fieldset class="reimbursement-admin-fields" <%= request.status === 'rejected' ? 'disabled' : '' %>>
+            <div class="member-form-grid">
+              <label>Check Number
+                <input type="text" name="checkNumber" value="<%= request.check_number || '' %>" maxlength="50" />
+              </label>
+              <label>Check Date
+                <input type="date" name="checkDate" value="<%= request.check_date || '' %>" />
+              </label>
+              <label>Approved By
+                <select name="approvedByMemberId">
+                  <option value="">Choose an admin&hellip;</option>
+                  <% admins.forEach(function(a) { %>
+                    <option value="<%= a.id %>" <%= request.approved_by_member_id === a.id ? 'selected' : '' %>><%= a.name %></option>
+                  <% }); %>
+                </select>
+              </label>
+            </div>
+            <p class="hint">Filling in all three marks this reimbursement Approved/Paid.</p>
+          </fieldset>
+          <div class="notes-dialog-actions reimbursement-admin-actions">
+            <% if (request.status === 'submitted') { %>
+              <button type="button" class="btn-secondary" data-reimb-reject-open onclick="document.getElementById('reject-reimbursement-dialog').showModal()">Reject</button>
+            <% } %>
+            <% if (request.status !== 'rejected') { %><button type="submit" class="primary-btn">Save</button><% } %>
+          </div>
+        </form>
+        <form method="POST" action="/admin/teachers/reimbursements/<%= request.id %>/delete" data-confirm="Delete this reimbursement form? This can't be undone." class="reimbursement-delete-form">
+          <button type="submit" class="btn-secondary">Delete Form</button>
+        </form>
+      </section>
+
+      <% if (request.status === 'submitted') { %>
+        <dialog id="reject-reimbursement-dialog" class="member-picker-dialog">
+          <form method="POST" action="/admin/teachers/reimbursements/<%= request.id %>/reject">
+            <h3>Reject Reimbursement</h3>
+            <label for="reject-reimbursement-message">Message to <%= request.member_name %>
+              <textarea id="reject-reimbursement-message" name="message" rows="4" maxlength="4000" required placeholder="What needs to be fixed?"></textarea>
+            </label>
+            <div class="notes-dialog-actions">
+              <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+              <button type="submit" class="primary-btn">Send</button>
+            </div>
+          </form>
+        </dialog>
+      <% } %>
+    <% } %>
+  </main>
+</body>
+</html>

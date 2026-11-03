@@ -51,11 +51,17 @@ const MAIN_ADMIN_PAGES = [
     { key: 'view_accounting_logs', label: 'Logs' },
     { key: 'view_accounting_settings', label: 'Settings' },
   ] },
+  // Newsletter is nested here, not a separate top-level page, because
+  // that's genuinely where the real nav puts it - views/partials/portal-
+  // nav.ejs's own MAIN_ADMIN_NAV_LINKS lists it as this same
+  // "Communication" group's 4th subpage, not a standing sidebar tab of
+  // its own (a real drift this catalog's own task-4 audit caught and
+  // fixed - it used to sit here as a sibling top-level entry instead).
   { key: 'send_announcements', label: 'Communication (Announcements)', subpages: [
     { key: 'view_announcements_email', label: 'Email' },
     { key: 'view_announcements_text', label: 'Text' },
+    { key: 'manage_communications', label: 'Newsletter' },
   ] },
-  { key: 'manage_communications', label: 'Newsletter' },
   { key: 'manage_events', label: 'Events', subpages: [
     { key: 'view_events_drafts', label: 'Drafts' },
     { key: 'view_events_requests', label: 'Requests' },
@@ -111,6 +117,11 @@ const MAIN_ADMIN_PAGES = [
     { key: 'view_babysitters_settings', label: 'Settings' },
   ] },
   { key: 'manage_annual_calendar', label: 'Annual Calendar' },
+  // routes/main-admin-support.js - Website Feedback is the tab's own
+  // first subpage, so it shares the top-level key (same as Members).
+  { key: 'manage_support', label: 'Support (Website Feedback)', subpages: [
+    { key: 'view_support_requests', label: 'Support' },
+  ] },
   // Had no permission key at all before this pass (routes/main-admin-
   // family-school.js only ever checked requirePortal('main_admin')) -
   // both of these are genuinely new.
@@ -124,8 +135,16 @@ const MAIN_ADMIN_PAGES = [
   { key: 'view_audit_log', label: 'Audit Log' },
   { key: 'manage_users', label: 'Admins & Users' },
   { key: 'manage_roles', label: 'Portal Permissions (Roles)' },
-  { key: 'manage_classes', label: 'Classes' },
-  { key: 'manage_registrations', label: 'Registrations' },
+  // manage_classes/manage_registrations (two of the original 26
+  // permission keys) are deliberately left out of this catalog - a real
+  // task-4 audit against views/partials/portal-nav.ejs found neither one
+  // corresponds to any current Main Admin nav entry, Settings hub card,
+  // or requirePortalPermission(...) call site anywhere in routes/*.js
+  // (there is no main-admin-classes.js/main-admin-registrations.js at
+  // all) - stale rows with nothing left for a checkbox here to actually
+  // control. The permission rows themselves are untouched (removing a
+  // page from this catalog only hides its checkbox, never deletes the
+  // underlying permissions table row or anything already granted on it).
   // Nature News's own bare page reuses manage_publications (see
   // Publications & Photos above) - only its 5 sibling subpages
   // (routes/main-admin-fun.js) ever lacked a permission of their own.
@@ -193,6 +212,7 @@ const TEACHER_PAGES = [
   { key: 'view_teacher_chat', label: 'Chat' },
   { key: 'view_teacher_photos', label: 'Photos' },
   { key: 'view_teacher_instructor_profile', label: 'Instructor Profile' },
+  { key: 'view_teacher_reimbursements', label: 'Reimbursements' },
 ];
 
 // Student Portal - see STUDENT_NAV_LINKS. Chat is listed once, nested
@@ -235,12 +255,24 @@ const STUDENT_ACTIVITY_PAGES = [
 // views/main-admin-roles.ejs - each role's dialog scoped to only its own
 // portal(s). main_admin and coop_admin are never looked up here (both
 // keep their own no-dialog treatment in the view itself).
+//
+// A real request: "Family school management is its own portal." It has
+// no DB role of its own (routes/portal-auth.js's own expandPortalRoles -
+// a 2nd Portal Switcher card for the SAME 'parent' role, not a 2nd role),
+// but it IS its own portal everywhere else in the app (its own card, own
+// URL prefix, own nav shell, own settings hub) - this screen now splices
+// in a matching synthetic 2nd card the same way, rather than folding its
+// pages into Parent's own dialog as a 2nd section (what this used to do,
+// and the very thing that real request was complaining about). Parent's
+// own sectionsForRole result is now Parent Portal pages ONLY -
+// familySchoolSections() below is its own separate catalog, with its own
+// separate dialog/form in the view, saved with its own `scope` (see
+// routes/main-admin.js's own POST /roles/:id/permissions) so submitting
+// one of this pair's two forms never wipes out the other's grants, even
+// though both write to the exact same underlying 'parent' role.
 function sectionsForRole(roleKey) {
   if (roleKey === 'parent') {
-    return [
-      { title: 'Parent Portal', pages: PARENT_PAGES },
-      { title: 'Family School Management', pages: FAMILY_SCHOOL_PAGES },
-    ];
+    return [{ title: 'Parent Portal', pages: PARENT_PAGES }];
   }
   if (roleKey === 'student') {
     return [
@@ -252,6 +284,12 @@ function sectionsForRole(roleKey) {
     return [{ title: 'Co-op Teacher Portal', pages: TEACHER_PAGES }];
   }
   return [];
+}
+
+// views/main-admin-roles.ejs's own synthetic Family School Management
+// card - see sectionsForRole's own comment above.
+function familySchoolSections() {
+  return [{ title: 'Family School Management', pages: FAMILY_SCHOOL_PAGES }];
 }
 
 // views/main-admin-admins.ejs - the full combined catalog, every portal
@@ -266,6 +304,22 @@ function adminCatalogSections() {
     { title: 'Activities', pages: STUDENT_ACTIVITY_PAGES },
     { title: 'Co-op Teacher Portal', pages: TEACHER_PAGES },
   ];
+}
+
+// Flattens a sections array (page + every one of its own subpages, same
+// shape buildSections walks) down to just the real permission keys in
+// it - used by routes/main-admin.js's own POST /roles/:id/permissions to
+// scope a save to exactly one dialog's own catalog, so saving Parent's
+// own dialog can never touch Family School Management's own grants (or
+// vice versa) even though they're the same underlying role.
+function permissionKeysInSections(sections) {
+  const keys = [];
+  function walk(entry) {
+    if (entry.key) keys.push(entry.key);
+    (entry.subpages || []).forEach(walk);
+  }
+  sections.forEach((section) => section.pages.forEach(walk));
+  return keys;
 }
 
 // Shared by both main-admin-roles.ejs's and main-admin-admins.ejs's own
@@ -304,6 +358,8 @@ module.exports = {
   STUDENT_PAGES,
   STUDENT_ACTIVITY_PAGES,
   sectionsForRole,
+  familySchoolSections,
   adminCatalogSections,
   buildSections,
+  permissionKeysInSections,
 };

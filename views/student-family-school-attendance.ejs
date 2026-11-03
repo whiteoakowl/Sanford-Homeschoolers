@@ -7,39 +7,55 @@
   <%- include('partials/portal-nav', { portalTitle: 'Student Portal' }) %>
 
   <main id="main-content" tabindex="-1" class="admin-main">
-    <h1>Attendance &mdash; <%= schoolYear %></h1>
-    <p class="hint">
-      <span class="badge-pill fs-attendance-legend-present">Present</span>
-      <span class="badge-pill fs-attendance-legend-absent">Absent</span>
-    </p>
+    <h1>Attendance<% if (view === 'family') { %> &mdash; <%= schoolYear %><% } %></h1>
 
-    <div class="annual-calendar-months-grid">
-      <% months.forEach(function(m) { %>
-        <div class="annual-calendar-month">
-          <h3><%= MONTH_NAMES[m.month - 1] %> <%= m.year %></h3>
-          <table class="fs-attendance-calendar annual-calendar-table">
-            <thead>
-              <tr><th>Su</th><th>Mo</th><th>Tu</th><th>We</th><th>Th</th><th>Fr</th><th>Sa</th></tr>
-            </thead>
-            <tbody>
-              <% m.weeks.forEach(function(week) { %>
-                <tr>
-                  <% week.forEach(function(d) { %>
-                    <% if (!d) { %>
-                      <td class="fs-attendance-day fs-attendance-day-empty"></td>
-                    <% } else {
-                      var status = m.attendanceByDate[d.date] || '';
-                    %>
-                      <td class="fs-attendance-day fs-attendance-day-<%= status || 'unmarked' %>"><%= d.day %></td>
-                    <% } %>
-                  <% }); %>
-                </tr>
-              <% }); %>
-            </tbody>
-          </table>
-        </div>
-      <% }); %>
+    <%# A real request: "Dropdown menu to choose co-op attendance or
+        family homeschool attendance." Same page-reloading <select>
+        pattern parent-classes.ejs's own Semester dropdown already uses. %>
+    <div class="category-filter no-print">
+      <label for="student-attendance-view-select">View</label>
+      <select id="student-attendance-view-select" onchange="window.fullscreenNavigate(this.value)">
+        <option value="/student/family-school/attendance?view=coop" <%= view === 'coop' ? 'selected' : '' %>>Co-op Attendance</option>
+        <option value="/student/family-school/attendance?view=family" <%= view === 'family' ? 'selected' : '' %>>Family Homeschool Attendance</option>
+      </select>
     </div>
+
+    <% if (view === 'coop') { %>
+      <%- include('partials/member-attendance-rosters', { groups: coopGroups, uidPrefix: 'student-coop-attendance', includeNumberColumn: false }) %>
+    <% } else { %>
+      <p class="hint">
+        <span class="badge-pill fs-attendance-legend-present">Present</span>
+        <span class="badge-pill fs-attendance-legend-absent">Absent</span>
+      </p>
+
+      <div class="annual-calendar-months-grid">
+        <% months.forEach(function(m) { %>
+          <div class="annual-calendar-month">
+            <h3><%= MONTH_NAMES[m.month - 1] %> <%= m.year %></h3>
+            <table class="fs-attendance-calendar annual-calendar-table">
+              <thead>
+                <tr><th>Su</th><th>Mo</th><th>Tu</th><th>We</th><th>Th</th><th>Fr</th><th>Sa</th></tr>
+              </thead>
+              <tbody>
+                <% m.weeks.forEach(function(week) { %>
+                  <tr>
+                    <% week.forEach(function(d) { %>
+                      <% if (!d) { %>
+                        <td class="fs-attendance-day fs-attendance-day-empty"></td>
+                      <% } else {
+                        var status = m.attendanceByDate[d.date] || '';
+                      %>
+                        <td class="fs-attendance-day fs-attendance-day-<%= status || 'unmarked' %>"><%= d.day %></td>
+                      <% } %>
+                    <% }); %>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
   </main>
 </body>
 </html>

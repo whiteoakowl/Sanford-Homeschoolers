@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Main Admin' }) %>
+
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p class="subtitle no-print"><a href="/main-admin/settings">&larr; Back to Settings</a></p>
+    <h1>Admin Login</h1>
+
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+
+    <div class="settings-account-grid">
+      <form method="POST" action="/main-admin/admin-login/email" class="stack-form stack-form-narrow">
+        <h2>Login Email</h2>
+        <label for="currentEmailDisplay">Current Email</label>
+        <input id="currentEmailDisplay" type="email" value="<%= email %>" disabled />
+
+        <label for="newEmail">New Email</label>
+        <input id="newEmail" name="newEmail" type="email" autocomplete="email" required />
+
+        <button type="submit" class="primary-btn">Update</button>
+      </form>
+
+      <form method="POST" action="/main-admin/admin-login/password" class="stack-form stack-form-narrow">
+        <h2>Password</h2>
+        <label for="currentPassword">Current Password</label>
+        <input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required />
+
+        <label for="newPassword">New Password</label>
+        <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" required minlength="8" />
+
+        <button type="submit" class="primary-btn">Update</button>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

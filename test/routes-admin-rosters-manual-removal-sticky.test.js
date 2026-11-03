@@ -26,7 +26,7 @@ process.env.ADMIN_PASSWORD = 'testpassword123';
 const request = require('supertest');
 const app = require('../server');
 const db = require('../db');
-const { createClass, setEnrollment, addStaff, ensureDayRoster } = require('../utils/classSchedule');
+const { createClass, setEnrollment, addStaff, ensureDayRoster, syncDayMemberRosters } = require('../utils/classSchedule');
 
 test.before(() => app.ready);
 test.after(() => {
@@ -37,7 +37,7 @@ test.after(() => {
 });
 
 async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   return loginRes.headers['set-cookie'];
 }
 
@@ -83,9 +83,13 @@ test('a manually-removed student is not brought back by an unrelated resync, onl
   await setEnrollment(otherClassId, [otherStudentId]);
   assert.equal(await onRoster(), undefined, 'an unrelated class\'s enrollment change must not bring the removed student back');
 
-  const resyncCsrf = await currentCsrf(cookie, 'monday-student');
-  await request(app).post('/admin/rosters/monday/resync').set('Cookie', cookie).type('form').send({ tab: 'monday-student', _csrf: resyncCsrf });
-  assert.equal(await onRoster(), undefined, 'even an explicit "Resync" of the whole day must not bring the removed student back on its own');
+  // A real request ("Co-op admin portal. Attendance. Delete sync button
+  // and feature it is no longer needed") removed the manual "Resync"
+  // button/route (POST /admin/rosters/:day/resync) - syncDayMemberRosters
+  // itself is still the real, automatic sync every enrollment/staffing
+  // edit already triggers, so this calls it directly instead.
+  await syncDayMemberRosters('monday');
+  assert.equal(await onRoster(), undefined, 'even an explicit sync of the whole day must not bring the removed student back on its own');
 
   // Re-submitting the SAME, unchanged enrollment isn't actually a
   // schedule change for this student, so it must not clear the removal

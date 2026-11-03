@@ -34,7 +34,7 @@ test.after(() => {
 });
 
 async function loginAsAdmin() {
-  const loginRes = await request(app).post('/admin/login').type('form').send({ username: 'testadmin', password: 'testpassword123' });
+  const loginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const cookie = loginRes.headers['set-cookie'];
   const page = await request(app).get('/admin/schedule?tab=monday').set('Cookie', cookie);
   const csrfToken = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];
@@ -207,7 +207,16 @@ test('a real request: "the class image should show on the left side of the class
     assert.doesNotMatch(noPhotoCard, /<img class="class-card-thumb"/);
   });
 
-  await t.test('student My Classes card shows the photo when the class has one', async () => {
+  // A later real request ("Student portal, co-op schedule... this is not
+  // the page to view the classes the student is registered for") reworked
+  // /student/classes from a "My Classes" list into the exact same
+  // read-only Room x Hour grid as Parent Portal's own Class Registration
+  // page (views/partials/member-class-schedule-grid.ejs, shared by both) -
+  // same Grid-view-never-shows-the-photo/List-view-does rule this file's
+  // own Parent Portal subtest above already covers, now true for Student
+  // Portal too since the two share the identical partials/parent-class-
+  // card.ejs card.
+  await t.test('student Co-op Schedule room-grid card shows the photo in List view only, same as Parent Portal', async () => {
     const admin = await loginAsAdmin();
     const cls = await createClass(admin, { className: 'Student Card Photo Class' });
     await classSchedule.setClassImage(cls.id, 'student-card-thumb.jpg');
@@ -226,8 +235,12 @@ test('a real request: "the class image should show on the left side of the class
     const loginRes = await request(app).post('/login').type('form').send({ email, password: 'testpassword123' });
     const studentCookie = loginRes.headers['set-cookie'];
 
-    const page = await request(app).get('/student/classes').set('Cookie', studentCookie);
-    assert.equal(page.status, 200);
-    assert.match(page.text, /<img class="class-card-thumb" src="\/uploads\/classes\/student-card-thumb\.jpg" alt="" \/>/);
+    const gridPage = await request(app).get('/student/classes?day=monday').set('Cookie', studentCookie);
+    assert.equal(gridPage.status, 200);
+    assert.doesNotMatch(gridPage.text, /<img class="class-card-thumb"/);
+
+    const listPage = await request(app).get('/student/classes?day=monday&view=list').set('Cookie', studentCookie);
+    assert.equal(listPage.status, 200);
+    assert.match(listPage.text, /<img class="class-card-thumb" src="\/uploads\/classes\/student-card-thumb\.jpg" alt="" \/>/);
   });
 });

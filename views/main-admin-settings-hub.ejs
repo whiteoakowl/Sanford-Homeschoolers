@@ -27,6 +27,15 @@
           <h3 class="team-info-title">Portal Permissions</h3>
         </a>
       </div>
+      <%# A real request: "The main admin portal is now where the master
+          lives." Changes the signed-in Main Admin account's own login
+          email/password (routes/main-admin.js's /admin-login). %>
+      <div class="team-col">
+        <a class="team-info-card" href="/main-admin/admin-login">
+          <span class="team-info-icon"><svg class="icon"><use href="#icon-user-circle"/></svg></span>
+          <h3 class="team-info-title">Admin Login</h3>
+        </a>
+      </div>
       <div class="team-col">
         <a class="team-info-card" href="/main-admin/admins">
           <span class="team-info-icon"><svg class="icon"><use href="#icon-user-check"/></svg></span>
@@ -34,7 +43,7 @@
         </a>
       </div>
       <div class="team-col">
-        <a class="team-info-card" href="/main-admin/website/themes">
+        <a class="team-info-card" href="/main-admin/website">
           <span class="team-info-icon"><svg class="icon"><use href="#icon-sliders"/></svg></span>
           <h3 class="team-info-title">Public Homepage</h3>
         </a>
@@ -85,6 +94,18 @@
         <a class="team-info-card" href="/main-admin/audit-log">
           <span class="team-info-icon"><svg class="icon"><use href="#icon-file-text"/></svg></span>
           <h3 class="team-info-title">Audit Log</h3>
+        </a>
+      </div>
+      <%# A real request: "Download app should be included in the settings
+          gears of all portals, all." Links to the same shared, account-
+          agnostic Install App page (routes/portal-auth.js's own /portal/
+          install-app) every other portal's own Settings hub now links to
+          - this content has nothing Co-op Admin-specific about it, so it
+          doesn't require a separate login the way Admin Login above does. %>
+      <div class="team-col">
+        <a class="team-info-card" href="/portal/install-app">
+          <span class="team-info-icon"><svg class="icon"><use href="#icon-download"/></svg></span>
+          <h3 class="team-info-title">Download App</h3>
         </a>
       </div>
     </div>

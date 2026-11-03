@@ -141,6 +141,14 @@
   --logo-sm: 100px;  /* kiosk check-in/check-out header */
   --logo-xs: 86px;   /* public form header (absence, name tag, membership) */
   --logo-2xs: 34px;  /* mobile top bar */
+
+  /* Neutral data-table greys - the shared member schedule table's
+     (.member-schedule-table) light gray header row, zebra stripe, and
+     full cell borders, matching the reference screenshot it was built
+     from. */
+  --table-head-bg: #eef0f2;
+  --table-stripe-bg: #f7f8f9;
+  --table-border: #d5dade;
 }
 /* stylelint-enable declaration-property-value-disallowed-list */
 
@@ -421,7 +429,16 @@ textarea:focus-visible,
    columns every other .landing-grid page uses, kept separate from the
    shape rules above so the Documents list/category sub-pages below keep
    their own existing column counts. */
-.landing-grid-home { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 56rem; }
+/* A real request: "Group dashboard button, classroom dashboard button
+   and fun dashboard button should be centered on the row." .landing-grid's
+   own justify-content: center (above) only centers the grid's COLUMN
+   TRACKS within this box's own width - it has no leftover space to work
+   with here, since .landing-grid-home's fr columns already fill this
+   box's entire max-width: 56rem. The real problem is the box itself: on
+   a wide desktop screen .admin-main has far more than 56rem to give, and
+   with no margin of its own this box just sits flush against .admin-
+   main's own left edge instead of centering within it. */
+.landing-grid-home { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 56rem; margin: 0 auto; }
 @media (max-width: 720px) {
   .landing-grid-home { grid-template-columns: 1fr; }
 }
@@ -549,6 +566,66 @@ textarea:focus-visible,
 .document-view-frame { width: 100%; height: 100%; border: none; }
 
 .document-view-image { max-width: 320px; width: 100%; border-radius: var(--radius); display: block; margin-bottom: 0.75rem; }
+
+/* A real request: "Add a print and pdf icons to all document pages." -
+   the title row on every document view page, with its Print/PDF icon
+   pair (views/partials/document-actions.ejs) on the right. */
+.document-view-title-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.document-view-actions { display: flex; gap: 0.4rem; }
+
+/* The same icon pair on each document's list card - a sibling of the
+   card's own <a> (see .document-card-wrap above), vertically centered on
+   its right edge, with the card padded so its title never runs under
+   the icons. Co-op Admin/Main Admin cards also hold the edit icon in the
+   same row (-3: three icons). */
+.document-card-actions {
+  position: absolute;
+  top: 50%;
+  right: 0.6rem;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 0.35rem;
+}
+.document-card-actions .document-card-edit-btn { position: static; }
+.document-card-action-btn { background: var(--surface); }
+.documents-grid .document-card-wrap-actions .landing-card { padding-right: 5.6rem; }
+.documents-grid .document-card-wrap-actions-3 .landing-card { padding-right: 8rem; }
+
+/* A .docx shown as its converted HTML (utils/documentRender.js) instead
+   of the <iframe> a PDF uses - browsers can't display a .docx at all. */
+.document-docx-view {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  padding: 1.5rem 1.75rem;
+  overflow-x: auto;
+}
+.document-docx-content { line-height: 1.5; overflow-wrap: break-word; }
+.document-docx-content img { max-width: 100%; height: auto; }
+.document-docx-content table { border-collapse: collapse; margin: 0.75rem 0; }
+.document-docx-content th,
+.document-docx-content td { border: 1px solid var(--border); padding: 0.3rem 0.5rem; vertical-align: top; }
+.document-view-unavailable,
+.document-print-unavailable { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+.document-print-unavailable { max-width: 640px; margin: 2rem auto; }
+
+/* Print preview (views/document-print.ejs). A PDF fills the whole
+   window under a slim header; a .docx is a letter-size .print-page sheet
+   whose margins come from the view's own @page rule once printing. */
+.document-print-body { margin: 0; background: var(--brand-soft); color: var(--ink); }
+.document-print-body-pdf { display: flex; flex-direction: column; height: 100vh; }
+.document-print-header { padding: 0.75rem 1rem; margin: 0; }
+.document-print-header h1 { font-size: 1.25rem; margin: 0; }
+.document-print-frame { flex: 1; width: 100%; border: none; }
+.document-print-page { display: block; margin-bottom: 2rem; }
+.document-print-title { margin-top: 0; }
+@media print {
+  .document-print-body { background: #fff; }
+  .print-page.document-print-page { padding: 0; min-height: 0; }
+  .document-docx-content th,
+  .document-docx-content td { border-color: #999; }
+}
 
 .admin-corner-link {
   display: inline-flex;
@@ -1953,10 +2030,12 @@ body.public-page .roster-empty {
    Settings/Switch Portal) is already desktop/tablet-only - see its own
    comment above - hidden below the mobile-topbar breakpoint, where
    these same controls fold into that bar's own icon row instead and
-   keep their look untouched. .site-header-actions's own Log In button
-   (views/public-home.ejs, the one other "button at the top of the page"
-   this covers) isn't split by viewport the same way, so it's wrapped in
-   its own min-width guard here. */
+   keep their look untouched. .site-header-utility-bar's own Log In
+   button (views/public-home.ejs, the one other "button at the top of
+   the page" this covers - relocated here from the old
+   .site-header-actions by a later real request, "Log in button should
+   be above header") isn't split by viewport the same way, so it's
+   wrapped in its own min-width guard here. */
 /* A real request: "On desktop the blue buttons at the top for settings,
    portals and profile. The blue should also match the background blue
    of the app" - var(--bg), not var(--brand) (the lighter logo blue). */
@@ -1966,54 +2045,15 @@ body.public-page .roster-empty {
    real request above), the same literal black text .admin-corner-link-
    green already uses for the same reason (filled color button, not a
    tinted-text pairing with its own named token). */
-.admin-page-corner-actions .admin-corner-link,
-.admin-page-corner-actions .portal-switcher-details summary {
+.admin-page-corner-actions .admin-corner-link {
   background: var(--bg);
   color: #000;
 }
-.admin-page-corner-actions .admin-corner-link:hover,
-.admin-page-corner-actions .portal-switcher-details summary:hover,
-.admin-page-corner-actions .portal-switcher-details[open] summary {
+.admin-page-corner-actions .admin-corner-link:hover {
   background: var(--bg);
   filter: brightness(0.88);
   color: #000;
 }
-@media (min-width: 861px) {
-  .site-header-actions .btn-secondary {
-    background: var(--brand);
-    color: var(--ink);
-    border-color: var(--brand);
-  }
-  .site-header-actions .btn-secondary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
-}
-
-/* Switch Portal's <details>/<summary> (.portal-switcher-details below)
-   defaults to white text for the dark sidebar it used to live in - a
-   real request ("Switch portal, profile icon, settings icon should all
-   be top right of screen") moved it up into this orange corner header
-   alongside My Profile/Settings, so it needs the same white-pill look as
-   .admin-corner-link right above, not the sidebar's transparent-on-dark
-   style. */
-.admin-page-corner-actions .portal-switcher-details summary {
-  background: rgba(255,255,255,0.95);
-  color: var(--muted);
-  padding: 0.35rem 0.9rem;
-  font-size: 0.8rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-}
-.admin-page-corner-actions .portal-switcher-details summary:hover,
-.admin-page-corner-actions .portal-switcher-details[open] summary { background: #fff; }
-.admin-page-corner-actions .portal-switcher-menu {
-  position: absolute;
-  right: 0;
-  min-width: 160px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-lg);
-  z-index: 10;
-}
-.admin-page-corner-actions .portal-switcher-menu a { color: var(--ink); }
-.admin-page-corner-actions .portal-switcher-menu a:hover { background: rgba(0,0,0,0.05); }
 
 /* Log out is the only control still pinned to the bottom of the sidebar
    on desktop, via margin-top:auto; folded into the mobile topbar's right
@@ -6395,6 +6435,8 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
   flex-direction: column;
 }
 .qr-sheet-page:not(:last-child) { page-break-after: always; }
+/* Never let a sheet's contents spill onto the next printed page. */
+.qr-sheet-page { overflow: hidden; }
 
 /* 1fr rows/columns (not a fixed inch size, unlike .avery-label-grid,
    which needs an exact printer-label match) - "evenly spaced" just means
@@ -6478,6 +6520,13 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
 .qr-filter-dialog-body { display: flex; flex-direction: column; gap: 0.35rem; }
 .qr-filter-dialog-body label { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-top: 0.5rem; }
 .qr-filter-dialog-body label:first-child { margin-top: 0; }
+/* Design/Print hub pickers' shared Filter popup (partials/print-filter-
+   popup.ejs): Clear filters sits under the selects, and the active
+   filter's own "Filtered: ..." summary sits next to the Filter button. */
+.qr-filter-dialog-body .print-filter-clear-btn { align-self: flex-start; margin-top: 0.85rem; }
+.print-filter-summary:empty { display: none; }
+.print-filter-summary { align-self: center; font-size: 0.85rem; }
+.roster-action-btn.is-filter-active { box-shadow: inset 0 0 0 2px var(--brand-dark); }
 
 /* ---------- Name tag design editor ---------- */
 
@@ -9062,15 +9111,14 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
   .class-schedule-room-grid th,
   .class-schedule-room-grid td { padding: 0.15rem 0.15rem; }
   .class-schedule-room-grid th { font-size: 0.6rem; }
-  .class-schedule-room-grid .class-schedule-room-col { width: 42px; font-size: 0.58rem; }
-  /* At this width the drag handle alone ate most of the room column's own
-     42px, leaving the room NAME almost no space to shrink into (a real
-     problem surfaced while testing "Make sure row titles shrink to fit in
-     box" - a room name could still end up clipped even at the shrink
-     script's floor size). Reordering by drag is also awkward at phone
-     width regardless - hiding the handle here hands that space back to
-     the name, which is the part that actually needs to stay readable. */
-  .class-schedule-room-grid .room-row-drag-handle { display: none; }
+  .class-schedule-room-grid .class-schedule-room-col { width: 52px; font-size: 0.58rem; }
+  /* A real request: "I don't see the three lines on each class row
+     title to slide the rooms up and down on the grid" - the drag handle
+     used to be hidden entirely at this width to give the room name more
+     space. It's back, just smaller, with the room column a little wider
+     (52px, was 42px) so the name still has room to shrink into. */
+  .class-schedule-room-grid .room-row-drag-handle { margin-right: 0.1rem; }
+  .class-schedule-room-grid .room-row-drag-handle .icon { width: 0.7rem; height: 0.7rem; }
   .class-schedule-room-grid .class-card { padding: 0.2rem 0.25rem; border-left-width: 3px; }
   .class-schedule-room-grid .class-card-header { gap: 0.2rem; }
   .class-schedule-room-grid .class-card-header h3 { font-size: 0.62rem; }
@@ -11617,16 +11665,7 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 }
 .homepage-builder-block.homepage-builder-block-dragging { opacity: 0.55; background: var(--brand-soft); }
 .homepage-builder-block .lesson-drag-handle { margin-top: 0.2rem; font-size: 1.3rem; }
-.homepage-builder-block-preview { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.4rem; }
-.homepage-builder-block-type { align-self: flex-start; }
-.homepage-builder-block-text-preview { white-space: pre-wrap; word-break: break-word; }
-.homepage-builder-block-text-preview.homepage-text-small { font-size: 0.85rem; color: var(--muted); }
-.homepage-builder-block-text-preview.homepage-text-large { font-size: 1.2rem; font-weight: 700; }
-.homepage-builder-block-image-preview { max-width: 160px; max-height: 100px; border-radius: var(--radius); object-fit: cover; }
-.homepage-builder-dialog-image-preview { display: block; max-width: 220px; max-height: 140px; border-radius: var(--radius); margin-top: 0.4rem; object-fit: cover; }
-.homepage-builder-block-button-preview { font-weight: 600; word-break: break-word; }
-.homepage-builder-block-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
-.homepage-builder-add-row { flex-wrap: wrap; }
+
 @media (max-width: 480px) {
   /* Below a real phone's own width, the drag handle/type badge/image
      preview/action buttons no longer fit comfortably in one row next to
@@ -11634,95 +11673,12 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
      full width, handle+actions on their own line) keeps every control a
      real tap target instead of shrinking them to fit. */
   .homepage-builder-block { flex-wrap: wrap; }
-  .homepage-builder-block-image-preview { max-width: 100%; }
+  
 }
 
-/* The public homepage's own rendering of the same blocks, in the same
-   order (views/public-home.ejs) - small/medium/large text sizes and
-   small/medium/large/full image sizes, the "text of different size
-   choices" a real request asked for. */
-.homepage-block { margin: 1.5rem 0; }
-.homepage-block-text.homepage-text-small { font-size: 0.9rem; color: var(--muted); }
-.homepage-block-text.homepage-text-medium { font-size: 1.05rem; }
-.homepage-block-text.homepage-text-large { font-size: 1.75rem; font-weight: 700; line-height: 1.25; }
-.homepage-block-image img { display: block; border-radius: var(--radius); }
-.homepage-block-image.homepage-image-small img { max-width: 240px; }
-.homepage-block-image.homepage-image-medium img { max-width: 480px; }
-.homepage-block-image.homepage-image-large img { max-width: 720px; }
-.homepage-block-image.homepage-image-full img { width: 100%; max-width: none; }
-.homepage-block-button { display: flex; }
-
-/* Shopify-style theme editor shell (views/main-admin-website.ejs) - a
-   real request: "Main admin portal, settings gear, public homepage.
-   Should have the exact webpage editing features as Shopify. See
-   screenshot." A dark top bar (Exit/theme name/Desktop-Mobile toggle/
-   Save), a left sidebar of collapsible <details> sections (reusing the
-   same native disclosure .manage-section already uses elsewhere in
-   this app - see views/partials/membership-fields-manager.ejs's own
-   <details class="manage-section">), and a live(-ish) preview pane on
-   the right (an <iframe> onto the real public homepage route/its own
-   /preview draft-rendering variant - see routes/admin-website.js and
-   public/js/homepage-theme-editor.js). */
-/* A real request, with a screenshot of the actual Shopify theme editor
-   on a phone: "The header for the page is not the same and the dropdown
-   menus are not formatted the same with their lines, buttons and check
-   boxes, and widths." Shopify's own editor bar is a plain WHITE bar with
-   a thin bottom border (not the dark bar this app's first pass used) -
-   Exit / title / Save. The title truncates first to make room on a
-   narrow screen, same "give the squeeze to whatever can absorb it" idea
-   as this app's other mobile toolbars. */
-.homepage-theme-topbar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1.25rem;
-  background: var(--surface);
-  color: var(--ink);
-  border-bottom: 1px solid var(--border);
-  margin: -1.75rem -2rem 1.25rem;
-  position: sticky;
-  top: 0;
-  z-index: 15;
-}
-.homepage-theme-exit { color: var(--ink); text-decoration: none; font-weight: 600; opacity: 0.65; flex: 0 0 auto; }
-.homepage-theme-exit:hover { opacity: 1; text-decoration: underline; }
-/* Beats .admin-main h1's own (higher-specificity) page-title rule -
-   margin-bottom/padding-bottom/border-bottom meant for a full-width page
-   title pushed this one out of line with the rest of the topbar row. */
-.homepage-theme-topbar .homepage-theme-topbar-label {
-  font-size: 1rem;
-  margin: 0 auto 0 0;
-  padding-bottom: 0;
-  border-bottom: none;
-  color: var(--ink);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.homepage-theme-save-btn { margin: 0; padding: 0.5rem 1.1rem; flex: 0 0 auto; }
-@media (max-width: 640px) {
-  .homepage-theme-topbar { margin: -1rem -1rem 1rem; padding: 0.65rem 0.85rem; gap: 0.4rem; }
-  .homepage-theme-topbar-label { margin-right: auto; }
-  .homepage-theme-save-btn { padding: 0.5rem 0.75rem; }
-}
-/* A real request: "Desktop and mobile toggle should be lower on the
-   page just above the website view" - moved out of the topbar (above)
-   to sit right above the live preview frame it controls
-   (.homepage-theme-preview-frame-wrap below), inside the same
-   .homepage-theme-preview-pane. */
-.homepage-theme-viewport-toggle {
-  display: flex;
-  width: fit-content;
-  margin: 0 0 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--control-radius);
-  overflow: hidden;
-}
-.homepage-theme-viewport-btn { background: transparent; color: var(--ink); border: none; padding: 0.4rem 0.85rem; font-size: 0.85rem; cursor: pointer; white-space: nowrap; }
-.homepage-theme-viewport-btn.is-active { background: var(--brand-soft); font-weight: 700; }
-
-.homepage-theme-shell { display: flex; gap: 1.25rem; align-items: flex-start; }
+/* Collapsible settings sidebar (<details class="homepage-theme-section">
+   rows) - originally the old Shopify-style homepage editor's, still used
+   by the Custom Forms builder (views/admin-custom-forms-builder.ejs). */
 .homepage-theme-sidebar {
   flex: 0 0 380px;
   max-width: 380px;
@@ -11777,109 +11733,13 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 .homepage-theme-section-chevron { width: 0.85em; height: 0.85em; flex: 0 0 auto; transition: transform 0.15s ease; transform: rotate(-90deg); }
 .homepage-theme-section[open] > summary .homepage-theme-section-chevron { transform: rotate(0deg); }
 .homepage-theme-section-body { margin-top: 0.85rem; display: flex; flex-direction: column; }
-/* Colors specifically: each role is its own full-width row with a
-   divider between rows (not just a loose vertical gap), swatch/label/hex
-   in three fixed-width columns so every row lines up, matching the
-   screenshot's own consistent row widths. A real request: "Colors
-   should be spaced out and clean rows like the image" - more vertical
-   air per row and a bigger swatch, same reference as the seamless-list
-   request above. */
-.homepage-theme-color-row { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 0; border-bottom: 1px solid var(--border); }
-.homepage-theme-color-row:last-child { border-bottom: none; }
-.homepage-theme-color-row > span:first-child { flex: 1 1 auto; min-width: 0; }
-.homepage-theme-color-input { display: flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; }
-.homepage-theme-color-input input[type="color"] { width: 3.25rem; height: 2.1rem; padding: 0; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
-.homepage-theme-hex-input {
-  width: 6rem;
-  border: 1px solid transparent;
-  background: transparent;
-  font-family: 'SFMono-Regular', Consolas, monospace;
-  font-size: 0.85rem;
-  text-align: right;
-  padding: 0.3rem 0.4rem;
-}
-.homepage-theme-hex-input:hover, .homepage-theme-hex-input:focus { border-color: var(--border); background: var(--surface); text-align: left; }
 .homepage-theme-section-body label { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.5rem 0; }
 .homepage-theme-section-body > label:not(:last-child),
 .homepage-theme-section-body > form > label:not(:last-child) { border-bottom: 1px solid var(--border); }
-.homepage-theme-logo-preview, .homepage-theme-favicon-preview { max-height: 48px; vertical-align: middle; margin-left: 0.5rem; }
-.homepage-theme-reset-row { padding: 0.85rem 1.1rem; }
-.homepage-theme-reset-row .btn-secondary { color: #b42318; border-color: #f3c7c0; }
-
-.homepage-theme-preview-pane { flex: 1 1 auto; min-width: 0; }
-.homepage-theme-preview-frame-wrap {
-  margin: 0 auto;
-  width: 100%;
-  max-width: 100%;
-  height: calc(100vh - 160px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: #fff;
-  transition: max-width 0.2s ease;
-}
-.homepage-theme-preview-frame-wrap[data-viewport="mobile"] { max-width: 420px; }
-.homepage-theme-preview-frame-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
+.homepage-theme-logo-preview { max-height: 48px; vertical-align: middle; margin-left: 0.5rem; }
 
 @media (max-width: 900px) {
-  .homepage-theme-shell { flex-direction: column; }
   .homepage-theme-sidebar { flex: 1 1 auto; max-width: none; max-height: none; position: static; }
-  .homepage-theme-preview-frame-wrap { height: 70vh; }
-}
-
-/* A real request, with a screenshot of Shopify's own Settings > Online
-   Store > Themes page: "This design page should look and function
-   exactly like Shopify when you edit the online store website." That
-   page is a list of theme cards (live preview/name/fonts/color swatches/
-   Customize button) sitting IN FRONT OF the full editor
-   (views/main-admin-website.ejs, unchanged) - this app only ever has
-   the one theme, so the list is always exactly one card. */
-.homepage-themes-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 0 1.25rem; }
-.homepage-themes-header h1 { margin: 0; }
-.homepage-theme-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  overflow: hidden;
-  max-width: 640px;
-}
-.homepage-theme-card-preview {
-  display: block;
-  position: relative;
-  height: 280px;
-  background: #f4f6f8;
-  border-bottom: 1px solid var(--border);
-}
-/* The iframe renders the real homepage at full desktop width, then
-   scales down into the card the same way a browser's own zoom does -
-   pointer-events: none hands every click to the <a> wrapping it
-   (straight to Customize), matching the screenshot's own "click the
-   preview to customize" behavior instead of a dead, un-clickable
-   thumbnail. */
-.homepage-theme-card-preview iframe {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 250%;
-  height: 250%;
-  border: none;
-  transform: scale(0.4);
-  transform-origin: top left;
-  pointer-events: none;
-}
-.homepage-theme-card-body { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.25rem; }
-.homepage-theme-card-name-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
-.homepage-theme-card-name-row h2 { margin: 0; font-size: 1.15rem; }
-.homepage-theme-current-badge { background: var(--brand-soft); color: var(--brand-dark); }
-.homepage-theme-card-swatches { display: flex; gap: 0.4rem; margin-top: 0.6rem; }
-.homepage-theme-swatch { width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 1px solid var(--border); display: inline-block; }
-.homepage-theme-card-customize { flex: 0 0 auto; }
-
-@media (max-width: 640px) {
-  .homepage-themes-header { flex-wrap: wrap; }
-  .homepage-theme-card-body { flex-direction: column; align-items: flex-start; }
-  .homepage-theme-card-customize { width: 100%; text-align: center; }
 }
 
 /* Parent/Student Lessons tab redesign (views/partials/lessons-view.ejs,
@@ -12227,12 +12087,16 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
 .training-lesson-content { white-space: pre-wrap; line-height: 1.5; }
 
 /* ---------------------------------------------------------------------
-   Portal platform: shared chrome (portal-nav.ejs's switcher) and the
-   portal-picker grid (portal-switcher.ejs). Reuses .admin-sidebar/
-   .admin-mobile-topbar/.admin-mobile-tabs as-is (same shell every
-   portal, including the existing Co-op Admin Portal, already shares) -
-   this block only adds what's actually new: the portal title under the
-   logo and the "Switch Portal" disclosure.
+   Portal platform: shared chrome (portal-nav.ejs) and the portal-picker
+   grid (portal-switcher.ejs). Reuses .admin-sidebar/.admin-mobile-topbar/
+   .admin-mobile-tabs as-is (same shell every portal, including the
+   existing Co-op Admin Portal, already shares) - this block only adds
+   what's actually new: the portal title under the logo. The "Switch
+   Portal" link itself used to be its own <details>/<summary> disclosure
+   here (a real request: "On desktop... clicking the portal button
+   should simply take you to the portal page" - it's now a plain
+   .admin-corner-link, same as My Profile/Settings right next to it, no
+   dropdown markup/styling of its own left to keep).
    --------------------------------------------------------------------- */
 .portal-nav-title {
   margin: 0.3rem 0 0.2rem;
@@ -12243,37 +12107,6 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.75);
 }
-.portal-switcher-details { position: relative; }
-.portal-switcher-details summary {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  border-radius: 10px;
-  cursor: pointer;
-  color: #fff;
-  font-size: 0.8rem;
-  font-weight: 600;
-  list-style: none;
-}
-.portal-switcher-details summary::-webkit-details-marker { display: none; }
-.portal-switcher-details summary:hover { background: rgba(255, 255, 255, 0.12); }
-.portal-switcher-details[open] summary { background: rgba(255, 255, 255, 0.16); }
-.portal-switcher-menu {
-  margin-top: 0.3rem;
-  padding: 0.3rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-}
-.portal-switcher-menu a {
-  display: block;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 0.9rem;
-  text-decoration: none;
-}
-.portal-switcher-menu a:hover { background: rgba(255, 255, 255, 0.14); }
 
 .portal-picker-grid {
   display: grid;
@@ -12316,62 +12149,20 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
    portal so the whole platform still visually agrees with itself once a
    visitor logs in.
    --------------------------------------------------------------------- */
-/* Public Homepage Theme Settings (Main Admin > Settings > Public
-   Homepage's own Colors/Typography sections, utils/homepage.js's own
-   themeStyleAttr) - a real request: "Should have the exact webpage
-   editing features as Shopify." --hp-* are a NEW, small set of CSS
-   custom properties scoped to just this page via the .public-home-page
-   body class, set inline per-render from the saved (or, in the editor's
-   own live preview iframe, not-yet-saved) theme row - deliberately NOT
-   the site-wide --bg/--accent/--surface/--ink tokens every admin page
-   also uses above, so customizing the public homepage's own colors can
-   never leak into the admin portals. Every fallback below matches
-   exactly what this page already rendered before this feature existed
-   (var(--surface)/var(--ink)/var(--btn-bg)/var(--accent)), so a
-   not-yet-customized homepage looks pixel-identical to before. */
-.public-home-page {
-  background: var(--hp-background, var(--surface));
-  color: var(--hp-text, var(--ink));
-  font-family: var(--hp-font-body, 'Open Sans', sans-serif);
-  font-size: var(--hp-font-size-base, 16px);
-}
-.public-home-page h1,
-.public-home-page h2,
-.public-home-page h3 { font-family: var(--hp-font-heading, 'Montserrat', sans-serif); }
-.public-home-page .site-header,
-.public-home-page .site-footer,
-.public-home-page .site-section-alt,
-.public-home-page .site-class-showcase-card,
-.public-home-page .site-faq-item,
-.public-home-page .site-announcement-card { background: var(--hp-cards, var(--surface)); }
-.public-home-page .site-header-brand,
-.public-home-page .site-header-menu a,
-.public-home-page .homepage-block-text { color: var(--hp-text, var(--ink)); }
-/* Scoped to .site-section (the block canvas and the Classes We Offer
-   showcase both sit in one), deliberately NOT .site-cta - that section's
-   own white-on-brand-dark button (below) stays its own fixed, non-
-   themed look, same as the Announcements/FAQ/CTA systems around it. */
-.public-home-page .site-section .primary-btn { background: var(--hp-primary, var(--btn-bg)); }
-.public-home-page .site-section .primary-btn:hover { filter: brightness(0.92); }
-.public-home-page .site-faq-item { border-left: 4px solid var(--hp-accent, var(--accent)); }
-.public-home-page .site-class-showcase-day { color: var(--hp-accent, var(--muted)); }
 
-/* Announcement Bar theme section - a real request: "Should have the
-   exact webpage editing features as Shopify" (the screenshot's own
-   "Announcement bar" section). A thin bar across the very top of the
-   public homepage, shown only once an admin both enables it and gives
-   it text (views/public-home.ejs). */
-.site-announcement-bar { background: var(--hp-accent, var(--brand)); color: #fff; text-align: center; padding: 0.5rem 1rem; font-size: 0.9rem; font-weight: 600; }
-
-/* The Public Homepage builder's own live preview iframe (routes/admin-
-   website.js's own /preview route sets isPreview) - never rendered on
-   the real public /welcome page. */
-.homepage-preview-banner { background: var(--yellow-bg); color: var(--yellow); text-align: center; font-size: 0.8rem; font-weight: 700; padding: 0.3rem; }
-
+/* A real request: "Header should be centered." Once the action buttons
+   above are the only thing left of .site-header-actions (now relocated
+   into .site-header-utility-bar above), .site-header only has the brand/
+   logo and the Menu Tabs nav as children - centering them as a group
+   (instead of the old justify-content: space-between, which assumed a
+   right-aligned actions column balancing the brand on the left) reads as
+   deliberate even with just the brand alone (no menu tabs configured).
+   Sticky/background/border styling is unchanged - this is a content-
+   alignment change only. */
 .site-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 1rem;
   padding: 1rem 1.5rem;
   background: var(--surface);
@@ -12379,18 +12170,11 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
   position: sticky;
   top: 0;
   z-index: 20;
+  background-size: cover;
+  background-position: center;
 }
 .site-header-brand { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; color: var(--ink); font-weight: 800; font-size: 1.15rem; }
 .site-header-brand img { height: 42px; width: 42px; border-radius: 50%; }
-.site-header-actions { display: flex; align-items: center; gap: 0.6rem; }
-/* Homepage Menu (views/public-home.ejs) - a real request: "Should be
-   able to edit or add menu tabs to the homepage." flex: 1 1 auto fills
-   the space between the brand and the Log In/Register buttons on a wide
-   screen; flex-wrap means an admin adding more tabs than fit on one line
-   never overflows the header, it just wraps onto a second line instead. */
-.site-header-menu { display: flex; align-items: center; gap: 1.25rem; flex: 1 1 auto; flex-wrap: wrap; row-gap: 0.4rem; }
-.site-header-menu a { color: var(--ink); font-weight: 600; text-decoration: none; white-space: nowrap; }
-.site-header-menu a:hover { color: var(--brand-dark); text-decoration: underline; }
 
 .site-hero {
   padding: 4.5rem 1.5rem;
@@ -12398,10 +12182,10 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
   background: linear-gradient(180deg, var(--bg) 0%, #3a6d99 100%);
   color: #fff;
 }
-.site-hero-inner { max-width: 760px; margin: 0 auto; }
+
 .site-hero h1 { font-size: clamp(2rem, 4vw, 2.75rem); margin: 0 0 0.9rem; line-height: 1.15; }
 .site-hero p { font-size: 1.15rem; opacity: 0.92; margin: 0 0 1.75rem; }
-.site-hero-actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+
 /* color: var(--brand-dark), not var(--bg) - white background needs the
    accessible-on-white blue (--bg itself only hits a 4.1:1 contrast ratio
    on white, short of WCAG AA's 4.5:1 - caught by the a11y check below). */
@@ -12562,18 +12346,9 @@ tr[data-content-reorder-row].lesson-row-dragging { opacity: 0.55; background: va
    needs an explicit light background; -alt just alternates the shade. */
 .site-section { padding: 3.5rem 1.5rem; background: var(--surface); }
 .site-section-inner { max-width: 980px; margin: 0 auto; }
-.site-section-alt { background: #f4f8fc; }
+
 .site-section h2 { font-size: 1.75rem; margin: 0 0 1rem; color: var(--ink); }
 .site-section p { color: var(--muted); line-height: 1.6; font-size: 1.05rem; }
-/* --muted on -alt's own #f4f8fc tint (rather than -surface's white) falls
-   just short of WCAG AA's 4.5:1 - --muted-dark instead, same reasoning as
-   --brand-dark existing above for text on a non-white background. */
-.site-section-alt .site-section-inner p { color: var(--muted-dark); }
-
-.site-benefits-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
-.site-benefit-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; }
-.site-benefit-card h3 { margin: 0 0 0.5rem; font-size: 1.1rem; color: var(--ink); }
-.site-benefit-card p { font-size: 0.95rem; margin: 0; }
 
 /* Events (Community & Commerce track) - public/member event browsing
    cards. No existing shape covers "card with an image on top, a date
@@ -12983,53 +12758,28 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
 .site-announcement-card h3 { margin: 0 0 0.35rem; font-size: 1.05rem; color: var(--ink); }
 .site-announcement-date { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
 
-/* The public homepage's own read-only classes showcase (a real request:
-   "Check box to be viewable to public on public homepage") - same card
-   shape as .site-announcement-card above, in a responsive grid (like
-   .admin-card-grid elsewhere) instead of one column, since these are
-   short at-a-glance cards rather than long-form announcement bodies. */
-.site-class-showcase-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
-.site-class-showcase-card { background: var(--surface); border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius); padding: 1rem 1.25rem; text-align: left; }
-.site-class-showcase-card h3 { margin: 0.25rem 0 0.35rem; font-size: 1rem; color: var(--ink); }
-.site-class-showcase-day { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; font-weight: 700; }
-.site-class-showcase-time { margin: 0; font-size: 0.85rem; color: var(--muted); }
-
 .site-faq-list { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
 .site-faq-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.25rem 1.25rem; }
 .site-faq-item summary { padding: 1rem 0; font-weight: 700; color: var(--ink); cursor: pointer; list-style: none; }
 .site-faq-item summary::-webkit-details-marker { display: none; }
 .site-faq-item p { padding-bottom: 1rem; margin: 0; }
 
-/* background: var(--brand-dark), not var(--brand) - white text on
-   --brand's own lighter #79baec only hits a 2.09:1 contrast ratio, well
-   short of WCAG AA's 4.5:1 (caught by the a11y check below); --brand-dark
-   is the token that already exists for exactly this "text needs to sit
-   on a blue background/or be blue text" case. */
-.site-cta { text-align: center; padding: 4rem 1.5rem; background: var(--brand-dark); color: #fff; }
-.site-cta h2 { color: #fff; }
-.site-cta .primary-btn { background: #fff; color: var(--brand-dark); }
-
-.site-footer { padding: 2.5rem 1.5rem; text-align: center; color: var(--muted); font-size: 0.9rem; background: var(--surface); border-top: 1px solid var(--border); }
-.site-footer a { color: var(--muted); }
-
 @media (max-width: 640px) {
   .site-hero { padding: 3rem 1.25rem; }
   .site-section { padding: 2.5rem 1.25rem; }
+  
   /* Real bug caught by a site-wide audit crawl: .site-header never
-     wrapped, so the brand name plus both "Log In"/"Member Registration"
-     buttons together were wider than a phone screen, pushing the whole
-     page into horizontal overflow (the body's own blue background
-     showing as a sliver down the right edge of every section, not just
-     the header). Wrapping the actions onto their own line under the
-     brand is enough to fit at any width without shrinking the buttons'
-     own text/tap targets. */
+     wrapped, so the brand name plus the Menu Tabs nav together were
+     wider than a phone screen, pushing the whole page into horizontal
+     overflow (the body's own blue background showing as a sliver down
+     the right edge of every section, not just the header). Wrapping the
+     menu onto its own line under the brand is enough to fit at any
+     width without shrinking its own text/tap targets. (The old Log In/
+     Member Registration buttons this comment used to also cover are
+     gone from .site-header entirely now - see .site-header-utility-bar
+     above and public-home.ejs's own header markup.) */
   .site-header { flex-wrap: wrap; }
-  .site-header-actions { flex-basis: 100%; justify-content: flex-end; }
-  /* Same overflow fix as .site-header-actions just above, for the
-     homepage menu - its own full-width row under the brand, rather than
-     fighting the brand/buttons for the same cramped first line. */
-  .site-header-menu { flex-basis: 100%; order: 1; gap: 0.9rem; }
-  .site-header-actions { order: 2; }
+  
 }
 
 /* Portal dashboards (Parent/Student/Teacher/Main Admin home pages) -
@@ -13061,36 +12811,65 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
    its own clean column." Used to be `repeat(auto-fill, minmax(220px,
    1fr))` - a multi-column auto-wrap where each checkbox+label pair's
    own width decided which column it landed in, so neither checkboxes
-   nor label text ever lined up row to row. A single two-column grid
-   instead (checkboxes always column 1, label text always column 2),
+   nor label text ever lined up row to row. A 3-column grid instead
+   (checkbox always column 1, a fixed-width bullet/dash marker always
+   column 2, each permission's own full description always column 3),
    fed one flattened list of rows - a page and every one of its own
    subpages together - by views/partials/permission-checkbox-section.ejs
    rather than one grid per page, so nothing has to re-align between a
-   page's own row and its subpages' rows. */
-.permission-checkbox-grid { display: grid; grid-template-columns: auto 1fr; column-gap: 0.6rem; row-gap: 0.55rem; margin: 0.5rem 0 1.25rem; align-items: start; }
+   page's own row and its subpages' rows.
+   A later real request: "the check boxes should show the actual
+   description, not just a hover tooltip" plus "bullet points for the
+   main pages and dash lines for subpages" - column 3 is now each
+   permission's own full description text (not the short catalog
+   label), and column 2 holds a plain bullet (top-level page rows) or
+   dash (subpage rows) marker in its own fixed-width column - the SAME
+   width either glyph, so column 3's own text starts at the exact same
+   x position on every single row, main page or subpage, with no
+   separate text-indent needed on subpage rows any more (the dash
+   marker alone signals the nesting now). */
+/* text-align: left - Portal Permissions' own dialog (views/main-admin-
+   roles.ejs) nests inside .main-admin-portal-permissions-card, whose own
+   text-align: center (a real request: "each portal card should have a
+   centered title") otherwise cascades all the way down into this grid's
+   own description text too - invisible back when column 3 only ever
+   held a short label unlikely to wrap, but a real bug once a longer
+   description (task 2 above) actually wraps to a 2nd line: that 2nd
+   line centers under the column instead of starting flush under the
+   first line's own first word, breaking the exact "first word... in its
+   own clean column" alignment this whole grid exists for. */
+.permission-checkbox-grid { display: grid; grid-template-columns: auto 1.1rem 1fr; column-gap: 0.5rem; row-gap: 0.55rem; margin: 0.5rem 0 1.25rem; align-items: start; text-align: left; }
 /* .checkbox-option is normally its own flex row (font-weight/gap/etc. -
    see this file's own base rule); inside this grid it instead
-   contributes no box of its own, so its own <input> and <span> become
-   the actual grid items (column 1 / column 2) - every row's checkbox
-   and every row's text land in those same two columns regardless of
-   label length. Scoped to this one grid, not .checkbox-option
-   everywhere else in the app (every other usage still wants its own
-   normal flex row). */
+   contributes no box of its own, so its own <input> and two <span>s
+   become the actual grid items (column 1 / 2 / 3) - every row's
+   checkbox, marker, and description text land in those same three
+   columns regardless of text length. Scoped to this one grid, not
+   .checkbox-option everywhere else in the app (every other usage still
+   wants its own normal flex row). */
 .permission-checkbox-grid .checkbox-option { display: contents; }
 .permission-checkbox-grid .checkbox-option input[type="checkbox"] { grid-column: 1; margin-top: 0.2rem; }
-.permission-checkbox-grid .checkbox-option span { grid-column: 2; }
-/* A real request: "indent/nest subpages under their parent page
-   visually." Extra left padding on just the TEXT (the checkbox itself
-   stays in column 1, aligned with every other row's checkbox) reads as
-   nested without breaking the one shared checkbox column every other
-   row already lines up in. */
-.permission-checkbox-grid .checkbox-option.permission-subpage span { padding-left: 1.1rem; }
+.permission-checkbox-grid .checkbox-option .permission-marker { grid-column: 2; text-align: center; color: var(--ink-muted, var(--ink)); margin-top: 0.1rem; }
+.permission-checkbox-grid .checkbox-option .permission-text { grid-column: 3; }
 /* A page with no permission of its own (utils/portalPageCatalog.js's
    own key: null entries, e.g. Parent Portal's "Co-op Classes," whose
    bare URL is identical to its own first subpage) - a plain heading
-   spanning both columns, not a checkbox, introducing the real subpage
-   checkboxes nested right under it. */
+   spanning every column, not a checkbox, introducing the real subpage
+   checkboxes nested right under it. Its own leading bullet (added in
+   the EJS, not here) keeps the same "bullet means a main page" signal
+   every real checkbox row's own marker column gives, even though this
+   heading has no checkbox/marker columns of its own to line one up in. */
 .permission-checkbox-grid .permission-group-label { grid-column: 1 / -1; font-weight: 600; font-size: 0.85rem; color: var(--ink-muted, var(--ink)); margin-top: 0.4rem; }
+/* A real request: "creat[e] row lines to separate sections" - one
+   divider between each top-level page's own complete group (the page
+   plus all of its own subpages) and the next, so a long page/subpage
+   list reads as visually separated sections rather than one
+   undifferentiated wall of rows. A plain block (not .checkbox-option,
+   so it's never rewritten by the display:contents rule above) placed
+   directly in the grid's own flow - explicitly spanning every column
+   keeps the line one clean row-width rule rather than a short
+   column-1-only fragment. */
+.permission-checkbox-grid .permission-group-divider { grid-column: 1 / -1; border-top: 1px solid var(--border); margin: 0.15rem 0; }
 /* Groups each portal's own page list under a small heading inside the
    dialog (e.g. "Parent Portal" / "Family School Management") - a real
    request on views/main-admin-admins.ejs's own combined catalog:
@@ -13135,6 +12914,35 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
    button on the page regardless of how much (or little) content shares
    its own card. */
 .parent-home-main .roster-action-btn { align-self: flex-start; flex-grow: 0; }
+
+/* A real request: "My classes and nature news the buttons should be the
+   same size and fit to text" - Student Portal's own home page (views/
+   student-home.ejs), same exact root cause/fix as .parent-home-main
+   above: .portal-dashboard-card's default align-items: stretch stretches
+   each card's own button to the card's full width, which .roster-action-
+   btn's flex: 1 0 auto then has room to grow into. Scoped to this page's
+   own wrapper class (.student-home-dashboard-grid), not .portal-
+   dashboard-card/.roster-action-btn themselves - both shared by every
+   other portal's own home dashboard (Main Admin, Teacher, Babysitters,
+   ...), none of which reported this. */
+.student-home-dashboard-grid .roster-action-btn { align-self: flex-start; flex-grow: 0; }
+
+/* A real request: "Student portal, Resources, desktop. Add a resource
+   button should be fit to text." (views/student-resources.ejs - the
+   button is actually "+ Submit a Resource", students proposing a link
+   for a Main Admin to review, not an admin Add control). .roster-toolbar
+   is a flex row (h1 left, this one button right, justify-content: space-
+   between) with nothing else to absorb .roster-action-btn's own flex: 1
+   0 auto - that flex-grow: 1 claims the toolbar's entire remaining width
+   after the <h1>, stretching the button across the rest of the row on a
+   wide desktop screen. No media query needed: the mobile-only global
+   `.roster-action-btn { width: 100% }` rule (styles.css, @media max-width:
+   640px) sets `width` directly, which still wins there regardless of this
+   rule's own flex-basis, so mobile's already-fine full-width button is
+   untouched. Scoped to this page's own toolbar class, not .roster-toolbar
+   itself - shared by dozens of other admin/portal pages that never
+   reported this. */
+.student-resources-toolbar .roster-action-btn { flex: 0 0 auto; }
 
 /* A real request: "Change the parent portal dashboard to have cards
    exactly like this [reference image]" - a colored icon badge + title +
@@ -13548,6 +13356,43 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
   }
   .event-calendar-nav-btn:first-child::before { content: '\2190'; }
   .event-calendar-nav-btn:last-child::before { content: '\2192'; }
+}
+
+/* A real request: "Student portal, events calendar, desktop only.
+   Export, pdf and print icons should be on the same row as the month
+   and year selection, after the next arrow. Calendar view and list view
+   icons should be top right of the calendar." Scoped to Student Portal
+   only (.student-events-portal, views/events-list.ejs) - Parent
+   Portal/Main Admin/a public visitor all share this exact same toolbar
+   and calendar partial and none of them asked for this, so they keep
+   their own existing layout untouched at every width.
+   views/partials/event-calendar-grid.ejs renders a second copy of the
+   Export/Print/PDF icons (desktopTrailingIcons, right inside its own
+   Prev/Month/Year/Next row) and of the view toggle (desktopTopRightToggle,
+   directly above the grid) - real DOM at every width, not JS-moved -
+   so this pair of media queries just swaps which copy is visible: the
+   duplicates by default (and the originals above 640px), the originals
+   by default (and the duplicates at/under 640px). 640px matches this
+   same file's own existing mobile breakpoint for this toolbar (see the
+   max-width: 480px/nav-row rules just above - the row itself already
+   never wraps above 640px). */
+.student-events-portal .event-calendar-desktop-trailing-icon,
+.student-events-portal .event-calendar-desktop-view-toggle {
+  display: none;
+}
+@media (min-width: 641px) {
+  .student-events-portal .roster-toolbar .roster-btn-row > .class-schedule-view-toggle,
+  .student-events-portal .roster-toolbar .roster-btn-row > .events-toolbar-file-icon {
+    display: none;
+  }
+  .student-events-portal .event-calendar-desktop-trailing-icon {
+    display: inline-flex;
+  }
+  .student-events-portal .event-calendar-desktop-view-toggle {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.5rem;
+  }
 }
 
 /* Babysitter Directory - profile photo thumbnail, shown both on a
@@ -16253,4 +16098,181 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 
 @media (max-width: 640px) {
   .cf-list-row-actions { flex-basis: 100%; justify-content: flex-start; margin-top: 0.25rem; }
+}
+
+/* Parent Portal's Website Feedback & Support form (views/parent-
+   support.ejs) - each request type's own admin-built extra fields sit in
+   a plain borderless fieldset (disabled + hidden when the other type is
+   selected), laid out by the same .member-form-grid as the rest. */
+.support-extra-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.support-extra-fields[hidden] { display: none; }
+.support-request-completed td { opacity: 0.65; }
+.support-extra-answers { margin: 0; padding-left: 1rem; }
+.support-message-cell { white-space: pre-wrap; }
+
+/* Public Homepage site dashboard (views/main-admin-website.ejs) - a real
+   request: "switch that to wix." Wix's own site card: a live thumbnail
+   of the site, name/URL, and Edit Site / View Site. The thumbnail
+   iframe renders the real site at desktop width and scales it down;
+   pointer-events: none hands every click to the wrapping Edit link. */
+.site-dash-title { margin-bottom: 1rem; }
+.site-dash-card {
+  max-width: 760px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+.site-dash-thumb {
+  position: relative;
+  display: block;
+  height: 320px;
+  overflow: hidden;
+  background: var(--brand-soft);
+  border-bottom: 1px solid var(--border);
+}
+.site-dash-thumb iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 1000px;
+  border: none;
+  transform: scale(0.594);
+  transform-origin: top left;
+  pointer-events: none;
+}
+.site-dash-body { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.25rem; flex-wrap: wrap; }
+.site-dash-info h2 { margin: 0 0 0.2rem; font-size: 1.2rem; }
+.site-dash-info .hint { margin: 0.3rem 0; }
+.site-dash-url { font-size: 0.9rem; word-break: break-all; }
+.site-dash-badge { background: var(--yellow-bg); color: var(--yellow); }
+.site-dash-actions { display: flex; gap: 0.6rem; align-items: center; }
+.site-dash-note { max-width: 760px; margin-top: 0.85rem; }
+
+@media (max-width: 640px) {
+  .site-dash-thumb { height: 200px; }
+  .site-dash-thumb iframe { transform: scale(0.28); }
+  .site-dash-actions { width: 100%; }
+  .site-dash-actions a { flex: 1; text-align: center; }
+}
+
+/* Teacher Reimbursements (views/reimbursement-form.ejs, reimbursement-detail.ejs,
+   admin-teacher-reimbursements*.ejs) */
+.reimbursement-intro { max-width: 46rem; }
+.reimbursement-form { max-width: 52rem; }
+.reimbursement-items-heading { font-size: 1.1rem; margin: 1.25rem 0 0.5rem; }
+.reimbursement-items { display: flex; flex-direction: column; gap: 0.5rem; }
+.reimbursement-item-row { display: grid; grid-template-columns: minmax(0, 1fr) 10rem 7rem 2.5rem; gap: 0.5rem; align-items: center; }
+.reimbursement-item-row input { width: 100%; min-width: 0; }
+.reimbursement-item-head { font-weight: 600; font-size: 0.9rem; color: var(--muted-dark); }
+.reimbursement-add-item { margin-top: 0.6rem; }
+.reimbursement-total { font-size: 1.15rem; text-align: right; margin: 1rem 0; }
+.reimbursement-footer { margin-bottom: 1rem; }
+.reimbursement-amount-col { text-align: right; white-space: nowrap; }
+.reimbursement-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.reimbursement-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.75rem 1.5rem; margin: 0 0 1rem; }
+.reimbursement-summary dt { font-weight: 600; font-size: 0.85rem; color: var(--muted-dark); }
+.reimbursement-summary dd { margin: 0.15rem 0 0; }
+.reimbursement-admin-section { margin-top: 1.25rem; border: 2px dashed var(--accent); }
+.reimbursement-admin-section h2 { margin-top: 0; }
+.reimbursement-delete-form { margin-top: 1rem; }
+.reimbursement-settings-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 1.25rem; align-items: start; }
+.reimbursement-links { padding-left: 1.1rem; word-break: break-all; }
+
+@media (max-width: 640px) {
+  .reimbursement-item-row { grid-template-columns: minmax(0, 1fr) 2.5rem; }
+  .reimbursement-item-row input[type="text"]:first-child { grid-column: 1 / -1; }
+  .reimbursement-item-head { display: none; }
+}
+.reimbursement-rejection-message { margin: 0.4rem 0 0.75rem; white-space: pre-wrap; }
+.reimbursement-receipts { display: flex; flex-direction: column; gap: 0.5rem; }
+.reimbursement-receipt-row { display: grid; grid-template-columns: minmax(0, 1fr) 2.5rem; gap: 0.5rem; align-items: center; }
+.reimbursement-receipt-list { padding-left: 1.1rem; }
+.reimbursement-receipt-list li { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.reimbursement-receipt-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: 0.75rem; }
+.reimbursement-receipt-tile { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius); text-align: center; word-break: break-all; font-size: 0.85rem; }
+.reimbursement-receipt-tile img { width: 100%; height: 7rem; object-fit: cover; border-radius: 8px; }
+.reimbursement-receipt-file-icon { width: 3rem; height: 3rem; margin: 2rem 0; }
+.reimbursement-admin-fields { border: 0; padding: 0; margin: 0; }
+.reimbursement-rejection-history ul { padding-left: 1.1rem; }
+.money-negative { color: var(--red); font-weight: 600; }
+.reimbursement-class-money { padding: 0.75rem 1rem; background: var(--brand-soft); border-radius: var(--radius); }
+.class-fees-teacher { margin-bottom: 1.5rem; }
+.class-fees-teacher h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
+
+/* --- Shared member schedule table (views/partials/member-schedule-table.ejs) ---
+   A real request: "Each member's schedule should look like this image" -
+   every member schedule surface (Co-op Admin Member Schedules + its
+   Print/PDF, both admin portals' member profile Class Schedule tab, the
+   Members page's Schedule dialog, and My Profile > Schedules) renders
+   this one layout: member name as a large heading, a small role
+   subheading ("Signed Up", "Teaching", ...), then a bordered table with a
+   light gray header row and zebra-striped rows. On a phone each row
+   stacks into its own bordered card, one cell per line, with the column
+   name as a small label above it. */
+.member-schedule { margin: 0 0 2rem; }
+.member-schedule-name { font-size: 1.75rem; line-height: 1.2; margin: 0 0 0.35rem; color: var(--ink); }
+.member-schedule-name a { color: inherit; text-decoration: none; }
+.member-schedule-name a:hover { color: var(--brand-dark); text-decoration: underline; }
+.member-schedule-subheading { font-size: 1.1rem; font-weight: 600; margin: 0.9rem 0 0.5rem; color: var(--ink); }
+.member-schedule-empty { color: var(--muted); margin: 0.25rem 0 0; }
+.member-schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--table-border);
+  background: var(--surface);
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+.member-schedule-table th,
+.member-schedule-table td {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--table-border);
+  text-align: left;
+  vertical-align: top;
+}
+.member-schedule-table thead th { background: var(--table-head-bg); font-weight: 700; }
+.member-schedule-table tbody tr:nth-child(even) td { background: var(--table-stripe-bg); }
+.member-schedule-details { width: 48%; }
+.member-schedule-line { display: block; }
+.member-schedule-class-title { display: block; font-weight: 600; }
+a.member-schedule-class-title { color: var(--brand-dark); }
+a.member-schedule-class-title:hover { color: var(--brand-darker); }
+.member-schedule-email { color: var(--brand-dark); overflow-wrap: anywhere; }
+.member-schedule-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.4rem; margin: 0 0 1rem; }
+.notes-dialog-actions .member-schedule-actions { margin: 0; }
+/* Keep each member's own table together on one printed page where it
+   fits (a family's Print Schedules), with the legacy pairing older print
+   engines need (see print-blank-page-regression.test.js). */
+.member-schedule-print-list .member-schedule { break-inside: avoid; page-break-inside: avoid; }
+
+@media (max-width: 640px) {
+  .member-schedule-name { font-size: 1.4rem; }
+  .member-schedule-table,
+  .member-schedule-table tbody,
+  .member-schedule-table tr,
+  .member-schedule-table td { display: block; width: 100%; }
+  .member-schedule-table thead { display: none; }
+  .member-schedule-table { border: none; background: none; }
+  .member-schedule-table tr {
+    border: 1px solid var(--table-border);
+    border-radius: var(--control-radius);
+    margin-bottom: 0.6rem;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .member-schedule-table td { border: none; border-bottom: 1px solid var(--table-border); }
+  .member-schedule-table td:last-child { border-bottom: none; }
+  .member-schedule-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.15rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--muted-dark);
+  }
+  /* The class title already reads as the card's own heading. */
+  .member-schedule-table td.member-schedule-details::before { content: none; }
 }

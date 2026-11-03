@@ -31,8 +31,10 @@ test('db.prepare(sql).get/.all/.run against a real (PGlite) Postgres engine', as
   t.after(() => db.end());
 
   await t.test('the schema + first-boot seed actually ran (same seed logic as a real deployment)', async () => {
-    const admin = await db.prepare('SELECT username FROM admins').get();
-    assert.ok(admin, 'the default admin account should have been seeded');
+    const admin = await db
+      .prepare("SELECT ma.email FROM member_accounts ma JOIN member_account_roles mar ON mar.member_account_id = ma.id JOIN roles r ON r.id = mar.role_id WHERE r.key = 'main_admin'")
+      .get();
+    assert.ok(admin, 'the Main Admin master account should have been seeded');
     const pin = await db.prepare("SELECT 1 AS x FROM app_settings WHERE key = 'class_checkin_pin_hash'").get();
     assert.ok(pin, 'the default Class Check-In PIN should have been seeded');
   });

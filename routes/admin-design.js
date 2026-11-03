@@ -1,5 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const { chunkQrPages, qrPickerFilterOptions } = require('../utils/qrSheetPages');
+const { classQrKey, playgroundQrKey } = require('../utils/classQrKey');
+const { withClassFacets } = require('../utils/printPickerFilters');
 const db = require('../db');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
 const { BADGE_WIDTH, BADGE_HEIGHT, FIELDS_BY_TYPE, SHAPE_TYPES, FONT_FAMILIES, DEFAULT_LAYOUTS } = require('../utils/nameTagBadge');
@@ -78,7 +81,9 @@ router.get('/design', async (req, res) => {
   // the Print tab's bulk picker lists are meant to look and read like that
   // list (just with a selection checkbox instead of Actions), not a bare
   // name-only table.
-  const members = (await membersWithDetails()).filter((m) => m.active);
+  // filterSemesters/filterDays back every member picker's Semester/Day
+  // filter (utils/printPickerFilters.js).
+  const members = await withClassFacets((await membersWithDetails()).filter((m) => m.active));
 
   // Class Check-In QR Codes picker (Print tab) - every class across both
   // days, sorted the same way the Attendance page's own Class Rosters
@@ -143,6 +148,9 @@ router.get('/design', async (req, res) => {
       memberName: p.memberName,
       requestSummary: p.requestLabels.join(', '),
       familyId: (membersById.get(p.memberId) || {}).family_id ?? null,
+      // Same Type/Semester/Day filter facets the other member pickers'
+      // rows carry (views/partials/print-picker-table.ejs).
+      member: membersById.get(p.memberId) || null,
     }))
     .sort((a, b) => a.memberName.localeCompare(b.memberName, undefined, { sensitivity: 'base' }));
 
@@ -157,6 +165,7 @@ router.get('/design', async (req, res) => {
     // built from this same list.
     families: await allFamilies(),
     classesForQr,
+    qrFilterOptions: qrPickerFilterOptions(classesForQr, await listSemesters()),
     qrRoomOptions,
     libraryItems: await allLibraryItems(),
     libraryTypes: await allLibraryTypes(),
@@ -393,6 +402,7 @@ router.post('/design/print-classcheckin-qr', async (req, res) => {
   const allClasses = await allClassesList();
   const idSet = new Set(classIds);
   const classes = allClasses.filter((c) => idSet.has(c.id));
+  for (const c of classes) c.qrKey = await classQrKey(c.id);
 
   const origin = `${req.protocol}://${req.get('host')}`;
   const groups = new Map();
@@ -414,13 +424,13 @@ router.post('/design/print-classcheckin-qr', async (req, res) => {
           className: c.class_name,
           dayLabel: c.dayLabel,
           timeLabel: c.timeLabel,
-          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance`,
+          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance?k=${c.qrKey}`,
         })),
     }));
 
   res.render('admin-classcheckin-qr-print', {
     title: 'Print Class Check-In QR Codes',
-    pages,
+    pages: chunkQrPages(pages),
   });
 });
 
@@ -440,6 +450,7 @@ router.get('/design/print-classcheckin-qr/download.pdf', async (req, res) => {
   const allClasses = await allClassesList();
   const idSet = new Set(classIds);
   const classes = allClasses.filter((c) => idSet.has(c.id));
+  for (const c of classes) c.qrKey = await classQrKey(c.id);
 
   const origin = `${req.protocol}://${req.get('host')}`;
   const groups = new Map();
@@ -461,13 +472,13 @@ router.get('/design/print-classcheckin-qr/download.pdf', async (req, res) => {
           className: c.class_name,
           dayLabel: c.dayLabel,
           timeLabel: c.timeLabel,
-          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance`,
+          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance?k=${c.qrKey}`,
         })),
     }));
 
   const pdf = await renderViewToPdf(req, 'admin-classcheckin-qr-print', {
     title: 'Print Class Check-In QR Codes',
-    pages,
+    pages: chunkQrPages(pages),
     isFullAdmin: true,
   });
   sendPdf(res, 'class-checkin-qr-codes.pdf', pdf);
@@ -495,7 +506,7 @@ router.get('/design/print-playground-qr', async (req, res) => {
       const hours = await Promise.all(
         HOUR_POSITIONS.map(async (hour) => ({
           hourLabel: await playgroundHourLabel(day, hour),
-          checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance`,
+          checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance?k=${await playgroundQrKey(day, hour)}`,
         }))
       );
       return { dayLabel: CLASS_DAY_LABELS_FULL[day], hours };
@@ -520,7 +531,7 @@ router.get('/design/print-playground-qr/download.pdf', async (req, res) => {
       const hours = await Promise.all(
         HOUR_POSITIONS.map(async (hour) => ({
           hourLabel: await playgroundHourLabel(day, hour),
-          checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance`,
+          checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance?k=${await playgroundQrKey(day, hour)}`,
         }))
       );
       return { dayLabel: CLASS_DAY_LABELS_FULL[day], hours };

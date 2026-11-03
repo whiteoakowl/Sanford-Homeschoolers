@@ -37,22 +37,16 @@
     });
   });
 
-  // A real request (Main Admin Members' own Edit mode): "add select none
-  // and check box next to select all" - a momentary action, not
-  // persistent state, same as every other Select None checkbox in this
-  // app (see public/js/email-composer-filters.js's own comment): checking
-  // it clears every checkbox tied to this form (and Select All, if it was
-  // checked) then immediately un-checks itself.
+  // A real request: "Remove select none check box... Simply unselecting
+  // select all will uncheck them." Select All also follows its rows:
+  // unchecking any one clears it, checking every one checks it.
   document.addEventListener('change', (e) => {
-    const none = e.target.closest('[data-select-none-for]');
-    if (!none || !none.checked) return;
-    const formId = none.getAttribute('data-select-none-for');
-    document.querySelectorAll(`input[type="checkbox"][form="${formId}"]`).forEach((cb) => {
-      cb.checked = false;
-    });
-    const selectAll = document.querySelector(`[data-select-all-for="${formId}"]`);
-    if (selectAll) selectAll.checked = false;
-    none.checked = false;
+    const cb = e.target;
+    if (!(cb instanceof HTMLInputElement) || cb.type !== 'checkbox' || !cb.form || cb.matches('[data-select-all-for]')) return;
+    const selectAll = document.querySelector(`[data-select-all-for="${cb.getAttribute('form')}"]`);
+    if (!selectAll) return;
+    const boxes = Array.from(document.querySelectorAll(`input[type="checkbox"][form="${cb.getAttribute('form')}"]:not(.archive-offpage-checkbox)`)).filter((b) => !b.hidden);
+    selectAll.checked = boxes.length > 0 && boxes.every((b) => b.checked);
   });
 
   document.addEventListener('click', (e) => {

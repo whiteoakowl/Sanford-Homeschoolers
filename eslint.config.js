@@ -94,6 +94,33 @@ module.exports = [
     },
   },
   {
+    // site-render.js is dual-environment like name-tag-render-core.js:
+    // the site editor loads it with <script> and the public site routes
+    // require() it (utils/siteBuilder.js), so both renderers are one file.
+    files: ['public/js/site-render.js'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'commonjs',
+      globals: { ...globals.browser, ...globals.node },
+    },
+    rules: {
+      'no-unused-vars': unusedVarsRule,
+    },
+  },
+  {
+    // The Wix-style site editor is split into native ES modules
+    // (<script type="module">, no bundler) - public/js/site-editor/.
+    files: ['public/js/site-editor/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'module',
+      globals: { ...globals.browser, SiteRender: 'readonly' },
+    },
+    rules: {
+      'no-unused-vars': unusedVarsRule,
+    },
+  },
+  {
     // forum-editor.source.js is the hand-edited source `npm run
     // build:editor` (esbuild) bundles into public/js/forum-editor.js
     // (excluded above, generated) - real ES module `import`s of the

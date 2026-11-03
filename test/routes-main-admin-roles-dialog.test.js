@@ -82,8 +82,15 @@ test('saving a role\'s permissions through the dialog\'s own form still persists
   const page = await request(app).get('/main-admin/roles').set('Cookie', cookie);
   const csrfToken = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];
 
-  const role = await db.prepare("SELECT * FROM roles WHERE key != 'main_admin' LIMIT 1").get();
-  const perm = await db.prepare('SELECT id FROM permissions ORDER BY label LIMIT 1').get();
+  // A permission that's actually part of this role's own catalog -
+  // POST /roles/:id/permissions now scopes the save to exactly that
+  // catalog (see the Family School Management test below for why), so
+  // submitting an arbitrary permission id from a different role/portal
+  // entirely would get silently dropped rather than saved.
+  const role = await db.prepare("SELECT * FROM roles WHERE key = 'student'").get();
+  assert.ok(role, 'expected a student role to exist');
+  const perm = await db.prepare("SELECT id FROM permissions WHERE key = 'view_student_games'").get();
+  assert.ok(perm, 'expected the seeded view_student_games permission to exist');
 
   const res = await request(app)
     .post(`/main-admin/roles/${role.id}/permissions`)
@@ -94,4 +101,56 @@ test('saving a role\'s permissions through the dialog\'s own form still persists
 
   const grant = await db.prepare('SELECT 1 FROM role_permissions WHERE role_id = ? AND permission_id = ?').get(role.id, perm.id);
   assert.ok(grant, 'the permission should have been saved');
+});
+
+// A real request: "Family school management is its own portal" - it has
+// no DB role of its own (both this card and the real Parent card save
+// against the exact same 'parent' role), so this locks in the two things
+// that request actually needs: its own standing card/dialog, and that
+// saving either dialog never wipes out the other's grants on that shared
+// role.
+test('Family School Management gets its own card/dialog, and saving it never wipes out Parent\'s own grants on the same role', async () => {
+  const cookie = await loginAsMainAdmin();
+  const page = await request(app).get('/main-admin/roles').set('Cookie', cookie);
+  const csrfToken = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];
+
+  const parentRole = await db.prepare("SELECT * FROM roles WHERE key = 'parent'").get();
+  assert.ok(parentRole, 'expected a parent role to exist');
+
+  assert.match(
+    page.text,
+    /<section class="portal-dashboard-card main-admin-portal-permissions-card">\s*<h2>Family School Management<\/h2>\s*<p class="hint">portal key: family_school<\/p>/
+  );
+  const dialogMatch = /<dialog id="role-permissions-dialog-family-school"[^]*?<\/dialog>/.exec(page.text);
+  assert.ok(dialogMatch, 'expected Family School Management to have its own dialog');
+  const dialogHtml = dialogMatch[0];
+  assert.match(dialogHtml, new RegExp(`action="/main-admin/roles/${parentRole.id}/permissions"`));
+  assert.match(dialogHtml, /<input type="hidden" name="scope" value="family_school" \/>/);
+  assert.match(dialogHtml, /<h3>View Family School Management's Pages<\/h3>/);
+
+  const parentPagePerm = await db.prepare("SELECT id FROM permissions WHERE key = 'view_parent_chat'").get();
+  const fsmPerm = await db.prepare("SELECT id FROM permissions WHERE key = 'view_fsm_portfolio'").get();
+  assert.ok(parentPagePerm && fsmPerm, 'expected the seeded Parent and Family School permissions to exist');
+
+  // Start with both granted, as a fresh seed already does - confirm the
+  // starting state this test's own assertions below depend on.
+  await db.prepare('INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING').run(parentRole.id, parentPagePerm.id);
+  await db.prepare('INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT DO NOTHING').run(parentRole.id, fsmPerm.id);
+
+  // Save the Family School dialog's own form with an EMPTY checkbox
+  // selection (every FSM box unchecked) - a full, unscoped replace would
+  // delete every row this role holds, including the unrelated Parent
+  // Portal permission just granted above; the scoped replace should only
+  // ever touch Family School's own keys.
+  const res = await request(app)
+    .post(`/main-admin/roles/${parentRole.id}/permissions`)
+    .set('Cookie', cookie)
+    .type('form')
+    .send({ scope: 'family_school', _csrf: csrfToken });
+  assert.equal(res.status, 302);
+
+  const fsmGrant = await db.prepare('SELECT 1 FROM role_permissions WHERE role_id = ? AND permission_id = ?').get(parentRole.id, fsmPerm.id);
+  assert.equal(fsmGrant, undefined, 'unchecking Family School\'s own box should have removed its own grant');
+  const parentGrantStillThere = await db.prepare('SELECT 1 FROM role_permissions WHERE role_id = ? AND permission_id = ?').get(parentRole.id, parentPagePerm.id);
+  assert.ok(parentGrantStillThere, 'the unrelated Parent Portal permission should have survived saving the Family School dialog');
 });

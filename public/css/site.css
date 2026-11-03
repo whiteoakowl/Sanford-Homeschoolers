@@ -1,0 +1,935 @@
+/* Public website built in the Wix-style site editor (views/public-home.ejs).
+   Device-independent rules only - every per-section/per-element position,
+   size and look is generated from the site document into an inline
+   <style> by public/js/site-render.js (pageCss/designCss), shared with the
+   editor canvas, which also loads this file. Everything is scoped under
+   #wx-site / .wx-* so the editor chrome around the canvas is untouched. */
+
+.wx-public {
+  margin: 0;
+}
+
+.wx-smooth {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wx-smooth {
+    scroll-behavior: auto;
+  }
+}
+
+#wx-site {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#wx-site *,
+#wx-site *::before,
+#wx-site *::after {
+  box-sizing: border-box;
+}
+
+#wx-site a {
+  color: inherit;
+}
+
+.wx-skip {
+  position: absolute;
+  left: 8px;
+  top: -60px;
+  z-index: 1000;
+  padding: 8px 14px;
+  background: #fff;
+  color: #000;
+  border-radius: 4px;
+}
+
+.wx-skip:focus {
+  top: 8px;
+}
+
+.wx-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.wx-preview-banner {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  padding: 6px 12px;
+  background: #222;
+  color: #fff;
+  font: 600 13px/1.4 system-ui, sans-serif;
+  text-align: center;
+}
+
+/* ---------- sections & elements ---------- */
+.wx-section {
+  position: relative;
+}
+
+.wx-sec-inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 100%;
+  align-items: start;
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.wx-sec-inner > .wx-el {
+  grid-area: 1 / 1;
+  position: relative;
+}
+
+.wx-anchor {
+  position: absolute;
+  top: 0;
+  scroll-margin-top: 96px;
+}
+
+.wx-sec-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+.wx-sec-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.wx-box {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+}
+
+.wx-el-image > .wx-box,
+.wx-el-video > .wx-box,
+.wx-el-map > .wx-box,
+.wx-el-embed > .wx-box,
+.wx-el-gallery > .wx-box,
+.wx-el-slideshow > .wx-box,
+.wx-el-shape > .wx-box {
+  overflow: hidden;
+}
+
+.wx-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.wx-text a {
+  text-decoration: underline;
+}
+
+.wx-figure {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.wx-figure > a {
+  display: block;
+  flex: 1;
+  min-height: 0;
+}
+
+.wx-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.wx-figure figcaption {
+  padding: 6px 0 0;
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+.wx-el-button > .wx-box {
+  display: flex;
+}
+
+.wx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 0 18px;
+  color: inherit;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#wx-site .wx-btn {
+  text-decoration: none;
+}
+
+.wx-btn svg {
+  width: 1.1em;
+  height: 1.1em;
+  flex: none;
+}
+
+.wx-widget .wx-btn,
+.wx-form-card .wx-btn,
+.wx-cookie .wx-btn,
+.wx-el-login .wx-btn {
+  width: auto;
+  height: auto;
+  min-height: 40px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--hp-primary, #c97);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+}
+
+.wx-el-login .wx-btn {
+  width: 100%;
+  height: 100%;
+}
+
+.wx-btn-outline {
+  border: 1px solid currentColor;
+}
+
+.wx-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wx-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wx-video,
+.wx-map,
+.wx-embed {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #000;
+}
+
+.wx-map,
+.wx-embed {
+  background: transparent;
+}
+
+.wx-video-thumb,
+.wx-map-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  background: #1d1f24;
+  color: #fff;
+  font: 600 14px system-ui, sans-serif;
+  text-align: center;
+  padding: 8px;
+}
+
+.wx-map-thumb {
+  background: #e7efe2;
+  color: #2a4a1f;
+}
+
+.wx-video-thumb svg,
+.wx-map-thumb svg {
+  width: 40px;
+  height: 40px;
+}
+
+.wx-gallery {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wx-gallery li {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+}
+
+.wx-gallery img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wx-gallery-cap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 13px;
+}
+
+.wx-slideshow {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.wx-slides,
+.wx-slide {
+  position: absolute;
+  inset: 0;
+}
+
+.wx-slide-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wx-slide[hidden] {
+  display: none;
+}
+
+.wx-slide-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 24px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  color: #fff;
+}
+
+.wx-slide-prev,
+.wx-slide-next {
+  position: absolute;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  margin-top: -20px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  color: #111;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wx-slide-prev {
+  left: 10px;
+}
+
+.wx-slide-next {
+  right: 10px;
+}
+
+.wx-accordion details {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.wx-accordion summary {
+  padding: 14px 4px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wx-acc-body {
+  padding: 0 4px 14px;
+}
+
+.wx-tablist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.wx-tablist [role="tab"] {
+  padding: 10px 16px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wx-tablist [aria-selected="true"] {
+  border-bottom-color: var(--hp-primary);
+}
+
+.wx-tabpanel {
+  padding: 16px 4px;
+}
+
+.wx-social {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wx-social a {
+  display: block;
+  width: 32px;
+  height: 32px;
+}
+
+.wx-social svg {
+  width: 100%;
+  height: 100%;
+}
+
+.wx-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.wx-card {
+  padding: 16px 18px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  background: var(--hp-cards);
+  color: var(--hp-text);
+}
+
+.wx-card h3 {
+  margin: 4px 0;
+  font-family: var(--hp-font-heading);
+  font-size: 18px;
+}
+
+.wx-card p {
+  margin: 0;
+}
+
+.wx-card-kicker {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wx-form-card {
+  padding: 20px 24px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  background: var(--hp-cards);
+  color: var(--hp-text);
+}
+
+.wx-form-card h3 {
+  margin: 0 0 6px;
+  font-family: var(--hp-font-heading);
+}
+
+.wx-form-card p {
+  margin: 0 0 14px;
+}
+
+.wx-form-note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+/* ---------- header (a freeform strip, see site-render.js) ---------- */
+.wx-announcement {
+  padding: 8px 16px;
+  background: var(--hp-dark);
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+}
+
+.wx-header {
+  position: relative;
+  z-index: 50;
+  display: block;
+  background-color: var(--wx-header-bg, var(--hp-background));
+  background-size: cover;
+  background-position: center;
+  color: var(--wx-header-text, inherit);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.wx-header.is-sticky {
+  position: sticky;
+  top: 0;
+}
+
+.wx-header.is-transparent {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background-color: transparent;
+  border-bottom-color: transparent;
+}
+
+.wx-header.is-transparent.is-sticky {
+  position: fixed;
+  top: 0;
+}
+
+.wx-header.is-transparent.is-scrolled {
+  background-color: var(--wx-header-bg, var(--hp-background));
+}
+
+.wx-logo-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wx-el-sitename > .wx-box {
+  display: flex;
+  align-items: center;
+  font-family: var(--hp-font-heading);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+#wx-site .wx-sitename {
+  color: inherit;
+  text-decoration: none;
+}
+
+.wx-nav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.wx-nav.is-center {
+  justify-content: center;
+}
+
+.wx-nav.is-right {
+  justify-content: flex-end;
+}
+
+.wx-menu-wrap {
+  width: 100%;
+}
+
+.wx-menu,
+.wx-submenu {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wx-menu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--wx-nav-gap, 24px);
+}
+
+.wx-nav.is-center .wx-menu {
+  justify-content: center;
+}
+
+.wx-nav.is-right .wx-menu {
+  justify-content: flex-end;
+}
+
+.wx-menu li {
+  position: relative;
+}
+
+.wx-menu a,
+.wx-menu-folder {
+  display: block;
+  padding: 8px 2px;
+  color: var(--wx-nav-color, inherit);
+  font-family: var(--wx-nav-font, inherit);
+  font-size: var(--wx-nav-size, 16px);
+  font-weight: var(--wx-nav-weight, 600);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#wx-site .wx-menu a {
+  color: var(--wx-nav-color, inherit);
+  text-decoration: none;
+}
+
+#wx-site .wx-menu a:hover,
+#wx-site .wx-menu a:focus-visible,
+.wx-menu-folder:hover {
+  color: var(--wx-nav-hover, var(--hp-primary));
+}
+
+#wx-site .wx-menu a[aria-current="page"] {
+  color: var(--wx-nav-active, var(--hp-primary));
+  box-shadow: inset 0 -2px 0 currentColor;
+}
+
+.wx-menu .has-sub > a::after,
+.wx-menu .has-sub > .wx-menu-folder::after {
+  content: " \25BE";
+  font-size: 0.8em;
+}
+
+.wx-submenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 60;
+  display: none;
+  min-width: 200px;
+  padding: 6px 0;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: var(--hp-background, #fff);
+  color: var(--hp-text);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+.wx-submenu a,
+.wx-submenu .wx-menu-folder {
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+
+.wx-submenu .wx-submenu {
+  top: 0;
+  left: 100%;
+}
+
+.wx-menu li:hover > .wx-submenu,
+.wx-menu li:focus-within > .wx-submenu,
+.wx-menu li.sub-open > .wx-submenu {
+  display: block;
+}
+
+.wx-burger {
+  display: none;
+  width: 44px;
+  height: 44px;
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.wx-burger-bars,
+.wx-burger-bars::before,
+.wx-burger-bars::after {
+  display: block;
+  width: 22px;
+  height: 2px;
+  margin: 0 auto;
+  background: currentColor;
+  content: "";
+}
+
+.wx-burger-bars::before {
+  transform: translateY(-7px);
+}
+
+.wx-burger-bars::after {
+  transform: translateY(5px);
+}
+
+/* Collapsed (hamburger) menus: the open list drops down as a panel. */
+.wx-nav.is-collapsed .wx-burger {
+  display: block;
+}
+
+.wx-nav.is-collapsed .wx-menu-wrap {
+  display: none;
+}
+
+.wx-nav.is-collapsed.menu-open .wx-menu-wrap {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 70;
+  display: block;
+  width: auto;
+  min-width: 240px;
+  padding: 8px 16px 16px;
+  border-radius: 0 0 10px 10px;
+  background: var(--wx-header-bg, var(--hp-background));
+  color: var(--hp-text);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.14);
+}
+
+.wx-nav.is-collapsed.menu-open .wx-menu {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.wx-nav.is-collapsed.menu-open .wx-submenu {
+  position: static;
+  display: block;
+  border: 0;
+  box-shadow: none;
+  padding-left: 16px;
+}
+
+/* ---------- footer ---------- */
+.wx-footer {
+  padding: 32px 24px;
+  background: var(--hp-dark);
+  color: #fff;
+  text-align: center;
+  font-size: 14px;
+}
+
+.wx-footer p {
+  margin: 6px 0;
+}
+
+.wx-footer-image {
+  max-width: 220px;
+  max-height: 120px;
+  margin-bottom: 8px;
+}
+
+/* ---------- animations (prefers-reduced-motion respected below) ---------- */
+.wx-anim > .wx-box,
+[class*="wx-hover-"] > .wx-box {
+  transition-property: opacity, transform, filter, box-shadow;
+  transition-duration: 300ms;
+  transition-timing-function: ease-out;
+}
+
+.wx-js .wx-anim > .wx-box {
+  opacity: 0;
+}
+
+.wx-js .wx-anim-slide-up > .wx-box {
+  transform: translateY(40px);
+}
+
+.wx-js .wx-anim-slide-down > .wx-box {
+  transform: translateY(-40px);
+}
+
+.wx-js .wx-anim-slide-left > .wx-box {
+  transform: translateX(60px);
+}
+
+.wx-js .wx-anim-slide-right > .wx-box {
+  transform: translateX(-60px);
+}
+
+.wx-js .wx-anim-zoom > .wx-box {
+  transform: scale(0.8);
+}
+
+.wx-js .wx-anim-flip > .wx-box {
+  transform: perspective(600px) rotateX(70deg);
+}
+
+.wx-js .wx-anim.wx-in > .wx-box {
+  opacity: 1;
+  transform: none;
+}
+
+.wx-hover-lift:hover > .wx-box {
+  transform: translateY(-6px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
+}
+
+.wx-hover-grow:hover > .wx-box {
+  transform: scale(1.05);
+}
+
+.wx-hover-dim:hover > .wx-box {
+  opacity: 0.75;
+}
+
+.wx-hover-glow:hover > .wx-box {
+  box-shadow: 0 0 0 4px var(--hp-accent), 0 0 24px var(--hp-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wx-js .wx-anim > .wx-box,
+  .wx-js .wx-anim.wx-in > .wx-box {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  [class*="wx-hover-"]:hover > .wx-box {
+    transform: none;
+  }
+}
+
+/* ---------- cookie notice ---------- */
+.wx-cookie {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 300;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 14px 18px;
+  border-radius: 10px;
+  background: #1d1f24;
+  color: #fff;
+  font: 14px/1.5 system-ui, sans-serif;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.wx-cookie p {
+  margin: 0;
+}
+
+.wx-cookie a {
+  color: #fff;
+}
+
+.wx-cookie[hidden] {
+  display: none;
+}
+
+/* ---------- editor-only placeholder ---------- */
+.wx-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 40px;
+  padding: 8px;
+  border: 1px dashed #9aa4b2;
+  background: repeating-linear-gradient(45deg, #f4f6f9, #f4f6f9 10px, #eef1f5 10px, #eef1f5 20px);
+  color: #5b6675;
+  font: 600 13px/1.4 system-ui, sans-serif;
+  text-align: center;
+}
+
+/* ---------- tablet / mobile ---------- */
+@media (max-width: 1024px) {
+  .wx-sec-inner {
+    max-width: none;
+  }
+
+  .wx-nav.burger-tablet .wx-burger {
+    display: block;
+  }
+
+  .wx-nav.burger-tablet .wx-menu-wrap {
+    display: none;
+  }
+
+  .wx-nav.burger-tablet.menu-open .wx-menu-wrap {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 70;
+    display: block;
+    width: auto;
+    min-width: 240px;
+    padding: 8px 16px 16px;
+    background: var(--wx-header-bg, var(--hp-background));
+    color: var(--hp-text);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.14);
+  }
+
+  .wx-nav.burger-tablet.menu-open .wx-menu {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .wx-nav.burger-mobile .wx-burger {
+    display: block;
+  }
+
+  .wx-nav.burger-mobile .wx-menu-wrap {
+    display: none;
+  }
+
+  .wx-nav.burger-mobile.menu-open .wx-menu-wrap {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 70;
+    display: block;
+    width: auto;
+    min-width: 240px;
+    padding: 8px 16px 16px;
+    background: var(--wx-header-bg, var(--hp-background));
+    color: var(--hp-text);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.14);
+  }
+
+  .wx-nav.burger-mobile.menu-open .wx-menu {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .wx-nav.menu-open .wx-submenu {
+    position: static;
+    display: block;
+    border: 0;
+    box-shadow: none;
+    padding-left: 16px;
+  }
+}

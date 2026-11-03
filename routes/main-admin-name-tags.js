@@ -39,6 +39,9 @@
 // destination, not four.
 const express = require('express');
 const router = express.Router();
+const { chunkQrPages, qrPickerFilterOptions } = require('../utils/qrSheetPages');
+const { classQrKey, playgroundQrKey } = require('../utils/classQrKey');
+const { withClassFacets } = require('../utils/printPickerFilters');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -178,7 +181,9 @@ router.get('/', async (req, res) => {
   }
   const initialType = DESIGN_TYPES.includes(req.query.type) ? req.query.type : 'student';
 
-  const members = (await membersWithDetails()).filter((m) => m.active);
+  // filterSemesters/filterDays back every member picker's Semester/Day
+  // filter (utils/printPickerFilters.js).
+  const members = await withClassFacets((await membersWithDetails()).filter((m) => m.active));
 
   const classesForQr = await allClassesList();
   const qrRoomOptions = [...new Set(classesForQr.map((c) => c.room).filter(Boolean))].sort((a, b) =>
@@ -212,6 +217,7 @@ router.get('/', async (req, res) => {
     // built from this same list.
     families: await allFamilies(),
     classesForQr,
+    qrFilterOptions: qrPickerFilterOptions(classesForQr, await listSemesters()),
     qrRoomOptions,
     libraryItems: await allLibraryItems(),
     libraryTypes: await allLibraryTypes(),
@@ -904,6 +910,7 @@ router.post('/print-classcheckin-qr', async (req, res) => {
   const allClasses = await allClassesList();
   const idSet = new Set(classIds);
   const classes = allClasses.filter((c) => idSet.has(c.id));
+  for (const c of classes) c.qrKey = await classQrKey(c.id);
 
   const origin = `${req.protocol}://${req.get('host')}`;
   const groups = new Map();
@@ -925,13 +932,13 @@ router.post('/print-classcheckin-qr', async (req, res) => {
           className: c.class_name,
           dayLabel: c.dayLabel,
           timeLabel: c.timeLabel,
-          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance`,
+          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance?k=${c.qrKey}`,
         })),
     }));
 
   res.render('main-admin-classcheckin-qr-print', {
     title: 'Print Class Check-In QR Codes',
-    pages,
+    pages: chunkQrPages(pages),
   });
 });
 
@@ -952,6 +959,7 @@ router.get('/print-classcheckin-qr/download.pdf', async (req, res) => {
   const allClasses = await allClassesList();
   const idSet = new Set(classIds);
   const classes = allClasses.filter((c) => idSet.has(c.id));
+  for (const c of classes) c.qrKey = await classQrKey(c.id);
 
   const origin = `${req.protocol}://${req.get('host')}`;
   const groups = new Map();
@@ -973,13 +981,13 @@ router.get('/print-classcheckin-qr/download.pdf', async (req, res) => {
           className: c.class_name,
           dayLabel: c.dayLabel,
           timeLabel: c.timeLabel,
-          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance`,
+          checkInUrl: `${origin}/kiosk/class-checkin/classes/${c.id}/attendance?k=${c.qrKey}`,
         })),
     }));
 
   const pdf = await renderViewToPdf(req, 'main-admin-classcheckin-qr-print', {
     title: 'Print Class Check-In QR Codes',
-    pages,
+    pages: chunkQrPages(pages),
     isFullAdmin: false,
   });
   sendPdf(res, 'class-checkin-qr-codes.pdf', pdf);
@@ -993,7 +1001,7 @@ router.get('/print-playground-qr', async (req, res) => {
     for (const hour of HOUR_POSITIONS) {
       hours.push({
         hourLabel: await playgroundHourLabel(day, hour),
-        checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance`,
+        checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance?k=${await playgroundQrKey(day, hour)}`,
       });
     }
     pages.push({ dayLabel: CLASS_DAY_LABELS_FULL[day], hours });
@@ -1018,7 +1026,7 @@ router.get('/print-playground-qr/download.pdf', async (req, res) => {
     for (const hour of HOUR_POSITIONS) {
       hours.push({
         hourLabel: await playgroundHourLabel(day, hour),
-        checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance`,
+        checkInUrl: `${origin}/kiosk/class-checkin/playground/${day}/${hour}/attendance?k=${await playgroundQrKey(day, hour)}`,
       });
     }
     pages.push({ dayLabel: CLASS_DAY_LABELS_FULL[day], hours });

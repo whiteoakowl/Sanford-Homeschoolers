@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%
+  // Shared by Co-op Teacher Portal (shell: portal title) and Co-op Admin
+  // (shell: 'admin', filling one in on someone's behalf) - same fields,
+  // only the nav shell and the form's own action differ.
+  const isAdminShell = shell === 'admin';
+  const v = values || {};
+  const itemRows = (v.items && v.items.length) ? v.items : [{ description: '', date: '', amount: '' }];
+%>
+<body class="<%= isAdminShell ? 'admin-page' : '' %>">
+  <% if (isAdminShell) { %>
+    <%- include('partials/admin-nav') %>
+  <% } else { %>
+    <%- include('partials/portal-nav', { portalTitle: shell }) %>
+  <% } %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <% if (backHref) { %><p class="subtitle no-print"><a href="<%= backHref %>">&larr; <%= backLabel %></a></p><% } %>
+    <h1><%= settings.title %></h1>
+    <% if (settings.intro) { %><p class="reimbursement-intro"><%= settings.intro %></p><% } %>
+
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <% if (errors && errors.length) { %>
+      <div class="alert alert-error" role="alert">
+        <% errors.forEach(function(e) { %><div><%= e %></div><% }); %>
+      </div>
+    <% } %>
+
+    <% if (catalog.length === 0) { %>
+      <p class="roster-empty">No semesters have been set up yet, so reimbursement forms can't be submitted. Contact an admin.</p>
+    <% } else { %>
+    <% if (typeof rejection !== 'undefined' && rejection) { %>
+      <div class="alert alert-error reimbursement-rejection" role="alert">
+        <strong>Sent back for changes:</strong> <%= rejection.message %>
+      </div>
+    <% } %>
+    <form method="POST" action="<%= formAction %>" enctype="multipart/form-data" class="manage-section reimbursement-form" data-reimbursement-form>
+      <div class="member-form-grid">
+        <label>Name
+          <select name="memberId" required data-reimb-member>
+            <option value="">Choose your name&hellip;</option>
+            <% people.forEach(function(p) { %>
+              <option value="<%= p.id %>" <%= String(v.memberId) === String(p.id) ? 'selected' : '' %>><%= p.name %></option>
+            <% }); %>
+          </select>
+        </label>
+        <label>Semester
+          <select name="semesterId" required data-reimb-semester>
+            <option value="">Choose a semester&hellip;</option>
+            <% catalog.forEach(function(s) { %>
+              <option value="<%= s.id %>" <%= String(v.semesterId) === String(s.id) ? 'selected' : '' %>><%= s.title %></option>
+            <% }); %>
+          </select>
+        </label>
+        <label>Day of Co-op
+          <select name="day" required data-reimb-day data-selected="<%= v.day || '' %>">
+            <option value="">Choose a semester first&hellip;</option>
+          </select>
+        </label>
+        <label>Class
+          <select name="classId" required data-reimb-class data-selected="<%= v.classId || '' %>">
+            <option value="">Choose a day first&hellip;</option>
+          </select>
+        </label>
+      </div>
+
+      <h2 class="reimbursement-items-heading">Items Purchased</h2>
+      <div class="reimbursement-items" data-reimb-items>
+        <div class="reimbursement-item-row reimbursement-item-head" aria-hidden="true">
+          <span>Item</span><span>Date</span><span>Amount</span><span></span>
+        </div>
+        <% itemRows.forEach(function(it) { %>
+          <div class="reimbursement-item-row" data-reimb-item>
+            <input type="text" name="itemDescription" value="<%= it.description %>" placeholder="What did you buy?" aria-label="Item purchased" maxlength="500" />
+            <input type="date" name="itemDate" value="<%= it.date %>" aria-label="Purchase date" />
+            <input type="text" name="itemAmount" value="<%= it.amount %>" placeholder="0.00" inputmode="decimal" aria-label="Amount" data-reimb-amount />
+            <button type="button" class="icon-btn icon-btn-danger" data-reimb-remove aria-label="Remove item" title="Remove item"><svg class="icon"><use href="#icon-trash"/></svg></button>
+          </div>
+        <% }); %>
+      </div>
+      <button type="button" class="btn-secondary reimbursement-add-item" data-reimb-add>+ Add an Item</button>
+
+      <p class="reimbursement-total">Total: <strong data-reimb-total>$0.00</strong></p>
+
+      <h2 class="reimbursement-items-heading">Receipts</h2>
+      <p class="hint">Photos (JPEG, PNG, WebP, HEIC) or PDFs, up to <%= maxReceiptMb %>MB each.</p>
+      <% if (typeof existingReceipts !== 'undefined' && existingReceipts.length) { %>
+        <ul class="reimbursement-receipt-list">
+          <% existingReceipts.forEach(function(rc) { %>
+            <li>
+              <a href="<%= rc.url %>" target="_blank" rel="noopener"><%= rc.original_name || 'Receipt' %></a>
+              <label class="checkbox-option"><input type="checkbox" name="removeReceiptIds" value="<%= rc.id %>" /> Remove</label>
+            </li>
+          <% }); %>
+        </ul>
+      <% } %>
+      <div class="reimbursement-receipts" data-reimb-receipts>
+        <div class="reimbursement-receipt-row" data-reimb-receipt>
+          <input type="file" name="receipts" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif,application/pdf,.pdf" aria-label="Receipt file" />
+          <button type="button" class="icon-btn icon-btn-danger" data-reimb-receipt-remove aria-label="Remove receipt" title="Remove receipt"><svg class="icon"><use href="#icon-trash"/></svg></button>
+        </div>
+      </div>
+      <button type="button" class="btn-secondary reimbursement-add-item" data-reimb-add-receipt>+ Add More Receipts</button>
+
+      <% if (settings.footer) { %><p class="hint reimbursement-footer"><%= settings.footer %></p><% } %>
+
+      <button type="submit" class="primary-btn"><%= typeof submitLabel !== 'undefined' && submitLabel ? submitLabel : 'Submit for Reimbursement' %></button>
+    </form>
+    <script type="application/json" id="reimbursement-catalog"><%- JSON.stringify(catalog).replace(/</g, '\\u003c') %></script>
+    <script src="/js/reimbursement-form.js"></script>
+    <% } %>
+  </main>
+</body>
+</html>

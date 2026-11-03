@@ -29,6 +29,7 @@ const { verifyClassCheckinPin } = require('../utils/classCheckinPin');
 const { findMemberByBarcodeOrName } = require('../utils/memberLookup');
 const { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate } = require('../utils/playground');
 const pinLimiter = require('../utils/classCheckinPinRateLimit');
+const { isValidClassQrKey, isValidPlaygroundQrKey } = require('../utils/classQrKey');
 const { createRateLimiter } = require('../utils/rateLimit');
 
 // Separate from the main portal's own checkinLimiter (routes/kiosk.js) -
@@ -59,6 +60,38 @@ function isSafeNextPath(next) {
 function requireUnlocked(req, res, next) {
   if (req.session && req.session.classCheckinUnlocked) return next();
   res.redirect('/kiosk/class-checkin?next=' + encodeURIComponent(req.originalUrl));
+}
+
+// One class's own attendance/scan pages - a real request: "Scanning the
+// class qr code goes directly to the class attendance page" (no PIN). The
+// printed QR code's ?k= key (utils/classQrKey.js) unlocks just that class
+// for this browser session; without it, the shared PIN still applies.
+async function requireClassAccess(req, res, next) {
+  if (req.session && req.session.classCheckinUnlocked) return next();
+  const classId = parseInt(req.params.id, 10);
+  const allowed = (req.session && req.session.classQrClassIds) || [];
+  if (allowed.includes(classId)) return next();
+  if (req.query.k && (await isValidClassQrKey(classId, String(req.query.k)))) {
+    req.session.classQrClassIds = [...allowed, classId];
+    if (req.method === 'GET') return res.redirect(req.originalUrl.replace(/([?&])k=[^&]*&?/, '$1').replace(/[?&]$/, ''));
+    return next();
+  }
+  return requireUnlocked(req, res, next);
+}
+
+// Same as requireClassAccess, for one playground (day, hour) - its printed
+// QR code's ?k= key unlocks just that day/hour for this session.
+async function requirePlaygroundAccess(req, res, next) {
+  if (req.session && req.session.classCheckinUnlocked) return next();
+  const slot = `${req.params.day}:${req.params.hour}`;
+  const allowed = (req.session && req.session.playgroundQrSlots) || [];
+  if (allowed.includes(slot)) return next();
+  if (req.query.k && (await isValidPlaygroundQrKey(req.params.day, req.params.hour, String(req.query.k)))) {
+    req.session.playgroundQrSlots = [...allowed, slot];
+    if (req.method === 'GET') return res.redirect(req.originalUrl.replace(/([?&])k=[^&]*&?/, '$1').replace(/[?&]$/, ''));
+    return next();
+  }
+  return requireUnlocked(req, res, next);
 }
 
 // Loads a class with the same computed display fields (timeLabel,
@@ -142,7 +175,7 @@ router.get('/classes/:day', requireUnlocked, async (req, res) => {
 // borrowing every date off the day's Student roster instead of just
 // today, same as here now, so a class's full attendance history shows up
 // identically on both surfaces.
-router.get('/classes/:id/attendance', requireUnlocked, async (req, res) => {
+router.get('/classes/:id/attendance', requireClassAccess, async (req, res) => {
   const cls = await findClassWithLabels(parseInt(req.params.id, 10));
   if (!cls) return res.status(404).render('404', { title: 'Not Found' });
   const roster = await db.prepare('SELECT * FROM rosters WHERE id = ?').get(cls.roster_id);
@@ -172,7 +205,7 @@ router.get('/classes/:id/attendance', requireUnlocked, async (req, res) => {
 // surface, not a logged-in admin session - this screen is reachable by
 // whichever staff member is running the class that hour, same trust
 // level Check In/Check Out scanning already has here.
-router.post('/classes/:id/attendance', requireUnlocked, async (req, res) => {
+router.post('/classes/:id/attendance', requireClassAccess, async (req, res) => {
   const cls = await findClassWithLabels(parseInt(req.params.id, 10));
   if (!cls) return res.status(404).send('Not found');
   const roster = await db.prepare('SELECT * FROM rosters WHERE id = ?').get(cls.roster_id);
@@ -203,7 +236,7 @@ router.post('/classes/:id/attendance', requireUnlocked, async (req, res) => {
   res.redirect(`/kiosk/class-checkin/classes/${cls.id}/attendance`);
 });
 
-router.get('/classes/:id/scan', requireUnlocked, async (req, res) => {
+router.get('/classes/:id/scan', requireClassAccess, async (req, res) => {
   const cls = await findClassWithLabels(parseInt(req.params.id, 10));
   if (!cls) return res.status(404).render('404', { title: 'Not Found' });
   const mode = SCAN_MODES.includes(req.query.mode) ? req.query.mode : 'checkin';
@@ -274,7 +307,7 @@ async function resolveScan(req, res) {
   return { cls, member, today };
 }
 
-router.post('/classes/:id/scan/checkin', requireUnlocked, async (req, res) => {
+router.post('/classes/:id/scan/checkin', requireClassAccess, async (req, res) => {
   if (classScanLimiter.isLimited(req.ip)) {
     return res.json({ ok: false, message: 'Too many check-ins from this device right now. Please wait a moment and try again.' });
   }
@@ -319,7 +352,7 @@ router.post('/classes/:id/scan/checkin', requireUnlocked, async (req, res) => {
 // Doesn't require a prior check-in: staff may need to check a member out
 // even if their check-in was missed or done elsewhere, the same
 // leniency the main portal's own checkout already has.
-router.post('/classes/:id/scan/checkout', requireUnlocked, async (req, res) => {
+router.post('/classes/:id/scan/checkout', requireClassAccess, async (req, res) => {
   if (classScanLimiter.isLimited(req.ip)) {
     return res.json({ ok: false, message: 'Too many check-outs from this device right now. Please wait a moment and try again.' });
   }
@@ -395,7 +428,7 @@ router.get('/playground/:day', requireUnlocked, async (req, res) => {
 // scope reasoning as a class's own attendance screen above (see that
 // route's own comment): reachable by anyone with the shared PIN, so it
 // only ever shows "who's here right now", not a term's history.
-router.get('/playground/:day/:hour/attendance', requireUnlocked, requirePlaygroundHour, async (req, res) => {
+router.get('/playground/:day/:hour/attendance', requirePlaygroundAccess, requirePlaygroundHour, async (req, res) => {
   const day = req.playgroundDay;
   const hour = req.playgroundHour;
   const rosterId = await ensurePlaygroundRoster(day, hour);
@@ -412,7 +445,7 @@ router.get('/playground/:day/:hour/attendance', requireUnlocked, requirePlaygrou
   });
 });
 
-router.get('/playground/:day/:hour/scan', requireUnlocked, requirePlaygroundHour, async (req, res) => {
+router.get('/playground/:day/:hour/scan', requirePlaygroundAccess, requirePlaygroundHour, async (req, res) => {
   const day = req.playgroundDay;
   const hour = req.playgroundHour;
   const mode = SCAN_MODES.includes(req.query.mode) ? req.query.mode : 'checkin';
@@ -456,7 +489,7 @@ async function resolvePlaygroundScan(day, hour, req, res) {
   return { rosterId, member, today };
 }
 
-router.post('/playground/:day/:hour/scan/checkin', requireUnlocked, requirePlaygroundHour, async (req, res) => {
+router.post('/playground/:day/:hour/scan/checkin', requirePlaygroundAccess, requirePlaygroundHour, async (req, res) => {
   if (classScanLimiter.isLimited(req.ip)) {
     return res.json({ ok: false, message: 'Too many check-ins from this device right now. Please wait a moment and try again.' });
   }
@@ -490,7 +523,7 @@ router.post('/playground/:day/:hour/scan/checkin', requireUnlocked, requirePlayg
   res.json({ ok: true, name: member.name, message: `Welcome, ${member.name}!` });
 });
 
-router.post('/playground/:day/:hour/scan/checkout', requireUnlocked, requirePlaygroundHour, async (req, res) => {
+router.post('/playground/:day/:hour/scan/checkout', requirePlaygroundAccess, requirePlaygroundHour, async (req, res) => {
   if (classScanLimiter.isLimited(req.ip)) {
     return res.json({ ok: false, message: 'Too many check-outs from this device right now. Please wait a moment and try again.' });
   }

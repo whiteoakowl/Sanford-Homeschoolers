@@ -88,7 +88,7 @@ test('a document uploaded from Main Admin shows up on the Co-op Admin Documents 
     .field('title', 'Shared Library Doc')
     .attach('file', Buffer.from('%PDF-1.4 fake pdf content'), { filename: 'shared.pdf', contentType: 'application/pdf' });
 
-  const coopLoginRes = await request(app).post('/admin/login').type('form').send({ username: process.env.ADMIN_USERNAME, password: process.env.ADMIN_PASSWORD });
+  const coopLoginRes = await request(app).post('/login').type('form').send({ email: process.env.MAIN_ADMIN_EMAIL || 'mainadmin@coop.local', password: process.env.MAIN_ADMIN_PASSWORD || 'changeme123' });
   const coopCookie = coopLoginRes.headers['set-cookie'];
   const coopPage = await request(app).get('/admin/documents').set('Cookie', coopCookie);
   assert.match(coopPage.text, /Shared Library Doc/);
@@ -272,7 +272,7 @@ test('Documents page paginates past the default page size, and the manage popup 
 
   const page1 = await request(app).get('/main-admin/documents').set('Cookie', cookie);
   assert.equal(page1.status, 200);
-  const cardCount = (page1.text.match(/class="document-card-wrap"/g) || []).length;
+  const cardCount = (page1.text.match(/class="document-card-wrap[" ]/g) || []).length;
   assert.equal(cardCount, 50, 'page 1 of the card grid should show only the first 50 documents');
   assert.match(page1.text, /class="pagination-bar no-print"/);
   assert.match(page1.text, new RegExp(`Showing 1&ndash;50 of ${expectedTotal}`));

@@ -12,7 +12,7 @@
         (which have no banner of their own), skipped on Profile so the
         two headers don't show side by side. %>
     <% if (tab !== 'profile') { %>
-      <p class="subtitle no-print"><a href="/admin/members">&larr; Members</a></p>
+      <p class="subtitle no-print"><a href="<%= membersBackHref %>">&larr; <%= membersBackLabel %></a></p>
 
       <div class="roster-toolbar">
         <div>
@@ -49,8 +49,8 @@
           famChildren,
           memberSections,
           memberPortalRoles: portalRoles,
-          backHref: '/admin/members',
-          backLabel: 'Back to Members',
+          backHref: membersBackHref,
+          backLabel: 'Back to ' + membersBackLabel,
           editHref: '/admin/members/' + member.id + '/edit',
           familyMemberHref: function(id) { return '/admin/members/' + id; },
         }) %>
@@ -85,84 +85,25 @@
           </div>
         <% } %>
         <% if (scheduleFamilyAll) { %>
-          <%# A real request: "each family member's schedule for all days
-              should be in one card. Family member name as title in
-              card." Each member below is now ONE .form-section card
-              (name as its own <h2> title) holding every one of their
-              days, instead of a separate card PER DAY - a real request
-              also moved+renamed this button: "print all schedules
-              should say print schedules and should be at the top of the
-              page." %>
-          <a class="roster-action-btn print-action-btn no-print" href="/admin/schedule/print?familyId=<%= member.family_id %>" target="_blank">Print Schedules</a>
-          <a class="icon-btn no-print" href="/admin/schedule/download.pdf?familyId=<%= member.family_id %>" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
-          <% familySchedules.forEach(function(fs) { %>
-            <div class="form-section member-profile-family-schedule-card">
-              <h2 class="member-profile-family-schedule-name"><%= fs.member.name %></h2>
-              <div class="schedule-day-columns">
-                <% fs.schedule.activeDays.forEach(function (d) { %>
-                  <% var dayLabel = dayLabels[d], rows = fs.schedule.byDay[d]; %>
-                  <div>
-                    <h3><%= dayLabel %> Schedule</h3>
-                    <div class="roster-scroll schedule-table-scroll">
-                      <table class="roster-table schedule-edit-table">
-                        <thead>
-                          <tr><th>#</th><th>Time</th><th>Class Name</th><th>Room</th></tr>
-                        </thead>
-                        <tbody>
-                          <% var anyRows = rows.some(function (r) { return r.class_name || r.time || r.room || r.teacher; }); %>
-                          <% if (!anyRows) { %>
-                            <tr><td colspan="4" class="roster-empty">No classes on <%= dayLabel %> yet.</td></tr>
-                          <% } %>
-                          <% rows.forEach(function (r, i) { %>
-                            <% if (!r.class_name && !r.time && !r.room && !r.teacher) return; %>
-                            <tr>
-                              <td class="schedule-edit-label"><%= i + 1 %></td>
-                              <td><%= r.time || '—' %></td>
-                              <td><%= r.class_name || '—' %></td>
-                              <td><%= r.room || '—' %></td>
-                            </tr>
-                          <% }); %>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                <% }); %>
-              </div>
-            </div>
-          <% }); %>
+          <%# A real request: "member profile, schedules should also look
+              like this [image]" - each family member's whole schedule is
+              one shared member-schedule-table section (name as its
+              heading), the Export/PDF/Print row at the top of the page
+              covering the whole family (an earlier request: "print all
+              schedules ... should be at the top of the page"). %>
+          <%- include('partials/member-schedule-actions', {
+            exportHref: '/admin/schedule/export.csv?familyId=' + member.family_id,
+            pdfHref: '/admin/schedule/download.pdf?familyId=' + member.family_id,
+            printHref: '/admin/schedule/print?familyId=' + member.family_id,
+          }) %>
+          <%- include('partials/member-schedule-table', { tables: scheduleTables, classHref: function (id) { return '/admin/class-schedule/classes/' + id + '/manage'; }, memberHref: function (m) { return m.id === member.id ? null : '/admin/members/' + m.id + '?tab=schedule'; } }) %>
         <% } else { %>
-          <div class="schedule-day-columns">
-            <% schedule.activeDays.forEach(function (d) { %>
-              <% var dayLabel = dayLabels[d], rows = schedule.byDay[d]; %>
-              <div class="form-section">
-                <h2><%= dayLabel %> Schedule</h2>
-                <div class="roster-scroll schedule-table-scroll">
-                  <table class="roster-table schedule-edit-table">
-                    <thead>
-                      <tr><th>#</th><th>Time</th><th>Class Name</th><th>Room</th></tr>
-                    </thead>
-                    <tbody>
-                      <% var anyRows = rows.some(function (r) { return r.class_name || r.time || r.room || r.teacher; }); %>
-                      <% if (!anyRows) { %>
-                        <tr><td colspan="4" class="roster-empty">No classes on <%= dayLabel %> yet.</td></tr>
-                      <% } %>
-                      <% rows.forEach(function (r, i) { %>
-                        <% if (!r.class_name && !r.time && !r.room && !r.teacher) return; %>
-                        <tr>
-                          <td class="schedule-edit-label"><%= i + 1 %></td>
-                          <td><%= r.time || '—' %></td>
-                          <td><%= r.class_name || '—' %></td>
-                          <td><%= r.room || '—' %></td>
-                        </tr>
-                      <% }); %>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            <% }); %>
-          </div>
-          <a class="roster-action-btn print-action-btn no-print" href="/admin/schedule/print?memberId=<%= member.id %>" target="_blank">Print Schedule</a>
-          <a class="icon-btn no-print" href="/admin/schedule/download.pdf?memberId=<%= member.id %>" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
+          <%- include('partials/member-schedule-actions', {
+            exportHref: '/admin/schedule/export.csv?memberId=' + member.id,
+            pdfHref: '/admin/schedule/download.pdf?memberId=' + member.id,
+            printHref: '/admin/schedule/print?memberId=' + member.id,
+          }) %>
+          <%- include('partials/member-schedule-table', { tables: scheduleTables, classHref: function (id) { return '/admin/class-schedule/classes/' + id + '/manage'; } }) %>
         <% } %>
       <% } else { %>
         <% if (familyRoster.length > 1) { %>

@@ -9,7 +9,7 @@
   }) %>
 
   <main id="main-content" tabindex="-1" class="admin-main">
-    <p class="subtitle"><a href="/main-admin/members">&larr; Members</a></p>
+    <p class="subtitle"><a href="<%= membersBackHref %>">&larr; Members</a></p>
     <h1><%= title %></h1>
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
@@ -45,7 +45,7 @@
 
         <div class="member-form-footer">
           <div class="member-form-footer-edit">
-            <a class="btn-secondary" href="/main-admin/members">Cancel</a>
+            <a class="btn-secondary" href="<%= membersBackHref %>">Cancel</a>
             <button type="submit" class="primary-btn"><svg class="icon"><use href="#icon-save"/></svg> Save Member</button>
           </div>
         </div>
