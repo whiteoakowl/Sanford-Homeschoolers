@@ -29,7 +29,7 @@ const multer = require('multer');
 const db = require('../db');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { formatDateLabel, formatDateNumeric, formatTime, ageFromBirthday, isChildAge, isValidISODate } = require('../utils/dates');
-const { GRADE_LEVELS, CLASS_DAY_LABELS_FULL, listActiveClassDays } = require('../utils/classSchedule');
+const { GRADE_LEVELS, CLASS_DAY_LABELS_FULL } = require('../utils/classSchedule');
 const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE, memberFamilyGroupKey } = require('../utils/pagination');
 const { spreadsheetFileFilter, documentFileFilter, DOCUMENT_MIME_BY_EXT, imageFileFilter } = require('../utils/uploads');
 const { createStorageClient, uploadFile, deleteFile, generateKey } = require('../utils/storage');
@@ -59,7 +59,8 @@ const {
   byLastName,
   avatarColorFor,
 } = require('../utils/members');
-const { getMemberSchedule, scheduleList } = require('../utils/schedule');
+const { scheduleMembers, memberScheduleTables } = require('../utils/schedule');
+const { sendMemberSchedules, sortFamilyForPrint } = require('../utils/memberScheduleOutput');
 const { portalStatusForMembers, sectionIdsForMembers, setMemberSections, setMemberRoles, addMemberSections, addMemberRoles } = require('../utils/portalPermissions');
 const { clearVolunteerMembershipIfNotParent } = require('../utils/volunteers');
 const { hashPassword, findAccountByEmail, ensurePortalAccountForMember } = require('../utils/portalAuth');
@@ -1101,16 +1102,29 @@ router.post('/new', uploadIntakePhotos('/main-admin/members/new'), async (req, r
 // members table itself isn't split per portal) rather than duplicating
 // either, registered ahead of GET /:id below so "schedule-print" is never
 // swallowed as a member id.
+// A later real request: "All member schedule pages, tabs etc. Should
+// have export, pdf and print icons" - schedule-export.csv and
+// schedule-download.pdf join schedule-print here, all three rendering the
+// same shared member schedule table (utils/memberScheduleOutput.js) for
+// ?memberId= or a whole ?familyId=. Already gated by manage_members
+// (router.use above), same as the profile page linking to them.
+async function profileScheduleMembers(req) {
+  const familyId = req.query.familyId ? parseInt(req.query.familyId, 10) || null : null;
+  const memberId = req.query.memberId ? parseInt(req.query.memberId, 10) || null : null;
+  const members = await scheduleMembers({ memberId: memberId || undefined, familyId: familyId || undefined });
+  return familyId ? sortFamilyForPrint(members) : members;
+}
+
 router.get('/schedule-print', async (req, res) => {
-  const familyId = req.query.familyId ? parseInt(req.query.familyId, 10) : null;
-  const rows = await scheduleList({ memberId: req.query.memberId ? parseInt(req.query.memberId, 10) : null, familyId });
-  res.render('admin-schedule-print', {
-    title: 'Print Schedules',
-    rows,
-    activeDays: await listActiveClassDays(),
-    dayLabels: CLASS_DAY_LABELS_FULL,
-    compact: !!familyId,
-  });
+  await sendMemberSchedules(req, res, 'print', { members: await profileScheduleMembers(req), extraLocals: { portalTitle: 'Main Admin' } });
+});
+
+router.get('/schedule-export.csv', async (req, res) => {
+  await sendMemberSchedules(req, res, 'csv', { members: await profileScheduleMembers(req), filenameBase: 'member-schedules' });
+});
+
+router.get('/schedule-download.pdf', async (req, res) => {
+  await sendMemberSchedules(req, res, 'pdf', { members: await profileScheduleMembers(req), filenameBase: 'member-schedules', extraLocals: { portalTitle: 'Main Admin' } });
 });
 
 // A real request: "Add a button that says grade level report. When you
@@ -1287,12 +1301,10 @@ router.get('/:id', async (req, res) => {
     familyName: family ? family.familyName : null,
     familyMembers: [member, ...restOfFamily].sort(byLastName),
     familyRoster,
-    schedule: await getMemberSchedule(id),
-    dayLabels: CLASS_DAY_LABELS_FULL,
     scheduleFamilyAll,
-    familySchedules: scheduleFamilyAll
-      ? await Promise.all(familyRoster.map(async (m) => ({ member: m, schedule: await getMemberSchedule(m.id) })))
-      : null,
+    // Same shared member schedule table as routes/admin-members.js's own
+    // GET /members/:id - see that route's comment.
+    scheduleTables: tab === 'schedule' ? await memberScheduleTables(scheduleFamilyAll ? sortFamilyForPrint(familyRoster) : [member]) : null,
     memberSections: allSections.filter((s) => memberSectionIds.has(s.id)),
     // Named memberPortalRoles, not portalRoles - that name is already the
     // LOGGED-IN admin's own roles, implicitly supplied via res.locals for

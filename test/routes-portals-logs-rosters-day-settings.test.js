@@ -206,14 +206,12 @@ test('portal-profile Schedules tab shows "Tuesday" for a family member\'s Tuesda
   const profile = await request(app).get('/portal/profile?tab=schedules').set('Cookie', parent.cookie);
   assert.equal(profile.status, 200);
   assert.match(profile.text, /Tuesday Profile Class/);
-  // A later real request grouped this tab by family member then by day
-  // (a <h3>Tuesday</h3> heading above that day's own classes, not a Day
-  // column on each row anymore) - the Tuesday heading must still come
-  // immediately before this specific class, not just appear somewhere
+  // The shared member schedule table (a later real request: "member
+  // profile, schedules should also look like this [image]") shows each
+  // class's own day on its row ("Tue ...") right under its title - it
+  // must be this specific class's own day line, not just "Tue" somewhere
   // on the page.
-  const classIndex = profile.text.indexOf('Tuesday Profile Class');
-  const headingIndex = profile.text.lastIndexOf('<h3 class="profile-schedule-day-heading">Tuesday</h3>', classIndex);
-  assert.ok(headingIndex !== -1 && headingIndex < classIndex, 'the Tuesday Profile Class must be grouped under its own Tuesday heading');
+  assert.match(profile.text, /Tuesday Profile Class<\/span>(\s*<span class="member-schedule-line member-schedule-dates">[^<]*<\/span>)?\s*<span class="member-schedule-line member-schedule-daytime">Tue/);
 });
 
 test("the Membership Form's Setup/Cleanup Team dropdown shows \"Tuesday\" for a Tuesday-day team", async () => {

@@ -1,0 +1,79 @@
+<%#
+  The one shared member schedule layout - every member schedule surface
+  (Co-op Admin > Schedules > Member Schedules and its Print/PDF, the
+  Co-op Admin and Main Admin member profile Class Schedule tabs incl. the
+  family "All" view, the Members page's Schedule dialog, the per-member
+  schedule page, and a member's own My Profile > Schedules tab) renders
+  through here so they all look identical. A real request: "Each
+  member's schedule should look like this image" - member name as a large
+  heading, a smaller role subheading ("Signed Up"; plus "Teaching"/
+  "Assisting"/"Floater" for parents and staff, same visual style), then a
+  bordered, zebra-striped Class Details / Location/ Instructor / Price
+  table. Rows come pre-sorted (semester start date, day, time) from
+  utils/schedule.js's memberScheduleTables.
+
+  locals:
+    tables     - memberScheduleTables() output: [{ member, groups }]
+    classHref  - optional function(classId) -> URL for the class title
+                 link; omitted (or returning null) renders plain text
+    memberHref - optional function(member) -> URL for the name heading
+    emptyText  - optional, shown under a member with no classes at all
+    headingLevel - optional 1/2/3 for the name heading (default 2); the
+                 role subheading is always one level below it
+%>
+<%
+  var hrefFor = typeof locals.classHref === 'function' ? locals.classHref : function () { return null; };
+  var hrefForMember = typeof locals.memberHref === 'function' ? locals.memberHref : function () { return null; };
+  var emptyMessage = locals.emptyText || 'No classes scheduled.';
+  var level = [1, 2, 3].indexOf(locals.headingLevel) !== -1 ? locals.headingLevel : 2;
+  var nameTag = 'h' + level;
+  var subTag = 'h' + (level + 1);
+%>
+<% tables.forEach(function(t) { %>
+  <section class="member-schedule">
+    <% var nameHref = hrefForMember(t.member); %>
+    <<%= nameTag %> class="member-schedule-name"><% if (nameHref) { %><a href="<%= nameHref %>"><%= t.member.name %></a><% } else { %><%= t.member.name %><% } %></<%= nameTag %>>
+    <% if (t.groups.length === 0) { %>
+      <<%= subTag %> class="member-schedule-subheading">Signed Up</<%= subTag %>>
+      <p class="member-schedule-empty"><%= emptyMessage %></p>
+    <% } %>
+    <% t.groups.forEach(function(g) { %>
+      <<%= subTag %> class="member-schedule-subheading"><%= g.label %></<%= subTag %>>
+      <table class="member-schedule-table" data-schedule-group="<%= g.key %>">
+        <thead>
+          <tr>
+            <th scope="col">Class Details</th>
+            <th scope="col">Location/ Instructor</th>
+            <th scope="col" class="member-schedule-price-col">Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% g.entries.forEach(function(e) { %>
+            <% var href = e.classId ? hrefFor(e.classId) : null; %>
+            <% var names = e.instructors.map(function (i) { return i.name; }).join(', '); %>
+            <% var where = [e.room, names].filter(Boolean).join(' / '); %>
+            <tr>
+              <td class="member-schedule-details" data-label="Class Details">
+                <% if (href) { %>
+                  <a class="member-schedule-class-title" href="<%= href %>"><%= e.title %></a>
+                <% } else { %>
+                  <span class="member-schedule-class-title"><%= e.title %></span>
+                <% } %>
+                <% if (e.dateRangeLabel) { %><span class="member-schedule-line member-schedule-dates"><%= e.dateRangeLabel %></span><% } %>
+                <span class="member-schedule-line member-schedule-daytime"><%= e.dayShort %><% if (e.timeLabel) { %> <%= e.timeLabel %><% } %></span>
+              </td>
+              <td class="member-schedule-location" data-label="Location/ Instructor">
+                <span class="member-schedule-line"><%= where || '—' %></span>
+                <% e.instructors.forEach(function(i) { %>
+                  <% if (i.email) { %><a class="member-schedule-line member-schedule-email" href="mailto:<%= i.email %>"><%= i.email %></a><% } %>
+                  <% if (i.phone) { %><span class="member-schedule-line member-schedule-phone"><%= i.phone %></span><% } %>
+                <% }); %>
+              </td>
+              <td class="member-schedule-price" data-label="Price"><%= e.priceLabel || '—' %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% }); %>
+  </section>
+<% }); %>

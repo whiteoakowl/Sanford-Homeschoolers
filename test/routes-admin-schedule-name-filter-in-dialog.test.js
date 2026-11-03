@@ -72,11 +72,12 @@ test('picking a member from the dialog and applying the filter still narrows the
 
   // "Excluded Schedule Member" still legitimately appears once, as one of
   // the OTHER options inside the (now-relocated) name <select> itself -
-  // this only checks that the actual card grid was narrowed down, same as
-  // the old standalone dropdown already did.
-  const gridMatch = /<div class="schedule-card-grid">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/.exec(res.text);
-  assert.ok(gridMatch, 'expected to find the schedule card grid');
-  assert.doesNotMatch(gridMatch[0], /Excluded Schedule Member/, 'only the picked member\'s own card should remain in the grid');
+  // this only checks that the actual schedule list was narrowed down, same
+  // as the old standalone dropdown already did.
+  const listMatch = /<div class="member-schedule-list">[\s\S]*?<\/section>\s*<\/div>/.exec(res.text);
+  assert.ok(listMatch, 'expected to find the member schedule list');
+  assert.match(listMatch[0], /Kept Schedule Member/);
+  assert.doesNotMatch(listMatch[0], /Excluded Schedule Member/, 'only the picked member\'s own schedule should remain in the list');
 
   // The Filter button's own label should reflect the picked name, same as
   // it already does for Type/Family - the dropdown's own selection is no

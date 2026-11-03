@@ -141,6 +141,14 @@
   --logo-sm: 100px;  /* kiosk check-in/check-out header */
   --logo-xs: 86px;   /* public form header (absence, name tag, membership) */
   --logo-2xs: 34px;  /* mobile top bar */
+
+  /* Neutral data-table greys - the shared member schedule table's
+     (.member-schedule-table) light gray header row, zebra stripe, and
+     full cell borders, matching the reference screenshot it was built
+     from. */
+  --table-head-bg: #eef0f2;
+  --table-stripe-bg: #f7f8f9;
+  --table-border: #d5dade;
 }
 /* stylelint-enable declaration-property-value-disallowed-list */
 
@@ -16193,3 +16201,81 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 .reimbursement-class-money { padding: 0.75rem 1rem; background: var(--brand-soft); border-radius: var(--radius); }
 .class-fees-teacher { margin-bottom: 1.5rem; }
 .class-fees-teacher h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
+
+/* --- Shared member schedule table (views/partials/member-schedule-table.ejs) ---
+   A real request: "Each member's schedule should look like this image" -
+   every member schedule surface (Co-op Admin Member Schedules + its
+   Print/PDF, both admin portals' member profile Class Schedule tab, the
+   Members page's Schedule dialog, and My Profile > Schedules) renders
+   this one layout: member name as a large heading, a small role
+   subheading ("Signed Up", "Teaching", ...), then a bordered table with a
+   light gray header row and zebra-striped rows. On a phone each row
+   stacks into its own bordered card, one cell per line, with the column
+   name as a small label above it. */
+.member-schedule { margin: 0 0 2rem; }
+.member-schedule-name { font-size: 1.75rem; line-height: 1.2; margin: 0 0 0.35rem; color: var(--ink); }
+.member-schedule-name a { color: inherit; text-decoration: none; }
+.member-schedule-name a:hover { color: var(--brand-dark); text-decoration: underline; }
+.member-schedule-subheading { font-size: 1.1rem; font-weight: 600; margin: 0.9rem 0 0.5rem; color: var(--ink); }
+.member-schedule-empty { color: var(--muted); margin: 0.25rem 0 0; }
+.member-schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--table-border);
+  background: var(--surface);
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+.member-schedule-table th,
+.member-schedule-table td {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--table-border);
+  text-align: left;
+  vertical-align: top;
+}
+.member-schedule-table thead th { background: var(--table-head-bg); font-weight: 700; }
+.member-schedule-table tbody tr:nth-child(even) td { background: var(--table-stripe-bg); }
+.member-schedule-details { width: 48%; }
+.member-schedule-line { display: block; }
+.member-schedule-class-title { display: block; font-weight: 600; }
+a.member-schedule-class-title { color: var(--brand-dark); }
+a.member-schedule-class-title:hover { color: var(--brand-darker); }
+.member-schedule-email { color: var(--brand-dark); overflow-wrap: anywhere; }
+.member-schedule-price-col,
+.member-schedule-table .member-schedule-price { width: 1%; white-space: nowrap; text-align: right; }
+.member-schedule-actions { margin: 0 0 1rem; }
+.notes-dialog-actions .member-schedule-actions { margin: 0; }
+/* Keep each member's own table together on one printed page where it
+   fits (a family's Print Schedules), with the legacy pairing older print
+   engines need (see print-blank-page-regression.test.js). */
+.member-schedule-print-list .member-schedule { break-inside: avoid; page-break-inside: avoid; }
+
+@media (max-width: 640px) {
+  .member-schedule-name { font-size: 1.4rem; }
+  .member-schedule-table,
+  .member-schedule-table tbody,
+  .member-schedule-table tr,
+  .member-schedule-table td { display: block; width: 100%; }
+  .member-schedule-table thead { display: none; }
+  .member-schedule-table { border: none; background: none; }
+  .member-schedule-table tr {
+    border: 1px solid var(--table-border);
+    border-radius: var(--control-radius);
+    margin-bottom: 0.6rem;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .member-schedule-table td { border: none; border-bottom: 1px solid var(--table-border); }
+  .member-schedule-table td:last-child { border-bottom: none; }
+  .member-schedule-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.15rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--muted-dark);
+  }
+  /* The class title already reads as the card's own heading. */
+  .member-schedule-table td.member-schedule-details::before { content: none; }
+  .member-schedule-table .member-schedule-price { width: 100%; text-align: left; }
+}

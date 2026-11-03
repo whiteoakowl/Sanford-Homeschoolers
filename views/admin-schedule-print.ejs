@@ -13,100 +13,37 @@
       job and this <base> tag is simply absent. %>
   <% if (typeof pdfBaseUrl !== 'undefined' && pdfBaseUrl) { %><base href="<%= pdfBaseUrl %>/"><% } %>
   <%- include('partials/head', { title }) %>
-  <style>@page { size: letter; margin: 0; }</style>
+  <style>@page { size: letter portrait; margin: 0.5in; }</style>
 </head>
 <body class="admin-page">
-  <%- include('partials/admin-nav') %>
-  <main id="main-content" tabindex="-1" class="admin-main badge-print-main">
+  <%# Shared by every member schedule Print/PDF (Co-op Admin, Main Admin,
+      and a member's own My Profile > Schedules) - portalTitle set means
+      a portal caller, which gets the portal nav instead of Co-op Admin's
+      own sidebar. %>
+  <% if (typeof portalTitle !== 'undefined' && portalTitle) { %>
+    <%- include('partials/portal-nav', { portalTitle }) %>
+  <% } else { %>
+    <%- include('partials/admin-nav') %>
+  <% } %>
+  <main id="main-content" tabindex="-1" class="admin-main">
     <div class="print-preview-header no-print">
       <h1>Print Schedules</h1>
       <button type="button" class="roster-action-btn print-action-btn" onclick="window.print()">Print</button>
     </div>
 
-    <div class="print-page <%= compact ? 'member-schedule-compact-page' : '' %>">
-      <% if (rows.length === 0) { %>
+    <%# A real request: "Each member's schedule should look like this
+        image" - the same shared table every on-screen member schedule
+        renders (partials/member-schedule-table.ejs), one member after
+        another, each member's own section kept together on one page
+        where it fits (.member-schedule-print-list's break-inside). %>
+    <div class="member-schedule-print-list">
+      <% if (tables.length === 0) { %>
         <p class="roster-empty">No schedules match your filters.</p>
-      <% } else if (compact) { %>
-        <%
-          // A real bug report: "the print preview and actual print both
-          // bleed off the page horrible[.] instead of a name column put
-          // the name above each members class schedule section, that will
-          // make more width room so everything fit cleanly on the page."
-          // The old layout was one shared 3-column table (Name/Monday/
-          // Wednesday) with the Name column forced nowrap - a family with
-          // even one longer name forced that column wide enough to push
-          // the whole table past the page's own printable width, which
-          // just bled off the physical page edge (this box has no
-          // overflow:hidden). Each member now gets their own stacked
-          // section (name as a heading above, same as the single-member
-          // print below already does) with Monday/Wednesday as two full-
-          // width columns instead of splitting that width three ways with
-          // a name column - then the whole list is wrapped in the same
-          // real shrink-to-fit (never grow) pass every other one-page
-          // print in this app already uses (public/js/print-shrink-to-
-          // fit.js), so a large family shrinks down to actually fit
-          // instead of spilling off the page, without ever going below
-          // MIN_SCALE's legibility floor.
-          function classLines(dayRows) {
-            return dayRows.filter(function (c) { return c.class_name || c.time || c.room; });
-          }
-        %>
-        <div class="schedule-print-compact-fit" data-shrink-to-fit>
-          <div class="schedule-print-compact-list">
-            <% rows.forEach(function(r) { %>
-              <div class="schedule-print-member-section">
-                <%# A real request: "show grade level next to each
-                    students[.]" %>
-                <h3><%= r.member.name %><% if (r.member.member_type === 'student' && r.member.grade_level) { %> (<%= r.member.grade_level %>)<% } %></h3>
-                <div class="schedule-print-member-days">
-                  <% activeDays.forEach(function (d) { %>
-                    <% var label = dayLabels[d], lines = classLines(r.byDay[d]); %>
-                    <div>
-                      <p class="schedule-print-member-day-label"><%= label %></p>
-                      <% if (lines.length === 0) { %>
-                        <span class="schedule-print-compact-empty">&mdash;</span>
-                      <% } else { %>
-                        <% lines.forEach(function (c) { %>
-                          <div class="schedule-print-compact-line">
-                            <span class="schedule-print-compact-time"><%= c.time || '—' %></span>
-                            <%= c.class_name || '—' %><% if (c.room) { %> (<%= c.room %>)<% } %>
-                          </div>
-                        <% }); %>
-                      <% } %>
-                    </div>
-                  <% }); %>
-                </div>
-              </div>
-            <% }); %>
-          </div>
-        </div>
       <% } else { %>
-        <% rows.forEach(function(r) { %>
-          <div class="schedule-print-card">
-            <h2><%= r.member.name %></h2>
-            <% activeDays.forEach(function (d) { %>
-              <% var label = dayLabels[d], dayRows = r.byDay[d]; %>
-              <h3><%= label %></h3>
-              <table class="roster-table schedule-print-table">
-                <thead><tr><th>#</th><th>Time</th><th>Class Name</th><th>Room</th></tr></thead>
-                <tbody>
-                  <% dayRows.forEach(function (c, i) { %>
-                    <tr>
-                      <td><%= i + 1 %></td>
-                      <td><%= c.time || '—' %></td>
-                      <td><%= c.class_name || '—' %></td>
-                      <td><%= c.room || '—' %></td>
-                    </tr>
-                  <% }); %>
-                </tbody>
-              </table>
-            <% }); %>
-          </div>
-        <% }); %>
+        <%- include('partials/member-schedule-table', { tables, classHref: null }) %>
       <% } %>
     </div>
   </main>
-  <script src="/js/print-shrink-to-fit.js"></script>
   <script src="/js/print-auto.js"></script>
 </body>
 </html>
