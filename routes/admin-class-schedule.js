@@ -8,7 +8,8 @@ const requireAdmin = require('../middleware/requireAdmin');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
 const { memberForAccount } = require('../utils/portalAuth');
 const { ageFromBirthday, formatFriendlyTimestamp, formatDateNumeric, formatDateLabel, isValidISODate } = require('../utils/dates');
-const { qsSemester } = require('../utils/scheduleComboLinks');
+const { qsSemester, comboSemesterId } = require('../utils/scheduleComboLinks');
+const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
 const {
   assignmentsForClass,
   getAssignment,
@@ -1680,9 +1681,23 @@ router.post('/class-schedule/:day/import', requireFullAdmin, requireClassDay, up
   );
 });
 
+// The semester a Print/PDF/Export of one day's grid covers - the same
+// ?semesterId= the Schedules page's combo picker uses (no param = the
+// active kiosk semester, that page's own default; 'none' = classes with no
+// semester), plus its title for the printout header and file name.
+async function printSemester(req) {
+  const requested = comboSemesterId(req);
+  const semesterId = requested !== undefined ? requested : await getActiveKioskSemesterId();
+  const semester = semesterId ? (await listSemesters()).find((s) => s.id === semesterId) : null;
+  const title = semester ? semester.title : semesterId === null ? 'No Semester' : '';
+  const slug = title ? `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}-` : '';
+  return { semesterId: semesterId === undefined ? undefined : semesterId, title, slug };
+}
+
 router.get('/class-schedule/:day/export.csv', requireAdmin, requireClassDay, async (req, res) => {
   const day = req.params.day;
-  const grid = await gridForDay(day);
+  const sem = await printSemester(req);
+  const grid = await gridForDay(day, sem.semesterId);
 
   const lines = [toCsvRow(['Hour', 'Class Name', 'Room', 'Age Group', 'Students', 'Teachers', 'Assistants'])];
   grid.forEach((hour) => {
@@ -1693,18 +1708,20 @@ router.get('/class-schedule/:day/export.csv', requireAdmin, requireClassDay, asy
     });
   });
 
-  sendCsv(res, `${day}-class-schedule.csv`, lines);
+  sendCsv(res, `${sem.slug}${day}-class-schedule.csv`, lines);
 });
 
 router.get('/class-schedule/:day/print', requireAdmin, requireClassDay, async (req, res) => {
   const day = req.params.day;
+  const sem = await printSemester(req);
   res.render('admin-class-schedule-print', {
-    title: `${CLASS_DAY_LABELS_FULL[day]} Schedule`,
+    title: `${sem.title ? sem.title + ' · ' : ''}${CLASS_DAY_LABELS_FULL[day]} Schedule`,
     dayLabel: CLASS_DAY_LABELS_FULL[day],
+    semesterTitle: sem.title,
     // Room-by-hour grid (same shape the on-screen grid uses) - not the
     // hour-only gridForDay - so the printout keeps room number as its own
     // grid column instead of just a line of text inside each card.
-    roomGrid: await roomGridForDay(day),
+    roomGrid: await roomGridForDay(day, sem.semesterId),
   });
 });
 
@@ -1713,16 +1730,18 @@ router.get('/class-schedule/:day/print', requireAdmin, requireClassDay, async (r
 // now a PDF built from the exact same -print.ejs view.
 router.get('/class-schedule/:day/download.pdf', requireAdmin, requireClassDay, async (req, res) => {
   const day = req.params.day;
+  const sem = await printSemester(req);
   const pdf = await renderViewToPdf(req, 'admin-class-schedule-print', {
-    title: `${CLASS_DAY_LABELS_FULL[day]} Schedule`,
+    title: `${sem.title ? sem.title + ' · ' : ''}${CLASS_DAY_LABELS_FULL[day]} Schedule`,
     dayLabel: CLASS_DAY_LABELS_FULL[day],
-    roomGrid: await roomGridForDay(day),
+    semesterTitle: sem.title,
+    roomGrid: await roomGridForDay(day, sem.semesterId),
     // See the roster/download.pdf route's own comment above on why this
     // has to be passed through by hand for req.app.render().
     isFullAdmin: res.locals.isFullAdmin,
   });
   res.set('Content-Type', 'application/pdf');
-  res.set('Content-Disposition', `attachment; filename="${day}-class-schedule.pdf"`);
+  res.set('Content-Disposition', `attachment; filename="${sem.slug}${day}-class-schedule.pdf"`);
   res.send(pdf);
 });
 

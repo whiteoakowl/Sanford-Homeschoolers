@@ -87,8 +87,8 @@ test('Class Schedule day grid: Download PDF button + route', async () => {
   await createClass({ day: 'monday', hourPosition: 1, className: 'PDF Button Class', room: 'Room 9' });
 
   const liveRes = await request(app).get('/admin/schedule?tab=monday').set('Cookie', cookie);
-  assert.match(liveRes.text, /href="\/admin\/class-schedule\/monday\/print" target="_blank" aria-label="Print"/);
-  assert.match(liveRes.text, /href="\/admin\/class-schedule\/monday\/download\.pdf" aria-label="Download PDF"/);
+  assert.match(liveRes.text, /href="\/admin\/class-schedule\/monday\/print(\?semesterId=[^"]*)?" target="_blank" aria-label="Print"/);
+  assert.match(liveRes.text, /href="\/admin\/class-schedule\/monday\/download\.pdf(\?semesterId=[^"]*)?" aria-label="Download PDF"/);
 
   const pdfRes = await getBuffer('/admin/class-schedule/monday/download.pdf', cookie);
   assertRealPdf(pdfRes);

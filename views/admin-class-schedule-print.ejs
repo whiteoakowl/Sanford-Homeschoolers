@@ -19,7 +19,7 @@
   <%- include('partials/admin-nav') %>
   <main id="main-content" tabindex="-1" class="admin-main">
     <div class="print-preview-header no-print">
-      <h1><%= dayLabel %> Schedule</h1>
+      <h1><% if (typeof semesterTitle !== 'undefined' && semesterTitle) { %><%= semesterTitle %> &middot; <% } %><%= dayLabel %> Schedule</h1>
       <button type="button" class="roster-action-btn print-action-btn" onclick="window.print()">Print</button>
     </div>
 
@@ -28,7 +28,7 @@
         <img src="/img/logo.png" alt="" />
         <div>
           <p class="print-header-title">Sanford Homeschoolers</p>
-          <p class="print-header-sub"><%= dayLabel %> Schedule</p>
+          <p class="print-header-sub"><% if (typeof semesterTitle !== 'undefined' && semesterTitle) { %><%= semesterTitle %> &middot; <% } %><%= dayLabel %> Schedule</p>
         </div>
       </div>
 
