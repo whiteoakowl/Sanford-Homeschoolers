@@ -159,7 +159,10 @@ test('Co-op Teacher Portal Class Schedule tab: Grid view hides classes under a g
 
   const page = await request(app).get(`/teacher/classes?view=grid&day=tuesday&semesterId=${semesterId}`).set('Cookie', cookie);
   assert.equal(page.status, 200);
-  assert.doesNotMatch(page.text, /Member-Locked Class/, 'a class under a grid not visible to members should not appear, even to the teacher staffed on it');
+  // Only the schedule itself - the teacher's own "My Classes" sidebar
+  // still lists every class they're staffed on.
+  const mainContent = page.text.slice(page.text.indexOf('<main id="main-content"'));
+  assert.doesNotMatch(mainContent, /Member-Locked Class/, 'a class under a grid not visible to members should not appear in the grid, even to the teacher staffed on it');
 });
 
 // A real request: "there should be a community section with tabs [but]

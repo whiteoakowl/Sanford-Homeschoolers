@@ -708,8 +708,23 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
     <label class="member-form-full">Title
       <input type="text" name="className" placeholder="Don't change" />
     </label>
+    <%# A real request: "Bulk edit should include choose class hour" (and
+        Room as a dropdown of the grid's room names, same as Edit Class). %>
+    <label>Class Hour
+      <select name="hourPosition">
+        <option value="">Don't change</option>
+        <% hours.forEach(function(h) { %>
+          <option value="<%= h.position %>"><%= h.label %></option>
+        <% }); %>
+      </select>
+    </label>
     <label>Room Number
-      <input type="text" name="room" placeholder="Don't change" />
+      <select name="room">
+        <option value="">Don't change</option>
+        <% (typeof rooms !== 'undefined' ? rooms : []).filter(function(r) { return r !== 'Unassigned'; }).forEach(function(r) { %>
+          <option value="<%= r %>"><%= r %></option>
+        <% }); %>
+      </select>
     </label>
     <label>Semester
       <select name="semesterId">

@@ -84,7 +84,15 @@
                 </select>
               </label>
               <label>Room
-                <input type="text" name="room" value="<%= cls.room || '' %>" />
+                <%# A real request: "class edit room should be a drop down of the room
+                    name options" - the rooms named in Edit Schedule Grids for this class's
+                    day/semester, plus its current room if that isn't one of them. %>
+                <select name="room">
+                  <option value="" <%= !cls.room ? 'selected' : '' %>>No room</option>
+                  <% roomOptions.forEach(function(r) { %>
+                    <option value="<%= r %>" <%= cls.room === r ? 'selected' : '' %>><%= r %></option>
+                  <% }); %>
+                </select>
               </label>
             </div>
 

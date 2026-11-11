@@ -19,6 +19,7 @@ const {
   CLASS_DAY_WEEKDAY_FULL,
   listActiveClassDays,
   listScheduleCombos,
+  HOUR_LABEL_SQL,
 } = require('../utils/classSchedule');
 const { comboSemesterId, qsSemester, appendSemester, findComboId } = require('../utils/scheduleComboLinks');
 const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
@@ -78,8 +79,7 @@ function classIdFromTab(tab) {
 async function classRosterInfo(classId) {
   return db
     .prepare(
-      `SELECT c.*, h.label AS "hourLabel" FROM classes c
-       JOIN class_schedule_hours h ON h.day = c.day AND h.position = c.hour_position
+      `SELECT c.*, ${HOUR_LABEL_SQL} AS "hourLabel" FROM classes c
        WHERE c.id = ?`
     )
     .get(classId);

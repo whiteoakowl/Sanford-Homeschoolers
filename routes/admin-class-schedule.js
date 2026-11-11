@@ -54,7 +54,7 @@ const {
   AGE_OPTIONS,
   ageGroupList,
   listActiveClassDays,
-  hoursForDay,
+  hoursForClass,
   saveHourLabels,
   syncMemberSchedulesForDay,
   syncDayMemberRosters,
@@ -65,6 +65,7 @@ const {
   saveRoomsForGrid,
   declaredRoomsForGrid,
   UNASSIGNED_ROOM,
+  roomsForDay,
   listClassSchedules,
   createClassSchedule,
   updateClassSchedule,
@@ -426,6 +427,15 @@ router.post('/class-schedule/classes/new', requireFullAdmin, async (req, res) =>
 // fragment (no <html>/<body>) and injected into a shared dialog, so
 // viewing/editing a class never leaves the grid page. Starts view-only;
 // the fragment's own "Edit Class" button unlocks the form client-side.
+// Edit Class's Room dropdown: the rooms named for this class's day and
+// semester (Edit Schedule Grids, plus rooms other classes already use),
+// with the class's own current room kept even if it isn't one of them.
+async function roomOptionsForClass(cls) {
+  const rooms = (await roomsForDay(cls.day, cls.semester_id != null ? cls.semester_id : null)).filter((r) => r !== UNASSIGNED_ROOM);
+  if (cls.room && !rooms.includes(cls.room)) rooms.push(cls.room);
+  return rooms;
+}
+
 router.get('/class-schedule/classes/:id/view-fragment', requireFullAdmin, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const cls = await getClass(id);
@@ -436,7 +446,8 @@ router.get('/class-schedule/classes/:id/view-fragment', requireFullAdmin, async 
 
   res.render('class-schedule-view-fragment', {
     cls,
-    hours: await hoursForDay(cls.day),
+    hours: await hoursForClass(cls),
+    roomOptions: await roomOptionsForClass(cls),
     gradeLevels: GRADE_LEVELS,
     ageOptions: AGE_OPTIONS,
     colorPalette: COLOR_PALETTE,
@@ -525,7 +536,8 @@ router.get('/class-schedule/classes/:id/manage', requireFullAdmin, async (req, r
     cls,
     activeTab,
     dayLabel: CLASS_DAY_LABELS_FULL[cls.day],
-    hours: await hoursForDay(cls.day),
+    hours: await hoursForClass(cls),
+    roomOptions: await roomOptionsForClass(cls),
     gradeLevels: GRADE_LEVELS,
     ageOptions: AGE_OPTIONS,
     colorPalette: COLOR_PALETTE,
@@ -1060,6 +1072,8 @@ router.post('/class-schedule/:day/bulk-edit', requireFullAdmin, async (req, res)
   const patch = {};
   if ((req.body.className || '').trim()) patch.className = req.body.className.trim();
   if ((req.body.room || '').trim()) patch.room = req.body.room.trim();
+  const bulkHour = parseInt(req.body.hourPosition, 10);
+  if (HOUR_POSITIONS.includes(bulkHour)) patch.hourPosition = bulkHour;
   if ((req.body.startTime || '').trim()) patch.startTime = req.body.startTime.trim();
   if ((req.body.endTime || '').trim()) patch.endTime = req.body.endTime.trim();
   if ((req.body.startDate || '').trim()) patch.startDate = req.body.startDate.trim();

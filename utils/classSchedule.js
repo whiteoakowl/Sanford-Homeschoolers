@@ -193,6 +193,32 @@ async function hoursForDay(day, semesterId) {
   return db.prepare('SELECT * FROM class_schedule_hours WHERE day = ? AND semester_id IS NULL ORDER BY position').all(day);
 }
 
+// A real bug report: "When editing class. Class hour is not updating with
+// the new edit schedule grid changes." Edit Schedule Grids saves a
+// semester's own copy of the hours, so anything about ONE class has to
+// read that class's semester's hours, not the shared day-only rows.
+function classSemesterKey(cls) {
+  return cls && cls.semester_id != null ? cls.semester_id : null;
+}
+
+async function hoursForClass(cls) {
+  return hoursForDay(cls.day, classSemesterKey(cls));
+}
+
+// For day-wide loops over classes from several semesters: returns
+// cls => { [position]: hourRow } using each class's own semester's hours.
+async function hourMapsForClasses(day, classes) {
+  const maps = new Map();
+  for (const cls of classes) {
+    const key = classSemesterKey(cls);
+    if (maps.has(key)) continue;
+    const map = {};
+    (await hoursForDay(day, key)).forEach((h) => { map[h.position] = h; });
+    maps.set(key, map);
+  }
+  return (cls) => maps.get(classSemesterKey(cls)) || {};
+}
+
 // startTimes/endTimes are optional, same shape as labels (indexed by
 // position - 1) - the hour's own shared Start/End Time (see
 // derivedHourTimeRanges's own comment on how this feeds arrival/
@@ -855,7 +881,7 @@ async function bulkUpdateClasses(ids, patch) {
     if (!cls) continue;
     await updateClass(id, {
       day: cls.day,
-      hourPosition: cls.hour_position,
+      hourPosition: patch.hourPosition !== undefined ? patch.hourPosition : cls.hour_position,
       className: patch.className !== undefined ? patch.className : cls.class_name,
       room: patch.room !== undefined ? patch.room : cls.room,
       ageGroup: cls.age_group,
@@ -1344,7 +1370,7 @@ async function removeFromFloaterForHour(day, hourPosition, memberId, semesterId)
 async function floaterPositionsCoveredByClass(classId) {
   const cls = await db.prepare('SELECT * FROM classes WHERE id = ?').get(classId);
   if (!cls) return { day: null, semesterId: null, positions: new Set() };
-  const hours = await hoursForDay(cls.day);
+  const hours = await hoursForClass(cls);
   const hourByPosition = {};
   hours.forEach((h) => { hourByPosition[h.position] = h; });
   const positions = positionsOverlappingRange(effectiveClassRange(cls, hourByPosition), hourByPosition);
@@ -1744,15 +1770,22 @@ async function clearRosterManualRemoval(rosterId, memberId) {
 // class-checkin.js (the live kiosk check-in flow, a real request: "the
 // kiosk page and all of its features are linked to [the active
 // semester]... check in, check out") passes it explicitly.
+// A class's hour label from its own semester's Edit Schedule Grids copy,
+// falling back to the shared day-only row (same rule as hoursForDay). A
+// plain JOIN on day+position matched both rows once a semester had its
+// own copy, listing the class twice with the old label on one of them.
+const HOUR_LABEL_SQL = `COALESCE(
+  (SELECT h.label FROM class_schedule_hours h WHERE h.day = c.day AND h.position = c.hour_position AND h.semester_id = c.semester_id),
+  (SELECT h.label FROM class_schedule_hours h WHERE h.day = c.day AND h.position = c.hour_position AND h.semester_id IS NULL))`;
+
 async function allClassesList(day, semesterId) {
   const dayParam = day || null;
   const semesterParam = semesterId !== undefined ? semesterId : null;
   const rows = await db
     .prepare(
-      `SELECT c.*, h.label AS "hourLabel",
+      `SELECT c.*, ${HOUR_LABEL_SQL} AS "hourLabel",
               (SELECT COUNT(*) FROM class_enrollments ce WHERE ce.class_id = c.id) AS "studentCount"
        FROM classes c
-       JOIN class_schedule_hours h ON h.day = c.day AND h.position = c.hour_position
        WHERE (?::text IS NULL OR c.day = ?::text)
          AND (?::integer IS NULL OR c.semester_id = ?::integer)
        ORDER BY LOWER(c.class_name)`
@@ -2037,6 +2070,7 @@ function effectiveClassRange(cls, hourByPosition) {
 async function ownPositionsAndFamilyWindowsForDay(day) {
   const classes = await db.prepare('SELECT * FROM classes WHERE day = ?').all(day);
   const hours = await hoursForDay(day);
+  const hoursOfClass = await hourMapsForClasses(day, classes);
   const positionRanges = derivedHourTimeRanges(classes, hours);
   const hourByPosition = {};
   hours.forEach((h) => { hourByPosition[h.position] = h; });
@@ -2049,7 +2083,7 @@ async function ownPositionsAndFamilyWindowsForDay(day) {
   const noteOwn = (memberId, cls) => {
     if (!ownPositionsByMember[memberId]) ownPositionsByMember[memberId] = new Set();
     ownPositionsByMember[memberId].add(cls.hour_position);
-    const range = effectiveClassRange(cls, hourByPosition);
+    const range = effectiveClassRange(cls, hoursOfClass(cls));
     if (range) {
       if (!ownRangesByMember[memberId]) ownRangesByMember[memberId] = [];
       ownRangesByMember[memberId].push(range);
@@ -2496,8 +2530,8 @@ function derivedHourTimeRanges(rawClasses, hours = []) {
   return ranges;
 }
 
-async function rawHourLabel(day, position) {
-  const hour = await db.prepare('SELECT label FROM class_schedule_hours WHERE day = ? AND position = ?').get(day, position);
+async function rawHourLabel(day, position, semesterId = null) {
+  const hour = (await hoursForDay(day, semesterId)).find((h) => h.position === position);
   return (hour && hour.label) || '';
 }
 
@@ -2513,9 +2547,9 @@ async function rawHourLabel(day, position) {
 // Arrival/Departure and the Schedule Card).
 async function timeRangeForClass(cls) {
   if (cls.start_time && cls.end_time) return `${cls.start_time} - ${cls.end_time}`;
-  const hour = await db.prepare('SELECT position, start_time, end_time FROM class_schedule_hours WHERE day = ? AND position = ?').get(cls.day, cls.hour_position);
+  const hour = (await hoursForClass(cls)).find((h) => h.position === cls.hour_position);
   const range = effectiveClassRange(cls, hour ? { [cls.hour_position]: hour } : {});
-  return rangeToLabel(range) || (await rawHourLabel(cls.day, cls.hour_position));
+  return rangeToLabel(range) || (await rawHourLabel(cls.day, cls.hour_position, classSemesterKey(cls)));
 }
 
 // Everyone's live schedule rows for one day - the read-side twin of
@@ -2561,11 +2595,12 @@ async function liveMemberScheduleRowsForDay(day) {
   // from the class's OWN start/end or its hour's OWN start/end - never
   // another class's - so this row can no longer be contaminated by a
   // neighbor sharing the same hour position.
+  const hoursOfClass = await hourMapsForClasses(day, classes);
   for (const cls of classes) {
-    const range = effectiveClassRange(cls, hourByPosition);
+    const range = effectiveClassRange(cls, hoursOfClass(cls));
     const time = (cls.start_time && cls.end_time)
       ? `${cls.start_time} - ${cls.end_time}`
-      : rangeToLabel(range) || (await rawHourLabel(day, cls.hour_position));
+      : rangeToLabel(range) || (await rawHourLabel(day, cls.hour_position, classSemesterKey(cls)));
     const staff = await staffForClass(cls.id);
     const teacherNames = staff.filter((s) => s.role === 'teacher').map((s) => s.name).join(', ');
     const row = { class_number: cls.hour_position, time, class_name: cls.class_name, room: cls.room || '', teacher: teacherNames };
@@ -2643,10 +2678,11 @@ async function syncMemberSchedulesForDay(day) {
   // Same contamination fix as liveMemberScheduleRowsForDay's own copy of
   // this loop (see that function's comment) - effectiveClassRange/
   // hourOnlyRange, never derivedHourTimeLabels' per-position guess.
+  const hoursOfClass = await hourMapsForClasses(day, classes);
   for (const cls of classes) {
     const time = (cls.start_time && cls.end_time)
       ? `${cls.start_time} - ${cls.end_time}`
-      : rangeToLabel(effectiveClassRange(cls, hourByPosition)) || (await rawHourLabel(day, cls.hour_position));
+      : rangeToLabel(effectiveClassRange(cls, hoursOfClass(cls))) || (await rawHourLabel(day, cls.hour_position, classSemesterKey(cls)));
     const staff = await staffForClass(cls.id);
     const teacherNames = staff.filter((s) => s.role === 'teacher').map((s) => s.name).join(', ');
     const people = [...(await studentsForClass(cls.id)), ...staff];
@@ -2700,6 +2736,8 @@ module.exports = {
   ageGroupList,
   formatGradeRange,
   hoursForDay,
+  hoursForClass,
+  HOUR_LABEL_SQL,
   saveHourLabels,
   saveHourLabel,
   gridForDay,
