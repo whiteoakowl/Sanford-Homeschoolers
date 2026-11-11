@@ -143,7 +143,7 @@ function targetLabels(targets, roleLabelByKey) {
 // second SQL round-trip here).
 async function listAnnouncementLog(limit = 25) {
   const hasLimit = limit !== null && limit !== undefined;
-  const sql = `SELECT * FROM announcement_log ORDER BY created_at DESC${hasLimit ? ' LIMIT ?' : ''}`;
+  const sql = `SELECT * FROM announcement_log ORDER BY created_at DESC, id DESC${hasLimit ? ' LIMIT ?' : ''}`;
   const rows = hasLimit ? await db.prepare(sql).all(limit) : await db.prepare(sql).all();
   return rows.map((r) => ({ ...r, targets: JSON.parse(r.targets || '[]') }));
 }
