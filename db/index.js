@@ -51,6 +51,7 @@ const {
   backfillTaskItemBarcodes,
   backfillRemovePendingSubstituteAssignments,
   backfillCustomFormDefaultPages,
+  backfillPortalRoleDescriptions,
 } = require('./bootstrapPg');
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'supabase', 'migrations');
@@ -111,6 +112,21 @@ if (process.env.DATABASE_URL) {
   }
   const pglite = process.env.DB_PATH ? new PGlite() : new PGlite(pgliteDataDir);
   schemaReady = (async () => {
+    // A real Supabase project already has its own internal `storage`
+    // schema (storage.buckets, storage.objects, ...) before any of OUR
+    // migrations ever run - it's part of the platform itself, not
+    // something supabase/migrations/*.sql creates. supabase/migrations/
+    // 20261227010000_storage_buckets.sql assumes that and just inserts
+    // rows into the already-existing storage.buckets table, which this
+    // bare PGlite instance (no Supabase platform underneath it) never
+    // has on its own - breaking that migration, and with it every
+    // local/dev boot and every test in the suite, with "relation
+    // storage.buckets does not exist" the moment it runs. This stub
+    // mirrors only the handful of columns that one insert actually
+    // touches (id/name/public); the real DATABASE_URL/Supabase branch
+    // above never runs this at all, since it already has the genuine
+    // schema.
+    await pglite.exec('create schema if not exists storage; create table if not exists storage.buckets (id text primary key, name text not null, public boolean not null default false);');
     await pglite.exec(allMigrationSql());
   })();
   db = createPgliteDb(pglite, schemaReady);
@@ -146,6 +162,7 @@ db.ready = schemaReady
   .then(() => backfillSetupCleanupBadgeFields(db))
   .then(() => backfillRemovePendingSubstituteAssignments(db))
   .then(() => backfillCustomFormDefaultPages(db))
+  .then(() => backfillPortalRoleDescriptions(db))
   // Lazily required (not imported at the top of this file, unlike every
   // other backfill above) - utils/classSchedule.js itself does
   // `require('../db')`, and this whole file IS '../db' from that

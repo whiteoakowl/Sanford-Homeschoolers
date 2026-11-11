@@ -16,57 +16,84 @@
 // to below), eventHref(e) - one event pill's own link target (Main
 // Admin's own builder page vs. the shared public event detail page).
 //
-// desktopTrailingIcons/desktopTopRightToggle (both optional, Student
-// Portal only today - views/events-list.ejs) - a real request: "Student
-// portal, events calendar, desktop only. Export, pdf and print icons
-// should be on the same row as the month and year selection, after the
-// next arrow. Calendar view and list view icons should be top right of
-// the calendar." desktopTrailingIcons is an array of {href, icon, label,
-// target?} rendered as extra .icon-btns right after the Next arrow,
-// inside this exact same nav row; desktopTopRightToggle is {view,
-// portalQuerySuffix}, rendered as a second Grid/List-equivalent toggle
-// directly above the calendar grid. Both are real DOM elements at every
-// width (not injected by JS) with a `.event-calendar-desktop-*` class -
-// styles.css hides them by default and shows them only at desktop width,
-// so the caller's own ORIGINAL Export/Print/PDF icons and view toggle
-// (events-list.ejs's own .roster-toolbar row) can stay exactly where
-// they already are on mobile, where this request doesn't apply.
-%>
+// leadingViewToggle/trailingIcons (both optional, Student Portal only
+// today - views/events-list.ejs) - a real request: "Student portal,
+// events tab should say event calendar... Export, pdf and print icons
+// should be in a single row, not column, side by side... Shrink to fit
+// entire row together clean on mobile." A corrected follow-up to an
+// earlier "desktop only, Export/PDF/Print after Next, view toggle on its
+// own row above the grid" design (desktopTrailingIcons/
+// desktopTopRightToggle, now gone) - the Prev/Month/Year/Next/Export/
+// Print/PDF controls are ONE row, at every width. A later real request
+// ("Calendar vs list view icons should be on the 3rd row by themselves")
+// moved the List/Calendar toggle - briefly folded into that same row -
+// back out onto its own row underneath instead (the same plain
+// .class-schedule-view-toggle pair every other List/Grid toggle in the
+// app already uses, not the cramped icon-shrinking this row's own
+// mixed-width controls need). leadingViewToggle is {view,
+// portalQuerySuffix}; trailingIcons is an array of {href, icon, label,
+// target?}. The nav row carries no .roster-btn-row (styles.css's own
+// unscoped mobile rule turns any .roster-btn-row into an evenly-columned
+// CSS grid sized for a handful of equal buttons, not 7 mixed-width
+// controls that need to shrink down to icon-size while the month/year
+// selects stay legible) - .event-calendar-nav-row-unified is its own
+// flex row with its own shrink rules instead. %>
 <div class="event-calendar-toolbar no-print">
-  <%# A real request: "mobile view. the row should be small left arrow,
-      month drop down, year drop down, small right arrow. all in one row
-      neatly," later: "the arrow buttons should be half the size" - see
-      public/js/roster-btn-row-grid.js's own data-fixed-column-widths
-      escape hatch (its default grid only counts .roster-action-btn
-      children, never the two <select>s below, so left to its own
-      default it split these 4 controls into two rows instead of one). %>
-  <div class="roster-btn-row event-calendar-nav-row" data-fixed-column-widths="1fr 2fr 2fr 1fr">
-    <a class="roster-action-btn event-calendar-nav-btn" href="<%= monthLinkBase %>&month=<%= calendar.prevParam %>">&larr; Prev</a>
-    <select id="event-month-select" class="event-month-select" onchange="window.location.href='<%- monthLinkBase %>&month='+document.getElementById('event-year-select').value+'-'+this.value;">
-      <% for (let m = 1; m <= 12; m++) { %>
-        <option value="<%= String(m).padStart(2, '0') %>" <%= calendar.month === m ? 'selected' : '' %>><%= new Date(Date.UTC(2000, m - 1, 1)).toLocaleString('en-US', { month: 'long', timeZone: 'UTC' }) %></option>
+  <% if (typeof leadingViewToggle !== 'undefined' && leadingViewToggle) { %>
+    <div class="event-calendar-nav-row event-calendar-nav-row-unified">
+      <a class="roster-action-btn event-calendar-nav-btn" data-nav-dir="prev" href="<%= monthLinkBase %>&month=<%= calendar.prevParam %>">&larr; Prev</a>
+      <select id="event-month-select" class="event-month-select" onchange="window.location.href='<%- monthLinkBase %>&month='+document.getElementById('event-year-select').value+'-'+this.value;">
+        <% for (let m = 1; m <= 12; m++) { %>
+          <option value="<%= String(m).padStart(2, '0') %>" <%= calendar.month === m ? 'selected' : '' %>><%= new Date(Date.UTC(2000, m - 1, 1)).toLocaleString('en-US', { month: 'long', timeZone: 'UTC' }) %></option>
+        <% } %>
+      </select>
+      <select id="event-year-select" class="event-year-select" onchange="window.location.href='<%- monthLinkBase %>&month='+this.value+'-'+document.getElementById('event-month-select').value;">
+        <% for (let y = calendar.year - 3; y <= calendar.year + 3; y++) { %>
+          <option value="<%= y %>" <%= calendar.year === y ? 'selected' : '' %>><%= y %></option>
+        <% } %>
+      </select>
+      <a class="roster-action-btn event-calendar-nav-btn" data-nav-dir="next" href="<%= monthLinkBase %>&month=<%= calendar.nextParam %>">Next &rarr;</a>
+      <% if (typeof trailingIcons !== 'undefined' && trailingIcons) { %>
+        <% trailingIcons.forEach(function(b) { %>
+          <a class="icon-btn event-calendar-nav-trailing-icon" href="<%= b.href %>"<% if (b.target) { %> target="<%= b.target %>"<% } %> aria-label="<%= b.label %>" title="<%= b.label %>"><svg class="icon"><use href="#<%= b.icon %>"/></svg></a>
+        <% }); %>
       <% } %>
-    </select>
-    <select id="event-year-select" class="event-year-select" onchange="window.location.href='<%- monthLinkBase %>&month='+this.value+'-'+document.getElementById('event-month-select').value;">
-      <% for (let y = calendar.year - 3; y <= calendar.year + 3; y++) { %>
-        <option value="<%= y %>" <%= calendar.year === y ? 'selected' : '' %>><%= y %></option>
-      <% } %>
-    </select>
-    <a class="roster-action-btn event-calendar-nav-btn" href="<%= monthLinkBase %>&month=<%= calendar.nextParam %>">Next &rarr;</a>
-    <% if (typeof desktopTrailingIcons !== 'undefined' && desktopTrailingIcons) { %>
-      <% desktopTrailingIcons.forEach(function(b) { %>
-        <a class="icon-btn event-calendar-desktop-trailing-icon" href="<%= b.href %>"<% if (b.target) { %> target="<%= b.target %>"<% } %> aria-label="<%= b.label %>" title="<%= b.label %>"><svg class="icon"><use href="#<%= b.icon %>"/></svg></a>
-      <% }); %>
-    <% } %>
-  </div>
+    </div>
+    <%# A real request: "Calendar vs list view icons should be on the 3rd
+        row by themselves" - its own row, after the registration-buttons
+        row (events-list.ejs) and this Prev/Month/Year/Next/Export/Print/
+        PDF row, not folded into either - the same plain .class-schedule-
+        view-toggle pair every other List/Grid toggle in the app already
+        uses, no special shrinking needed now that it's not sharing a row
+        with 7 other mixed-width controls. %>
+    <div class="class-schedule-view-toggle" role="group" aria-label="List or calendar view">
+      <a class="icon-btn<%= leadingViewToggle.view === 'list' ? ' icon-btn-active' : '' %>" href="/events?view=list<%= leadingViewToggle.portalQuerySuffix %>" aria-pressed="<%= leadingViewToggle.view === 'list' %>" aria-label="List view" title="List view"><svg class="icon"><use href="#icon-clipboard-list"/></svg></a>
+      <a class="icon-btn<%= leadingViewToggle.view === 'calendar' ? ' icon-btn-active' : '' %>" href="/events?view=calendar<%= leadingViewToggle.portalQuerySuffix %>" aria-pressed="<%= leadingViewToggle.view === 'calendar' %>" aria-label="Calendar view" title="Calendar view"><svg class="icon"><use href="#icon-calendar-check"/></svg></a>
+    </div>
+  <% } else { %>
+    <%# A real request: "mobile view. the row should be small left arrow,
+        month drop down, year drop down, small right arrow. all in one
+        row neatly," later: "the arrow buttons should be half the size" -
+        see public/js/roster-btn-row-grid.js's own data-fixed-column-widths
+        escape hatch (its default grid only counts .roster-action-btn
+        children, never the two <select>s below, so left to its own
+        default it split these 4 controls into two rows instead of one). %>
+    <div class="roster-btn-row event-calendar-nav-row" data-fixed-column-widths="1fr 2fr 2fr 1fr">
+      <a class="roster-action-btn event-calendar-nav-btn" data-nav-dir="prev" href="<%= monthLinkBase %>&month=<%= calendar.prevParam %>">&larr; Prev</a>
+      <select id="event-month-select" class="event-month-select" onchange="window.location.href='<%- monthLinkBase %>&month='+document.getElementById('event-year-select').value+'-'+this.value;">
+        <% for (let m = 1; m <= 12; m++) { %>
+          <option value="<%= String(m).padStart(2, '0') %>" <%= calendar.month === m ? 'selected' : '' %>><%= new Date(Date.UTC(2000, m - 1, 1)).toLocaleString('en-US', { month: 'long', timeZone: 'UTC' }) %></option>
+        <% } %>
+      </select>
+      <select id="event-year-select" class="event-year-select" onchange="window.location.href='<%- monthLinkBase %>&month='+this.value+'-'+document.getElementById('event-month-select').value;">
+        <% for (let y = calendar.year - 3; y <= calendar.year + 3; y++) { %>
+          <option value="<%= y %>" <%= calendar.year === y ? 'selected' : '' %>><%= y %></option>
+        <% } %>
+      </select>
+      <a class="roster-action-btn event-calendar-nav-btn" data-nav-dir="next" href="<%= monthLinkBase %>&month=<%= calendar.nextParam %>">Next &rarr;</a>
+    </div>
+  <% } %>
 </div>
-
-<% if (typeof desktopTopRightToggle !== 'undefined' && desktopTopRightToggle) { %>
-  <div class="class-schedule-view-toggle event-calendar-desktop-view-toggle no-print" role="group" aria-label="List or calendar view">
-    <a class="icon-btn<%= desktopTopRightToggle.view === 'list' ? ' icon-btn-active' : '' %>" href="/events?view=list<%= desktopTopRightToggle.portalQuerySuffix %>" aria-pressed="<%= desktopTopRightToggle.view === 'list' %>" aria-label="List view" title="List view"><svg class="icon"><use href="#icon-clipboard-list"/></svg></a>
-    <a class="icon-btn<%= desktopTopRightToggle.view === 'calendar' ? ' icon-btn-active' : '' %>" href="/events?view=calendar<%= desktopTopRightToggle.portalQuerySuffix %>" aria-pressed="<%= desktopTopRightToggle.view === 'calendar' %>" aria-label="Calendar view" title="Calendar view"><svg class="icon"><use href="#icon-calendar-check"/></svg></a>
-  </div>
-<% } %>
 
 <% if (calendar.weeks.every(function(w) { return w.every(function(d) { return !d.inMonth || d.events.length === 0; }); })) { %>
   <p class="roster-empty">No published events this month.</p>

@@ -162,6 +162,12 @@ test('the choose-portal page shows the exact requested description under each po
   const loginRes = await request(app).post('/login').type('form').send({ email, password, next: '/portal' });
   const res = await request(app).get('/portal').set('Cookie', loginRes.headers['set-cookie']);
   assert.equal(res.status, 200);
-  assert.match(res.text, /<span class="portal-picker-description">Class registration, event registration, family homeschool management, etc\.<\/span>/);
-  assert.match(res.text, /<span class="portal-picker-description">Attendance, manage classes\. Lesson plans\. Etc\.<\/span>/);
+  assert.match(
+    res.text,
+    /<span class="portal-picker-description">Class registration, event calendar, chat groups, business directory, classifieds, store, babysitters and parent reading challenge\.<\/span>/
+  );
+  assert.match(
+    res.text,
+    /<span class="portal-picker-description">Class attendance, manage classes, lesson plans, class chat, teacher reimbursement and training\.<\/span>/
+  );
 });

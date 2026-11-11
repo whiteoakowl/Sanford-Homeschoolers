@@ -71,27 +71,33 @@ test('Student Portal homepage: three solid-color dashboard cards, orange/blue/gr
   assert.ok(groupIdx < classroomIdx && classroomIdx < funIdx);
 });
 
-test('Group Dashboard category page lists its pages in a 2-column orange card grid', async () => {
+// A real request: "my event registrations shouldn't be a card" -
+// dropped out of this category's own links; events-list.ejs's own
+// toolbar button is the only way there now. A later real request moved
+// Resources in here from the Classroom Dashboard category below.
+test('Group Dashboard category page lists its pages in a 2-column orange card grid, no My Event Registrations card', async () => {
   const student = await createStudent('Group Student');
   const page = await request(app).get('/student/dashboard/group').set('Cookie', student.cookie);
   assert.equal(page.status, 200);
   assert.match(page.text, /<h1>Group Dashboard<\/h1>/);
-  assert.match(page.text, /class="landing-grid landing-grid-two landing-card-rect"/);
-  assert.match(page.text, /landing-card landing-card-orange" href="\/student\/events"/);
-  assert.match(page.text, />My Event Registrations</);
+  assert.match(page.text, /class="landing-grid landing-grid-two landing-card-rect landing-grid-sub-dashboard"/);
+  assert.match(page.text, /landing-card landing-card-orange" href="\/student\/resources"/);
   assert.match(page.text, /landing-card landing-card-orange" href="\/student\/babysitter"/);
+  assert.doesNotMatch(page.text, /\/student\/events"/);
+  assert.doesNotMatch(page.text, />My Event Registrations</);
 });
 
-test('Classroom Dashboard category page lists its pages in a 2-column blue card grid', async () => {
+test('Classroom Dashboard category page lists its pages in a 2-column blue card grid, Resources moved to Group Dashboard', async () => {
   const student = await createStudent('Classroom Student');
   const page = await request(app).get('/student/dashboard/classroom').set('Cookie', student.cookie);
   assert.equal(page.status, 200);
   assert.match(page.text, /<h1>Classroom Dashboard<\/h1>/);
-  assert.match(page.text, /class="landing-grid landing-grid-two landing-card-rect"/);
+  assert.match(page.text, /class="landing-grid landing-grid-two landing-card-rect landing-grid-sub-dashboard"/);
   assert.match(page.text, /landing-card landing-card-blue" href="\/student\/classes\/dashboard"/);
   assert.match(page.text, />Grades</);
   assert.match(page.text, /landing-card landing-card-blue" href="\/student\/family-school\/weekly-planner"/);
   assert.match(page.text, /landing-card landing-card-blue" href="\/student\/family-school\/portfolio"/);
+  assert.doesNotMatch(page.text, /landing-card landing-card-blue" href="\/student\/resources"/);
 });
 
 test('Fun Dashboard category page lists its pages in a 2-column green card grid', async () => {
@@ -99,7 +105,7 @@ test('Fun Dashboard category page lists its pages in a 2-column green card grid'
   const page = await request(app).get('/student/dashboard/fun').set('Cookie', student.cookie);
   assert.equal(page.status, 200);
   assert.match(page.text, /<h1>Fun Dashboard<\/h1>/);
-  assert.match(page.text, /class="landing-grid landing-grid-two landing-card-rect"/);
+  assert.match(page.text, /class="landing-grid landing-grid-two landing-card-rect landing-grid-sub-dashboard"/);
   assert.match(page.text, /landing-card landing-card-green" href="\/student\/games"/);
   assert.match(page.text, />Vocabulary</);
 });
@@ -108,4 +114,12 @@ test('An unknown dashboard category 404s', async () => {
   const student = await createStudent('Unknown Category Student');
   const page = await request(app).get('/student/dashboard/nonsense').set('Cookie', student.cookie);
   assert.equal(page.status, 404);
+});
+
+// A real request: "these cards the font should shrink to fit on the
+// card and in generally be smaller on mobile."
+test('Dashboard category sub-cards carry a mobile shrink-to-fit rule', async () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'styles.css'), 'utf8');
+  assert.match(css, /\.landing-grid-sub-dashboard\s*\{\s*grid-template-columns:\s*repeat\(2,\s*160px\)/);
+  assert.match(css, /\.landing-grid-sub-dashboard \.landing-label\s*\{\s*font-size:/);
 });

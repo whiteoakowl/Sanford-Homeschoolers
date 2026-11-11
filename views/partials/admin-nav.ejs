@@ -133,7 +133,7 @@
       // lesson plan approval" - teacher-submitted class lessons wait
       // there for a Co-op Admin's approval (routes/admin-lesson-plans.js).
       // `badge` is the pending count (server.js's own /admin middleware).
-      ...(isFullAdmin ? [{ href: '/admin/lesson-plans', icon: 'clipboard-list', label: 'Lesson Plans', subpages: [
+      ...(isFullAdmin ? [{ href: '/admin/lesson-plans', icon: 'clipboard-list', label: 'Lesson Plans', mobileLabel: 'Lesson<br>Plans', subpages: [
         { href: '/admin/lesson-plans', label: 'Lesson Plans' },
         { href: '/admin/lesson-plans/approval', label: 'Lesson Plan Approval', badge: typeof pendingLessonApprovalCount !== 'undefined' ? pendingLessonApprovalCount : 0 },
       ] }] : []),

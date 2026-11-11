@@ -26,6 +26,9 @@ const {
   listActiveClassDays,
   listSemesters,
   parseClockMinutesLocal,
+  getClass,
+  classImageUrl,
+  formatGradeRange,
 } = require('../utils/classSchedule');
 const { CLASS_DAY_ORDER } = require('../utils/classDays');
 const { formatFriendlyTimestamp } = require('../utils/dates');
@@ -47,6 +50,7 @@ const {
   generateTranscriptsForEndedClasses,
 } = require('../utils/academics');
 const { renderViewToPdf } = require('../utils/pdfRender');
+const { toCsvRow, sendCsv } = require('../utils/spreadsheet');
 const forums = require('../utils/forums');
 const events = require('../utils/events');
 const notifications = require('../utils/notifications');
@@ -142,15 +146,23 @@ async function announcementsForAccount(accountId) {
 // a category page shares that category's own color, same as the
 // category card itself on the homepage.
 const STUDENT_DASHBOARD_CATEGORIES = {
+  // A real request: "my event registrations shouldn't be a card" -
+  // events-list.ejs's own "My Event Registrations" toolbar button
+  // (Parent AND Student Portal) is the only way there now, same as it
+  // already was the only way into portal-nav.ejs's own Events tab (see
+  // that file's comment on dropping this same link back out of its
+  // subpages array). A later real request moved Resources in here from
+  // the classroom category below ("Resources should be under group
+  // dashboard").
   group: {
     title: 'Group Dashboard',
     color: 'orange',
     icon: 'icon-users',
     links: [
       { href: '/events?view=calendar&portal=student', icon: 'icon-calendar-check', label: 'Events Calendar' },
-      { href: '/student/events', icon: 'icon-list-check', label: 'My Event Registrations' },
       { href: '/forums?portal=student', icon: 'icon-users', label: 'Chat' },
       { href: '/photos?portal=student', icon: 'icon-camera', label: 'Photos' },
+      { href: '/student/resources', icon: 'icon-book', label: 'Resources' },
       { href: '/student/babysitter', icon: 'icon-user', label: 'Babysitter Profile' },
     ],
   },
@@ -160,7 +172,6 @@ const STUDENT_DASHBOARD_CATEGORIES = {
     icon: 'icon-graduation-cap',
     links: [
       { href: '/student/classes/dashboard', icon: 'icon-graduation-cap', label: 'Classes' },
-      { href: '/student/resources', icon: 'icon-book', label: 'Resources' },
       { href: '/student/family-school/grades', icon: 'icon-file-text', label: 'Grades' },
       { href: '/student/family-school/attendance', icon: 'icon-calendar-check', label: 'Attendance' },
       { href: '/student/family-school/weekly-planner', icon: 'icon-calendar-check', label: 'Weekly Planner' },
@@ -282,6 +293,91 @@ router.get('/classes', requirePortalPermission('view_student_classes'), async (r
   });
 });
 
+// A real request: "Student portal, co-op class schedule... Add export,
+// print and pdf icons." Same three-icon convention as every other
+// schedule-shaped page in the app (e.g. Co-op Teacher Portal's own
+// /teacher/classes/print and download.pdf below, Main Admin's own
+// /admin/class-schedule/:day/export.csv) - this day's own roomGrid,
+// already filtered through hideClassesNotVisibleToMembers the same way
+// the page itself is, flattened the same way the page's own List view
+// classList already is (member-class-schedule-grid.ejs), so the export
+// only ever shows what the signed-in student can actually see on screen.
+async function studentDayClassList(req) {
+  const activeDays = await listActiveClassDays();
+  const day = activeDays.includes(req.query.day) ? req.query.day : (activeDays[0] || 'monday');
+  const selectedSemesterId = req.query.semesterId ? parseInt(req.query.semesterId, 10) : null;
+  const gridSemesterId = selectedSemesterId === null ? undefined : selectedSemesterId;
+  const roomGrid = await hideClassesNotVisibleToMembers(await roomGridForDay(day, gridSemesterId));
+  const classList = roomGrid.rows
+    .flatMap((row) => row.cells.flatMap((cell) => cell.classes))
+    .sort((a, b) => (parseClockMinutesLocal(a.start_time) ?? 0) - (parseClockMinutesLocal(b.start_time) ?? 0) || a.class_name.localeCompare(b.class_name));
+  return { day, classList };
+}
+
+router.get('/classes/export.csv', requirePortalPermission('view_student_classes'), async (req, res) => {
+  const { day, classList } = await studentDayClassList(req);
+  const lines = [toCsvRow(['Class Name', 'Time', 'Room', 'Grade Level', 'Teachers', 'Assistants'])];
+  classList.forEach((cls) => {
+    lines.push(toCsvRow([
+      cls.class_name,
+      `${cls.start_time || ''}-${cls.end_time || ''}`,
+      cls.room || '',
+      cls.gradeLabel || '',
+      cls.teacherNames.join('; '),
+      cls.assistantNames.join('; '),
+    ]));
+  });
+  sendCsv(res, `${day}-co-op-schedule.csv`, lines);
+});
+
+router.get('/classes/print', requirePortalPermission('view_student_classes'), async (req, res) => {
+  const { day, classList } = await studentDayClassList(req);
+  res.render('student-classes-print', {
+    title: 'Co-op Schedule Print Preview',
+    dayLabel: CLASS_DAY_LABELS_FULL[day],
+    classList,
+  });
+});
+
+// A real request: "the download should be a pdf of exactly how it would
+// also look when printing" - same data the Print preview above renders,
+// now a PDF built from the exact same -print.ejs view.
+router.get('/classes/download.pdf', requirePortalPermission('view_student_classes'), async (req, res) => {
+  const { day, classList } = await studentDayClassList(req);
+  const pdf = await renderViewToPdf(req, 'student-classes-print', {
+    title: 'Co-op Schedule Print Preview',
+    dayLabel: CLASS_DAY_LABELS_FULL[day],
+    classList,
+  });
+  res.set('Content-Type', 'application/pdf');
+  res.set('Content-Disposition', `attachment; filename="${day}-co-op-schedule.pdf"`);
+  res.send(pdf);
+});
+
+// A real request: "Student portal, co-op schedule, should be able to
+// click on each class and view the information, student is not able to
+// register for classes." Same read-only info popup as Co-op Teacher
+// Portal's own identical /classes/:id/fragment (routes/teacher-
+// portal.js, which this mirrors) - reachable for ANY class on the
+// schedule, no register/join controls, unlike GET /classes/:id below
+// (Classroom Dashboard's own detail page, scoped to this student's own
+// enrolled classes only).
+router.get('/classes/:id/fragment', requirePortalPermission('view_student_classes'), async (req, res) => {
+  const cls = await getClass(parseInt(req.params.id, 10));
+  if (!cls) return res.status(404).send('Not found');
+  const staff = cls.staff || [];
+  const enrolledCount = Number((await db.prepare('SELECT COUNT(*) AS c FROM class_enrollments WHERE class_id = ?').get(cls.id)).c);
+  res.render('student-class-fragment', {
+    cls,
+    classImageUrl: classImageUrl(cls.image_key),
+    dayLabels: CLASS_DAY_LABELS_FULL,
+    gradeLabel: formatGradeRange(cls.age_group),
+    teacherNames: staff.filter((s) => s.role === 'teacher').map((s) => s.name),
+    assistantNames: staff.filter((s) => s.role === 'assistant').map((s) => s.name),
+    enrolledCount,
+  });
+});
+
 // A real request: "Classes tab should have a few subpages: class
 // schedule, classroom dashboard..." - Class Schedule (above) is this
 // student's own class list plus the minor self-registration table;
@@ -317,7 +413,14 @@ router.get('/classes/dashboard', requirePortalPermission('view_student_classes_d
 
   const familyClasses = member ? await familyClassesForStudent(member.id) : [];
 
-  const type = ['coop', 'family'].includes(req.query.type) ? req.query.type : 'all';
+  // A real request: "Filter button should turn into a pill slider
+  // toggle switching from co-op classes to homeschool family classes" -
+  // replaces the old 3-way All/Co-op/Family <select> (type defaulted to
+  // 'all', showing both sections at once) with a strict two-way choice,
+  // same as every other .day-toggle pill in the app (always exactly one
+  // side "active," never a combined view) - Co-op Classes is the
+  // default/first pill.
+  const type = req.query.type === 'family' ? 'family' : 'coop';
 
   res.render('student-class-dashboard', {
     title: 'Classroom Dashboard',
@@ -357,7 +460,19 @@ const CLASS_DETAIL_TABS = ['details', 'assignments', 'lessons', 'forum', 'resour
 // at /forums. Only ever shows a class this student is actually enrolled
 // in - re-derived from classesForStudent on every request, same
 // never-trust-a-passed-id rule every other route in this file follows.
-router.get('/classes/:id', requirePortalPermission('view_student_classes'), async (req, res) => {
+// A real bug report: "on this page it switches back to co-op schedule
+// tab. It should stay under classroom dashboard tab." This page used to
+// live at the bare /classes/:id, a literal URL prefix of Co-op
+// Schedule's own /classes - public/js/admin-nav.js's own longest-prefix
+// nav-highlighting picked Co-op Schedule every time, since Classroom
+// Dashboard's own top-level link (/student/family-school/portfolio)
+// never matched that path at all. Nested under /classes/dashboard/:id
+// instead - the exact same shape Parent Portal's own identical class
+// detail page already uses (routes/parent-portal.js's own GET /classes/
+// dashboard/:id) - lets portal-nav.ejs's STUDENT_NAV_LINKS give
+// Classroom Dashboard's own link a data-match covering this whole
+// /classes/dashboard/* namespace, so it - and not Co-op Schedule - wins.
+router.get('/classes/dashboard/:id', requirePortalPermission('view_student_classes'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForStudent(member);
@@ -451,7 +566,7 @@ router.post('/content/:id/quiz', requirePortalPermission('view_student_classes_d
     return { questionId: q.id, answerText: req.body[`answer_${q.id}`] || '' };
   });
   await submitQuizAttempt({ contentItemId: contentItem.id, studentId: member.id, answers });
-  res.redirect(`/student/classes/${assignment.class_id}?tab=lessons&notice=` + encodeURIComponent('Quiz submitted.'));
+  res.redirect(`/student/classes/dashboard/${assignment.class_id}?tab=lessons&notice=` + encodeURIComponent('Quiz submitted.'));
 });
 
 // "Mark Complete" for a video/text/file/assignment_upload content item -
@@ -471,7 +586,7 @@ router.post('/content/:id/complete', requirePortalPermission('view_student_class
   if (!cls) return res.status(404).render('404', { title: 'Not Found' });
   if (await isLessonLockedForStudent(cls.id, member.id, assignment.id)) return res.status(404).render('404', { title: 'Not Found' });
   await markLessonItemComplete(contentItem.id, member.id);
-  res.redirect(`/student/classes/${assignment.class_id}?tab=lessons`);
+  res.redirect(`/student/classes/dashboard/${assignment.class_id}?tab=lessons`);
 });
 
 // Assignment Submission upload - a real request: "there should be a
@@ -490,10 +605,10 @@ router.post('/content/:id/submit', requirePortalPermission('view_student_classes
   const cls = assignment ? classes.find((c) => c.id === assignment.class_id) : null;
   if (!cls) return res.status(404).render('404', { title: 'Not Found' });
   if (await isLessonLockedForStudent(cls.id, member.id, assignment.id)) return res.status(404).render('404', { title: 'Not Found' });
-  if (!req.file) return res.redirect(`/student/classes/${assignment.class_id}?tab=lessons&error=` + encodeURIComponent('Choose a file to upload.'));
+  if (!req.file) return res.redirect(`/student/classes/dashboard/${assignment.class_id}?tab=lessons&error=` + encodeURIComponent('Choose a file to upload.'));
   const fileKey = await saveLessonAttachment(req.file);
   await submitAssignment({ contentItemId: contentItem.id, studentId: member.id, fileUrl: fileKey, fileName: req.file.originalname });
-  res.redirect(`/student/classes/${assignment.class_id}?tab=lessons&notice=` + encodeURIComponent('Assignment submitted.'));
+  res.redirect(`/student/classes/dashboard/${assignment.class_id}?tab=lessons&notice=` + encodeURIComponent('Assignment submitted.'));
 });
 
 router.get('/assignments', async (req, res) => {

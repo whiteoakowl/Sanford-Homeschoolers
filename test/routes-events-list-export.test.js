@@ -54,14 +54,9 @@ test('public Events calendar: Export and Print are icon buttons, Export download
 
   const page = await request(app).get('/events');
   assert.equal(page.status, 200);
-  // class="icon-btn events-toolbar-file-icon" - the 2nd class is a later
-  // real request's own scoping hook (Student Portal desktop: "export,
-  // pdf and print icons should be on the same row as the month and year
-  // selection" - views/events-list.ejs's own comment on this exact
-  // markup), harmless for Parent/public, which this test covers.
-  assert.match(page.text, /<a class="icon-btn events-toolbar-file-icon" href="\/events\/export\.csv" aria-label="Export CSV"/);
-  assert.match(page.text, /<a class="icon-btn events-toolbar-file-icon" href="\/events\/print" target="_blank" aria-label="Print"/);
-  assert.match(page.text, /<a class="icon-btn events-toolbar-file-icon" href="\/events\/download\.pdf" aria-label="Download PDF"/);
+  assert.match(page.text, /<a class="icon-btn" href="\/events\/export\.csv" aria-label="Export CSV"/);
+  assert.match(page.text, /<a class="icon-btn" href="\/events\/print" target="_blank" aria-label="Print"/);
+  assert.match(page.text, /<a class="icon-btn" href="\/events\/download\.pdf" aria-label="Download PDF"/);
 
   const csv = await request(app).get('/events/export.csv');
   assert.equal(csv.status, 200);

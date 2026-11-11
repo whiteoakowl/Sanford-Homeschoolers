@@ -151,6 +151,28 @@ test('Attendance subpage shows this student\'s own present/absent days for the c
   assert.doesNotMatch(page.text, /family-school-attendance\.js/);
 });
 
+// A real request: "Student portal attendance, co-op attendance,
+// currently unable to click the dropdown menu and view attendance
+// days. Should be able to click and view." The Co-op Attendance view
+// reuses partials/member-attendance-rosters.ejs's own accordion-style
+// roster toggle buttons (same markup as the Member Profile Attendance
+// tab), which do nothing without public/js/member-attendance-
+// accordion.js actually loaded on the page.
+test('Co-op Attendance view loads the roster accordion script so its toggle buttons work', async () => {
+  const student = await createStudent('Coop Attendance Student');
+  const page = await request(app).get('/student/family-school/attendance?view=coop').set('Cookie', student.cookie);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /<option value="\/student\/family-school\/attendance\?view=coop" selected>Co-op Attendance<\/option>/);
+  assert.match(page.text, /<script src="\/js\/member-attendance-accordion\.js"><\/script>/);
+});
+
+test('Family Homeschool Attendance view (the default) never loads the roster accordion script it has no use for', async () => {
+  const student = await createStudent('Family Attendance Student');
+  const page = await request(app).get('/student/family-school/attendance').set('Cookie', student.cookie);
+  assert.equal(page.status, 200);
+  assert.doesNotMatch(page.text, /member-attendance-accordion\.js/);
+});
+
 test('Portfolio subpage summarizes this student\'s own classes, GPA, attendance, and volunteer hours', async () => {
   const student = await createStudent('Portfolio Student');
   await createVolunteerHourEntry({ studentId: student.memberId, hourDate: '2026-04-01', hours: 3, activityDescription: 'Library', createdByAccountId: null });

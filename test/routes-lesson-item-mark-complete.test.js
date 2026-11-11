@@ -130,7 +130,7 @@ test('Student Portal: a video lesson shows a Mark Complete button, and clicking 
   // title... When you click on the assignment it opens it to another
   // page" - the Lessons tab itself only shows a bar (title/due date/
   // check icon) linking out; Mark Complete now lives on that other page.
-  const lessonsBefore = await request(app).get(`/student/classes/${cls.id}?tab=lessons`).set('Cookie', cookie);
+  const lessonsBefore = await request(app).get(`/student/classes/dashboard/${cls.id}?tab=lessons`).set('Cookie', cookie);
   assert.equal(lessonsBefore.status, 200);
   assert.match(lessonsBefore.text, new RegExp(`href="/student/content/${contentItem.id}"`));
   assert.match(lessonsBefore.text, /aria-label="Not complete"/);
@@ -153,7 +153,7 @@ test('Student Portal: a video lesson shows a Mark Complete button, and clicking 
   assert.match(after.text, /lesson-complete-label">Complete</);
   assert.doesNotMatch(after.text, /Mark Complete/);
 
-  const lessonsAfter = await request(app).get(`/student/classes/${cls.id}?tab=lessons`).set('Cookie', cookie);
+  const lessonsAfter = await request(app).get(`/student/classes/dashboard/${cls.id}?tab=lessons`).set('Cookie', cookie);
   assert.match(lessonsAfter.text, /aria-label="Complete"/);
 
   const row = await db.prepare('SELECT * FROM lesson_item_completions WHERE content_item_id = ? AND student_id = ?').get(contentItem.id, student.studentId);
@@ -223,7 +223,7 @@ test('Mark Complete cannot be used on a quiz content item (quizzes keep their ow
   const loginRes = await request(app).post('/login').type('form').send({ email: student.email, password: 'testpassword123', next: '/student' });
   const cookie = loginRes.headers['set-cookie'];
 
-  const page = await request(app).get(`/student/classes/${cls.id}?tab=lessons`).set('Cookie', cookie);
+  const page = await request(app).get(`/student/classes/dashboard/${cls.id}?tab=lessons`).set('Cookie', cookie);
   const csrf = extractCsrf(page.text);
   const res = await request(app)
     .post(`/student/content/${quizItem.id}/complete`)

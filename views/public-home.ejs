@@ -30,6 +30,12 @@
   <% } %>
   <script src="/js/csrf.js" defer></script>
   <script src="/js/site-runtime.js" defer></script>
+  <%# A real request: "Homepage mobile. Log in button, the text should
+      shrink to fit to stay on one row clean in button box." Same
+      generic measure-and-shrink helper the Classes grid/Grade Level
+      Report already use - shrinkAll() targets the Log In/My Portals
+      button's own box (see that script's own comment). %>
+  <script src="/js/shrink-title-to-fit.js" defer></script>
 </head>
 <body class="wx-public<%= headerSticky ? ' has-sticky-header' : '' %>">
   <a class="wx-skip" href="#main-content">Skip to content</a>

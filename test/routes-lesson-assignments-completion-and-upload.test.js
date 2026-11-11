@@ -231,7 +231,7 @@ test('Assignment Upload content shows up read-only on the Student Portal Lessons
 
   const loginRes = await request(app).post('/login').type('form').send({ email, password: 'testpassword123', next: '/student' });
   const cookie = loginRes.headers['set-cookie'];
-  const page = await request(app).get(`/student/classes/${classId}?tab=lessons`).set('Cookie', cookie);
+  const page = await request(app).get(`/student/classes/dashboard/${classId}?tab=lessons`).set('Cookie', cookie);
   assert.equal(page.status, 200);
   assert.match(page.text, /Read Chapter 1/);
 

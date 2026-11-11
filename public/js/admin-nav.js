@@ -71,11 +71,15 @@
     if (activeLink) activeLink.classList.add('active');
   }
 
-  highlightNav('#admin-nav-links');
-  // Only present on views/partials/portal-nav.ejs's pages (Parent/Teacher/
-  // Student/Main Admin) - a no-op here on admin-nav.ejs's own Co-op Admin
-  // Portal pages, which have no element with these ids at all.
-  highlightNav('#class-nav-links');
-  highlightNav('#community-nav-links');
+  // #admin-nav-links is always present (Co-op Admin's own admin-nav.ejs
+  // and every views/partials/portal-nav.ejs portal alike); #class-nav-
+  // links/#community-nav-links only exist on some portal-nav.ejs pages,
+  // and a desktopAsSection nav entry (currently just Student Portal's
+  // own "Classroom Dashboard" - see STUDENT_NAV_LINKS) gets its own
+  // titled section below the main sidebar list, in its own <nav
+  // id="<label>-nav-links"> - the generic selector below covers all of
+  // them, present or not, instead of a fixed list that would need a new
+  // line added by hand every time another one of these shows up.
+  document.querySelectorAll('nav[id$="-nav-links"]').forEach((nav) => highlightNav('#' + nav.id));
   highlightNav('#admin-mobile-tabs');
 })();

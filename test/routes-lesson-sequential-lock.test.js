@@ -101,7 +101,7 @@ test('A class with two dateless lessons locks the second until the first is full
   const loginRes = await request(app).post('/login').type('form').send({ email, password: 'testpassword123', next: '/student' });
   const cookie = loginRes.headers['set-cookie'];
 
-  const lessonsBefore = await request(app).get(`/student/classes/${cls.id}?tab=lessons`).set('Cookie', cookie);
+  const lessonsBefore = await request(app).get(`/student/classes/dashboard/${cls.id}?tab=lessons`).set('Cookie', cookie);
   assert.equal(lessonsBefore.status, 200);
   // Lesson One: open (unlock icon), its content item bar is a real link.
   assert.match(lessonsBefore.text, /aria-label="Open to complete"/);
@@ -137,7 +137,7 @@ test('A class with two dateless lessons locks the second until the first is full
     .send({ _csrf: csrf });
   assert.equal(completeOne.status, 302);
 
-  const lessonsAfter = await request(app).get(`/student/classes/${cls.id}?tab=lessons`).set('Cookie', cookie);
+  const lessonsAfter = await request(app).get(`/student/classes/dashboard/${cls.id}?tab=lessons`).set('Cookie', cookie);
   assert.match(lessonsAfter.text, new RegExp(`href="/student/content/${itemTwo.id}"`));
   const itemTwoPage = await request(app).get(`/student/content/${itemTwo.id}`).set('Cookie', cookie);
   assert.equal(itemTwoPage.status, 200);

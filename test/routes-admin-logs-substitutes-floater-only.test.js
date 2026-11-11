@@ -26,8 +26,9 @@ process.env.ADMIN_PASSWORD = 'testpassword123';
 const request = require('supertest');
 const app = require('../server');
 const db = require('../db');
-const { createClass, addStaff } = require('../utils/classSchedule');
+const { createClass, addStaff, createSemester } = require('../utils/classSchedule');
 const { createPermanentJob } = require('../utils/substitutes');
+const { setActiveKioskSemesterId } = require('../utils/kioskSettings');
 
 test.before(() => app.ready);
 test.after(() => {
@@ -78,4 +79,53 @@ test('Logs: Substitutes Needed shows the empty state when only a permanent job n
   const res = await request(app).get(`/admin/logs?tab=substitutes&day=${day}&date=${date}`).set('Cookie', cookie);
   assert.equal(res.status, 200);
   assert.doesNotMatch(res.text, /Floater Only Empty State Job/);
+});
+
+// A real bug report: "substitutes needed should only be showing the
+// current active semester, not next semester that hasn't started yet."
+// A class tagged to next semester, with its own teacher marked absent
+// that day, used to show up here right alongside the active semester's
+// own real open slots - routes/admin-logs.js's own substituteBoard()
+// call left semesterId undefined, which utils/classSchedule.js's
+// classesForDaySemester treats as "every semester," not "the active
+// one." Covers the on-screen board, the print preview, and the PDF -
+// all three call substituteBoard the same way.
+test('Logs: Substitutes Needed only shows classes from the active Kiosk semester, not a future one that hasn\'t started', async () => {
+  const cookie = await loginAsAdmin();
+  const day = 'monday';
+  const date = '2026-03-05';
+
+  const activeSemester = await createSemester('Semester Scope Active');
+  const futureSemester = await createSemester('Semester Scope Future');
+  await setActiveKioskSemesterId(activeSemester.id);
+
+  const activeTeacherId = (
+    await db.prepare("INSERT INTO members (name, barcode, member_type) VALUES ('Semester Scope Active Teacher', 'sem-scope-active-teacher', 'parent')").run()
+  ).lastInsertRowid;
+  const activeClassId = await createClass({ day, hourPosition: 1, className: 'Semester Scope Active Class', semesterId: activeSemester.id });
+  await addStaff(activeClassId, activeTeacherId, 'teacher');
+
+  const futureTeacherId = (
+    await db.prepare("INSERT INTO members (name, barcode, member_type) VALUES ('Semester Scope Future Teacher', 'sem-scope-future-teacher', 'parent')").run()
+  ).lastInsertRowid;
+  const futureClassId = await createClass({ day, hourPosition: 2, className: 'Semester Scope Future Class', semesterId: futureSemester.id });
+  await addStaff(futureClassId, futureTeacherId, 'teacher');
+
+  const rosterId = (await db.prepare("INSERT INTO rosters (name, category) VALUES ('Semester Scope Roster', 'Class Schedule')").run()).lastInsertRowid;
+  await db
+    .prepare("INSERT INTO attendance (member_id, roster_id, session_date, status, source) VALUES (?, ?, ?, 'absent', 'kiosk')")
+    .run(activeTeacherId, rosterId, date);
+  await db
+    .prepare("INSERT INTO attendance (member_id, roster_id, session_date, status, source) VALUES (?, ?, ?, 'absent', 'kiosk')")
+    .run(futureTeacherId, rosterId, date);
+
+  const res = await request(app).get(`/admin/logs?tab=substitutes&day=${day}&date=${date}`).set('Cookie', cookie);
+  assert.equal(res.status, 200);
+  assert.match(res.text, /Semester Scope Active Class/, 'the active semester\'s own open slot should still show');
+  assert.doesNotMatch(res.text, /Semester Scope Future Class/, 'a class in a different (not-yet-active) semester should not show');
+
+  const printRes = await request(app).get(`/admin/logs/substitutes/print?day=${day}&date=${date}`).set('Cookie', cookie);
+  assert.equal(printRes.status, 200);
+  assert.match(printRes.text, /Semester Scope Active Class/);
+  assert.doesNotMatch(printRes.text, /Semester Scope Future Class/);
 });

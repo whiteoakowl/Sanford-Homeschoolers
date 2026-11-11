@@ -103,7 +103,7 @@ test('Assignment Submission: admin creates it with points, student uploads a fil
   // the upload form itself now lives on that item's own detail page
   // (a real request: "it opens it to another page... to view the
   // assignment and complete it").
-  const lessonsTabBefore = await request(app).get(`/student/classes/${classId}?tab=lessons`).set('Cookie', student.cookie);
+  const lessonsTabBefore = await request(app).get(`/student/classes/dashboard/${classId}?tab=lessons`).set('Cookie', student.cookie);
   assert.equal(lessonsTabBefore.status, 200);
   assert.match(lessonsTabBefore.text, /Book Report/);
   assert.match(lessonsTabBefore.text, /Due Sun 11\/1/);
@@ -139,7 +139,7 @@ test('Assignment Submission: admin creates it with points, student uploads a fil
   // complete) with the item's own bar showing the check mark.
   const detailAfter = await request(app).get(`/student/content/${contentItem.id}`).set('Cookie', student.cookie);
   assert.match(detailAfter.text, /Submitted/);
-  const lessonsTabAfter = await request(app).get(`/student/classes/${classId}?tab=lessons`).set('Cookie', student.cookie);
+  const lessonsTabAfter = await request(app).get(`/student/classes/dashboard/${classId}?tab=lessons`).set('Cookie', student.cookie);
   assert.match(lessonsTabAfter.text, />Done</);
   assert.match(lessonsTabAfter.text, /aria-label="Complete"/);
 
@@ -167,6 +167,6 @@ test('Assignment Submission: admin creates it with points, student uploads a fil
   const detailGraded = await request(app).get(`/student/content/${contentItem.id}`).set('Cookie', student.cookie);
   assert.match(detailGraded.text, /Score: 9 \/ 10/);
   assert.match(detailGraded.text, /\(A-\)/);
-  const lessonsTabGraded = await request(app).get(`/student/classes/${classId}?tab=lessons`).set('Cookie', student.cookie);
+  const lessonsTabGraded = await request(app).get(`/student/classes/dashboard/${classId}?tab=lessons`).set('Cookie', student.cookie);
   assert.match(lessonsTabGraded.text, />Done</);
 });

@@ -72,7 +72,7 @@
   <main id="main-content" tabindex="-1"<% if (usesPortalNavShell) { %> class="admin-main<%= effectivePortal === 'student' ? ' student-events-portal' : '' %>"<% } %>>
     <section class="site-section">
       <div class="site-section-inner">
-        <h1><%= effectivePortal === 'parent' ? 'Event Calendar' : effectivePortal === 'student' ? 'Calendar' : 'Events' %></h1>
+        <h1><%= (effectivePortal === 'parent' || effectivePortal === 'student') ? 'Event Calendar' : 'Events' %></h1>
 
         <div class="roster-toolbar no-print">
           <% if (effectivePortal === 'parent' || (typeof portalAccount !== 'undefined' && portalAccount)) { %>
@@ -93,29 +93,30 @@
               <% } %>
             </div>
           <% } %>
-          <div class="roster-btn-row">
-            <div class="class-schedule-view-toggle" role="group" aria-label="List or calendar view">
-              <a class="icon-btn<%= view === 'list' ? ' icon-btn-active' : '' %>" href="/events?view=list<%= portalQuerySuffix %>" aria-pressed="<%= view === 'list' %>" aria-label="List view" title="List view"><svg class="icon"><use href="#icon-clipboard-list"/></svg></a>
-              <a class="icon-btn<%= view === 'calendar' ? ' icon-btn-active' : '' %>" href="/events?view=calendar<%= portalQuerySuffix %>" aria-pressed="<%= view === 'calendar' %>" aria-label="Calendar view" title="Calendar view"><svg class="icon"><use href="#icon-calendar-check"/></svg></a>
+          <%# A real request: "Student portal, events tab... Calendar and
+              list view icons should be on the same row as the calendar
+              month/year picker... Export, pdf and print icons should be
+              in a single row." For Student Portal's own calendar view,
+              that unified row now lives inside partials/event-calendar-
+              grid.ejs itself (leadingViewToggle/trailingIcons below) -
+              this original view-toggle + Export/Print/PDF row would just
+              be a redundant duplicate there, so it's skipped. List view
+              has no month/year picker to merge into, so Student Portal
+              keeps this row exactly like every other caller there. %>
+          <% if (!(effectivePortal === 'student' && view === 'calendar')) { %>
+            <div class="roster-btn-row">
+              <div class="class-schedule-view-toggle" role="group" aria-label="List or calendar view">
+                <a class="icon-btn<%= view === 'list' ? ' icon-btn-active' : '' %>" href="/events?view=list<%= portalQuerySuffix %>" aria-pressed="<%= view === 'list' %>" aria-label="List view" title="List view"><svg class="icon"><use href="#icon-clipboard-list"/></svg></a>
+                <a class="icon-btn<%= view === 'calendar' ? ' icon-btn-active' : '' %>" href="/events?view=calendar<%= portalQuerySuffix %>" aria-pressed="<%= view === 'calendar' %>" aria-label="Calendar view" title="Calendar view"><svg class="icon"><use href="#icon-calendar-check"/></svg></a>
+              </div>
+              <%# A real request: "all pages/subpages with print, export,
+                  import, or download buttons should be changed to
+                  icons... and have all four" - this page only had Print. %>
+              <a class="icon-btn" href="/events/export.csv" aria-label="Export CSV" title="Export CSV"><svg class="icon"><use href="#icon-download"/></svg></a>
+              <a class="icon-btn" href="/events/print" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
+              <a class="icon-btn" href="/events/download.pdf" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
             </div>
-            <%# A real request: "all pages/subpages with print, export,
-                import, or download buttons should be changed to
-                icons... and have all four" - this page only had Print.
-                A later real request, Student Portal + desktop only
-                ("export, pdf and print icons should be on the same row
-                as the month and year selection... calendar view and list
-                view icons should be top right of the calendar"): this
-                exact trio and the view toggle above get a second,
-                differently-positioned copy at desktop width, scoped to
-                .student-events-portal (see styles.css) - these original
-                three keep the class name events-toolbar-file-icon so
-                that scoped rule can hide just them, without touching
-                Parent Portal/public, which never asked for this and keep
-                this original layout untouched at every width. %>
-            <a class="icon-btn events-toolbar-file-icon" href="/events/export.csv" aria-label="Export CSV" title="Export CSV"><svg class="icon"><use href="#icon-download"/></svg></a>
-            <a class="icon-btn events-toolbar-file-icon" href="/events/print" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
-            <a class="icon-btn events-toolbar-file-icon" href="/events/download.pdf" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
-          </div>
+          <% } %>
         </div>
 
         <%# A real bug report: "the event calendar should show regardless
@@ -131,16 +132,15 @@
             calendar: calendar,
             monthLinkBase: `/events?view=calendar${portalQuerySuffix}`,
             eventHref: function (e) { return `/events/${e.id}${effectivePortal ? '?portal=' + effectivePortal : ''}`; },
-            // Student Portal, desktop-only duplicate controls - see this
-            // file's own .roster-btn-row/.events-toolbar-file-icon comment
-            // above and partials/event-calendar-grid's own comment on
-            // these two locals.
-            desktopTrailingIcons: effectivePortal === 'student' ? [
+            // Student Portal's own unified nav row - see this file's own
+            // comment just above and partials/event-calendar-grid.ejs's
+            // own comment on these two locals.
+            leadingViewToggle: effectivePortal === 'student' ? { view: view, portalQuerySuffix: portalQuerySuffix } : null,
+            trailingIcons: effectivePortal === 'student' ? [
               { href: '/events/export.csv', icon: 'icon-download', label: 'Export CSV' },
               { href: '/events/print', icon: 'icon-printer', label: 'Print', target: '_blank' },
               { href: '/events/download.pdf', icon: 'icon-pdf', label: 'Download PDF' },
             ] : null,
-            desktopTopRightToggle: effectivePortal === 'student' ? { view: view, portalQuerySuffix: portalQuerySuffix } : null,
           }) %>
         <% } else { %>
           <%

@@ -517,7 +517,7 @@ function expandPortalRoles(roles) {
       expanded.push({
         key: 'family_school',
         label: 'Family School Management',
-        description: 'Homeschool classes, grades, attendance, planners, and portfolio for your own family.',
+        description: 'Homeschool classes, grades, attendance, weekly/annual planners, student portfolios, transcripts, diplomas and volunteer hours tracking.',
       });
     }
   }

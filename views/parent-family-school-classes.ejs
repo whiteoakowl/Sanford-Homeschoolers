@@ -15,7 +15,7 @@
         different listing on an otherwise single-purpose page. %>
     <div class="view-tabs no-print">
       <a class="view-tab<%= activeTab === 'classes' ? ' active' : '' %>" href="/parent/family-school/classes">Family Classes</a>
-      <a class="view-tab<%= activeTab === 'availableLessonPlans' ? ' active' : '' %>" href="/parent/family-school/classes?tab=availableLessonPlans">Available Lesson Plans</a>
+      <a class="view-tab<%= activeTab === 'availableLessonPlans' ? ' active' : '' %>" href="/parent/family-school/classes?tab=availableLessonPlans">Lesson Plan Library</a>
     </div>
 
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
@@ -30,7 +30,11 @@
             this (see e.g. views/parent-family-school-overview.ejs) -
             sizes each button/details to its own text instead of
             stretching them into equal-width grid columns that forced
-            this row to stack on mobile. %>
+            this row to stack on mobile.
+            A later real request: "Remove the button called add
+            preplanned class" - the Lesson Plan Library tab link above
+            is still the way in; +New Class is the only toolbar button
+            left here. %>
         <div class="roster-btn-row roster-btn-row-fit-text">
           <%# A real request: "Filter buttons should have student
               dropdown choice and school year choice." Classes have no
@@ -52,7 +56,6 @@
             </details>
           <% } %>
           <button type="button" class="roster-action-btn" onclick="document.getElementById('add-class-dialog').showModal()">+ New Class</button>
-          <a class="roster-action-btn" href="/parent/family-school/classes?tab=availableLessonPlans">+ Preplanned Class</a>
         </div>
       </div>
 
@@ -129,12 +132,15 @@
           built-in set, then moved from a dropdown dialog onto its own
           subpage here - "Lessons should show up under add preplanned
           class button," "Available lesson plan tab should be a subpage
-          under family classes." Only plans an admin flagged for Family
-          School Management show up here (utils/lessonPlans.js's own
-          listFamilySchoolLessonPlans) - each card's own Create Class
-          button posts straight to the same route the old dialog's
-          dropdown used, no picker needed since the card itself is the
-          picker now. %>
+          under family classes," then renamed to "Lesson Plan Library"
+          and given its own read-only View button per a later real
+          request. Only plans an admin flagged for Family School
+          Management show up here (utils/lessonPlans.js's own
+          listFamilySchoolLessonPlans) - each card's own "Add to Family
+          Class List" button (renamed from "Create Class" per that same
+          later request) posts straight to the same route the old
+          dialog's dropdown used, no picker needed since the card itself
+          is the picker now. %>
       <% if (lessonPlans.length === 0) { %>
         <p class="roster-empty">No lesson plans are available for Homeschool family management yet - ask the co-op admin to allow one from the Lesson Plans library.</p>
       <% } else { %>
@@ -145,10 +151,13 @@
                 <span class="team-info-icon"><svg class="icon"><use href="#icon-book"/></svg></span>
                 <h3 class="team-info-title"><%= p.title %></h3>
                 <% if (p.description) { %><p class="hint"><%= p.description %></p><% } %>
-                <form method="POST" action="/parent/family-school/classes/from-lesson-plan">
-                  <input type="hidden" name="lessonPlanId" value="<%= p.id %>" />
-                  <button type="submit" class="roster-action-btn">Create Class</button>
-                </form>
+                <div class="roster-btn-row roster-btn-row-fit-text">
+                  <a class="roster-action-btn" href="/parent/family-school/lesson-plans/<%= p.id %>">View</a>
+                  <form method="POST" action="/parent/family-school/classes/from-lesson-plan">
+                    <input type="hidden" name="lessonPlanId" value="<%= p.id %>" />
+                    <button type="submit" class="roster-action-btn">Add to Family Class List</button>
+                  </form>
+                </div>
               </div>
             </div>
           <% }); %>

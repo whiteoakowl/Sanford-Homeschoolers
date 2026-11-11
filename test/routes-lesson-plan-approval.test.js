@@ -132,10 +132,10 @@ test('teacher-created lesson starts as a draft, hidden from students and parents
   const teacherView = await request(app).get(`/teacher/classes/${classId}?tab=lessons`).set('Cookie', teacher.cookie);
   assert.match(teacherView.text, /Draft Lesson/);
 
-  const studentLessons = await request(app).get(`/student/classes/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
+  const studentLessons = await request(app).get(`/student/classes/dashboard/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
   assert.equal(studentLessons.status, 200);
   assert.doesNotMatch(studentLessons.text, /Draft Lesson/);
-  const studentAssignments = await request(app).get(`/student/classes/${classId}?tab=assignments`).set('Cookie', family.student.cookie);
+  const studentAssignments = await request(app).get(`/student/classes/dashboard/${classId}?tab=assignments`).set('Cookie', family.student.cookie);
   assert.doesNotMatch(studentAssignments.text, /Draft Lesson/);
   const studentAll = await request(app).get('/student/assignments').set('Cookie', family.student.cookie);
   assert.doesNotMatch(studentAll.text, /Draft Lesson/);
@@ -164,7 +164,7 @@ test('submit -> pending on the approval page; approve -> visible to enrolled stu
   assert.match(teacherManage.text, /badge-pill-orange">Submitted</);
   assert.doesNotMatch(teacherManage.text, /Submit for Approval/);
   // Still hidden while pending.
-  const pendingStudent = await request(app).get(`/student/classes/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
+  const pendingStudent = await request(app).get(`/student/classes/dashboard/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
   assert.doesNotMatch(pendingStudent.text, /Happy Lesson/);
 
   const admin = await loginAsAdmin();
@@ -184,7 +184,7 @@ test('submit -> pending on the approval page; approve -> visible to enrolled stu
   const approvedTab = await request(app).get('/admin/lesson-plans/approval?status=approved').set('Cookie', admin.cookie);
   assert.match(approvedTab.text, /Happy Lesson/);
 
-  const studentLessons = await request(app).get(`/student/classes/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
+  const studentLessons = await request(app).get(`/student/classes/dashboard/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
   assert.match(studentLessons.text, /Happy Lesson/);
   const direct = await request(app).get(`/student/content/${itemId}`).set('Cookie', family.student.cookie);
   assert.equal(direct.status, 200);
@@ -255,7 +255,7 @@ test('reject requires a message; rejected lesson is hidden from students, messag
   assert.match(note.body, /Please add a video\./);
 
   // Students/parents still can't see it; another teacher can't open it.
-  const studentLessons = await request(app).get(`/student/classes/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
+  const studentLessons = await request(app).get(`/student/classes/dashboard/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
   assert.doesNotMatch(studentLessons.text, /Rejected Lesson/);
   assert.equal((await request(app).get(`/student/content/${itemId}`).set('Cookie', family.student.cookie)).status, 404);
   const outsiderView = await request(app).get(`/teacher/assignments/${lesson.id}`).set('Cookie', otherTeacher.cookie);
@@ -340,7 +340,7 @@ test('admin-created lessons (class Lessons tab and Lesson Plans "Assign to Class
   const adminTab = await db.prepare('SELECT * FROM class_assignments WHERE class_id = ? AND title = ?').get(classId, 'Admin Tab Lesson');
   assert.equal(adminTab.approval_status, 'approved');
 
-  const studentLessons = await request(app).get(`/student/classes/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
+  const studentLessons = await request(app).get(`/student/classes/dashboard/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
   assert.match(studentLessons.text, /Template Lesson/);
   assert.match(studentLessons.text, /Admin Tab Lesson/);
 

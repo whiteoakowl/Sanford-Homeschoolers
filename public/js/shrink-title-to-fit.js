@@ -128,7 +128,15 @@
   }
 
   function shrinkAll() {
-    document.querySelectorAll('.class-card-header h3, .class-schedule-room-name, .grade-level-report-col-title, .grade-level-bar-label, .grade-level-report-name').forEach(shrinkToFit);
+    // .wx-el-login .wx-btn - a real request: "Homepage mobile. Log in
+    // button, the text should shrink to fit to stay on one row clean in
+    // button box." The public homepage's own Log In/My Portals button
+    // (public/js/site-render.js's own 'login' element type) fills
+    // whatever box width the Wix-style editor placed it at for each
+    // breakpoint - on a narrow mobile layout that box can be too narrow
+    // for its text at the normal font size, wrapping "Log in" onto a
+    // second line instead of shrinking to fit the one it has.
+    document.querySelectorAll('.class-card-header h3, .class-schedule-room-name, .grade-level-report-col-title, .grade-level-bar-label, .grade-level-report-name, .wx-el-login .wx-btn').forEach(shrinkToFit);
   }
 
   // document.fonts.ready, not a plain 'load' listener - same reasoning as

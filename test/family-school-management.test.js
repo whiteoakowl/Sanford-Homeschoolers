@@ -789,10 +789,13 @@ test('Family Classes: the Filter popover offers a Student dropdown that narrows 
 // (only plans flagged allow_family_school_use), then moved that picker
 // from a dropdown dialog onto its own "Available Lesson Plans" tab/
 // subpage - "Available lesson plan tab should be a subpage under
-// family classes." The "+ Preplanned Class" button is now a plain link
-// into that tab, and each plan's own card has a Create Class button
-// (no dropdown needed - the card itself is the pick).
-test('Family Classes: the Available Lesson Plans tab lists only plans flagged for Homeschool family management, and its Create Class button creates a class with a linked lesson', async () => {
+// family classes." A later real request renamed that tab to "Lesson
+// Plan Library," removed the "+ Preplanned Class" toolbar button
+// entirely (the tab link is still the way in), renamed each plan
+// card's own Create Class button to "Add to Family Class List," and
+// added a View button per card for a read-only preview before
+// committing to that.
+test('Family Classes: the Lesson Plan Library tab lists only plans flagged for Homeschool family management, and its Add to Family Class List button creates a class with a linked lesson', async () => {
   const { createLessonPlan, updateLessonPlan } = require('../utils/lessonPlans');
   const familyId = await createFamily('Preplanned Class Family');
   const parent = await createPortalMember({ name: 'Preplanned Parent', familyId, memberType: 'parent', roleKey: 'parent' });
@@ -803,15 +806,18 @@ test('Family Classes: the Available Lesson Plans tab lists only plans flagged fo
 
   const classesPage = await request(app).get('/parent/family-school/classes').set('Cookie', parent.cookie);
   assert.equal(classesPage.status, 200);
-  assert.match(classesPage.text, /href="\/parent\/family-school\/classes\?tab=availableLessonPlans">\+ Preplanned Class<\/a>/);
+  assert.doesNotMatch(classesPage.text, /\+ Preplanned Class/, 'the toolbar button was removed');
   assert.match(classesPage.text, /<a class="view-tab active" href="\/parent\/family-school\/classes">Family Classes<\/a>/);
   assert.doesNotMatch(classesPage.text, /Fractions Unit/, 'the lesson plan library listing must not render on the Family Classes tab itself');
 
   const libraryPage = await request(app).get('/parent/family-school/classes?tab=availableLessonPlans').set('Cookie', parent.cookie);
   assert.equal(libraryPage.status, 200);
-  assert.match(libraryPage.text, /<a class="view-tab active" href="\/parent\/family-school\/classes\?tab=availableLessonPlans">Available Lesson Plans<\/a>/);
+  assert.match(libraryPage.text, /<a class="view-tab active" href="\/parent\/family-school\/classes\?tab=availableLessonPlans">Lesson Plan Library<\/a>/);
   assert.match(libraryPage.text, /Fractions Unit/);
   assert.doesNotMatch(libraryPage.text, /Not Yet Shared/);
+  assert.match(libraryPage.text, new RegExp(`href="/parent/family-school/lesson-plans/${flaggedId}">View</a>`));
+  assert.match(libraryPage.text, />Add to Family Class List<\/button>/);
+  assert.doesNotMatch(libraryPage.text, />Create Class<\/button>/);
 
   const csrf = await csrfFrom(parent.cookie, '/parent/family-school/classes?tab=availableLessonPlans');
   const res = await request(app)
@@ -828,6 +834,32 @@ test('Family Classes: the Available Lesson Plans tab lists only plans flagged fo
   assert.equal(lesson.title, 'Fractions Unit');
   assert.equal(lesson.source_lesson_plan_id, flaggedId);
   void unflaggedId;
+});
+
+// A real request: "There should be a view button to view the lesson
+// plan entirely in view mode." The new read-only preview page, reached
+// from the Lesson Plan Library card's own View button above.
+test('Family Classes: the Lesson Plan Library View button shows that plan\'s content read-only, and 404s for a plan not flagged for Homeschool family management', async () => {
+  const { createLessonPlan, updateLessonPlan, createLessonPlanContentItem } = require('../utils/lessonPlans');
+  const familyId = await createFamily('Lesson Plan View Family');
+  const parent = await createPortalMember({ name: 'Lesson Plan View Parent', familyId, memberType: 'parent', roleKey: 'parent' });
+
+  const flaggedId = await createLessonPlan({ title: 'Reading Basics', description: 'Phonics and comprehension.', createdByAccountId: null });
+  await updateLessonPlan(flaggedId, { title: 'Reading Basics', description: 'Phonics and comprehension.', allowFamilySchoolUse: true });
+  await createLessonPlanContentItem({ lessonPlanId: flaggedId, type: 'text', title: 'Letter Sounds', body: 'Practice short vowel sounds.' });
+  const unflaggedId = await createLessonPlan({ title: 'Not Shared Yet', description: null, createdByAccountId: null });
+
+  const viewPage = await request(app).get(`/parent/family-school/lesson-plans/${flaggedId}`).set('Cookie', parent.cookie);
+  assert.equal(viewPage.status, 200);
+  assert.match(viewPage.text, /Reading Basics/);
+  assert.match(viewPage.text, /Phonics and comprehension\./);
+  assert.match(viewPage.text, /Letter Sounds/);
+  assert.match(viewPage.text, /Practice short vowel sounds\./);
+  assert.match(viewPage.text, />Add to Family Class List<\/button>/);
+  assert.match(viewPage.text, /Back to Lesson Plan Library/);
+
+  const blockedPage = await request(app).get(`/parent/family-school/lesson-plans/${unflaggedId}`).set('Cookie', parent.cookie);
+  assert.equal(blockedPage.status, 404);
 });
 
 // A real request: "Family school management, family classes. Mobile.

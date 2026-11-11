@@ -9,6 +9,7 @@ const { renderViewToPdf } = require('../utils/pdfRender');
 const { classesAtRiskForDay, CLASS_DAY_LABELS_FULL, listActiveClassDays, ensureDayMemberRosters } = require('../utils/classSchedule');
 const { isValidClassDay, CLASS_DAY_WEEKDAY_FULL } = require('../utils/classDays');
 const { substituteBoard } = require('../utils/substitutes');
+const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
 const { membersWithMedicalNotes, lastNameOf } = require('../utils/members');
 const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('../utils/pagination');
 const { scannedTasksForMemberDate } = require('../utils/setup');
@@ -630,7 +631,21 @@ router.get('/logs', requireAdmin, async (req, res) => {
     // substituteBoard call (the Floater Assignments manage page) is left
     // untouched - it deliberately shows both (see its own comment on that
     // history), so the filter is scoped to just this route/tab.
-    const fullBoard = await substituteBoard(day, dateFilter || null);
+    //
+    // A real bug report: "substitutes needed should only be showing the
+    // current active semester, not next semester that hasn't started
+    // yet." Omitting semesterId here left gridForDay's own classesFor-
+    // DaySemester with no filter AT ALL (semesterId === undefined means
+    // "every semester," not "the active one" - unlike permanentJobsFor-
+    // Day/temporaryJobsForDayDate below it, which already default an
+    // omitted semesterId to the active Kiosk semester on their own), so
+    // a class already scheduled for next semester but not yet underway
+    // showed up here right alongside today's real open slots. Resolving
+    // it explicitly scopes every piece of the board - the class grid,
+    // permanent jobs, and the floater pool - to the same one semester,
+    // same as every other semester-aware admin page in the app.
+    const semesterId = await getActiveKioskSemesterId();
+    const fullBoard = await substituteBoard(day, dateFilter || null, semesterId);
     const board = fullBoard.map((hour) => ({ ...hour, slots: hour.slots.filter((s) => s.slotType === 'class') }));
     return res.render('admin-logs', {
       title: 'Substitutes Needed',
@@ -1117,7 +1132,11 @@ router.get('/logs/substitutes/print', requireAdmin, async (req, res) => {
   const activeDays = await listActiveClassDays();
   const day = isValidClassDay(req.query.day) ? req.query.day : (activeDays[0] || 'monday');
   const dateFilter = req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date) ? req.query.date : todayIfSessionDay(day) || '';
-  const fullBoard = await substituteBoard(day, dateFilter || null);
+  // Same active-semester scoping as the on-screen board above - the
+  // print preview/PDF should never show a different set of open slots
+  // than what's actually on screen.
+  const semesterId = await getActiveKioskSemesterId();
+  const fullBoard = await substituteBoard(day, dateFilter || null, semesterId);
   const board = fullBoard.map((hour) => ({ ...hour, slots: hour.slots.filter((s) => s.slotType === 'class') }));
   res.render('logs-substitutes-print', {
     title: 'Substitutes Needed',
@@ -1132,7 +1151,8 @@ router.get('/logs/substitutes/download.pdf', requireAdmin, async (req, res) => {
   const activeDays = await listActiveClassDays();
   const day = isValidClassDay(req.query.day) ? req.query.day : (activeDays[0] || 'monday');
   const dateFilter = req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date) ? req.query.date : todayIfSessionDay(day) || '';
-  const fullBoard = await substituteBoard(day, dateFilter || null);
+  const semesterId = await getActiveKioskSemesterId();
+  const fullBoard = await substituteBoard(day, dateFilter || null, semesterId);
   const board = fullBoard.map((hour) => ({ ...hour, slots: hour.slots.filter((s) => s.slotType === 'class') }));
   const pdf = await renderViewToPdf(req, 'logs-substitutes-print', {
     isFullAdmin: res.locals.isFullAdmin,

@@ -9,22 +9,16 @@
   <main id="main-content" tabindex="-1" class="admin-main">
     <h1>Classroom Dashboard</h1>
 
-    <%# A real request: "Classroom dashboard has all family school
-        management classes and co-op classes together, but categorized
-        and filters, for easier viewing for students." Same Filter
-        popover convention every other page in the app already uses. %>
-    <div class="roster-btn-row roster-btn-row-fit-text no-print">
-      <details class="filter-details" data-filter-details>
-        <summary class="roster-action-btn">Filter</summary>
-        <form method="GET" action="/student/classes/dashboard" class="filter-panel">
-          <label for="classroom-dashboard-type-select">Show</label>
-          <select id="classroom-dashboard-type-select" name="type" onchange="this.form.submit()">
-            <option value="all" <%= type === 'all' ? 'selected' : '' %>>All Classes</option>
-            <option value="coop" <%= type === 'coop' ? 'selected' : '' %>>Co-op Classes</option>
-            <option value="family" <%= type === 'family' ? 'selected' : '' %>>Homeschool Family Classes</option>
-          </select>
-        </form>
-      </details>
+    <%# A real request: "Filter button should turn into a pill slider
+        toggle switching from co-op classes to homeschool family
+        classes." Replaces the old Filter popover's All/Co-op/Family
+        <select> with the same pill-toggle component the Co-op Schedule
+        day switcher already uses (.day-toggle/.day-toggle-option,
+        styles.css) - a plain two-option "slide" between Co-op Classes
+        and Homeschool Family Classes, each a real page link. %>
+    <div class="day-toggle no-print" role="group" aria-label="Co-op or homeschool family classes">
+      <a class="day-toggle-option<%= type !== 'family' ? ' active' : '' %>" href="/student/classes/dashboard?type=coop">Co-op Classes</a>
+      <a class="day-toggle-option<%= type === 'family' ? ' active' : '' %>" href="/student/classes/dashboard?type=family">Homeschool Family Classes</a>
     </div>
 
     <% if (days.length === 0 && familyClasses.length === 0) { %>
@@ -52,7 +46,7 @@
                   </div>
                 </div>
                 <div class="class-dash-card-actions">
-                  <a class="roster-action-btn" href="/student/classes/<%= c.id %>">View Class</a>
+                  <a class="roster-action-btn" href="/student/classes/dashboard/<%= c.id %>">View Class</a>
                 </div>
               </div>
             <% }); %>
@@ -91,6 +85,5 @@
       <% } %>
     <% } %>
   </main>
-  <script src="/js/filter-details-dismiss.js"></script>
 </body>
 </html>

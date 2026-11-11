@@ -40,8 +40,16 @@ router.get('/login', (req, res) => {
   res.redirect('/login?next=' + encodeURIComponent(next));
 });
 
+// A real request: "if at any time a member clicks log out, on any
+// portal, it will go back to the homepage" - same target as the live,
+// actually-used logout button every portal's own nav posts to
+// (routes/portal-auth.js's own POST /logout, mounted at the bare
+// /logout every nav form actually uses - nothing links to this
+// /admin/logout specifically, left behind from the retired separate
+// master login above). Kept consistent rather than deleted, in case
+// anything old still bookmarks or posts straight to it.
 router.post('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/login'));
+  req.session.destroy(() => res.redirect('/'));
 });
 
 // --- Dashboard ---
