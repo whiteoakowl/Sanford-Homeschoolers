@@ -712,7 +712,7 @@ textarea:focus-visible,
   .landing-grid-sub-dashboard .landing-icon { width: 1.75rem; height: 1.75rem; font-size: 1rem; }
   .landing-grid-sub-dashboard .landing-label { font-size: 0.9rem; }
 }
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .landing-grid-sub-dashboard { grid-template-columns: repeat(2, 140px); gap: 0.5rem; }
 }
 
@@ -13480,7 +13480,7 @@ input.forum-editor-color-input { position: absolute; width: 1px !important; heig
   white-space: nowrap;
   overflow: hidden;
 }
-@media (max-width: 560px) {
+@media (max-width: 640px) {
   .event-calendar-nav-row-unified { gap: 0.15rem; }
   .event-calendar-nav-row-unified .event-calendar-nav-trailing-icon {
     width: 1.3rem;
