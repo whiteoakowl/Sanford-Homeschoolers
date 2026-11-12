@@ -17,7 +17,7 @@ var hasSchoolLogo = Boolean(familySettings && familySettings.logoUrl);
 var seals = opts.DIPLOMA_SEALS.filter(function(s) { return s.key !== 'school' || hasSchoolLogo; });
 var sealPick = function(n) { return view['seal' + n].key; };
 %>
-<form method="POST" action="<%= basePath %>" class="dip-builder" id="<%= fid %>" data-diploma-builder data-default-body="<%= JSON.stringify(opts.DEFAULT_BODY) %>">
+<form method="POST" action="<%= basePath %>" class="dip-builder" id="<%= fid %>" data-diploma-builder data-default-body="<%= JSON.stringify(view.defaultBodies) %>" data-default-signatures="<%= JSON.stringify(opts.DEFAULT_SIGNATURES) %>">
   <input type="hidden" name="studentId" value="<%= rec.child.id %>" />
 
   <section class="dip-builder-section">
@@ -47,6 +47,9 @@ var sealPick = function(n) { return view['seal' + n].key; };
       </label>
       <label class="member-form-full" data-design-only="design3">Header Line <span class="hint">(Design 3)</span>
         <input type="text" name="headerText" value="<%= (dip && dip.header_text) || '' %>" placeholder="Board of Education" />
+      </label>
+      <label class="member-form-full" data-design-only="design3">Course Line <span class="hint">(Design 3)</span>
+        <input type="text" name="courseText" value="<%= (dip && dip.course_text) || '' %>" placeholder="Academic Course of Four Years" />
       </label>
       <label>Student Name <span class="hint">(as it should print)</span>
         <input type="text" name="displayName" value="<%= (dip && dip.display_name) || rec.child.name %>" />

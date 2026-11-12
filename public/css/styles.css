@@ -15932,74 +15932,111 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 .fs-journal-attachment-file-link { display: inline-flex; align-items: center; gap: 0.4rem; word-break: break-word; }
 
 /* Diploma certificates (views/partials/diploma-certificate.ejs) - a real
-   request: "For all portals, diplomas creation. Diploma choices should
-   look like this" - four traditional high school diploma designs on
-   parchment. Sized in container units (cqw) so the very same markup is a
-   small design-choice card, the builder preview, or a full printed
-   landscape page without any per-size copy. */
+   request: "The diplomas should look exactly like my image examples with
+   wording, font size and font placement." Every line is absolutely
+   placed: top is the line's center as a % of the diploma's height, and
+   every size is in cqw (1% of the diploma's width), all measured off the
+   four examples - so a small design card, the preview and the printed
+   page are the same layout at different sizes. */
 .dip {
   container-type: inline-size;
+  position: relative;
   width: 100%;
   max-width: 1100px;
   margin: 0 auto;
-  aspect-ratio: 11 / 8.5;
+  aspect-ratio: 11 / 8.3;
   background: #f4ecd6;
-  border: 1px solid #3b4250;
-  box-shadow: inset 0 0 0 0.6cqw #f4ecd6, inset 0 0 0 0.8cqw #3b4250;
-  color: #141414;
+  border: 0.25cqw solid #444b57;
+  color: #111;
   text-align: center;
   font-family: 'UnifrakturMaguntia', 'Old English Text MT', Georgia, serif;
   overflow: hidden;
+  box-sizing: border-box;
 }
-.dip-inner { box-sizing: border-box; height: 100%; padding: 3.2cqw 6cqw 3.4cqw; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
 .dip p { margin: 0; }
-.dip-bl { font-family: 'UnifrakturMaguntia', 'Old English Text MT', Georgia, serif; }
-.dip-script { font-family: 'Pinyon Script', 'Brush Script MT', cursive; }
-.dip-small { font-size: 1.5cqw; }
-.dip-arch { width: 92%; height: auto; display: block; margin: -0.5cqw 0 -2.4cqw; overflow: visible; }
-.dip-arch-text { font-family: 'UnifrakturMaguntia', 'Old English Text MT', Georgia, serif; font-size: 104px; fill: #111; paint-order: stroke; stroke: #111; stroke-width: 2.4px; filter: drop-shadow(2px 2px 0 #b9b2a2); }
-.dip-design2 .dip-arch { margin-bottom: -4cqw; }
-.dip-design2 .dip-arch-text { font-size: 112px; }
-.dip-certifies { font-size: 2.1cqw; letter-spacing: 0.05em; }
-.dip-name { font-size: 3.6cqw; line-height: 1.1; }
-.dip-body { font-size: 1.75cqw; line-height: 1.45; max-width: 76%; }
-.dip-title { font-size: 6cqw; line-height: 1; text-shadow: 0.25cqw 0.25cqw 0 #b9b2a2; }
-.dip-date { font-size: 1.7cqw; }
-.dip-witness { font-size: 1.1em; letter-spacing: 0.06em; }
-.dip-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 2cqw; }
-.dip-d1-place { justify-content: center; gap: 5cqw; margin-top: -1.5cqw; }
-.dip-seal { display: inline-flex; flex-shrink: 0; width: 11cqw; height: 11cqw; }
+.dip-at { position: absolute; left: 50%; transform: translate(-50%, -50%); white-space: nowrap; line-height: 1.15; }
+.dip-arch { position: absolute; left: 0; width: 100%; height: auto; overflow: visible; }
+.dip-arch-text { font-family: 'UnifrakturCook', 'UnifrakturMaguntia', 'Old English Text MT', Georgia, serif; font-weight: 700; fill: #111; paint-order: stroke; stroke: #111; stroke-width: 1.5px; filter: drop-shadow(3px 3px 0 #9e9a90); }
+.dip-certifies { font-size: 2.15cqw; letter-spacing: 0.06em; font-weight: 700; }
+.dip-name { font-family: 'UnifrakturCook', 'UnifrakturMaguntia', Georgia, serif; font-weight: 700; font-size: 3cqw; }
+.dip-body { white-space: normal; font-size: 1.85cqw; line-height: 1.62; font-weight: 700; }
+.dip-title { font-family: 'UnifrakturCook', 'UnifrakturMaguntia', Georgia, serif; font-weight: 700; font-size: 6cqw; line-height: 1; text-shadow: 0.35cqw 0.3cqw 0 #a9a497; }
+.dip-date { font-size: 1.6cqw; font-weight: 700; }
+.dip-seal-a .dip-seal, .dip-seal-b .dip-seal { width: 100%; height: 100%; }
+.dip-seal { display: inline-flex; width: 100%; height: 100%; }
 .dip-seal svg { width: 100%; height: 100%; }
 .dip-seal-logo img { width: 100%; height: 100%; object-fit: contain; }
 .dip-seal-empty { visibility: hidden; }
-.dip-sigs { align-items: flex-end; }
-.dip-sig { display: flex; flex-direction: column; align-items: center; width: 22cqw; }
+/* Signatures: the box's top border is the signature line; the signed
+   name sits just above it and the role just below. */
+.dip-sig { position: absolute; border-top: 0.14cqw solid #222; }
 .dip-sig-hidden { visibility: hidden; }
-.dip-sig-name { font-family: 'Pinyon Script', 'Brush Script MT', cursive; font-size: 2.4cqw; line-height: 1.2; min-height: 1.2em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.dip-sig-line { display: block; width: 100%; border-top: 0.15cqw solid #222; margin: 0.2cqw 0 0.4cqw; }
-.dip-sig-role { font-size: 1.15cqw; min-height: 1.2em; }
-.dip-sig-stack { display: flex; flex-direction: column; gap: 1.2cqw; }
-.dip-sigs-seal .dip-seal { width: 12cqw; height: 12cqw; }
-/* Design 3 - a Board of Education header and a straight school name */
-.dip-header { font-size: 3.6cqw; }
-.dip-header-place { font-size: 1.7cqw; margin-top: -1cqw; }
-.dip-school { font-size: 5.4cqw; line-height: 1.05; }
-.dip-name-lined { padding: 0 3cqw 0.3cqw; border-bottom: 0.15cqw solid #222; }
-.dip-design3 .dip-name { font-size: 3.1cqw; }
-.dip-date-right { align-self: flex-end; margin-right: 4cqw; font-size: 2cqw; }
-.dip-sigs-corners { align-items: center; }
-.dip-sig-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 5cqw; row-gap: 0.6cqw; justify-items: center; }
-.dip-sig-center { grid-column: 1 / -1; }
+.dip-sig-name { position: absolute; left: -10%; right: -10%; bottom: 100%; font-family: 'Pinyon Script', 'Brush Script MT', cursive; font-size: 2.5cqw; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dip-sig-role { display: block; padding-top: 0.25cqw; font-size: 1.15cqw; font-weight: 700; line-height: 1.15; white-space: nowrap; }
+
+/* Design 1 */
+.dip-design1 .dip-arch { top: 0; }
+.dip-design1 .dip-city { top: 29%; left: 38%; font-size: 1.25cqw; font-weight: 700; }
+.dip-design1 .dip-state { top: 29%; left: 62.5%; font-size: 1.25cqw; font-weight: 700; }
+.dip-design1 .dip-seal-a { top: 28.5%; width: 13.5cqw; height: 13.5cqw; }
+.dip-design1 .dip-certifies { top: 41%; }
+.dip-design1 .dip-name { top: 47.5%; font-size: 3.1cqw; }
+.dip-design1 .dip-body { top: 57.6%; width: 78%; }
+.dip-design1 .dip-title { top: 71%; font-size: 6cqw; }
+.dip-design1 .dip-date { top: 80%; }
+.dip-design1 .dip-sig { top: 89.5%; width: 18cqw; }
+.dip-design1 .dip-sig-1 { left: 14%; }
+.dip-design1 .dip-sig-2 { left: 68%; }
+.dip-design1 .dip-sig-3 { left: 41%; }
+
+/* Design 2 */
+.dip-design2 .dip-arch { top: 0; }
+.dip-design2 .dip-certifies { top: 26%; }
+.dip-design2 .dip-name { top: 33%; }
+.dip-design2 .dip-body { top: 43%; width: 68%; font-size: 1.8cqw; line-height: 1.58; }
+.dip-design2 .dip-title { top: 55%; }
+.dip-design2 .dip-date { top: 66%; font-size: 1.75cqw; line-height: 1.75; }
+.dip-design2 .dip-witness, .dip-design4 .dip-witness { font-size: 1.38em; letter-spacing: 0.08em; }
+.dip-design2 .dip-seal-a { top: 83%; width: 14cqw; height: 14cqw; }
+.dip-design2 .dip-sig { width: 13cqw; }
+.dip-design2 .dip-sig-1 { top: 81.5%; left: 17%; }
+.dip-design2 .dip-sig-2 { top: 89.5%; left: 17%; }
+.dip-design2 .dip-sig-3 { top: 86.7%; left: 69%; width: 16cqw; }
+
+/* Design 3 */
+.dip-design3 .dip-header { top: 9.4%; font-size: 3.6cqw; font-weight: 700; }
+.dip-design3 .dip-header-place { top: 15%; font-size: 1.9cqw; font-weight: 700; }
+.dip-design3 .dip-school { top: 22.7%; font-family: 'UnifrakturCook', 'UnifrakturMaguntia', Georgia, serif; font-weight: 700; font-size: 5.4cqw; }
+.dip-design3 .dip-awarded { top: 30.6%; font-size: 2.3cqw; font-weight: 700; }
+.dip-design3 .dip-name { top: 38.3%; font-size: 2.9cqw; }
+.dip-design3 .dip-name-line { top: 41%; width: 36%; border-top: 0.14cqw solid #222; }
+.dip-design3 .dip-lead { top: 45.6%; font-size: 2.4cqw; font-weight: 700; }
+.dip-design3 .dip-course { top: 53.7%; font-size: 3.4cqw; font-weight: 700; }
+.dip-design3 .dip-body { top: 63.6%; left: 11%; width: 78%; white-space: pre-line; transform: translateY(-50%); text-align: left; font-size: 2.3cqw; line-height: 1.65; }
+.dip-design3 .dip-date { top: 66.8%; left: auto; right: 11.5%; transform: translateY(-50%); font-family: 'UnifrakturCook', 'UnifrakturMaguntia', Georgia, serif; font-size: 2.3cqw; }
+.dip-design3 .dip-seal-a { top: 82.2%; left: 16%; width: 14cqw; height: 14cqw; }
+.dip-design3 .dip-seal-b { top: 82.2%; left: 83%; width: 14cqw; height: 14cqw; }
 .dip-design3 .dip-sig { width: 19cqw; }
-/* Design 4 - a flourish under the arch and script wording */
-.dip-flourish { width: 26cqw; height: auto; margin-top: -2cqw; }
-.dip-flourish path { fill: none; stroke: #444; stroke-width: 2.5; }
-.dip-flourish circle { fill: #444; }
-.dip-design4 .dip-body { font-size: 2.3cqw; line-height: 1.35; max-width: 80%; }
-.dip-design4 .dip-date { font-size: 2.2cqw; }
+.dip-design3 .dip-sig-1 { top: 82%; left: 27%; }
+.dip-design3 .dip-sig-2 { top: 82%; left: 54%; }
+.dip-design3 .dip-sig-3 { top: 88.7%; left: 40.5%; }
+
+/* Design 4 */
+.dip-design4 .dip-arch { top: 0; }
+.dip-design4 .dip-building-a { top: 25.5%; width: 19cqw; }
+.dip-building { display: block; width: 100%; height: auto; }
+.dip-design4 .dip-certifies { top: 38.5%; font-size: 2cqw; }
+.dip-design4 .dip-name { top: 44.8%; font-size: 2.9cqw; }
+.dip-design4 .dip-body { top: 55%; width: 64%; font-family: 'Pinyon Script', 'Brush Script MT', cursive; font-size: 2.15cqw; line-height: 1.38; font-weight: 400; -webkit-text-stroke: 0.04cqw #111; }
+.dip-design4 .dip-date { top: 66.8%; font-family: 'Pinyon Script', 'Brush Script MT', cursive; font-size: 2.15cqw; line-height: 1.45; font-weight: 400; -webkit-text-stroke: 0.04cqw #111; }
+.dip-design4 .dip-seal-a { top: 84%; width: 14cqw; height: 14cqw; }
+.dip-design4 .dip-sig { width: 12.5cqw; }
+.dip-design4 .dip-sig-1 { top: 81%; left: 18%; }
+.dip-design4 .dip-sig-2 { top: 89%; left: 18%; }
+.dip-design4 .dip-sig-3 { top: 86.7%; left: 68%; width: 18cqw; }
 
 /* The builder's design-choice cards: a small version of each design. */
-.diploma-cert-compact { box-shadow: inset 0 0 0 0.6cqw #f4ecd6, inset 0 0 0 0.8cqw #3b4250; }
+.diploma-cert-compact { box-shadow: none; }
 
 /* Custom Forms (Main Admin "Forms" tab) - a real request: "Main admin
    portal, forms tab. Should have full editing features and view just
@@ -16824,7 +16861,7 @@ dialog form:has(.permission-section) > h3,
 }
 .fs-overview-grid:has(.fs-student-card) { grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 1.25rem; }
 @media print {
-  .dip { width: 10.2in; height: 7.6in; max-width: none; aspect-ratio: auto; margin: 0 auto; break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .dip { width: 10.2in; height: 7.6in; max-width: none; aspect-ratio: auto; border-width: 0.03in; margin: 0 auto; break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
 /* Diploma builder (views/partials/diploma-student-builder.ejs) */
 .dip-builder { display: flex; flex-direction: column; gap: 1.25rem; max-width: 1100px; }

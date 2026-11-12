@@ -40,19 +40,35 @@ const SIGNATURE_ROLES = [
   'Guardian',
   'Administrator',
   'Superintendent',
+  'Superintendent of Schools',
   'Director',
   'Head of School',
   'President, Board of Education',
   'Chair, Board of Education',
 ];
 
-// Each design's own wording when the family hasn't typed their own.
+// Each design's own wording when the family hasn't typed their own -
+// a real request: "The diplomas should look exactly like my image
+// examples with wording, font size and font placement." {city} and
+// {state} are filled in from the School City / State boxes.
 const DEFAULT_BODY = {
-  design1: 'having satisfactorily completed all requirements for high school graduation as prescribed by this school, and is hereby awarded this',
-  design2: 'has satisfactorily completed the Course of Study prescribed for graduation by this school and is awarded this',
-  design3: 'who has satisfactorily completed the Academic Course of Study, and by proficiency in scholarship and integrity of character has merited graduation',
-  design4: 'has satisfactorily completed the Course of Study prescribed by this school and is awarded this Diploma.',
+  design1: 'having satisfactorily completed all requirements of law and standards for high school graduation as prescribed by the State Board of Education and the District School Board and is hereby awarded this',
+  design2: 'Has satisfactorily completed the Course of Study prescribed by the State Board of Education for the School District of {city} and {state} and is awarded this',
+  design3: 'and by proficiency in scholarship and by integrity of character\nhas merited graduation',
+  design4: 'Has satisfactorily completed the Course of Study prescribed by the State Board of Education for the School District of {city} and {state} and is awarded this Diploma.',
 };
+
+// Each design's own signature lines, in the same places as the examples.
+const DEFAULT_SIGNATURES = {
+  design1: ['Superintendent', 'Principal', ''],
+  design2: ['Principal', 'Superintendent', 'Chair, Board of Education'],
+  design3: ['President, Board of Education', 'Superintendent of Schools', 'Principal'],
+  design4: ['Principal', 'Superintendent', 'Chair, Board of Education'],
+};
+
+function fillPlace(text, city, state) {
+  return String(text || '').replace(/\{city\}/g, city).replace(/\{state\}/g, state);
+}
 
 const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
 const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
@@ -73,7 +89,7 @@ function ordinalDay(n) {
 
 // 2026 -> "two thousand twenty-six", 1997 -> "nineteen hundred ninety-seven"
 function yearWords(y) {
-  if (y >= 2000 && y < 2100) return 'two thousand' + (y % 100 ? ' ' + underHundred(y % 100) : '');
+  if (y >= 2000 && y < 2100) return 'two thousand' + (y % 100 ? ' and ' + underHundred(y % 100) : '');
   const hi = Math.floor(y / 100);
   const lo = y % 100;
   return underHundred(hi) + ' hundred' + (lo ? ' ' + underHundred(lo) : '');
@@ -129,20 +145,30 @@ function diplomaView(diploma, member, familySettings, design) {
     const s = seal === 'school' && !schoolLogoUrl ? 'gold' : seal;
     return { key: s, url: sealUrl(s) };
   };
-  const issued = d.issued_date || '';
+  // Not saved yet: show today's date, the builder's own starting date.
+  const issued = d.issued_date || require('./dates').todayISO();
+  // A diploma that hasn't been saved yet starts with the design's own
+  // signature lines; once saved, exactly what was chosen.
   const signatures = [1, 2, 3]
-    .map((n) => ({ name: d[`signature${n}_name`] || '', role: d[`signature${n}_title`] || '' }))
+    .map((n) => ({
+      name: d[`signature${n}_name`] || '',
+      role: diploma ? d[`signature${n}_title`] || '' : DEFAULT_SIGNATURES[key][n - 1],
+    }))
     .map((s, i) => ({ ...s, slot: i + 1, show: Boolean(s.name || s.role) }));
-  const schoolName = d.school_name || fs.school_name || 'Your High School Name';
+  const schoolName = d.school_name || fs.school_name || 'Your High School Name Here';
+  const city = d.school_city || 'Your City';
+  const state = d.school_state || 'Your State';
   return {
     design: key,
     schoolName,
-    city: d.school_city || 'Your City',
-    state: d.school_state || 'Your State',
+    city,
+    state,
+    courseText: d.course_text || 'Academic Course of Four Years',
     headerText: d.header_text || 'Board of Education',
     studentName: d.display_name || (member && member.name) || 'Student Name',
     title: d.title && d.title !== 'Diploma of Completion' ? d.title : 'Diploma',
-    body: d.body_text || DEFAULT_BODY[key],
+    body: fillPlace(d.body_text || DEFAULT_BODY[key], city, state),
+    defaultBodies: Object.fromEntries(Object.entries(DEFAULT_BODY).map(([k, t]) => [k, fillPlace(t, city, state)])),
     dateWords: dateInWords(issued),
     dateShort: dateShort(issued),
     seal1: resolveSeal(normalizeSeal(d.seal1, 'gold')),
@@ -159,8 +185,10 @@ function diplomaFieldsFromBody(body) {
     const v = text(name);
     return SIGNATURE_ROLES.includes(v) ? v : '';
   };
-  const bodyText = text('bodyText');
-  const isDefaultBody = Object.values(DEFAULT_BODY).includes(bodyText);
+  const bodyText = text('bodyText').replace(/\r\n/g, '\n');
+  const city = text('schoolCity') || 'Your City';
+  const state = text('schoolState') || 'Your State';
+  const isDefaultBody = Object.values(DEFAULT_BODY).some((t) => t === bodyText || fillPlace(t, city, state) === bodyText);
   return {
     title: text('title') || 'Diploma',
     issuedDate: /^\d{4}-\d{2}-\d{2}$/.test(text('issuedDate')) ? text('issuedDate') : null,
@@ -171,6 +199,7 @@ function diplomaFieldsFromBody(body) {
     schoolCity: text('schoolCity'),
     schoolState: text('schoolState'),
     headerText: text('headerText'),
+    courseText: text('courseText'),
     seal1: normalizeSeal(text('seal1'), 'gold'),
     seal2: normalizeSeal(text('seal2'), 'gold'),
     signature1Name: text('signature1Name'),
@@ -187,6 +216,7 @@ module.exports = {
   DIPLOMA_SEALS,
   SIGNATURE_ROLES,
   DEFAULT_BODY,
+  DEFAULT_SIGNATURES,
   dateInWords,
   dateShort,
   diplomaView,

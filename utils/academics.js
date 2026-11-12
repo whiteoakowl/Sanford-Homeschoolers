@@ -277,7 +277,7 @@ async function issueDiploma(f) {
     ['title', f.title], ['issued_date', f.issuedDate], ['body_text', f.bodyText || null], ['issued_by_account_id', f.issuedByAccountId],
     ['template', f.template || 'design1'], ['color', f.color || '#2e6da4'], ['display_name', f.displayName || null],
     ['school_name', f.schoolName || null], ['school_city', f.schoolCity || null], ['school_state', f.schoolState || null],
-    ['header_text', f.headerText || null], ['seal1', f.seal1 || null], ['seal2', f.seal2 || null],
+    ['header_text', f.headerText || null], ['course_text', f.courseText || null], ['seal1', f.seal1 || null], ['seal2', f.seal2 || null],
     ['signature1_name', f.signature1Name || null], ['signature1_title', f.signature1Title || null],
     ['signature2_name', f.signature2Name || null], ['signature2_title', f.signature2Title || null],
     ['signature3_name', f.signature3Name || null], ['signature3_title', f.signature3Title || null],

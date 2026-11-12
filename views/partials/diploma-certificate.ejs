@@ -1,82 +1,85 @@
 <%
 // A real request: "For all portals, diplomas creation. Diploma choices
-// should look like this" - four traditional high school diploma designs
-// (parchment, blackletter school name, seals, signature lines). Every
-// page that shows a diploma (the builder's design cards and preview,
-// both print pages, the Student Portal) renders this one partial;
-// utils/diplomaDesign.js's diplomaView works out what goes on it.
+// should look like this", then "The diplomas should look exactly like
+// my image examples with wording, font size and font placement." Four
+// traditional high school diploma designs - wording, sizes and placement
+// follow the examples line for line. Every page that shows a diploma
+// (the builder's design cards and preview, both print pages, the Student
+// Portal) renders this one partial; utils/diplomaDesign.js's diplomaView
+// works out what goes on it.
 // Locals: diploma (saved row or null), member, optional familySettings,
 // optional design (overrides the saved design), optional compact.
 var v = diplomaView(diploma, member, locals.familySettings, locals.design);
 var uid = v.design + '-' + (member && member.id ? member.id : 0) + '-' + Math.random().toString(36).slice(2, 8);
-var longName = v.schoolName.length > 22;
-function arch(curve) {
-  var d = curve === 'gentle' ? 'M 70 205 Q 500 60 930 205' : 'M 50 215 Q 500 -10 950 215';
-  return '<svg class="dip-arch" viewBox="0 0 1000 230" aria-hidden="true"><defs><path id="dip-arch-' + uid + '" d="' + d + '" /></defs>'
-    + '<text class="dip-arch-text"' + (longName ? ' textLength="900" lengthAdjust="spacingAndGlyphs"' : '') + '><textPath href="#dip-arch-' + uid + '" startOffset="50%" text-anchor="middle">'
-    + v.schoolName.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</textPath></text></svg>';
+function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+// The arched school name: the font is condensed to fit the arch the way
+// the examples' tall, narrow lettering is, and never runs past it.
+function arch(kind) {
+  var curves = {
+    d1: { d: 'M 120 204 Q 500 16 880 204', len: 860, fs: 104 },
+    d2: { d: 'M 175 151 Q 500 75 825 151', len: 680, fs: 92 },
+    d4: { d: 'M 105 226 Q 500 12 895 226', len: 900, fs: 106 },
+  };
+  var c = curves[kind];
+  var natural = v.schoolName.length * 0.5 * c.fs;
+  var fit = Math.round(Math.min(c.len * 0.9, natural * 0.6));
+  return '<svg class="dip-arch dip-arch-' + kind + '" viewBox="0 0 1000 270" aria-hidden="true"><defs><path id="dip-arch-' + uid + '" d="' + c.d + '" /></defs>'
+    + '<text class="dip-arch-text" font-size="' + c.fs + '" textLength="' + fit + '" lengthAdjust="spacingAndGlyphs"><textPath href="#dip-arch-' + uid + '" startOffset="50%" text-anchor="middle">'
+    + esc(v.schoolName) + '</textPath></text></svg>';
 }
 %>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Pinyon+Script&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&family=UnifrakturMaguntia&family=Pinyon+Script&display=swap" />
 <% function sig(n) { var s = v.signatures[n - 1]; %>
-  <div class="dip-sig<%= s.show ? '' : ' dip-sig-hidden' %>" data-signature="<%= n %>">
+  <div class="dip-sig dip-sig-<%= n %><%= s.show ? '' : ' dip-sig-hidden' %>" data-signature="<%= n %>">
     <span class="dip-sig-name"><%= s.name %></span>
-    <span class="dip-sig-line"></span>
     <span class="dip-sig-role"><%= s.role %></span>
   </div>
 <% } %>
+<%# Every line is placed at the same spot it sits on the examples
+    (top = its center, as a % of the diploma's height). %>
 <div class="diploma-cert dip dip-<%= v.design %><%= locals.compact ? ' diploma-cert-compact' : '' %>">
-  <div class="dip-inner">
-    <% if (v.design === 'design1') { %>
-      <%- arch('strong') %>
-      <div class="dip-row dip-d1-place">
-        <span class="dip-small"><%= v.city %></span>
-        <%- include('diploma-seal', { seal: v.seal1, schoolName: v.schoolName, uid: uid + 's1' }) %>
-        <span class="dip-small"><%= v.state %></span>
-      </div>
-      <p class="dip-bl dip-certifies">This Certifies That</p>
-      <p class="dip-bl dip-name diploma-cert-name"><%= v.studentName %></p>
-      <p class="dip-bl dip-body"><%= v.body %></p>
-      <p class="dip-bl dip-title"><%= v.title %></p>
-      <p class="dip-bl dip-date">Given this <%= v.dateWords %></p>
-      <div class="dip-row dip-sigs"><% sig(1); sig(3); sig(2); %></div>
-    <% } else if (v.design === 'design2') { %>
-      <%- arch('gentle') %>
-      <p class="dip-bl dip-certifies">This Certifies That</p>
-      <p class="dip-bl dip-name diploma-cert-name"><%= v.studentName %></p>
-      <p class="dip-bl dip-body"><%= v.body %></p>
-      <p class="dip-bl dip-title"><%= v.title %></p>
-      <p class="dip-bl dip-date"><span class="dip-witness">In Witness Whereof</span> our affixed signatures on this <%= v.dateWords %></p>
-      <div class="dip-row dip-sigs dip-sigs-seal">
-        <div class="dip-sig-stack"><% sig(1); sig(2); %></div>
-        <%- include('diploma-seal', { seal: v.seal1, schoolName: v.schoolName, uid: uid + 's1' }) %>
-        <div class="dip-sig-stack"><% sig(3); %></div>
-      </div>
-    <% } else if (v.design === 'design3') { %>
-      <p class="dip-bl dip-header"><%= v.headerText %></p>
-      <p class="dip-bl dip-small dip-header-place">of <%= v.city %> and <%= v.state %></p>
-      <p class="dip-bl dip-school"><%= v.schoolName %></p>
-      <p class="dip-bl dip-certifies">This <%= v.title %> is awarded to</p>
-      <p class="dip-bl dip-name dip-name-lined diploma-cert-name"><%= v.studentName %></p>
-      <p class="dip-bl dip-body"><%= v.body %></p>
-      <p class="dip-bl dip-date dip-date-right"><%= v.dateShort %></p>
-      <div class="dip-row dip-sigs dip-sigs-corners">
-        <%- include('diploma-seal', { seal: v.seal1, schoolName: v.schoolName, uid: uid + 's1' }) %>
-        <div class="dip-sig-grid"><% sig(1); sig(2); %><div class="dip-sig-center"><% sig(3); %></div></div>
-        <%- include('diploma-seal', { seal: v.seal2, schoolName: v.schoolName, uid: uid + 's2' }) %>
-      </div>
-    <% } else { %>
-      <%- arch('strong') %>
-      <svg class="dip-flourish" viewBox="0 0 300 40" aria-hidden="true"><path d="M10 20 C 60 0, 100 40, 150 20 C 200 0, 240 40, 290 20" /><circle cx="150" cy="20" r="5" /></svg>
-      <p class="dip-bl dip-certifies">This Certifies That</p>
-      <p class="dip-bl dip-name diploma-cert-name"><%= v.studentName %></p>
-      <p class="dip-script dip-body"><%= v.body %></p>
-      <p class="dip-script dip-date"><span class="dip-witness">In Witness Whereof</span> our affixed signatures on this <%= v.dateWords %></p>
-      <div class="dip-row dip-sigs dip-sigs-seal">
-        <div class="dip-sig-stack"><% sig(1); sig(2); %></div>
-        <%- include('diploma-seal', { seal: v.seal1, schoolName: v.schoolName, uid: uid + 's1' }) %>
-        <div class="dip-sig-stack"><% sig(3); %></div>
-      </div>
-    <% } %>
-  </div>
+  <% if (v.design === 'design1') { %>
+    <%- arch('d1') %>
+    <span class="dip-at dip-city"><%= v.city %></span>
+    <span class="dip-at dip-seal-a"><%- include('diploma-seal', { seal: v.seal1, schoolName: v.schoolName, uid: uid + 's1' }) %></span>
+    <span class="dip-at dip-state"><%= v.state %></span>
+    <p class="dip-at dip-certifies">This Certifies That</p>
+    <p class="dip-at dip-name diploma-cert-name"><%= v.studentName %></p>
+    <p class="dip-at dip-body"><%= v.body %></p>
+    <p class="dip-at dip-title"><%= v.title %></p>
+    <p class="dip-at dip-date">Given this <%= v.dateWords %></p>
+    <% sig(1); sig(2); sig(3); %>
+  <% } else if (v.design === 'design2') { %>
+    <%- arch('d2') %>
+    <p class="dip-at dip-certifies">This Certifies That</p>
+    <p class="dip-at dip-name diploma-cert-name"><%= v.studentName %></p>
+    <p class="dip-at dip-body"><%= v.body %></p>
+    <p class="dip-at dip-title"><%= v.title %></p>
+    <p class="dip-at dip-date"><span class="dip-witness">In Witness Whereof</span> our affixed signatures on this<br /><%= v.dateWords %></p>
+    <span class="dip-at dip-seal-a"><%- include('diploma-seal', { seal: v.seal1, schoolName: v.schoolName, uid: uid + 's1' }) %></span>
+    <% sig(1); sig(2); sig(3); %>
+  <% } else if (v.design === 'design3') { %>
+    <p class="dip-at dip-header"><%= v.headerText %></p>
+    <p class="dip-at dip-header-place">of <%= v.city %> and <%= v.state %></p>
+    <p class="dip-at dip-school"><%= v.schoolName %></p>
+    <p class="dip-at dip-awarded">This <%= v.title %> is awarded to</p>
+    <p class="dip-at dip-name diploma-cert-name"><%= v.studentName %></p>
+    <span class="dip-at dip-name-line"></span>
+    <p class="dip-at dip-lead">who has satisfactorily completed the</p>
+    <p class="dip-at dip-course"><%= v.courseText %></p>
+    <p class="dip-at dip-body"><%= v.body %></p>
+    <p class="dip-at dip-date"><%= v.dateShort %></p>
+    <span class="dip-at dip-seal-a"><%- include('diploma-seal', { seal: v.seal1, schoolName: v.schoolName, uid: uid + 's1' }) %></span>
+    <span class="dip-at dip-seal-b"><%- include('diploma-seal', { seal: v.seal2, schoolName: v.schoolName, uid: uid + 's2' }) %></span>
+    <% sig(1); sig(2); sig(3); %>
+  <% } else { %>
+    <%- arch('d4') %>
+    <span class="dip-at dip-building-a"><%- include('diploma-building', { uid }) %></span>
+    <p class="dip-at dip-certifies">This Certifies That</p>
+    <p class="dip-at dip-name diploma-cert-name"><%= v.studentName %></p>
+    <p class="dip-at dip-body"><%= v.body %></p>
+    <p class="dip-at dip-date"><span class="dip-witness">In Witness Whereof</span> our affixed signatures on this<br /><%= v.dateWords %></p>
+    <span class="dip-at dip-seal-a"><%- include('diploma-seal', { seal: v.seal1, schoolName: v.schoolName, uid: uid + 's1' }) %></span>
+    <% sig(1); sig(2); sig(3); %>
+  <% } %>
 </div>

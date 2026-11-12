@@ -8,6 +8,7 @@ alter table diplomas add column if not exists school_name text;
 alter table diplomas add column if not exists school_city text;
 alter table diplomas add column if not exists school_state text;
 alter table diplomas add column if not exists header_text text;
+alter table diplomas add column if not exists course_text text;
 alter table diplomas add column if not exists seal1 text;
 alter table diplomas add column if not exists seal2 text;
 alter table diplomas add column if not exists signature3_name text;

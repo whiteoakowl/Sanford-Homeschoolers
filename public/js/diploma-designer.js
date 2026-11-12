@@ -1,10 +1,13 @@
 // Diploma builder (views/partials/diploma-student-builder.ejs): highlights
 // the chosen design and seal cards, shows Design 3's own Header Line and
 // Second Seal only when Design 3 is picked, and swaps the Wording box to
-// the new design's own default wording when it hasn't been changed.
+// the new design's own default wording (and signature roles) when they
+// haven't been changed.
 (function () {
   function wire(form) {
     const defaults = JSON.parse(form.dataset.defaultBody || '{}');
+    const sigDefaults = JSON.parse(form.dataset.defaultSignatures || '{}');
+    const roleSelects = [1, 2, 3].map((n) => form.querySelector(`[name="signature${n}Title"]`));
     const body = form.querySelector('[name="bodyText"]');
     const designOnly = form.querySelectorAll('[data-design-only]');
 
@@ -24,6 +27,11 @@
       const design = currentDesign();
       designOnly.forEach((el) => { el.hidden = el.dataset.designOnly !== design; });
       if (body && prev && body.value.trim() === (defaults[prev] || '').trim()) body.value = defaults[design] || '';
+      // Signature roles follow the design too, while they're still that
+      // design's own starting roles.
+      if (prev && sigDefaults[prev] && roleSelects.every((sel, i) => !sel || sel.value === (sigDefaults[prev][i] || ''))) {
+        roleSelects.forEach((sel, i) => { if (sel) sel.value = sigDefaults[design][i] || ''; });
+      }
     }
 
     let last = currentDesign();

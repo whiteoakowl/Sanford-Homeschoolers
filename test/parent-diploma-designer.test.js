@@ -121,6 +121,15 @@ test('a parent designs a diploma: design choice, school details, seals, three si
   assert.match(blank.text, /<option value="Administrator"/);
   assert.match(blank.text, /name="seal1" value="coop"/);
   assert.match(blank.text, /Update Preview/);
+  // The wording from the examples, on each design's card.
+  assert.match(blank.text, /This Certifies That/);
+  assert.match(blank.text, /all requirements of law and standards for high school graduation/);
+  assert.match(blank.text, /<span class="dip-witness">In Witness Whereof<\/span> our affixed signatures on this/);
+  assert.match(blank.text, /This Diploma is awarded to/);
+  assert.match(blank.text, /who has satisfactorily completed the/);
+  assert.match(blank.text, /Academic Course of Four Years/);
+  assert.match(blank.text, /<span class="dip-sig-role">Superintendent of Schools<\/span>/);
+  assert.match(blank.text, /<span class="dip-sig-role">Chair, Board of Education<\/span>/);
   assert.match(blank.text, /name="next" value="print" formtarget="_blank"/);
 
   const res = await request(app)
@@ -184,7 +193,7 @@ test('a parent designs a diploma: design choice, school details, seals, three si
   assert.equal(printRes.headers.location, `/parent/academics/diplomas/${student.memberId}/print`);
   const d1 = await request(app).get(`/parent/academics/diplomas/${student.memberId}/print`).set('Cookie', parent.cookie);
   assert.match(d1.text, /dip-design1/);
-  assert.match(d1.text, /Given this eighteenth day of June, two thousand twenty-six/);
+  assert.match(d1.text, /Given this eighteenth day of June, two thousand and twenty-six/);
 
   const pdfRes = await getBuffer(`/parent/academics/diplomas/${student.memberId}/download.pdf`, parent.cookie);
   assert.equal(pdfRes.status, 200);
@@ -217,16 +226,16 @@ test('a brand new diploma defaults to Design 1, a gold seal, and the default wor
   assert.equal(diploma.seal1, 'gold');
   assert.equal(diploma.signature1_title, null);
   const print = await request(app).get(`/parent/academics/diplomas/${student.memberId}/print`).set('Cookie', parent.cookie);
-  assert.match(print.text, /having satisfactorily completed all requirements for high school graduation/);
-  assert.match(print.text, /Given this first day of June, two thousand twenty-six/);
+  assert.match(print.text, /having satisfactorily completed all requirements of law and standards for high school graduation as prescribed by the State Board of Education/);
+  assert.match(print.text, /Given this first day of June, two thousand and twenty-six/);
 });
 
 test('diploma date wording', () => {
   const { dateInWords, dateShort } = require('../utils/diplomaDesign');
-  assert.equal(dateInWords('2026-06-18'), 'eighteenth day of June, two thousand twenty-six');
+  assert.equal(dateInWords('2026-06-18'), 'eighteenth day of June, two thousand and twenty-six');
   assert.equal(dateInWords('1997-06-07'), 'seventh day of June, nineteen hundred ninety-seven');
-  assert.equal(dateInWords('2030-05-22'), 'twenty-second day of May, two thousand thirty');
-  assert.equal(dateInWords('2026-03-30'), 'thirtieth day of March, two thousand twenty-six');
+  assert.equal(dateInWords('2030-05-22'), 'twenty-second day of May, two thousand and thirty');
+  assert.equal(dateInWords('2026-03-30'), 'thirtieth day of March, two thousand and twenty-six');
   assert.equal(dateShort('2026-06-01'), 'June 1st, 2026');
   assert.equal(dateShort('2026-06-11'), 'June 11th, 2026');
   assert.equal(dateShort('2026-06-23'), 'June 23rd, 2026');
