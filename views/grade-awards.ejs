@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Oswald:wght@500;600&family=Caveat:wght@700&display=swap" />
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle }) %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <h1>Grade Level Awards</h1>
+    <p class="hint">Choose a grade level and a design, add names (or leave them blank to write in by hand), press Update Preview, then Print. Each award prints as a full landscape page.</p>
+    <%- include('partials/grade-award-builder', { award, basePath, studentNames }) %>
+  </main>
+  <script src="/js/grade-award-builder.js"></script>
+</body>
+</html>

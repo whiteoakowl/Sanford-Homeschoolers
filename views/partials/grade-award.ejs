@@ -1,0 +1,266 @@
+<%
+// A real request: grade level awards in 15 designs (Preschool through
+// 12th Grade), each "Congratulations / You finished / {grade}!" over its
+// own artwork, with a Student Name line and two Parent/Teacher lines -
+// landscape, full page. Drawn as one vector picture (1100 x 850, the
+// shape of a landscape letter page) so it prints sharp at any size.
+// Locals: award (utils/gradeAwards.js awardFromQuery), optional uid.
+var A = award;
+var U = (locals.uid || 'ga') + '-' + A.design;
+function esc(t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function star(cx, cy, r, fill, rot, extra) {
+  var pts = [];
+  for (var i = 0; i < 10; i++) {
+    var ang = ((rot || 0) - 90 + i * 36) * Math.PI / 180;
+    var rr = i % 2 ? r * 0.45 : r;
+    pts.push((cx + Math.cos(ang) * rr).toFixed(1) + ',' + (cy + Math.sin(ang) * rr).toFixed(1));
+  }
+  return '<polygon points="' + pts.join(' ') + '" fill="' + fill + '"' + (extra || '') + ' />';
+}
+function sparkle(cx, cy, r, fill) {
+  cx = Number(cx); cy = Number(cy); r = Number(r);
+  return '<path d="M' + cx + ' ' + (cy - r) + ' Q' + cx + ' ' + cy + ' ' + (cx + r) + ' ' + cy + ' Q' + cx + ' ' + cy + ' ' + cx + ' ' + (cy + r) + ' Q' + cx + ' ' + cy + ' ' + (cx - r) + ' ' + cy + ' Q' + cx + ' ' + cy + ' ' + cx + ' ' + (cy - r) + ' Z" fill="' + fill + '" />';
+}
+function daisy(cx, cy, r) {
+  var s = '';
+  for (var i = 0; i < 12; i++) s += '<ellipse cx="' + cx + '" cy="' + (cy - r * 0.55) + '" rx="' + (r * 0.2) + '" ry="' + (r * 0.5) + '" fill="#fff" stroke="#e4e0c8" stroke-width="1" transform="rotate(' + (i * 30) + ' ' + cx + ' ' + cy + ')" />';
+  return s + '<circle cx="' + cx + '" cy="' + cy + '" r="' + (r * 0.28) + '" fill="#f6c21c" />';
+}
+function flower(cx, cy, r, color, center) {
+  var s = '';
+  for (var i = 0; i < 5; i++) s += '<circle cx="' + (cx + Math.cos(i * 1.2566) * r * 0.55).toFixed(1) + '" cy="' + (cy + Math.sin(i * 1.2566) * r * 0.55).toFixed(1) + '" r="' + (r * 0.45) + '" fill="' + color + '" />';
+  return s + '<circle cx="' + cx + '" cy="' + cy + '" r="' + (r * 0.3) + '" fill="' + (center || '#ffd34d') + '" />';
+}
+function leaf(x, y, len, ang, color) {
+  return '<ellipse cx="' + x + '" cy="' + y + '" rx="' + len + '" ry="' + (len * 0.38) + '" fill="' + color + '" transform="rotate(' + ang + ' ' + x + ' ' + y + ')" />';
+}
+function vine(d, color, leaves) {
+  var s = '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="6" stroke-linecap="round" />';
+  (leaves || []).forEach(function (l) { s += leaf(l[0], l[1], l[2], l[3], l[4] || color); });
+  return s;
+}
+function pine(x, base, h, color) {
+  var w = h * 0.42, s = '<rect x="' + (x - h * 0.04) + '" y="' + (base - h * 0.12) + '" width="' + (h * 0.08) + '" height="' + (h * 0.12) + '" fill="#6b4423" />';
+  for (var i = 0; i < 4; i++) {
+    var top = base - h + i * h * 0.2, bot = base - h * 0.1 - (3 - i) * h * 0.12;
+    var ww = w * (0.45 + i * 0.2);
+    s += '<polygon points="' + x + ',' + top + ' ' + (x - ww) + ',' + bot + ' ' + (x + ww) + ',' + bot + '" fill="' + color + '" />';
+  }
+  return s;
+}
+function hand(x, y, sz, color, rot) {
+  var s = '<g transform="rotate(' + rot + ' ' + x + ' ' + y + ')" fill="' + color + '" opacity="0.85">';
+  s += '<ellipse cx="' + x + '" cy="' + y + '" rx="' + (sz * 0.4) + '" ry="' + (sz * 0.44) + '" />';
+  [[-0.3, -0.62, 0.11, 0.28], [-0.1, -0.74, 0.1, 0.3], [0.12, -0.74, 0.1, 0.3], [0.32, -0.62, 0.1, 0.26], [-0.48, -0.08, 0.1, 0.26]].forEach(function (f, i) {
+    s += '<ellipse cx="' + (x + f[0] * sz) + '" cy="' + (y + f[1] * sz) + '" rx="' + (f[2] * sz) + '" ry="' + (f[3] * sz) + '"' + (i === 4 ? ' transform="rotate(-40 ' + (x + f[0] * sz) + ' ' + (y + f[1] * sz) + ')"' : '') + ' />';
+  });
+  return s + '</g>';
+}
+function crayon(x, base, h, color) {
+  return '<g><rect x="' + x + '" y="' + (base - h) + '" width="26" height="' + h + '" rx="3" fill="' + color + '" />'
+    + '<polygon points="' + x + ',' + (base - h) + ' ' + (x + 13) + ',' + (base - h - 30) + ' ' + (x + 26) + ',' + (base - h) + '" fill="' + color + '" />'
+    + '<rect x="' + x + '" y="' + (base - h + 18) + '" width="26" height="8" fill="#000" opacity="0.18" /><rect x="' + x + '" y="' + (base - 28) + '" width="26" height="8" fill="#000" opacity="0.18" /></g>';
+}
+var seed = 7;
+function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+function splat(cx, cy, r, color) {
+  var s = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + color + '" opacity="0.85" />';
+  for (var i = 0; i < 9; i++) {
+    var ang = rnd() * Math.PI * 2, dist = r * (1 + rnd() * 0.9), rr = r * (0.08 + rnd() * 0.22);
+    s += '<circle cx="' + (cx + Math.cos(ang) * dist).toFixed(1) + '" cy="' + (cy + Math.sin(ang) * dist).toFixed(1) + '" r="' + rr.toFixed(1) + '" fill="' + color + '" opacity="0.85" />';
+  }
+  return s;
+}
+function gradCap(cx, cy, s, cap, tassel) {
+  return '<g><path d="M' + (cx - s * 0.55) + ' ' + (cy + s * 0.05) + ' L' + (cx - s * 0.55) + ' ' + (cy + s * 0.38) + ' Q' + cx + ' ' + (cy + s * 0.6) + ' ' + (cx + s * 0.55) + ' ' + (cy + s * 0.38) + ' L' + (cx + s * 0.55) + ' ' + (cy + s * 0.05) + ' Z" fill="' + cap + '" />'
+    + '<polygon points="' + cx + ',' + (cy - s * 0.42) + ' ' + (cx + s * 1.1) + ',' + cy + ' ' + cx + ',' + (cy + s * 0.42) + ' ' + (cx - s * 1.1) + ',' + cy + '" fill="' + cap + '" stroke="#ffffff" stroke-opacity="0.25" stroke-width="3" />'
+    + '<path d="M' + cx + ' ' + cy + ' L' + (cx - s * 0.85) + ' ' + (cy + s * 0.12) + ' L' + (cx - s * 0.85) + ' ' + (cy + s * 0.75) + '" fill="none" stroke="' + tassel + '" stroke-width="' + (s * 0.06) + '" />'
+    + '<rect x="' + (cx - s * 0.92) + '" y="' + (cy + s * 0.7) + '" width="' + (s * 0.14) + '" height="' + (s * 0.32) + '" rx="' + (s * 0.04) + '" fill="' + tassel + '" />'
+    + '<circle cx="' + cx + '" cy="' + cy + '" r="' + (s * 0.07) + '" fill="' + tassel + '" /></g>';
+}
+
+// Each design's own text colors and Student Name panel.
+var T = {
+  rainbow:   { c: '#1d3577', f: '#8a2bc2', g: '#7b23b8', panel: '#ffffff', po: 0.85, line: '#555' },
+  bee:       { c: '#1f1f1f', f: '#2f8a2c', g: '#2b7d27', panel: '#ffffff', po: 0.85, line: '#555' },
+  apple:     { c: '#1c1c1c', f: '#d42a1f', g: '#cf1f14', panel: '#ffffff', po: 0.85, line: '#555' },
+  rocket:    { c: '#ffffff', cs: '#0d1f4f', f: '#ffffff', g: '#ffd23f', panel: '#eef4ff', po: 0.97, line: '#33415f', label: '#1b2a55' },
+  dinosaur:  { c: '#1e3a1c', f: '#2d7a2a', g: '#1f5c1d', panel: '#ffffff', po: 0.88, line: '#555' },
+  turtle:    { c: '#0f3561', f: '#0f3d73', g: '#1a5aa0', panel: '#ffffff', po: 0.88, line: '#555' },
+  sports:    { c: '#141414', f: '#e07514', g: '#e06d0c', panel: '#ffffff', po: 1, line: '#555' },
+  butterfly: { c: '#4b1f7a', f: '#8a2db8', g: '#7a1fae', panel: '#ffffff', po: 0.88, line: '#555' },
+  mountains: { c: '#1d3a1a', f: '#2f7d2a', g: '#1d5f1a', panel: '#ffffff', po: 0.9, line: '#555' },
+  neon:      { c: '#ffffff', cs: '#3a1d8a', f: '#3fd7ff', g: '#3fd7ff', panel: '#dcecff', po: 0.95, line: '#2b3d66', label: '#1b2a55', glow: true },
+  paint:     { c: '#3d1a6e', f: '#4a2486', g: '#3d1a78', panel: '#ffffff', po: 0.9, line: '#555' },
+  city:      { c: '#1b1f3a', f: '#1b1f3a', g: '#141833', panel: '#ffffff', po: 0.92, line: '#555' },
+  goldstars: { c: '#2a2217', f: '#c88a14', g: '#c2810c', panel: '#ffffff', po: 0.92, line: '#6b5a3a' },
+  laurel:    { c: '#13306b', f: '#13306b', g: '#13306b', panel: '#ffffff', po: 0.95, line: '#33415f', label: '#13306b' },
+  blackgold: { c: '#e8bb4a', cs: '#2a2008', f: '#e8bb4a', g: '#e8bb4a', panel: '#f6ecd6', po: 1, line: '#4a3a18', label: '#2a2008' },
+}[A.design];
+var cs = T.cs || '#ffffff';
+%>
+<svg class="grade-award grade-award-<%= A.design %>" viewBox="0 0 1100 850" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Congratulations! You finished <%= A.gradeLabel %>">
+  <defs>
+    <filter id="ga-shadow-<%= U %>" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#000" flood-opacity="0.25" /></filter>
+    <filter id="ga-glow-<%= U %>" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+    <filter id="ga-soft-<%= U %>"><feGaussianBlur stdDeviation="14" /></filter>
+    <path id="ga-arc-<%= U %>" d="M 110 345 Q 550 225 990 345" />
+  </defs>
+
+  <% if (A.design === 'rainbow') { %>
+    <rect width="1100" height="850" fill="#fffdf7" />
+    <g filter="url(#ga-soft-<%= U %>)" opacity="0.55"><ellipse cx="160" cy="790" rx="260" ry="90" fill="#7cc7ef" /><ellipse cx="980" cy="800" rx="230" ry="80" fill="#8fd0f2" /><ellipse cx="550" cy="840" rx="300" ry="60" fill="#b6e2f7" /></g>
+    <% ['#e9402f', '#f5892a', '#f7d038', '#5cba47', '#2f8de4', '#7d4ccf'].forEach(function(c, i) { %>
+      <path d="M <%= -40 + i * 24 %> 330 A <%= 330 - i * 24 %> <%= 300 - i * 24 %> 0 0 1 <%= 620 - i * 24 %> 330" fill="none" stroke="<%= c %>" stroke-width="26" opacity="0.9" />
+    <% }); %>
+    <ellipse cx="150" cy="325" rx="120" ry="40" fill="#fff" /><ellipse cx="560" cy="330" rx="110" ry="38" fill="#fff" />
+    <g><% for (var i = 0; i < 12; i++) { %><line x1="930" y1="140" x2="<%= (930 + Math.cos(i * 0.5236) * 120).toFixed(1) %>" y2="<%= (140 + Math.sin(i * 0.5236) * 120).toFixed(1) %>" stroke="#f9c22e" stroke-width="10" stroke-linecap="round" /><% } %>
+      <circle cx="930" cy="140" r="80" fill="#fdd835" /><circle cx="905" cy="128" r="8" fill="#5a3a0a" /><circle cx="955" cy="128" r="8" fill="#5a3a0a" /><path d="M 895 160 Q 930 192 965 160" fill="none" stroke="#5a3a0a" stroke-width="7" stroke-linecap="round" /><circle cx="887" cy="155" r="10" fill="#f7a35c" opacity="0.6" /><circle cx="973" cy="155" r="10" fill="#f7a35c" opacity="0.6" /></g>
+    <%- hand(110, 520, 120, '#ee4d8b', -18) %><%- hand(115, 700, 120, '#2f8de4', 12) %><%- hand(990, 520, 120, '#f7c62a', 15) %><%- hand(985, 700, 110, '#58b947', -10) %>
+    <%- star(60, 60, 28, '#5cba47') %><%- star(760, 70, 22, '#f5892a') %><%- star(1040, 330, 30, '#7d4ccf') %><%- star(70, 420, 20, '#f7d038') %><%- star(820, 400, 22, '#2f8de4') %><%- star(260, 440, 16, '#ee4d8b') %>
+  <% } else if (A.design === 'bee') { %>
+    <rect width="1100" height="850" fill="#fffbea" />
+    <g fill="#ffd54a" stroke="#f3b51e" stroke-width="5" opacity="0.9"><% [[40,40],[112,40],[184,40],[76,102],[148,102],[40,164],[112,164],[256,40],[220,102]].forEach(function(h){ %><polygon points="<%= [0,1,2,3,4,5].map(function(k){ return (h[0] + Math.cos(k*1.0472)*40).toFixed(1) + ',' + (h[1] + Math.sin(k*1.0472)*40).toFixed(1); }).join(' ') %>" /><% }); %></g>
+    <path d="M 420 170 C 520 60, 640 210, 760 110 S 880 60, 900 120" fill="none" stroke="#333" stroke-width="4" stroke-dasharray="12 12" />
+    <g transform="translate(965 130)"><ellipse cx="-30" cy="-50" rx="38" ry="26" fill="#e8f4ff" stroke="#8bb7d9" stroke-width="3" transform="rotate(-25 -30 -50)" /><ellipse cx="25" cy="-55" rx="38" ry="26" fill="#e8f4ff" stroke="#8bb7d9" stroke-width="3" transform="rotate(20 25 -55)" /><ellipse cx="0" cy="0" rx="72" ry="55" fill="#ffcf2b" stroke="#222" stroke-width="5" /><path d="M -25 -50 Q -32 0 -25 50 M 8 -54 Q 1 0 8 54 M 40 -40 Q 34 0 40 40" stroke="#222" stroke-width="15" fill="none" /><circle cx="-48" cy="-8" r="34" fill="#ffcf2b" stroke="#222" stroke-width="5" /><circle cx="-58" cy="-14" r="6" fill="#222" /><circle cx="-38" cy="-14" r="6" fill="#222" /><path d="M -62 4 Q -48 16 -34 4" fill="none" stroke="#222" stroke-width="4" stroke-linecap="round" /><path d="M -60 -38 Q -70 -70 -80 -72 M -40 -40 Q -36 -72 -26 -76" stroke="#222" stroke-width="4" fill="none" /><circle cx="-80" cy="-72" r="5" fill="#222" /><circle cx="-26" cy="-76" r="5" fill="#222" /></g>
+    <%- vine('M 20 850 Q 70 650 40 460', '#5aa23a', [[52,700,34,-60],[30,610,30,-120],[60,520,28,-50]]) %><%- vine('M 1080 850 Q 1030 640 1065 450', '#5aa23a', [[1048,700,34,-120],[1070,600,30,-60],[1045,520,28,-130]]) %>
+    <%- daisy(95, 760, 70) %><%- daisy(175, 640, 52) %><%- daisy(1005, 760, 70) %><%- daisy(925, 650, 50) %><%- daisy(70, 560, 40) %><%- daisy(1035, 560, 42) %>
+    <%- star(340, 70, 16, '#f3b51e') %><%- star(650, 60, 14, '#f3b51e') %><%- star(820, 260, 14, '#f3b51e') %>
+  <% } else if (A.design === 'apple') { %>
+    <rect width="1100" height="850" fill="#fffef8" />
+    <%- vine('M 0 40 Q 150 30 230 120 Q 280 190 260 300', '#4f9a35', [[80,48,32,10],[170,70,30,40],[245,170,30,70],[262,250,28,95],[30,120,34,-60]]) %>
+    <%- vine('M 1100 40 Q 950 30 870 120 Q 820 190 840 300', '#4f9a35', [[1020,48,32,-10],[930,70,30,-40],[855,170,30,-70],[838,250,28,-95],[1070,120,34,60]]) %>
+    <%- vine('M 40 0 L 40 520', '#5aa23a', [[60,200,26,-40],[22,320,26,-140],[60,430,24,-40]]) %><%- vine('M 1060 0 L 1060 520', '#5aa23a', [[1040,200,26,-140],[1078,320,26,-40],[1040,430,24,-140]]) %>
+    <g><path d="M 550 60 C 495 38, 450 90, 470 150 C 485 200, 525 210, 550 196 C 575 210, 615 200, 630 150 C 650 90, 605 38, 550 60 Z" fill="#e0261b" /><path d="M 515 85 Q 500 110 505 135" stroke="#fff" stroke-width="9" stroke-linecap="round" opacity="0.55" fill="none" /><path d="M 550 62 Q 552 38 562 22" stroke="#6b4423" stroke-width="8" stroke-linecap="round" fill="none" /><%- leaf(585, 38, 26, -25, '#4f9a35') %></g>
+    <% ['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#5e35b1','#ec407a','#8d6e63','#00acc1','#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#5e35b1','#ec407a'].forEach(function(c, i) { var x = i < 8 ? 30 + i * 32 : 820 + (i - 8) * 32; %><%- crayon(x, 850, 150 + ((i * 37) % 60), c) %><% }); %>
+    <rect x="0" y="830" width="1100" height="20" fill="#7dc35b" />
+  <% } else if (A.design === 'rocket') { %>
+    <rect width="1100" height="850" fill="#0d1f4f" />
+    <g filter="url(#ga-soft-<%= U %>)" opacity="0.5"><ellipse cx="300" cy="250" rx="260" ry="140" fill="#2a3f8f" /><ellipse cx="850" cy="300" rx="260" ry="160" fill="#26357a" /></g>
+    <% for (var i = 0; i < 70; i++) { %><circle cx="<%= (rnd() * 1100).toFixed(0) %>" cy="<%= (rnd() * 600).toFixed(0) %>" r="<%= (1 + rnd() * 2.2).toFixed(1) %>" fill="#fff" opacity="<%= (0.5 + rnd() * 0.5).toFixed(2) %>" /><% } %>
+    <g transform="rotate(38 200 150)"><path d="M 200 40 C 240 80, 250 170, 240 230 L 160 230 C 150 170, 160 80, 200 40 Z" fill="#f2f4f8" stroke="#c3c9d6" stroke-width="3" /><path d="M 200 40 C 225 60, 236 90, 238 110 L 162 110 C 164 90, 175 60, 200 40 Z" fill="#e53935" /><circle cx="200" cy="155" r="24" fill="#3b82f6" stroke="#9aa3b5" stroke-width="7" /><path d="M 160 190 L 120 255 L 165 235 Z M 240 190 L 280 255 L 235 235 Z" fill="#e53935" /><path d="M 170 232 Q 200 330 230 232 Z" fill="#ffb300" /><path d="M 182 232 Q 200 290 218 232 Z" fill="#fff176" /></g>
+    <%- star(560, 70, 30, '#ffd23f') %><%- star(860, 60, 36, '#ffd23f') %><%- star(990, 160, 22, '#ffd23f') %><%- star(740, 170, 18, '#ffd23f') %><%- star(110, 430, 22, '#ffd23f') %><%- star(990, 430, 26, '#ffd23f') %><%- star(380, 110, 14, '#ffd23f') %>
+    <g fill="#ffffff"><ellipse cx="120" cy="820" rx="220" ry="110" /><ellipse cx="330" cy="860" rx="200" ry="110" /><ellipse cx="560" cy="870" rx="230" ry="100" /><ellipse cx="800" cy="850" rx="220" ry="110" /><ellipse cx="1010" cy="820" rx="200" ry="120" /><ellipse cx="40" cy="700" rx="110" ry="70" /><ellipse cx="1070" cy="690" rx="110" ry="70" /></g>
+  <% } else if (A.design === 'dinosaur') { %>
+    <rect width="1100" height="850" fill="#f6f9ee" />
+    <g><polygon points="60,330 190,110 230,110 360,330" fill="#8a5a3c" /><polygon points="190,110 230,110 250,150 170,150" fill="#ef6c2f" /><path d="M 200 110 C 180 60, 230 50, 215 10 M 215 110 C 250 70, 280 80, 270 30" stroke="#b0b0b0" stroke-width="18" fill="none" opacity="0.6" stroke-linecap="round" /><path d="M 195 150 L 160 260 M 225 150 L 250 240" stroke="#ef6c2f" stroke-width="10" /></g>
+    <% [[0,0,-30],[1100,0,210],[0,850,30],[1100,850,150]].forEach(function(c) { for (var k = 0; k < 6; k++) { %><%- leaf(c[0] + Math.cos((c[2] + k * 15) * Math.PI / 180) * 140, c[1] + Math.sin((c[2] + k * 15) * Math.PI / 180) * 140, 120, c[2] + k * 15, k % 2 ? '#2e7d32' : '#43a047') %><% } }); %>
+    <g transform="translate(905 150)"><path d="M -80 160 C -120 120, -140 40, -60 20 C -20 10, 20 20, 40 60 L 40 160 Z" fill="#5cb85c" /><path d="M -10 20 C -40 -60, 60 -110, 120 -70 C 160 -40, 150 10, 110 20 C 80 30, 50 30, 20 40 Z" fill="#5cb85c" stroke="#2e7d32" stroke-width="4" /><circle cx="70" cy="-55" r="14" fill="#fff" /><circle cx="74" cy="-55" r="7" fill="#222" /><path d="M 40 5 L 145 0" stroke="#fff" stroke-width="10" /><path d="M 52 4 l 6 12 l 6 -12 l 6 12 l 6 -12 l 6 12 l 6 -12 l 6 12 l 6 -12 l 6 12" fill="#fff" stroke="#2e7d32" stroke-width="2" /><path d="M 20 80 q -30 10 -40 40" stroke="#2e7d32" stroke-width="10" fill="none" stroke-linecap="round" /><% for (var k = 0; k < 6; k++) { %><polygon points="<%= -70 + k * 22 %>,<%= 25 - k * 6 %> <%= -60 + k * 22 %>,<%= -5 - k * 6 %> <%= -50 + k * 22 %>,<%= 25 - k * 6 %>" fill="#2e7d32" /><% } %></g>
+    <rect x="60" y="560" width="26" height="290" fill="#7b5032" /><%- leaf(73, 560, 90, -150, '#2e7d32') %><%- leaf(73, 560, 90, -30, '#43a047') %><%- leaf(73, 560, 80, -90, '#388e3c') %>
+    <rect x="1010" y="580" width="26" height="270" fill="#7b5032" /><%- leaf(1023, 580, 90, -150, '#43a047') %><%- leaf(1023, 580, 90, -30, '#2e7d32') %><%- leaf(1023, 580, 80, -90, '#388e3c') %>
+  <% } else if (A.design === 'turtle') { %>
+    <rect width="1100" height="850" fill="#eaf7fd" />
+    <g filter="url(#ga-soft-<%= U %>)" opacity="0.7"><ellipse cx="90" cy="220" rx="170" ry="240" fill="#8fd3f3" /><ellipse cx="1020" cy="260" rx="160" ry="260" fill="#8fd3f3" /><ellipse cx="550" cy="860" rx="600" ry="120" fill="#7fd0f3" /><ellipse cx="1000" cy="30" rx="220" ry="80" fill="#6cc4ef" /><ellipse cx="120" cy="20" rx="220" ry="70" fill="#a9def6" /></g>
+    <% for (var i = 0; i < 14; i++) { %><circle cx="<%= (40 + rnd() * 200).toFixed(0) %>" cy="<%= (rnd() * 520).toFixed(0) %>" r="<%= (4 + rnd() * 10).toFixed(1) %>" fill="none" stroke="#bfe8fb" stroke-width="3" /><% } %>
+    <g transform="translate(190 140) rotate(-12)"><ellipse cx="-80" cy="-10" rx="70" ry="22" fill="#6fbf4a" transform="rotate(-30 -80 -10)" /><ellipse cx="70" cy="60" rx="50" ry="18" fill="#6fbf4a" transform="rotate(30 70 60)" /><ellipse cx="-60" cy="70" rx="45" ry="16" fill="#6fbf4a" transform="rotate(-150 -60 70)" /><ellipse cx="0" cy="20" rx="110" ry="70" fill="#3f8f3a" stroke="#2c6b2a" stroke-width="5" /><path d="M -60 20 L -20 -30 L 30 -30 L 70 20 L 30 70 L -20 70 Z" fill="#8bc34a" opacity="0.55" stroke="#2c6b2a" stroke-width="3" /><ellipse cx="135" cy="-10" rx="42" ry="30" fill="#7cc95a" /><circle cx="150" cy="-18" r="7" fill="#222" /><path d="M 140 5 Q 155 10 168 0" stroke="#2c6b2a" stroke-width="3" fill="none" /></g>
+    <% [[60,850,['#ff7043','#ef5350']],[160,850,['#ec407a','#ab47bc']],[960,850,['#ff7043','#ffb300']],[1060,850,['#ef5350','#26a69a']]].forEach(function(c) { %>
+      <path d="M <%= c[0] %> <%= c[1] %> L <%= c[0] %> <%= c[1] - 200 %> M <%= c[0] %> <%= c[1] - 100 %> L <%= c[0] - 45 %> <%= c[1] - 180 %> M <%= c[0] %> <%= c[1] - 140 %> L <%= c[0] + 45 %> <%= c[1] - 230 %> M <%= c[0] - 45 %> <%= c[1] - 180 %> L <%= c[0] - 60 %> <%= c[1] - 230 %>" stroke="<%= c[2][0] %>" stroke-width="18" stroke-linecap="round" fill="none" />
+      <path d="M <%= c[0] + 20 %> <%= c[1] %> Q <%= c[0] + 60 %> <%= c[1] - 120 %> <%= c[0] + 30 %> <%= c[1] - 240 %>" stroke="<%= c[2][1] %>" stroke-width="12" stroke-linecap="round" fill="none" />
+    <% }); %>
+    <path d="M 900 330 Q 940 200 900 60 M 935 330 Q 985 220 960 80 M 1040 360 Q 1000 240 1050 100" stroke="#2e9b6a" stroke-width="14" fill="none" stroke-linecap="round" opacity="0.85" />
+  <% } else if (A.design === 'sports') { %>
+    <rect width="1100" height="850" fill="#0f1d40" />
+    <path d="M 70 70 Q 550 20 1030 70 Q 1080 425 1030 780 Q 550 830 70 780 Q 20 425 70 70 Z" fill="#ffffff" />
+    <path d="M 95 95 Q 550 50 1005 95 Q 1050 425 1005 755 Q 550 800 95 755 Q 50 425 95 95 Z" fill="none" stroke="#0f1d40" stroke-width="4" />
+    <g transform="translate(150 150)"><circle r="95" fill="#ef7d22" stroke="#222" stroke-width="5" /><path d="M -95 0 H 95 M 0 -95 V 95 M -67 -67 Q 0 0 -67 67 M 67 -67 Q 0 0 67 67" stroke="#222" stroke-width="5" fill="none" /></g>
+    <g transform="translate(965 140)"><circle r="85" fill="#fff" stroke="#222" stroke-width="5" /><polygon points="0,-28 27,-9 17,23 -17,23 -27,-9" fill="#222" /><% [[0,-70],[62,-25],[40,58],[-40,58],[-62,-25]].forEach(function(p){ %><polygon points="<%= p[0] %>,<%= p[1] - 15 %> <%= p[0] + 15 %>,<%= p[1] - 4 %> <%= p[0] + 9 %>,<%= p[1] + 13 %> <%= p[0] - 9 %>,<%= p[1] + 13 %> <%= p[0] - 15 %>,<%= p[1] - 4 %>" fill="#222" /><% }); %></g>
+    <% [[95,620,-35],[1010,620,35]].forEach(function(f) { %><g transform="translate(<%= f[0] %> <%= f[1] %>) rotate(<%= f[2] %>)"><ellipse rx="95" ry="56" fill="#8b3a1a" stroke="#4a1e0c" stroke-width="5" /><path d="M -50 0 H 50" stroke="#fff" stroke-width="6" /><% for (var k = -3; k <= 3; k++) { %><path d="M <%= k * 13 %> -10 V 10" stroke="#fff" stroke-width="5" /><% } %><path d="M -80 -22 Q -88 0 -80 22 M 80 -22 Q 88 0 80 22" stroke="#fff" stroke-width="5" fill="none" /></g><% }); %>
+    <path d="M 300 160 C 380 80, 470 200, 560 120" stroke="#0f1d40" stroke-width="4" stroke-dasharray="10 10" fill="none" />
+    <%- star(460, 70, 22, '#ffffff', 0, ' stroke="#0f1d40" stroke-width="3"') %><%- star(640, 60, 18, '#0f1d40') %><%- star(860, 70, 20, '#ffffff', 0, ' stroke="#0f1d40" stroke-width="3"') %><%- star(140, 400, 18, 'none', 0, ' stroke="#0f1d40" stroke-width="3"') %><%- star(980, 400, 18, '#0f1d40') %><%- star(60, 820, 20, '#ffffff') %><%- star(1040, 820, 20, '#ffffff') %>
+  <% } else if (A.design === 'butterfly') { %>
+    <rect width="1100" height="850" fill="#fbf7ff" />
+    <g filter="url(#ga-soft-<%= U %>)" opacity="0.5"><ellipse cx="550" cy="40" rx="560" ry="90" fill="#cfe6ff" /><ellipse cx="550" cy="860" rx="600" ry="90" fill="#cdeec0" /></g>
+    <% function bfly(x, y, s, c1, c2, rot) { %><g transform="translate(<%= x %> <%= y %>) rotate(<%= rot %>) scale(<%= s %>)"><path d="M 0 0 C -60 -80, -130 -40, -100 10 C -80 40, -30 30, 0 0 Z" fill="<%= c1 %>" stroke="#3a2a4a" stroke-width="3" /><path d="M 0 0 C 60 -80, 130 -40, 100 10 C 80 40, 30 30, 0 0 Z" fill="<%= c1 %>" stroke="#3a2a4a" stroke-width="3" /><path d="M 0 5 C -50 20, -70 70, -30 75 C -10 75, 0 40, 0 5 Z" fill="<%= c2 %>" stroke="#3a2a4a" stroke-width="3" /><path d="M 0 5 C 50 20, 70 70, 30 75 C 10 75, 0 40, 0 5 Z" fill="<%= c2 %>" stroke="#3a2a4a" stroke-width="3" /><circle cx="-60" cy="-20" r="10" fill="#fff" opacity="0.7" /><circle cx="60" cy="-20" r="10" fill="#fff" opacity="0.7" /><ellipse cx="0" cy="20" rx="6" ry="40" fill="#3a2a4a" /><path d="M -3 -18 Q -15 -50 -25 -55 M 3 -18 Q 15 -50 25 -55" stroke="#3a2a4a" stroke-width="3" fill="none" /></g><% } %>
+    <% bfly(150, 130, 1.1, '#f6a623', '#f7d046', -12); bfly(950, 130, 1.1, '#e05bb5', '#9b59d0', 15); bfly(420, 80, 0.45, '#7ac7f0', '#a0e0ff', -10); bfly(700, 90, 0.45, '#9bd36a', '#c8f09a', 10); bfly(90, 440, 0.55, '#7ac7f0', '#c5a3f0', -20); bfly(1010, 450, 0.6, '#e05bb5', '#f7a5d6', 20); %>
+    <% [[60,780,'#f48fb1'],[150,700,'#ce93d8'],[90,620,'#f7d046'],[230,800,'#81d4fa'],[1040,780,'#f48fb1'],[950,700,'#f7d046'],[1010,610,'#ce93d8'],[870,800,'#81d4fa'],[320,830,'#f48fb1'],[780,830,'#ce93d8']].forEach(function(f, i) { %><path d="M <%= f[0] %> 850 Q <%= f[0] + 10 %> <%= f[1] + 60 %> <%= f[0] %> <%= f[1] %>" stroke="#5aa23a" stroke-width="5" fill="none" /><%- leaf(f[0] + 18, f[1] + 60, 22, -30, '#6abf45') %><%- flower(f[0], f[1], 40 - (i % 3) * 6, f[2]) %><% }); %>
+    <%- sparkle(300, 200, 16, '#f7c6e8') %><%- sparkle(800, 220, 14, '#c5a3f0') %><%- sparkle(250, 520, 12, '#f7d046') %>
+  <% } else if (A.design === 'mountains') { %>
+    <rect width="1100" height="850" fill="#f4faf2" />
+    <rect width="1100" height="260" fill="#d8ecfa" />
+    <polygon points="250,250 470,40 690,250" fill="#7d8fa3" /><polygon points="470,40 420,90 450,95 470,75 495,100 520,92" fill="#fff" />
+    <polygon points="520,250 720,20 920,250" fill="#5f7590" /><polygon points="720,20 668,80 700,88 722,62 748,92 774,82" fill="#fff" />
+    <polygon points="100,260 300,110 500,260" fill="#94a7ba" /><polygon points="300,110 262,140 290,146 305,130 325,148" fill="#fff" />
+    <polygon points="760,260 930,120 1100,260" fill="#8fa2b6" /><polygon points="930,120 896,148 920,152 934,138 952,154" fill="#fff" />
+    <path d="M 0 250 Q 300 200 550 245 Q 820 290 1100 240 L 1100 330 L 0 330 Z" fill="#6ab04c" />
+    <% [[40,330,210],[110,330,170],[180,330,140],[1060,330,210],[990,330,170],[920,330,140],[55,850,300],[140,850,240],[1045,850,300],[960,850,240],[30,640,200],[1070,640,200]].forEach(function(p, i) { %><%- pine(p[0], p[1], p[2], i % 2 ? '#2e7d32' : '#1b5e20') %><% }); %>
+    <path d="M 0 850 Q 550 780 1100 850 Z" fill="#6ab04c" />
+  <% } else if (A.design === 'neon') { %>
+    <rect width="1100" height="850" fill="#0b0f2e" />
+    <g fill="none" stroke-linecap="round" filter="url(#ga-glow-<%= U %>)">
+      <path d="M 30 30 L 220 30 L 250 60 M 1070 30 L 880 30 L 850 60 M 30 820 L 220 820 L 250 790 M 1070 820 L 880 820 L 850 790" stroke="#3fd7ff" stroke-width="6" />
+      <path d="M 30 30 L 30 250 M 1070 30 L 1070 250 M 30 820 L 30 600 M 1070 820 L 1070 600" stroke="#ff3fd2" stroke-width="6" />
+      <path d="M 90 300 L 160 360 L 90 420 M 1010 300 L 940 360 L 1010 420" stroke="#3fd7ff" stroke-width="5" />
+      <path d="M 120 560 L 220 640 M 980 560 L 880 640 M 80 120 L 160 200 M 1020 120 L 940 200" stroke="#b44dff" stroke-width="5" />
+    </g>
+    <g transform="translate(550 120)" filter="url(#ga-glow-<%= U %>)"><path d="M -170 -40 C -230 -40, -250 60, -220 100 C -200 125, -160 110, -130 70 L 130 70 C 160 110, 200 125, 220 100 C 250 60, 230 -40, 170 -40 Z" fill="#1a1450" stroke="#b44dff" stroke-width="8" /><path d="M -150 -2 h 60 M -120 -32 v 60" stroke="#3fd7ff" stroke-width="14" stroke-linecap="round" /><circle cx="110" cy="-12" r="14" fill="#ff3fd2" /><circle cx="150" cy="15" r="14" fill="#3fd7ff" /><circle cx="70" cy="15" r="14" fill="#ffe14d" /><circle cx="110" cy="42" r="14" fill="#5cff8a" /><circle cx="-35" cy="35" r="20" fill="none" stroke="#3fd7ff" stroke-width="6" /><circle cx="35" cy="35" r="20" fill="none" stroke="#ff3fd2" stroke-width="6" /></g>
+    <g filter="url(#ga-glow-<%= U %>)"><%- star(150, 120, 26, 'none', 0, ' stroke="#ffe14d" stroke-width="5"') %><%- star(960, 150, 22, 'none', 0, ' stroke="#ff3fd2" stroke-width="5"') %><%- star(110, 720, 24, 'none', 0, ' stroke="#3fd7ff" stroke-width="5"') %><%- star(990, 720, 26, 'none', 0, ' stroke="#ffe14d" stroke-width="5"') %><%- star(300, 220, 14, '#3fd7ff') %><%- star(820, 230, 14, '#ff3fd2') %></g>
+  <% } else if (A.design === 'paint') { %>
+    <rect width="1100" height="850" fill="#ffffff" />
+    <%- splat(80, 90, 90, '#7e3ff2') %><%- splat(200, 40, 60, '#ffd53d') %><%- splat(40, 260, 60, '#2fa8f0') %><%- splat(60, 760, 100, '#ff9f1c') %><%- splat(190, 830, 70, '#36c46b') %><%- splat(40, 560, 60, '#ff4b6e') %>
+    <%- splat(1030, 800, 100, '#36c46b') %><%- splat(900, 840, 70, '#2fa8f0') %><%- splat(1060, 560, 60, '#ffd53d') %><%- splat(1060, 380, 50, '#ff4b6e') %><%- splat(560, 0, 50, '#2fa8f0') %><%- splat(380, 40, 40, '#ff4b6e') %>
+    <g transform="translate(920 150) rotate(-15)"><path d="M -130 0 C -130 -90, 40 -110, 120 -50 C 170 -10, 150 70, 80 80 C 40 85, 50 40, 10 45 C -30 50, -10 100, -60 95 C -110 90, -130 50, -130 0 Z" fill="#e8c48a" stroke="#a07a3e" stroke-width="5" /><circle cx="-80" cy="-30" r="20" fill="#ff4b6e" /><circle cx="-30" cy="-60" r="20" fill="#ffd53d" /><circle cx="30" cy="-62" r="20" fill="#36c46b" /><circle cx="85" cy="-30" r="20" fill="#2fa8f0" /><circle cx="-85" cy="35" r="18" fill="#7e3ff2" /><ellipse cx="-20" cy="20" rx="22" ry="16" fill="#fff" stroke="#a07a3e" stroke-width="3" /></g>
+    <g transform="translate(990 70) rotate(35)"><rect x="-8" y="-10" width="16" height="170" rx="6" fill="#c0392b" /><rect x="-10" y="-40" width="20" height="35" fill="#bdc3c7" /><path d="M -10 -40 Q 0 -90 10 -40 Z" fill="#2c3e50" /></g>
+    <g transform="translate(1030 110) rotate(55)"><rect x="-7" y="-10" width="14" height="150" rx="6" fill="#2980b9" /><rect x="-9" y="-36" width="18" height="30" fill="#bdc3c7" /><path d="M -9 -36 Q 0 -80 9 -36 Z" fill="#8e44ad" /></g>
+  <% } else if (A.design === 'city') { %>
+    <defs><linearGradient id="ga-sky-<%= U %>" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4b3b8f" /><stop offset="0.45" stop-color="#c06aa0" /><stop offset="0.8" stop-color="#f5a35c" /><stop offset="1" stop-color="#fff2e0" /></linearGradient></defs>
+    <rect width="1100" height="850" fill="#f5f2fb" />
+    <rect width="1100" height="300" fill="url(#ga-sky-<%= U %>)" />
+    <% function skyline(base, h, color, flip) { var x = 0, s = ''; var widths = [60, 80, 50, 90, 70, 110, 60, 75, 95, 55, 85, 65, 100, 70, 60]; widths.forEach(function(w, i) { var hh = h * (0.45 + ((i * 53) % 55) / 100); s += '<rect x="' + x + '" y="' + (flip ? base : base - hh) + '" width="' + (w - 6) + '" height="' + hh + '" fill="' + color + '" />'; if (!flip) { for (var r = 0; r < hh / 30 - 1; r++) { for (var c = 0; c < (w - 6) / 18 - 1; c++) { if ((r + c + i) % 3) s += '<rect x="' + (x + 8 + c * 18) + '" y="' + (base - hh + 12 + r * 30) + '" width="8" height="12" fill="#ffd77a" opacity="0.8" />'; } } } x += w; }); return s; } %>
+    <%- skyline(300, 170, '#2a2350', false) %>
+    <%- skyline(850, 150, '#232044', false) %>
+    <%- gradCap(550, 95, 120, '#171717', '#f2c14e') %>
+    <% for (var i = 0; i < 18; i++) { %><circle cx="<%= (rnd() * 1100).toFixed(0) %>" cy="<%= (rnd() * 120).toFixed(0) %>" r="2" fill="#fff" opacity="0.8" /><% } %>
+  <% } else if (A.design === 'goldstars') { %>
+    <defs><linearGradient id="ga-gold-<%= U %>" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7d774" /><stop offset="0.5" stop-color="#d4a017" /><stop offset="1" stop-color="#b8860b" /></linearGradient></defs>
+    <rect width="1100" height="850" fill="#fffaf0" />
+    <rect x="22" y="22" width="1056" height="806" rx="18" fill="none" stroke="url(#ga-gold-<%= U %>)" stroke-width="14" />
+    <rect x="44" y="44" width="1012" height="762" rx="12" fill="none" stroke="#d4a017" stroke-width="3" />
+    <path d="M 60 760 C 200 640, 120 460, 230 330 C 300 250, 260 140, 360 80" stroke="url(#ga-gold-<%= U %>)" stroke-width="16" fill="none" stroke-linecap="round" opacity="0.85" />
+    <path d="M 1040 760 C 900 640, 980 460, 870 330 C 800 250, 840 140, 740 80" stroke="url(#ga-gold-<%= U %>)" stroke-width="16" fill="none" stroke-linecap="round" opacity="0.85" />
+    <%- star(120, 120, 46, 'url(#ga-gold-' + U + ')') %><%- star(980, 120, 46, 'url(#ga-gold-' + U + ')') %><%- star(260, 220, 22, 'url(#ga-gold-' + U + ')') %><%- star(840, 230, 22, 'url(#ga-gold-' + U + ')') %><%- star(130, 470, 26, 'url(#ga-gold-' + U + ')') %><%- star(970, 470, 26, 'url(#ga-gold-' + U + ')') %><%- star(140, 720, 30, 'url(#ga-gold-' + U + ')') %><%- star(960, 720, 30, 'url(#ga-gold-' + U + ')') %><%- star(380, 150, 14, '#d4a017') %><%- star(720, 150, 14, '#d4a017') %>
+    <%- gradCap(550, 105, 110, '#151515', '#d4a017') %>
+  <% } else if (A.design === 'laurel') { %>
+    <defs><linearGradient id="ga-blue-<%= U %>" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1d3f8f" /><stop offset="1" stop-color="#0d2156" /></linearGradient></defs>
+    <rect width="1100" height="850" fill="url(#ga-blue-<%= U %>)" />
+    <path d="M 70 60 Q 550 10 1030 60 L 1050 790 Q 550 840 50 790 Z" fill="#eef3fb" stroke="#d4a72c" stroke-width="8" />
+    <path d="M 95 85 Q 550 40 1005 85 L 1022 768 Q 550 812 78 768 Z" fill="none" stroke="#d4a72c" stroke-width="3" />
+    <% function laurel(cx, flip) { var s = '<path d="M ' + cx + ' 760 Q ' + (cx + (flip ? -80 : 80)) + ' 560 ' + (cx + (flip ? -30 : 30)) + ' 360" stroke="#c9971f" stroke-width="7" fill="none" />'; for (var k = 0; k < 9; k++) { var y = 740 - k * 44, x = cx + (flip ? -1 : 1) * (60 - Math.abs(k - 4) * 12); s += leaf(x - 22, y, 30, flip ? 150 : 30, '#d9a82e') + leaf(x + 22, y - 8, 30, flip ? 210 : -30, '#e9bf4a'); } return s; } %>
+    <%- laurel(150, false) %><%- laurel(950, true) %>
+    <%- sparkle(960, 110, 28, '#ffffff') %><%- sparkle(140, 120, 20, '#ffffff') %><%- sparkle(1000, 180, 12, '#d4a72c') %>
+    <%- gradCap(550, 100, 115, '#0f2250', '#d4a72c') %>
+  <% } else { %>
+    <defs><linearGradient id="ga-g2-<%= U %>" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7dc7a" /><stop offset="0.5" stop-color="#d4a017" /><stop offset="1" stop-color="#a87b10" /></linearGradient></defs>
+    <rect width="1100" height="850" fill="#0c0b09" />
+    <ellipse cx="550" cy="425" rx="530" ry="415" fill="none" stroke="url(#ga-g2-<%= U %>)" stroke-width="10" />
+    <ellipse cx="550" cy="425" rx="505" ry="392" fill="none" stroke="#d4a017" stroke-width="2.5" />
+    <path d="M 40 300 Q 160 120 380 60 M 1060 300 Q 940 120 720 60 M 40 560 Q 160 740 380 800 M 1060 560 Q 940 740 720 800" stroke="url(#ga-g2-<%= U %>)" stroke-width="5" fill="none" />
+    <% for (var i = 0; i < 26; i++) { %><%- sparkle((60 + rnd() * 980).toFixed(0), (30 + rnd() * 790).toFixed(0), (5 + rnd() * 12).toFixed(0), '#f2c14e') %><% } %>
+    <%- gradCap(550, 100, 115, '#1a1a1a', '#e8bb4a') %>
+    <g transform="translate(905 690) rotate(-28)"><rect x="-95" y="-24" width="190" height="48" rx="22" fill="#f6ecd6" stroke="#c9a24a" stroke-width="4" /><ellipse cx="-95" cy="0" rx="14" ry="24" fill="#e9dcbc" stroke="#c9a24a" stroke-width="4" /><rect x="-12" y="-26" width="24" height="52" fill="#c0392b" /><path d="M 0 26 L -18 62 M 0 26 L 18 62" stroke="#c0392b" stroke-width="8" /></g>
+  <% } %>
+
+  <%# The words and the name panel - same place on every design. %>
+  <g font-family="'Kaushan Script', 'Brush Script MT', cursive" text-anchor="middle"<% if (T.glow) { %> filter="url(#ga-glow-<%= U %>)"<% } %>>
+    <text font-size="118" fill="<%= T.c %>" stroke="<%= cs %>" stroke-width="12" stroke-linejoin="round" paint-order="stroke" filter="url(#ga-shadow-<%= U %>)"><textPath href="#ga-arc-<%= U %>" startOffset="50%">Congratulations</textPath></text>
+  </g>
+  <g font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" text-anchor="middle"<% if (T.glow) { %> filter="url(#ga-glow-<%= U %>)"<% } %>>
+    <text x="550" y="415" font-size="60" fill="<%= T.f %>" stroke="<%= T.glow || T.cs ? 'none' : '#ffffff' %>" stroke-width="8" paint-order="stroke">You finished</text>
+    <text x="550" y="508" font-size="<%= A.gradeDisplay.length > 12 ? 84 : 92 %>" fill="<%= T.g %>" stroke="<%= T.glow || T.cs ? 'none' : '#ffffff' %>" stroke-width="10" paint-order="stroke"><%= A.gradeDisplay %></text>
+  </g>
+  <g>
+    <rect x="310" y="545" width="480" height="235" rx="34" fill="<%= T.panel %>" fill-opacity="<%= T.po %>" />
+    <g font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="500" fill="<%= T.label || '#222' %>">
+      <text x="550" y="590" font-size="26" text-anchor="middle">Student Name:</text>
+      <line x1="370" y1="650" x2="730" y2="650" stroke="<%= T.line %>" stroke-width="2.5" />
+      <text x="365" y="707" font-size="22">Parent/Teacher:</text>
+      <line x1="510" y1="710" x2="735" y2="710" stroke="<%= T.line %>" stroke-width="2.5" />
+      <text x="365" y="757" font-size="22">Parent/Teacher:</text>
+      <line x1="510" y1="760" x2="735" y2="760" stroke="<%= T.line %>" stroke-width="2.5" />
+    </g>
+    <g font-family="'Caveat', 'Segoe Print', cursive" font-weight="700" fill="#1b2a55">
+      <% if (A.studentName) { %><text x="550" y="643" font-size="46" text-anchor="middle" textLength="<%= Math.min(350, A.studentName.length * 22) %>" lengthAdjust="spacingAndGlyphs"><%= A.studentName %></text><% } %>
+      <% if (A.parent1) { %><text x="622" y="703" font-size="34" text-anchor="middle" textLength="<%= Math.min(220, A.parent1.length * 15) %>" lengthAdjust="spacingAndGlyphs"><%= A.parent1 %></text><% } %>
+      <% if (A.parent2) { %><text x="622" y="753" font-size="34" text-anchor="middle" textLength="<%= Math.min(220, A.parent2.length * 15) %>" lengthAdjust="spacingAndGlyphs"><%= A.parent2 %></text><% } %>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,59 @@
+<%# A real request: a Grade Level Awards creator - choose the grade level,
+    pick any of the 15 designs, add the student's and parents' names (or
+    leave them blank to write in by hand), Update Preview, then Print.
+    Shared by Family School Management and Main Admin; nothing is saved,
+    the form itself (in the URL) is the award.
+    Locals: award, basePath, studentNames (for name suggestions). %>
+<% var GA = gradeAwardOptions; %>
+<form method="GET" action="<%= basePath %>" class="dip-builder ga-builder" data-grade-award-builder data-grade-designs="<%= JSON.stringify(Object.fromEntries(GA.GRADE_LEVELS.map(function(g) { return [g.key, g.design]; }))) %>">
+  <section class="dip-builder-section">
+    <h2>1. Grade Level</h2>
+    <label class="ga-grade-label">Grade Level
+      <select name="grade">
+        <% GA.GRADE_LEVELS.forEach(function(g) { %>
+          <option value="<%= g.key %>" <%= award.grade === g.key ? 'selected' : '' %>><%= g.label %></option>
+        <% }); %>
+      </select>
+    </label>
+  </section>
+
+  <section class="dip-builder-section">
+    <h2>2. Choose a Design</h2>
+    <p class="hint">Any design works for any grade level.</p>
+    <div class="ga-choice-grid">
+      <% GA.AWARD_DESIGNS.forEach(function(d) { %>
+        <label class="dip-choice ga-choice<%= award.design === d.key ? ' is-selected' : '' %>">
+          <input type="radio" name="design" value="<%= d.key %>" <%= award.design === d.key ? 'checked' : '' %> />
+          <span class="dip-choice-art"><%- include('grade-award', { award: Object.assign({}, award, { design: d.key, studentName: '', parent1: '', parent2: '' }), uid: 'pick' }) %></span>
+          <span class="dip-choice-label"><%= d.label %></span>
+        </label>
+      <% }); %>
+    </div>
+  </section>
+
+  <section class="dip-builder-section">
+    <h2>3. Names</h2>
+    <p class="hint">Leave any of these blank to write it in by hand after printing.</p>
+    <div class="member-form-grid">
+      <label class="member-form-full">Student Name
+        <input type="text" name="studentName" value="<%= award.studentName %>" list="ga-student-names" maxlength="80" />
+      </label>
+      <label>Parent/Teacher
+        <input type="text" name="parent1" value="<%= award.parent1 %>" maxlength="80" />
+      </label>
+      <label>Parent/Teacher
+        <input type="text" name="parent2" value="<%= award.parent2 %>" maxlength="80" />
+      </label>
+    </div>
+    <datalist id="ga-student-names"><% (studentNames || []).forEach(function(n) { %><option value="<%= n %>"></option><% }); %></datalist>
+  </section>
+
+  <section class="dip-builder-section" id="award-preview">
+    <h2>Preview</h2>
+    <div class="dip-preview"><%- include('grade-award', { award, uid: 'preview' }) %></div>
+    <div class="dip-builder-actions">
+      <button type="submit" class="roster-action-btn dip-btn-preview"><svg class="icon"><use href="#icon-refresh"/></svg> Update Preview</button>
+      <button type="submit" formaction="<%= basePath %>/print" formtarget="_blank" class="roster-action-btn dip-btn-print"><svg class="icon"><use href="#icon-printer"/></svg> Print</button>
+    </div>
+  </section>
+</form>

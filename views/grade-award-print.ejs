@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Oswald:wght@500;600&family=Caveat:wght@700&display=swap" />
+  <%# A real request: "These should all be landscape, full page." %>
+  <style>@page { size: letter landscape; margin: 0; }</style>
+</head>
+<body class="ga-print-body">
+  <div class="print-preview-header no-print ga-print-header">
+    <a href="<%= backHref %>">&larr; Grade Level Awards</a>
+    <button type="button" class="roster-action-btn print-action-btn" onclick="window.print()">Print</button>
+  </div>
+  <main class="ga-print-page"><%- include('partials/grade-award', { award, uid: 'print' }) %></main>
+  <script>
+    // Open the print dialog once the award's fonts have loaded.
+    (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { setTimeout(function () { window.print(); }, 300); });
+  </script>
+</body>
+</html>

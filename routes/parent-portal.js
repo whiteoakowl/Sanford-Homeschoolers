@@ -7,6 +7,7 @@
 // migration).
 const express = require('express');
 const { diplomaFieldsFromBody } = require('../utils/diplomaDesign');
+const { awardFromQuery, awardQuery } = require('../utils/gradeAwards');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
@@ -1425,6 +1426,25 @@ router.get('/academics/diplomas/:studentId/download.pdf', requirePortalPermissio
     title: 'Diploma', member: child, diploma, familySettings: await familySettingsForPdf(await familySettingsForAccount(req.portalAccount)),
   });
   sendPdf(res, `${child.name.replace(/[^a-z0-9]+/gi, '-')}-diploma.pdf`, pdf);
+});
+
+// Grade Level Awards - a real request: "Under diplomas/transcripts tab
+// on all portals. Add a subpage called grade level awards." Nothing is
+// saved (utils/gradeAwards.js) - the form's own fields are the award.
+router.get('/academics/awards', requirePortalPermission('view_fsm_diplomas'), async (req, res) => {
+  const children = await childrenForAccount(req.portalAccount);
+  res.render('grade-awards', {
+    title: 'Grade Level Awards',
+    portalTitle: 'Family School Management',
+    award: awardFromQuery(req.query),
+    basePath: '/parent/academics/awards',
+    studentNames: children.map((c) => c.name),
+  });
+});
+
+router.get('/academics/awards/print', requirePortalPermission('view_fsm_diplomas'), (req, res) => {
+  const award = awardFromQuery(req.query);
+  res.render('grade-award-print', { title: 'Grade Level Award', award, backHref: '/parent/academics/awards?' + awardQuery(award) });
 });
 
 // Name Tags - a real request: parents should be able to print name tags

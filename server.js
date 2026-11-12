@@ -281,6 +281,7 @@ app.locals.formatClockTime = require('./utils/dates').formatClockTime;
 // The diploma certificate partial's view-model (utils/diplomaDesign.js).
 app.locals.diplomaView = require('./utils/diplomaDesign').diplomaView;
 app.locals.diplomaOptions = require('./utils/diplomaDesign');
+app.locals.gradeAwardOptions = require('./utils/gradeAwards');
 app.locals.trainingDate = (iso) => {
   if (!iso) return '';
   const day = String(iso).slice(0, 10);

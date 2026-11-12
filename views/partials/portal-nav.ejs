@@ -243,6 +243,7 @@ const MAIN_ADMIN_NAV_LINKS = [
   { href: '/main-admin/family-school', icon: 'home-heart', label: 'Family School Management', mobileLabel: 'Family School<br>Management', perm: 'view_family_school_main_admin', subpages: [
     { href: '/main-admin/family-school', label: 'Transcripts' },
     { href: '/main-admin/family-school/diplomas', label: 'Diplomas', perm: 'view_family_school_diplomas_main_admin' },
+    { href: '/main-admin/family-school/awards', label: 'Grade Level Awards', perm: 'view_family_school_diplomas_main_admin' },
   ] },
   // Same Training & Learning module as Co-op Admin's own Training tab
   // (routes/main-admin-training.js, shared utils/training.js data) - a
@@ -356,6 +357,7 @@ const FAMILY_SCHOOL_NAV_LINKS = [
   { href: '/parent/family-school/weekly-planner', icon: 'calendar-check', label: 'Weekly Planner', mobileLabel: 'Weekly<br>Planner', perm: 'view_fsm_weekly_planner' },
   { href: '/parent/academics', icon: 'graduation-cap', label: 'Transcripts', perm: 'view_fsm_transcripts' },
   { href: '/parent/academics/diplomas', icon: 'graduation-cap', label: 'Diplomas', perm: 'view_fsm_diplomas' },
+  { href: '/parent/academics/awards', icon: 'trophy', label: 'Grade Level Awards', mobileLabel: 'Grade Level<br>Awards', perm: 'view_fsm_diplomas' },
   { href: '/parent/family-school/portfolio', icon: 'file-text', label: 'Portfolio', perm: 'view_fsm_portfolio' },
   // Settings used to be a tab here too - moved behind the gear icon (see
   // settingsHref above) per a later real request.

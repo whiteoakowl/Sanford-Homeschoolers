@@ -23,6 +23,7 @@
 // routes call - see that function's own header comment.
 const express = require('express');
 const { diplomaFieldsFromBody } = require('../utils/diplomaDesign');
+const { awardFromQuery, awardQuery } = require('../utils/gradeAwards');
 const router = express.Router();
 const db = require('../db');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
@@ -233,6 +234,23 @@ router.get('/family-school/diplomas/:studentId/download.pdf', requirePortalPermi
     backHref: `/main-admin/family-school/diplomas?studentId=${studentId}`,
   });
   sendPdf(res, `${student.name.replace(/[^a-z0-9]+/gi, '-')}-diploma.pdf`, pdf);
+});
+
+// --- Grade Level Awards (same builder as Family School Management) ---
+
+router.get('/family-school/awards', requirePortalPermission('view_family_school_diplomas_main_admin'), async (req, res) => {
+  res.render('grade-awards', {
+    title: 'Grade Level Awards',
+    portalTitle: 'Main Admin',
+    award: awardFromQuery(req.query),
+    basePath: '/main-admin/family-school/awards',
+    studentNames: (await allActiveStudents()).map((s) => s.name),
+  });
+});
+
+router.get('/family-school/awards/print', requirePortalPermission('view_family_school_diplomas_main_admin'), (req, res) => {
+  const award = awardFromQuery(req.query);
+  res.render('grade-award-print', { title: 'Grade Level Award', award, backHref: '/main-admin/family-school/awards?' + awardQuery(award) });
 });
 
 module.exports = router;
