@@ -67,7 +67,22 @@ var sealPick = function(n) { return view['seal' + n].key; };
   </section>
 
   <section class="dip-builder-section">
-    <h2>3. Seal / Logo</h2>
+    <h2>3. Fonts</h2>
+    <div class="member-form-grid">
+      <% [['titleFont', 'Title Font', 'School name, Diploma, student name, header and course lines', view.titleFont], ['bodyFont', 'Description Font', 'Wording, date and the smaller lines', view.bodyFont]].forEach(function(f) { %>
+        <label><%= f[1] %> <span class="hint">(<%= f[2] %>)</span>
+          <select name="<%= f[0] %>">
+            <% opts.DIPLOMA_FONTS.forEach(function(o) { %>
+              <option value="<%= o.key %>" <%= f[3] === o.key ? 'selected' : '' %><% if (o.css) { %> style="font-family: <%= o.css %>;"<% } %>><%= o.label %></option>
+            <% }); %>
+          </select>
+        </label>
+      <% }); %>
+    </div>
+  </section>
+
+  <section class="dip-builder-section">
+    <h2>4. Seal / Logo</h2>
     <% [1, 2].forEach(function(n) { %>
       <div class="dip-seal-picker"<% if (n === 2) { %> data-design-only="design3"<% } %>>
         <p class="dip-seal-picker-label"><%= n === 1 ? 'Seal' : 'Second Seal (Design 3)' %></p>
@@ -90,7 +105,7 @@ var sealPick = function(n) { return view['seal' + n].key; };
   </section>
 
   <section class="dip-builder-section">
-    <h2>4. Signatures</h2>
+    <h2>5. Signatures</h2>
     <p class="hint">Pick who signs each line. Leave a name blank to sign it by hand after printing; choose "No signature" to leave a line off.</p>
     <% [1, 2, 3].forEach(function(n) { var sg = view.signatures[n - 1]; %>
       <div class="dip-sig-row">

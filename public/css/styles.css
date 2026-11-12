@@ -16035,6 +16035,25 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 .dip-design4 .dip-sig-2 { top: 89%; left: 18%; }
 .dip-design4 .dip-sig-3 { top: 86.7%; left: 68%; width: 18cqw; }
 
+/* A real request: separate font choices for titles and descriptions -
+   set inline on .dip as --dip-title-font / --dip-body-font, and only
+   applied when one is chosen (otherwise each design keeps its own). */
+.dip-custom-title .dip-arch-text,
+.dip-custom-title .dip-name,
+.dip-custom-title .dip-title,
+.dip-custom-title .dip-school,
+.dip-custom-title .dip-header,
+.dip-custom-title .dip-course { font-family: var(--dip-title-font); }
+.dip-custom-body .dip-certifies,
+.dip-custom-body .dip-body,
+.dip-custom-body .dip-date,
+.dip-custom-body .dip-awarded,
+.dip-custom-body .dip-lead,
+.dip-custom-body .dip-header-place,
+.dip-custom-body .dip-city,
+.dip-custom-body .dip-state,
+.dip-custom-body .dip-sig-role { font-family: var(--dip-body-font); -webkit-text-stroke: 0; }
+
 /* The builder's design-choice cards: a small version of each design. */
 .diploma-cert-compact { box-shadow: none; }
 

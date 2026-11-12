@@ -280,3 +280,30 @@ test('Main Admin Diplomas uses the same builder and saves the same fields', asyn
   const print = await request(app).get(`/main-admin/family-school/diplomas/${student.memberId}/print`).set('Cookie', admin.cookie);
   assert.match(print.text, /dip-design4/);
 });
+
+test('diploma title and description fonts are two separate choices', async () => {
+  // A real request: "Allow choosing of font choice for titles and
+  // descriptions. Two separate font choice options."
+  const familyId = await createFamily('Diploma Font Family');
+  const parent = await createPortalMember({ name: 'Font Parent', familyId, memberType: 'parent', roleKey: 'parent' });
+  const student = await createPortalMember({ name: 'Font Student', familyId, memberType: 'student', roleKey: 'student' });
+  const csrf = await csrfFrom(parent.cookie, '/parent/academics/diplomas');
+  const page = await request(app).get('/parent/academics/diplomas').set('Cookie', parent.cookie);
+  assert.match(page.text, /<select name="titleFont">/);
+  assert.match(page.text, /<select name="bodyFont">/);
+  assert.doesNotMatch(page.text, /--dip-title-font/, 'no font chosen yet keeps each design\'s own fonts');
+
+  await request(app).post('/parent/academics/diplomas').set('Cookie', parent.cookie).type('form')
+    .send({ studentId: student.memberId, template: 'design2', issuedDate: '2026-06-18', titleFont: 'engraved', bodyFont: 'flowing', _csrf: csrf });
+  const diploma = await diplomaForStudent(student.memberId);
+  assert.equal(diploma.title_font, 'engraved');
+  assert.equal(diploma.body_font, 'flowing');
+  const print = await request(app).get(`/parent/academics/diplomas/${student.memberId}/print`).set('Cookie', parent.cookie);
+  assert.match(print.text, /dip-custom-title dip-custom-body/);
+  assert.match(print.text, /--dip-title-font: &#39;Cinzel&#39;, serif;--dip-body-font: &#39;Great Vibes&#39;, cursive;/);
+
+  await request(app).post('/parent/academics/diplomas').set('Cookie', parent.cookie).type('form')
+    .send({ studentId: student.memberId, template: 'design2', issuedDate: '2026-06-18', titleFont: 'comic-sans', bodyFont: 'default', _csrf: csrf });
+  const after = await diplomaForStudent(student.memberId);
+  assert.equal(after.title_font, 'default', 'an unknown font falls back to the design\'s own');
+});

@@ -23,6 +23,25 @@ const DESIGN_KEYS = DIPLOMA_DESIGNS.map((d) => d.key);
 
 // Seal / logo choices. 'school' only shows when the family has uploaded
 // a logo under Family School Management > Settings.
+// A real request: "Allow choosing of font choice for titles and
+// descriptions. Two separate font choice options." 'default' keeps each
+// design's own fonts (the example look); every other choice is loaded
+// from Google Fonts by the certificate partial.
+const DIPLOMA_FONTS = [
+  { key: 'default', label: "Design's own font", css: null },
+  { key: 'oldenglish', label: 'Old English (bold)', css: "'UnifrakturCook', 'UnifrakturMaguntia', serif" },
+  { key: 'blackletter', label: 'Blackletter', css: "'UnifrakturMaguntia', serif" },
+  { key: 'gothic', label: 'Gothic', css: "'Grenze Gotisch', serif" },
+  { key: 'engraved', label: 'Engraved Capitals', css: "'Cinzel', serif" },
+  { key: 'classic', label: 'Classic Serif', css: "'EB Garamond', Georgia, serif" },
+  { key: 'elegant', label: 'Elegant Serif', css: "'Playfair Display', Georgia, serif" },
+  { key: 'script', label: 'Script', css: "'Pinyon Script', cursive" },
+  { key: 'flowing', label: 'Flowing Script', css: "'Great Vibes', cursive" },
+  { key: 'formal', label: 'Formal Script', css: "'Italianno', cursive" },
+];
+const FONT_KEYS = DIPLOMA_FONTS.map((f) => f.key);
+const fontCss = (key) => (DIPLOMA_FONTS.find((f) => f.key === key) || {}).css || null;
+
 const DIPLOMA_SEALS = [
   { key: 'gold', label: 'Gold Seal' },
   { key: 'blue', label: 'Blue Seal' },
@@ -171,6 +190,10 @@ function diplomaView(diploma, member, familySettings, design) {
     defaultBodies: Object.fromEntries(Object.entries(DEFAULT_BODY).map(([k, t]) => [k, fillPlace(t, city, state)])),
     dateWords: dateInWords(issued),
     dateShort: dateShort(issued),
+    titleFont: FONT_KEYS.includes(d.title_font) ? d.title_font : 'default',
+    bodyFont: FONT_KEYS.includes(d.body_font) ? d.body_font : 'default',
+    titleFontCss: fontCss(d.title_font),
+    bodyFontCss: fontCss(d.body_font),
     seal1: resolveSeal(normalizeSeal(d.seal1, 'gold')),
     seal2: resolveSeal(normalizeSeal(d.seal2, 'gold')),
     signatures,
@@ -200,6 +223,8 @@ function diplomaFieldsFromBody(body) {
     schoolState: text('schoolState'),
     headerText: text('headerText'),
     courseText: text('courseText'),
+    titleFont: FONT_KEYS.includes(text('titleFont')) ? text('titleFont') : 'default',
+    bodyFont: FONT_KEYS.includes(text('bodyFont')) ? text('bodyFont') : 'default',
     seal1: normalizeSeal(text('seal1'), 'gold'),
     seal2: normalizeSeal(text('seal2'), 'gold'),
     signature1Name: text('signature1Name'),
@@ -213,6 +238,7 @@ function diplomaFieldsFromBody(body) {
 
 module.exports = {
   DIPLOMA_DESIGNS,
+  DIPLOMA_FONTS,
   DIPLOMA_SEALS,
   SIGNATURE_ROLES,
   DEFAULT_BODY,
