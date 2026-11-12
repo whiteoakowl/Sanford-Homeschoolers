@@ -277,9 +277,9 @@ async function nameTagSubmissions(showArchived, dateFilter) {
 //     (attendance.check_in_time) NOR an absence_submissions row for that
 //     roster/date - they simply never showed up and never said why.
 //
-// Both only ever look at dates strictly before today - the day isn't
-// over yet, so a parent who hasn't shown up (or scanned) YET this
-// afternoon isn't a no-show/miss until the day actually ends.
+// A later real request: "Should only count that day and the previous
+// dates. Should not count nothing being marked for upcoming dates." Both
+// look at today and earlier only - never an upcoming co-op date.
 async function missedSetupCleanupRows() {
   const assignmentRows = await db
     .prepare(
@@ -289,7 +289,7 @@ async function missedSetupCleanupRows() {
        JOIN members m ON m.id = sta.member_id
        LEFT JOIN families f ON f.id = m.family_id
        WHERE (sta.task_item_id IS NOT NULL OR sta.task_item_id_2 IS NOT NULL OR sta.task_item_id_3 IS NOT NULL)
-         AND sta.session_date < ?
+         AND sta.session_date <= ?
        ORDER BY sta.session_date ASC`
     )
     .all(todayISO());
@@ -326,7 +326,7 @@ async function noShowRows() {
        JOIN members m ON m.id = rm.member_id AND m.member_type = 'parent'
        LEFT JOIN families f ON f.id = m.family_id
        WHERE rd.roster_id IN (${placeholders})
-         AND rd.session_date < ?
+         AND rd.session_date <= ?
          AND NOT EXISTS (
            SELECT 1 FROM attendance a
            WHERE a.member_id = rm.member_id AND a.roster_id = rd.roster_id
@@ -354,7 +354,11 @@ async function noShowRows() {
 // correct, not two half-populated rows.
 async function missedDutyRows() {
   const [missedScans, noShows] = await Promise.all([missedSetupCleanupRows(), noShowRows()]);
-  const events = [...missedScans.map((r) => ({ ...r, kind: 'scan' })), ...noShows.map((r) => ({ ...r, kind: 'noshow' }))].sort((a, b) =>
+  // Belt and braces for the "never an upcoming date" rule above: drop any
+  // row whose date isn't a real YYYY-MM-DD on or before today.
+  const today = todayISO();
+  const notUpcoming = (r) => /^\d{4}-\d{2}-\d{2}$/.test(String(r.date)) && String(r.date) <= today;
+  const events = [...missedScans.filter(notUpcoming).map((r) => ({ ...r, kind: 'scan' })), ...noShows.filter(notUpcoming).map((r) => ({ ...r, kind: 'noshow' }))].sort((a, b) =>
     a.date.localeCompare(b.date)
   );
 
