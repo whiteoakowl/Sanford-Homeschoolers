@@ -16740,3 +16740,26 @@ dialog form:has(.permission-section) > h3,
   .teacher-class-card-meta .icon { width: 1.1rem; height: 1.1rem; }
   .teacher-class-card-btn { font-size: 0.9rem; padding: 0.65rem 0.8rem; }
 }
+/* A real request: the Members title bar is orange and the Pending
+   Requests (approvals) title bar is blue - full-width bars across the
+   top of each card, in the app's button orange and blue. */
+.mah-card { overflow: hidden; }
+.mah-card-header-orange,
+.mah-card-header-blue { margin: -1.1rem -1.25rem 1rem; padding: 0.8rem 1.25rem; }
+.mah-card-header-orange { background: var(--btn-bg); }
+.mah-card-header-orange,
+.mah-card-header-orange > .icon,
+.mah-card-header-orange .mah-viewall { color: var(--ink); }
+.mah-card-header-blue { background: var(--btn-blue); }
+.mah-card-header-blue,
+.mah-card-header-blue h2,
+.mah-card-header-blue > .icon,
+.mah-card-header-blue .mah-viewall,
+.mah-card-header-blue .mah-viewall:hover { color: #fff; }
+.mah-card-header-orange .mah-viewall:hover { color: var(--ink); text-decoration: underline; }
+.mah-card-header-blue .mah-viewall:hover { text-decoration: underline; }
+.mah-card-header-blue + .mah-requests { border-top: 0; }
+@media (max-width: 480px) {
+  .mah-card-header-orange,
+  .mah-card-header-blue { margin: -0.9rem -0.75rem 0.9rem; padding: 0.7rem 0.75rem; }
+}
