@@ -526,10 +526,18 @@ async function assignmentDetail(assignmentId) {
 
 // Every assignment belonging to memberId, across every training - the
 // "My Training" member dashboard (module design item 4).
+// A real request: a photo for each training, shown on its card. Returns
+// the previous photo's key so the caller can delete that file.
+async function setTrainingImage(id, imageKey) {
+  const before = await db.prepare('SELECT image_key FROM trainings WHERE id = ?').get(id);
+  await db.prepare('UPDATE trainings SET image_key = ?, updated_at = now_text() WHERE id = ?').run(imageKey || null, id);
+  return before ? before.image_key : null;
+}
+
 async function myAssignments(memberId) {
   return db
     .prepare(
-      `SELECT ta.*, t.title, t.description, t.estimated_minutes AS "estimatedMinutes", t.status AS "trainingStatus",
+      `SELECT ta.*, t.title, t.description, t.estimated_minutes AS "estimatedMinutes", t.status AS "trainingStatus", t.image_key AS "imageKey",
         (SELECT COUNT(*) FROM training_lessons tl WHERE tl.training_id = t.id) AS "lessonCount"
        FROM training_assignments ta
        JOIN trainings t ON t.id = ta.training_id
@@ -936,6 +944,7 @@ async function maybeFinalizeAttempt(attemptId) {
 }
 
 module.exports = {
+  setTrainingImage,
   LESSON_TYPES,
   TRAINING_STATUSES,
   ASSIGNMENT_STATUSES,

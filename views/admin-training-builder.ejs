@@ -93,6 +93,30 @@
       </form>
     </div>
 
+    <%# A real request: "Should be able to upload a photo for each training
+        that will show on the card." %>
+    <div class="manage-section">
+      <div class="grid-box-header"><h2>Card Photo</h2></div>
+      <% if (training.image_key) { %>
+        <img class="training-builder-photo" src="<%= trainingResourceUrl(training.image_key) %>" alt="" />
+      <% } else { %>
+        <p class="hint">No photo yet - the card shows a classroom scene. Add a photo to show it on this training's card.</p>
+      <% } %>
+      <form method="POST" action="/admin/training/<%= training.id %>/image" enctype="multipart/form-data" class="member-form-grid">
+        <label class="member-form-full"><%= training.image_key ? 'Replace photo' : 'Upload photo' %> <span class="hint">(JPG, PNG, GIF or WebP, up to 5MB)</span>
+          <input type="file" name="image" accept=".jpg,.jpeg,.png,.gif,.webp" required />
+        </label>
+        <div class="member-form-full roster-btn-row">
+          <button type="submit" class="roster-action-btn">Save Photo</button>
+        </div>
+      </form>
+      <% if (training.image_key) { %>
+        <form method="POST" action="/admin/training/<%= training.id %>/image/delete" data-confirm="Remove this training's card photo?">
+          <button type="submit" class="btn-secondary">Remove Photo</button>
+        </form>
+      <% } %>
+    </div>
+
     <div class="manage-section">
       <div class="grid-box-header">
         <h2>Lessons (<%= training.lessons.length %>)</h2>

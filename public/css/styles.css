@@ -16492,8 +16492,14 @@ a.member-schedule-class-title:hover { color: var(--brand-darker); }
   box-shadow: 0 14px 34px rgba(30, 58, 90, 0.16), 0 2px 6px rgba(30, 58, 90, 0.08);
   min-height: 250px;
 }
-.training-card-art { position: relative; color: #fff; background: #2f5f8a; overflow: hidden; }
-.training-card-scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.training-card-art { position: relative; color: #fff; background: var(--btn-blue); overflow: hidden; }
+.training-card-scene,
+.training-card-photo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.training-card-photo { object-fit: cover; }
+/* The app's own button blue (--btn-blue) over the photo/scene and as the
+   wave, so the card matches the rest of the app's buttons. */
+.training-card-tint { position: absolute; inset: 0; background: var(--btn-blue); opacity: 0.42; }
+.training-card-wave { position: absolute; inset: 0; width: 100%; height: 100%; fill: var(--btn-blue); }
 .training-card-cap { position: absolute; top: 18%; left: 50%; transform: translateX(-50%); }
 .training-card-cap .icon { width: 3.6rem; height: 3.6rem; stroke-width: 1.6; color: #fff; }
 .training-card-kicker {
@@ -16521,7 +16527,7 @@ a.member-schedule-class-title:hover { color: var(--brand-darker); }
   font-size: 0.92rem;
 }
 .training-card-status .icon { width: 1.05rem; height: 1.05rem; }
-.training-card-status-in_progress { background: #fde3c8; color: #a4520f; }
+.training-card-status-in_progress { background: #fbe6d6; color: #8a4f22; }
 .training-card-status-not_started,
 .training-card-status-expired { background: #e8edf3; color: #4a5b70; }
 .training-card-status-passed { background: #d9f2e1; color: #1d7a3d; }
@@ -16539,16 +16545,16 @@ a.member-schedule-class-title:hover { color: var(--brand-darker); }
   padding: 0.8rem 1.2rem;
   border: 0;
   border-radius: 999px;
-  background: linear-gradient(90deg, #f5a33a, #e98b2a);
-  color: #fff;
+  background: var(--btn-bg);
+  color: var(--ink);
   font-weight: 600;
   font-size: 1rem;
   text-decoration: none;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(233, 139, 42, 0.3);
+  box-shadow: 0 4px 10px rgba(196, 144, 104, 0.3);
   white-space: nowrap;
 }
-.training-card-btn:hover { background: linear-gradient(90deg, #ef9a2c, #de7f1f); color: #fff; }
+.training-card-btn:hover { background: var(--btn-bg-hover); color: var(--ink); }
 .training-card-btn .icon { width: 1.15rem; height: 1.15rem; }
 @media (max-width: 480px) {
   .training-card { grid-template-columns: 36% 1fr; min-height: 220px; border-radius: 18px; }
@@ -16562,3 +16568,4 @@ a.member-schedule-class-title:hover { color: var(--brand-darker); }
   .training-card-status { font-size: 0.8rem; padding: 0.3rem 0.7rem; }
   .training-card-btn { font-size: 0.85rem; padding: 0.65rem 0.8rem; gap: 0.45rem; }
 }
+.training-builder-photo { display: block; max-width: 320px; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); margin-bottom: 0.75rem; }

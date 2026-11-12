@@ -180,6 +180,32 @@ if (!storageClient && !fs.existsSync(RESOURCE_DIR)) {
 }
 const uploadResource = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: imageFileFilter });
 
+// A real request: "Should be able to upload a photo for each training
+// that will show on the card." Same bucket/size/type rules as lesson
+// images; replacing or removing deletes the old file.
+router.post('/training/:id/image', uploadResource.single('image'), async (req, res) => {
+  const id = req.params.id;
+  if (!req.file) return backToBuilder(res, id, { error: 'Choose a photo (JPG, PNG, GIF or WebP) to upload.' });
+  const key = await saveUpload({
+    client: storageClient,
+    bucket: RESOURCE_BUCKET,
+    localDir: RESOURCE_DIR,
+    buffer: req.file.buffer,
+    originalName: req.file.originalname,
+    contentType: req.file.mimetype,
+  });
+  const oldKey = await T.setTrainingImage(id, key);
+  if (oldKey) await removeUpload({ client: storageClient, bucket: RESOURCE_BUCKET, localDir: RESOURCE_DIR, key: oldKey });
+  backToBuilder(res, id, { notice: 'Card photo saved.' });
+});
+
+router.post('/training/:id/image/delete', async (req, res) => {
+  const id = req.params.id;
+  const oldKey = await T.setTrainingImage(id, null);
+  if (oldKey) await removeUpload({ client: storageClient, bucket: RESOURCE_BUCKET, localDir: RESOURCE_DIR, key: oldKey });
+  backToBuilder(res, id, { notice: 'Card photo removed.' });
+});
+
 router.post('/training/:id/lessons/:lessonId/resources', uploadResource.single('file'), async (req, res) => {
   const id = req.params.id;
   if (!req.file) return backToBuilder(res, id, { error: 'Choose an image to upload.' });

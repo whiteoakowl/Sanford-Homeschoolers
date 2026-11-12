@@ -12,33 +12,35 @@ var tcStatus = a.status || 'not_started';
 %>
 <article class="training-card">
   <div class="training-card-art" aria-hidden="true">
-    <svg class="training-card-scene" viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <filter id="training-card-blur-<%= a.id %>" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="3.2" /></filter>
-        <linearGradient id="training-card-bg-<%= a.id %>" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#8fa6bd" />
-          <stop offset="1" stop-color="#5d7891" />
-        </linearGradient>
-      </defs>
-      <rect width="200" height="240" fill="url(#training-card-bg-<%= a.id %>)" />
-      <g filter="url(#training-card-blur-<%= a.id %>)" opacity="0.85">
-        <rect x="12" y="10" width="70" height="95" fill="#c9d6e2" />
-        <rect x="90" y="10" width="70" height="95" fill="#c1cfdc" />
-        <rect x="45" y="10" width="4" height="95" fill="#7d93a9" />
-        <rect x="123" y="10" width="4" height="95" fill="#7d93a9" />
-        <rect x="0" y="118" width="200" height="8" fill="#4f6982" />
-        <rect x="20" y="140" width="70" height="12" rx="2" fill="#3e566e" />
-        <rect x="110" y="140" width="80" height="12" rx="2" fill="#3e566e" />
-        <rect x="30" y="152" width="6" height="40" fill="#34495e" />
-        <rect x="75" y="152" width="6" height="40" fill="#34495e" />
-        <rect x="120" y="152" width="6" height="40" fill="#34495e" />
-        <rect x="175" y="152" width="6" height="40" fill="#34495e" />
-        <rect x="40" y="120" width="30" height="22" rx="3" fill="#6f879e" />
-        <rect x="135" y="120" width="30" height="22" rx="3" fill="#6f879e" />
-      </g>
-      <rect width="200" height="240" fill="#2e5d87" opacity="0.35" />
-      <path d="M0 135 C 60 115, 120 150, 200 205 L200 240 L0 240 Z" fill="#2f5f8a" />
-    </svg>
+    <%# A real request: a photo uploaded for the training (Training
+        builder > Card Photo) shows here; otherwise a soft classroom scene. %>
+    <% if (a.imageKey) { %>
+      <img class="training-card-photo" src="<%= trainingResourceUrl(a.imageKey) %>" alt="" loading="lazy" />
+    <% } else { %>
+      <svg class="training-card-scene" viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <filter id="training-card-blur-<%= a.id %>" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="3.2" /></filter>
+        </defs>
+        <rect width="200" height="240" fill="#9fb9d3" />
+        <g filter="url(#training-card-blur-<%= a.id %>)" opacity="0.85">
+          <rect x="12" y="10" width="70" height="95" fill="#d4e2ef" />
+          <rect x="90" y="10" width="70" height="95" fill="#cddcea" />
+          <rect x="45" y="10" width="4" height="95" fill="#7f9fbf" />
+          <rect x="123" y="10" width="4" height="95" fill="#7f9fbf" />
+          <rect x="0" y="118" width="200" height="8" fill="#55789b" />
+          <rect x="20" y="140" width="70" height="12" rx="2" fill="#3f6286" />
+          <rect x="110" y="140" width="80" height="12" rx="2" fill="#3f6286" />
+          <rect x="30" y="152" width="6" height="40" fill="#34567a" />
+          <rect x="75" y="152" width="6" height="40" fill="#34567a" />
+          <rect x="120" y="152" width="6" height="40" fill="#34567a" />
+          <rect x="175" y="152" width="6" height="40" fill="#34567a" />
+          <rect x="40" y="120" width="30" height="22" rx="3" fill="#7393b3" />
+          <rect x="135" y="120" width="30" height="22" rx="3" fill="#7393b3" />
+        </g>
+      </svg>
+    <% } %>
+    <span class="training-card-tint"></span>
+    <svg class="training-card-wave" viewBox="0 0 200 240" preserveAspectRatio="none"><path d="M0 135 C 60 115, 120 150, 200 205 L200 240 L0 240 Z" /></svg>
     <span class="training-card-cap"><svg class="icon"><use href="#icon-graduation-cap"/></svg></span>
     <span class="training-card-kicker">Training</span>
   </div>
