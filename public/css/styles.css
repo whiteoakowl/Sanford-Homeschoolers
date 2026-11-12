@@ -16467,3 +16467,13 @@ a.member-schedule-class-title:hover { color: var(--brand-darker); }
   .lesson-plan-bar > summary { padding: 0.8rem 0.9rem; }
   .lesson-plan-bar-body { padding: 0.85rem 0.9rem 1rem; }
 }
+/* A real request: students hand in an assignment by typing a response
+   (full editor) and/or uploading a file. */
+.lesson-submission { display: block; }
+.lesson-submission-form { display: flex; flex-direction: column; gap: 0.85rem; margin-top: 0.75rem; align-items: stretch; }
+.lesson-submission-form .primary-btn { align-self: flex-start; }
+.lesson-submission-file { display: flex; flex-direction: column; gap: 0.35rem; font-weight: 600; }
+.lesson-submission-response { margin-top: 0.5rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--control-radius); }
+.submission-response { margin-top: 0.35rem; }
+.submission-response > summary { cursor: pointer; color: var(--brand-dark); font-weight: 600; }
+.submission-response .forum-editable-display { margin-top: 0.4rem; }

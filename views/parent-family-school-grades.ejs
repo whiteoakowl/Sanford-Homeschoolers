@@ -74,7 +74,18 @@
                 <td data-label="Lesson"><%= g.lesson_title %></td>
                 <td data-label="Assignment"><%= g.item_title || '(untitled)' %><% if (g.points_possible != null) { %> <span class="hint">(<%= g.points_possible %> pts)</span><% } %></td>
                 <td data-label="Due"><%= g.dueDateLabel || '—' %></td>
-                <td data-label="Submitted"><%= g.submission_id ? 'Yes' : 'Not yet' %></td>
+                <td data-label="Submitted">
+                  <% if (!g.submission_id) { %>Not yet<% } else { %>
+                    Yes
+                    <% if (g.fileUrl) { %><div><a href="<%= g.fileUrl %>" target="_blank" rel="noopener"><%= g.file_name || 'Uploaded file' %></a></div><% } %>
+                    <% if (g.response_body) { %>
+                      <details class="submission-response">
+                        <summary>Read typed response</summary>
+                        <div class="forum-editable-display"><%- g.response_body %></div>
+                      </details>
+                    <% } %>
+                  <% } %>
+                </td>
                 <td data-label="Grade" class="table-stack-full">
                   <% if (!g.submission_id) { %>
                     <span class="hint">Nothing submitted yet</span>

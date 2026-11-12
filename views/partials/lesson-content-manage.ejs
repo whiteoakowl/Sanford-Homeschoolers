@@ -131,7 +131,7 @@ var lcmScripts = typeof includeScripts === 'undefined' || includeScripts;
                   <% if (item.type === 'quiz') { %>
                     <a class="roster-action-btn content-item-manage-link" href="<%= basePath %>/content/<%= item.id %>/questions">Manage Questions</a>
                   <% } %>
-                  <% if (item.type === 'assignment_submission') { %>
+                  <% if (item.type === 'assignment_submission' || item.type === 'assignment_upload') { %>
                     <a class="roster-action-btn content-item-manage-link" href="<%= basePath %>/content/<%= item.id %>/submissions">Review Submissions</a>
                   <% } %>
                   <button type="button" class="icon-btn" onclick="document.getElementById('edit-content-dialog-<%= item.id %>').showModal()" aria-label="Edit <%= item.title || 'assignment' %>" title="Edit"><svg class="icon"><use href="#icon-edit"/></svg></button>

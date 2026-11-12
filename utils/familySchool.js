@@ -435,16 +435,21 @@ async function getAssignmentSubmission(contentItemId, studentId) {
   return db.prepare('SELECT * FROM family_school_assignment_submissions WHERE content_item_id = ? AND student_id = ?').get(contentItemId, studentId);
 }
 
-async function submitAssignment({ contentItemId, studentId, fileUrl, fileName, fileMime }) {
+// responseBody - the student's typed (rich-text, already sanitized)
+// answer. A resubmission without a new file keeps the earlier file.
+async function submitAssignment({ contentItemId, studentId, fileUrl, fileName, fileMime, responseBody }) {
   await db
     .prepare(
-      `INSERT INTO family_school_assignment_submissions (content_item_id, student_id, file_url, file_name, file_mime, submitted_at, status, points_earned, grade_letter, feedback, graded_at)
-       VALUES (?, ?, ?, ?, ?, now_text(), 'submitted', NULL, NULL, NULL, NULL)
+      `INSERT INTO family_school_assignment_submissions (content_item_id, student_id, file_url, file_name, file_mime, response_body, submitted_at, status, points_earned, grade_letter, feedback, graded_at)
+       VALUES (?, ?, ?, ?, ?, ?, now_text(), 'submitted', NULL, NULL, NULL, NULL)
        ON CONFLICT (content_item_id, student_id) DO UPDATE SET
-         file_url = excluded.file_url, file_name = excluded.file_name, file_mime = excluded.file_mime, submitted_at = now_text(),
+         file_url = COALESCE(excluded.file_url, family_school_assignment_submissions.file_url),
+         file_name = COALESCE(excluded.file_name, family_school_assignment_submissions.file_name),
+         file_mime = COALESCE(excluded.file_mime, family_school_assignment_submissions.file_mime),
+         response_body = excluded.response_body, submitted_at = now_text(),
          status = 'submitted', points_earned = NULL, grade_letter = NULL, feedback = NULL, graded_at = NULL`
     )
-    .run(contentItemId, studentId, fileUrl, fileName, fileMime || null);
+    .run(contentItemId, studentId, fileUrl || null, fileName || null, fileMime || null, responseBody || null);
 }
 
 async function gradeAssignmentSubmission({ contentItemId, studentId, pointsEarned, gradeLetter, feedback }) {
@@ -478,9 +483,10 @@ async function lessonsForStudentView(classId, studentId) {
           // completion table below, since a coincidentally-matching id
           // there would belong to a totally different piece of content.
           if (item.fromLessonPlan) return { ...item, dueDateLabel, submission: null, completed: false };
-          if (item.type === 'assignment_submission') {
+          if (item.type === 'assignment_submission' || item.type === 'assignment_upload') {
             const submission = await getAssignmentSubmission(item.id, studentId);
-            return { ...item, dueDateLabel, submission: submission || null, completed: !!submission };
+            const completion = item.type === 'assignment_upload' && !submission ? await getLessonItemCompletion(item.id, studentId) : null;
+            return { ...item, dueDateLabel, submission: submission ? { ...submission, fileUrl: attachmentUrl(submission.file_url) } : null, completed: !!submission || !!completion };
           }
           const completion = await getLessonItemCompletion(item.id, studentId);
           return { ...item, dueDateLabel, completed: !!completion };
@@ -534,19 +540,20 @@ async function gradesForStudent(studentId) {
          c.id AS class_id, c.class_name,
          l.id AS lesson_id, l.title AS lesson_title,
          ci.id AS content_item_id, ci.title AS item_title, ci.points_possible, ci.due_date,
-         s.id AS submission_id, s.status, s.points_earned, s.grade_letter, s.feedback, s.submitted_at, s.graded_at
+         s.id AS submission_id, s.status, s.points_earned, s.grade_letter, s.feedback, s.submitted_at, s.graded_at, s.file_url, s.file_name, s.response_body
        FROM family_school_class_students fcs
        JOIN family_school_classes c ON c.id = fcs.class_id
        JOIN family_school_lessons l ON l.class_id = c.id
-       JOIN family_school_content_items ci ON ci.lesson_id = l.id AND ci.type = 'assignment_submission'
+       JOIN family_school_content_items ci ON ci.lesson_id = l.id AND ci.type IN ('assignment_submission', 'assignment_upload')
        LEFT JOIN family_school_assignment_submissions s ON s.content_item_id = ci.id AND s.student_id = fcs.student_id
-       WHERE fcs.student_id = ?
+       WHERE fcs.student_id = ? AND (ci.type = 'assignment_submission' OR s.id IS NOT NULL)
        ORDER BY c.class_name COLLATE "C", l.position, ci.position`
     )
     .all(studentId);
   return rows.map((r) => ({
     ...r,
     dueDateLabel: r.due_date ? formatDateLabel(r.due_date) : null,
+    fileUrl: r.file_url ? attachmentUrl(r.file_url) : null,
   }));
 }
 

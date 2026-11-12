@@ -628,16 +628,20 @@ async function getAssignmentSubmission(contentItemId, studentId) {
 // with every grade field cleared, so a teacher/admin reviewing the queue
 // knows this one needs a fresh look rather than showing a stale grade
 // against a file that's no longer what was graded.
-async function submitAssignment({ contentItemId, studentId, fileUrl, fileName }) {
+// responseBody - the student's typed (rich-text, already sanitized)
+// answer. A resubmission without a new file keeps the earlier file.
+async function submitAssignment({ contentItemId, studentId, fileUrl, fileName, responseBody }) {
   await db
     .prepare(
-      `INSERT INTO assignment_submissions (content_item_id, student_id, file_url, file_name, submitted_at, status, points_earned, grade_letter, feedback, graded_at)
-       VALUES (?, ?, ?, ?, now(), 'submitted', NULL, NULL, NULL, NULL)
+      `INSERT INTO assignment_submissions (content_item_id, student_id, file_url, file_name, response_body, submitted_at, status, points_earned, grade_letter, feedback, graded_at)
+       VALUES (?, ?, ?, ?, ?, now(), 'submitted', NULL, NULL, NULL, NULL)
        ON CONFLICT (content_item_id, student_id) DO UPDATE SET
-         file_url = excluded.file_url, file_name = excluded.file_name, submitted_at = now(),
+         file_url = COALESCE(excluded.file_url, assignment_submissions.file_url),
+         file_name = COALESCE(excluded.file_name, assignment_submissions.file_name),
+         response_body = excluded.response_body, submitted_at = now(),
          status = 'submitted', points_earned = NULL, grade_letter = NULL, feedback = NULL, graded_at = NULL`
     )
-    .run(contentItemId, studentId, fileUrl, fileName);
+    .run(contentItemId, studentId, fileUrl || null, fileName || null, responseBody || null);
 }
 
 // Every enrolled student for the content item's own class, left-joined to
@@ -652,7 +656,7 @@ async function submissionsForContentItem(contentItemId) {
   const rawRows = (
     await db
       .prepare(
-        `SELECT m.id AS student_id, m.name AS student_name, s.id AS submission_id, s.file_url, s.file_name, s.submitted_at, s.status, s.points_earned, s.grade_letter, s.feedback
+        `SELECT m.id AS student_id, m.name AS student_name, s.id AS submission_id, s.file_url, s.file_name, s.response_body, s.submitted_at, s.status, s.points_earned, s.grade_letter, s.feedback
          FROM class_enrollments ce
          JOIN members m ON m.id = ce.student_id
          LEFT JOIN assignment_submissions s ON s.content_item_id = ? AND s.student_id = m.id
@@ -895,9 +899,12 @@ async function lessonsForStudentView(classId, studentId, { includeUnapproved = f
             const attempt = await getQuizAttempt(item.id, studentId);
             return { ...item, dueDateLabel, attempt: attempt || null, completed: !!attempt };
           }
-          if (item.type === 'assignment_submission') {
+          // A real request: students can also hand in work for an
+          // "Assignment Upload" item (type a response or upload a file).
+          if (item.type === 'assignment_submission' || item.type === 'assignment_upload') {
             const submission = await getAssignmentSubmission(item.id, studentId);
-            return { ...item, dueDateLabel, submission: submission || null, completed: !!submission };
+            const completion = item.type === 'assignment_upload' && !submission ? await getLessonItemCompletion(item.id, studentId) : null;
+            return { ...item, dueDateLabel, submission: submission ? { ...submission, fileUrl: lessonAttachmentUrl(submission.file_url) } : null, completed: !!submission || !!completion };
           }
           const completion = await getLessonItemCompletion(item.id, studentId);
           return { ...item, dueDateLabel, completed: !!completion };

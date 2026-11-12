@@ -40,9 +40,16 @@
                   <tr>
                     <td class="roster-name-col"><%= r.student_name %></td>
                     <td>
-                      <% if (r.fileUrl) { %>
-                        <a href="<%= r.fileUrl %>" target="_blank" rel="noopener"><%= r.file_name || 'Uploaded file' %></a>
+                      <%# A submission can be a typed response, a file, or both. %>
+                      <% if (r.submission_id) { %>
+                        <% if (r.fileUrl) { %><a href="<%= r.fileUrl %>" target="_blank" rel="noopener"><%= r.file_name || 'Uploaded file' %></a><% } %>
                         <% if (r.status === 'graded') { %> <span class="badge-pill badge-pill-green">Graded</span><% } %>
+                        <% if (r.response_body) { %>
+                          <details class="submission-response">
+                            <summary>Read typed response</summary>
+                            <div class="forum-editable-display"><%- r.response_body %></div>
+                          </details>
+                        <% } %>
                       <% } else { %>
                         <span class="hint">Not submitted yet</span>
                       <% } %>

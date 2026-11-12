@@ -55,14 +55,31 @@
       });
     });
     if (best) return best;
-    return (
-      dialogs.find((dialog) =>
-        linksOf(dialog).some((a) => {
-          const url = new URL(a.getAttribute('href'), window.location.origin);
-          return url.pathname === here.pathname && !url.search;
-        })
-      ) || null
+    const exact = dialogs.find((dialog) =>
+      linksOf(dialog).some((a) => {
+        const url = new URL(a.getAttribute('href'), window.location.origin);
+        return url.pathname === here.pathname && !url.search;
+      })
     );
+    if (exact) return exact;
+    // A real request (Co-op Teacher Portal): "All teacher portal pages
+    // should have the same dropdown menu next to the title for subpages."
+    // A page inside a section (a class's Lesson Plan or Edit Class page,
+    // a lesson's own page) belongs to the section whose subpage address
+    // its own address starts with - the longest such match wins.
+    if (!document.querySelector('[data-subpages-prefix-match]')) return null;
+    let prefixBest = null;
+    let prefixLen = 0;
+    dialogs.forEach((dialog) => {
+      linksOf(dialog).forEach((a) => {
+        const path = new URL(a.getAttribute('href'), window.location.origin).pathname.replace(/\/$/, '');
+        if (path && here.pathname.indexOf(path + '/') === 0 && path.length > prefixLen) {
+          prefixBest = dialog;
+          prefixLen = path.length;
+        }
+      });
+    });
+    return prefixBest;
   }
 
   // "fit to text" - a plain inline trigger, sized to its own label, not a

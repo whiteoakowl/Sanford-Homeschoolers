@@ -10,6 +10,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const db = require('../db');
+const { sanitizePostBody } = require('../utils/sanitizeHtml');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount } = require('../utils/portalAuth');
 const { lessonAttachmentFileFilter } = require('../utils/uploads');
@@ -244,10 +245,22 @@ const uploadSubmission = multer({ storage: multer.memoryStorage(), limits: { fil
 
 router.post('/family-school/content/:id/submit', requirePortalPermission('view_student_classes_dashboard'), uploadSubmission.single('submissionFile'), async (req, res) => {
   const found = await ownContentItem(req, parseInt(req.params.id, 10));
-  if (!found || found.contentItem.type !== 'assignment_submission') return res.status(404).render('404', { title: 'Not Found' });
-  if (!req.file) return res.redirect(`/student/family-school/classes/${found.cls.id}?error=` + encodeURIComponent('Choose a file to upload.'));
-  const fileKey = await saveAttachment(req.file);
-  await submitAssignment({ contentItemId: found.contentItem.id, studentId: found.member.id, fileUrl: fileKey, fileName: req.file.originalname, fileMime: req.file.mimetype });
+  // A real request: students hand in an "Assignment Upload" or
+  // "Assignment (student uploads work)" item by typing a response in the
+  // full editor, uploading a file (Word, PDF, ...), or both.
+  if (!found || !['assignment_submission', 'assignment_upload'].includes(found.contentItem.type)) return res.status(404).render('404', { title: 'Not Found' });
+  const responseBody = sanitizePostBody(req.body.responseBody || '').trim();
+  if (!req.file && !responseBody) return res.redirect(`/student/family-school/classes/${found.cls.id}?error=` + encodeURIComponent('Type your response or choose a file to upload.'));
+  const fileKey = req.file ? await saveAttachment(req.file) : null;
+  await submitAssignment({
+    contentItemId: found.contentItem.id,
+    studentId: found.member.id,
+    fileUrl: fileKey,
+    fileName: req.file ? req.file.originalname : null,
+    fileMime: req.file ? req.file.mimetype : null,
+    responseBody,
+  });
+  if (found.contentItem.type === 'assignment_upload') await markLessonItemComplete(found.contentItem.id, found.member.id);
   res.redirect(`/student/family-school/classes/${found.cls.id}?notice=` + encodeURIComponent('Assignment submitted.'));
 });
 

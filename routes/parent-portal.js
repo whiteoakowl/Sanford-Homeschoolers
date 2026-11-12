@@ -11,6 +11,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../db');
+const { sanitizePostBody } = require('../utils/sanitizeHtml');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount, familyForAccount } = require('../utils/portalAuth');
 const {
@@ -1066,12 +1067,17 @@ const uploadAssignmentSubmission = multer({ storage: multer.memoryStorage(), lim
 
 router.post('/content/:id/submit', requirePortalPermission('view_parent_classroom_dashboard'), uploadAssignmentSubmission.single('submissionFile'), async (req, res) => {
   const found = await contentItemForParent(req, parseInt(req.params.id, 10), { requireQuiz: false });
-  if (!found || found.contentItem.type !== 'assignment_submission') return res.status(404).render('404', { title: 'Not Found' });
+  // A real request: students hand in an "Assignment Upload" or
+  // "Assignment (student uploads work)" item by typing a response in the
+  // full editor, uploading a file (Word, PDF, ...), or both.
+  if (!found || !['assignment_submission', 'assignment_upload'].includes(found.contentItem.type)) return res.status(404).render('404', { title: 'Not Found' });
   const { contentItem, assignment, cls, selectedChild } = found;
   if (await isLessonLockedForStudent(cls.id, selectedChild.id, assignment.id)) return res.status(404).render('404', { title: 'Not Found' });
-  if (!req.file) return res.redirect(`/parent/classes/dashboard/${assignment.class_id}?tab=lessons&studentId=${selectedChild.id}&error=` + encodeURIComponent('Choose a file to upload.'));
-  const fileKey = await saveLessonAttachment(req.file);
-  await submitAssignment({ contentItemId: contentItem.id, studentId: selectedChild.id, fileUrl: fileKey, fileName: req.file.originalname });
+  const responseBody = sanitizePostBody(req.body.responseBody || '').trim();
+  if (!req.file && !responseBody) return res.redirect(`/parent/classes/dashboard/${assignment.class_id}?tab=lessons&studentId=${selectedChild.id}&error=` + encodeURIComponent('Type a response or choose a file to upload.'));
+  const fileKey = req.file ? await saveLessonAttachment(req.file) : null;
+  await submitAssignment({ contentItemId: contentItem.id, studentId: selectedChild.id, fileUrl: fileKey, fileName: req.file ? req.file.originalname : null, responseBody });
+  if (contentItem.type === 'assignment_upload') await markLessonItemComplete(contentItem.id, selectedChild.id);
   res.redirect(`/parent/classes/dashboard/${assignment.class_id}?tab=lessons&studentId=${selectedChild.id}&notice=` + encodeURIComponent('Assignment submitted.'));
 });
 

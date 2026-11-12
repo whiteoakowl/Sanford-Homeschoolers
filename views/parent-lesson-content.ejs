@@ -11,5 +11,6 @@
     <% if (selectedChild) { %><p class="hint">Completing for <strong><%= selectedChild.name %></strong></p><% } %>
     <%- include('partials/lesson-content-detail', { lesson, item, canTakeQuiz, quizBasePathLocal: '/parent', quizQueryLocal: `?${viewerQuery}`, nextItemHref }) %>
   </main>
+  <script src="/js/forum-editor.js"></script>
 </body>
 </html>

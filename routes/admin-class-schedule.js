@@ -853,7 +853,7 @@ router.post('/class-schedule/content/:id/delete', requireFullAdmin, async (req, 
 // enter points + a letter/percentage grade + feedback.
 router.get('/class-schedule/content/:id/submissions', requireFullAdmin, async (req, res) => {
   const found = await submissionsForContentItem(parseInt(req.params.id, 10));
-  if (!found || found.contentItem.type !== 'assignment_submission') return res.status(404).send('Not found');
+  if (!found || !['assignment_submission', 'assignment_upload'].includes(found.contentItem.type)) return res.status(404).send('Not found');
   const cls = await getClass(found.assignment.class_id);
   res.render('admin-assignment-submissions', {
     title: found.contentItem.title || 'Assignment Submission',
@@ -868,7 +868,7 @@ router.get('/class-schedule/content/:id/submissions', requireFullAdmin, async (r
 router.post('/class-schedule/content/:id/submissions', requireFullAdmin, async (req, res) => {
   const contentItemId = parseInt(req.params.id, 10);
   const found = await submissionsForContentItem(contentItemId);
-  if (!found || found.contentItem.type !== 'assignment_submission') return res.status(404).send('Not found');
+  if (!found || !['assignment_submission', 'assignment_upload'].includes(found.contentItem.type)) return res.status(404).send('Not found');
   for (const row of found.rows) {
     if (!row.submission_id) continue;
     const pointsField = req.body[`points_${row.student_id}`];

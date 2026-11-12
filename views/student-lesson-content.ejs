@@ -10,5 +10,6 @@
     <p class="subtitle"><a href="/student/classes/dashboard/<%= cls.id %>?tab=lessons">&larr; <%= cls.class_name %> Lessons</a></p>
     <%- include('partials/lesson-content-detail', { lesson, item, canTakeQuiz: true, quizBasePathLocal: '/student', quizQueryLocal: '', nextItemHref }) %>
   </main>
+  <script src="/js/forum-editor.js"></script>
 </body>
 </html>

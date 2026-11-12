@@ -58,6 +58,11 @@ const LESSON_ATTACHMENT_MIME_BY_EXT = {
   '.pdf': 'application/pdf',
   '.doc': 'application/msword',
   '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  // A real request: students upload their assignment (Word, PDF, etc).
+  '.txt': 'text/plain',
+  '.odt': 'application/vnd.oasis.opendocument.text',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',

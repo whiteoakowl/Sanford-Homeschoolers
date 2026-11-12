@@ -55,8 +55,14 @@
   <% } %>
 </div>
 
-<% if (item.type === 'assignment_submission') { %>
-  <div class="lesson-item-complete">
+<%# A real request: "When choosing the upload assignment option there
+    should be a place for students to upload their assignment on their
+    end. Word, pdf etc. Student should be able to type their response
+    with full editing features or a button to upload their assignment."
+    Both assignment types take a typed (rich-text) response, a file, or
+    both. %>
+<% if (item.type === 'assignment_submission' || item.type === 'assignment_upload') { %>
+  <div class="lesson-item-complete lesson-submission">
     <% if (item.submission) { %>
       <span class="lesson-complete-check lesson-complete-check-done" aria-label="Submitted">
         <span class="lesson-complete-badge"><svg class="icon"><use href="#icon-check"/></svg></span>
@@ -69,12 +75,24 @@
           <% if (item.submission.feedback) { %><br />Feedback: <%= item.submission.feedback %><% } %>
         </p>
       <% } %>
-      <% if (canTakeQuiz) { %><p class="hint">Uploading again replaces your submission and resets grading.</p><% } %>
+      <% if (item.submission.fileUrl) { %><p class="hint">Your file: <a href="<%= item.submission.fileUrl %>" target="_blank" rel="noopener"><%= item.submission.file_name || 'Uploaded file' %></a></p><% } %>
+      <% if (!canTakeQuiz && item.submission.response_body) { %>
+        <div class="lesson-submission-response forum-editable-display"><%- item.submission.response_body %></div>
+      <% } %>
+      <% if (canTakeQuiz) { %><p class="hint">Submitting again replaces your response and resets grading.</p><% } %>
     <% } %>
     <% if (canTakeQuiz) { %>
-      <form method="POST" action="<%= quizBasePathLocal %>/content/<%= item.id %>/submit<%= quizQueryLocal %>" enctype="multipart/form-data" class="lesson-submit-form">
-        <input type="file" name="submissionFile" required accept=".doc,.docx,.pdf,.jpg,.jpeg,.png,.gif,.webp" />
-        <button type="submit" class="roster-action-btn roster-action-btn-small"><%= item.submission ? 'Re-upload' : 'Upload' %></button>
+      <form method="POST" action="<%= quizBasePathLocal %>/content/<%= item.id %>/submit<%= quizQueryLocal %>" enctype="multipart/form-data" class="lesson-submit-form lesson-submission-form">
+        <div class="member-form-full" data-forum-editor>
+          <label>Type your response</label>
+          <%- include('forum-editor-toolbar') %>
+          <div class="forum-editable" data-forum-editable contenteditable="true"><%- item.submission && item.submission.response_body ? item.submission.response_body : '' %></div>
+          <input type="hidden" name="responseBody" data-forum-body-input />
+        </div>
+        <label class="lesson-submission-file">Or upload your assignment <span class="hint">(Word, PDF, text, or an image)</span>
+          <input type="file" name="submissionFile" accept=".doc,.docx,.pdf,.txt,.odt,.pptx,.xlsx,.jpg,.jpeg,.png,.gif,.webp" />
+        </label>
+        <button type="submit" class="primary-btn"><%= item.submission ? 'Resubmit Assignment' : 'Submit Assignment' %></button>
       </form>
     <% } else if (!item.submission) { %>
       <span class="hint">Not submitted yet</span>

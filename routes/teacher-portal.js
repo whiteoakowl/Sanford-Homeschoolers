@@ -752,7 +752,7 @@ router.post('/content/:id/delete', requirePortalPermission('view_teacher_assignm
 // points + a letter/percentage grade + feedback.
 router.get('/content/:id/submissions', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const found = await contentItemForTeacher(req, parseInt(req.params.id, 10));
-  if (!found || found.contentItem.type !== 'assignment_submission') return res.status(404).send('Not found');
+  if (!found || !['assignment_submission', 'assignment_upload'].includes(found.contentItem.type)) return res.status(404).send('Not found');
   const submissions = await submissionsForContentItem(found.contentItem.id);
   res.render('teacher-assignment-submissions', {
     title: found.contentItem.title || 'Assignment Submission',
@@ -767,7 +767,7 @@ router.get('/content/:id/submissions', requirePortalPermission('view_teacher_ass
 router.post('/content/:id/submissions', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const contentItemId = parseInt(req.params.id, 10);
   const found = await contentItemForTeacher(req, contentItemId);
-  if (!found || found.contentItem.type !== 'assignment_submission') return res.status(404).send('Not found');
+  if (!found || !['assignment_submission', 'assignment_upload'].includes(found.contentItem.type)) return res.status(404).send('Not found');
   const submissions = await submissionsForContentItem(contentItemId);
   for (const row of submissions.rows) {
     if (!row.submission_id) continue;

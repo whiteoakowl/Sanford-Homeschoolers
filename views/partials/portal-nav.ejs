@@ -614,6 +614,14 @@ const classLinks = filterLinks(portalTitle === 'Student Portal' ? STUDENT_ACTIVI
 // since unlike Student Portal's fixed STUDENT_ACTIVITY_LINKS, which
 // class list it is varies by account.
 const classLinksTitle = portalTitle === 'Student Portal' ? 'Activities' : portalTitle === 'Co-op Teacher Portal' ? 'My Classes' : 'Co-op Classes';
+// A real request (Co-op Teacher Portal, mobile): "The teachers classes
+// should not be their own tabs. There should be a tab called My Classes
+// and each of the teachers classes should be subpages." On the orange
+// bottom bar only, the classes fold into one My Classes tab whose popup
+// lists them; the desktop sidebar keeps its own My Classes section.
+const mobileClassLinks = portalTitle === 'Co-op Teacher Portal' && classLinks && classLinks.length
+  ? [{ href: classLinks[0].href, match: classLinks.map(function(l) { return l.href; }).join(','), icon: 'graduation-cap', label: 'My Classes', mobileLabel: 'My<br>Classes', subpages: classLinks.map(function(l) { return { href: l.href, label: l.label }; }) }]
+  : classLinks;
 
 // The Community & Commerce feature set (Events, Forums, Store, Business
 // Directory, Classifieds, Member Directory, Newsletter, Photos,
@@ -893,7 +901,7 @@ const communityLinksTitle = 'Community';
   </div>
 </div>
 
-<nav class="admin-mobile-tabs" id="admin-mobile-tabs">
+<nav class="admin-mobile-tabs" id="admin-mobile-tabs"<% if (portalTitle === 'Co-op Teacher Portal') { %> data-subpages-prefix-match<% } %>>
   <% primaryNavLinks.forEach(function(link) { %>
     <% if (link.subpages && link.subpages.length) { %>
       <%- include('mobile-subpages-tab', { link: link }) %>
@@ -908,8 +916,8 @@ const communityLinksTitle = 'Community';
       Registration/Manage Classes/Name Tag Request/Absence-Late Form/
       Policy Handbook - a real request), so this needs the same
       subpages-or-plain-link branch primaryNavLinks above has. %>
-  <% if (classLinks && classLinks.length) { %>
-    <% classLinks.forEach(function(link) { %>
+  <% if (mobileClassLinks && mobileClassLinks.length) { %>
+    <% mobileClassLinks.forEach(function(link) { %>
       <% if (link.subpages && link.subpages.length) { %>
         <%- include('mobile-subpages-tab', { link: link }) %>
       <% } else { %>
@@ -937,8 +945,8 @@ const communityLinksTitle = 'Community';
     <%- include('mobile-subpages-dialog', { link: link }) %>
   <% } %>
 <% }); %>
-<% if (classLinks && classLinks.length) { %>
-  <% classLinks.forEach(function(link) { %>
+<% if (mobileClassLinks && mobileClassLinks.length) { %>
+  <% mobileClassLinks.forEach(function(link) { %>
     <% if (link.subpages && link.subpages.length) { %>
       <%- include('mobile-subpages-dialog', { link: link }) %>
     <% } %>
