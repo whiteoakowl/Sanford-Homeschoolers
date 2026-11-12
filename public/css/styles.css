@@ -16461,4 +16461,9 @@ a.member-schedule-class-title:hover { color: var(--brand-darker); }
 .lesson-plan-bar-title { font-size: 1.05rem; color: var(--ink); }
 .lesson-plan-bar-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-weight: 500; }
 .lesson-plan-bar-body { padding: 1rem 1.1rem 1.1rem; }
-.lesson-plan-bar-body .manage-section { margin-top: 0.75rem; }
+.lesson-plan-bar-body .manage-section { margin: 1rem 0 0; padding: 0; border: 0; box-shadow: none; background: transparent; }
+.lesson-plan-bar-body .manage-section .grid-box-header h2 { font-size: 1.1rem; }
+@media (max-width: 640px) {
+  .lesson-plan-bar > summary { padding: 0.8rem 0.9rem; }
+  .lesson-plan-bar-body { padding: 0.85rem 0.9rem 1rem; }
+}

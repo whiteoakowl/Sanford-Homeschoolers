@@ -64,15 +64,25 @@ async function copyLessonPlanForFamily(lessonPlanId, familyId, createdByAccountI
         )
         .get(plan.title, plan.description, createdByAccountId || null, familyId, plan.id)
     ).id;
+    const lessonIdMap = new Map();
+    const lessons = await tx.prepare('SELECT * FROM lesson_plan_lessons WHERE lesson_plan_id = ? ORDER BY position, id').all(plan.id);
+    for (const lesson of lessons) {
+      const newLessonId = (
+        await tx
+          .prepare('INSERT INTO lesson_plan_lessons (lesson_plan_id, title, description, position) VALUES (?, ?, ?, ?) RETURNING id')
+          .get(copyId, lesson.title, lesson.description, lesson.position)
+      ).id;
+      lessonIdMap.set(lesson.id, newLessonId);
+    }
     const items = await tx.prepare('SELECT * FROM lesson_plan_content_items WHERE lesson_plan_id = ? ORDER BY position, id').all(plan.id);
     for (const item of items) {
       const newItemId = (
         await tx
           .prepare(
-            `INSERT INTO lesson_plan_content_items (lesson_plan_id, type, position, title, video_url, body, file_url, description, attachment_url, attachment_name, points_possible)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+            `INSERT INTO lesson_plan_content_items (lesson_plan_id, lesson_id, type, position, title, video_url, body, file_url, description, attachment_url, attachment_name, points_possible)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
           )
-          .get(copyId, item.type, item.position, item.title, item.video_url, item.body, item.file_url, item.description, item.attachment_url, item.attachment_name, item.points_possible)
+          .get(copyId, lessonIdMap.get(item.lesson_id) || null, item.type, item.position, item.title, item.video_url, item.body, item.file_url, item.description, item.attachment_url, item.attachment_name, item.points_possible)
       ).id;
       const questions = await tx.prepare('SELECT * FROM lesson_plan_quiz_questions WHERE content_item_id = ? ORDER BY position, id').all(item.id);
       for (const q of questions) {
@@ -93,6 +103,14 @@ async function copyLessonPlanForFamily(lessonPlanId, familyId, createdByAccountI
          WHERE source_lesson_plan_id = ? AND class_id IN (SELECT id FROM family_school_classes WHERE family_id = ?)`
       )
       .run(copyId, plan.id, familyId);
+    for (const [oldLessonId, newLessonId] of lessonIdMap) {
+      await tx
+        .prepare(
+          `UPDATE family_school_lessons SET source_lesson_plan_lesson_id = ?
+           WHERE source_lesson_plan_lesson_id = ? AND class_id IN (SELECT id FROM family_school_classes WHERE family_id = ?)`
+        )
+        .run(newLessonId, oldLessonId, familyId);
+    }
     return copyId;
   });
 }
@@ -187,7 +205,23 @@ async function getLessonPlanContentItem(id) {
 // comment (utils/academics.js): true only for the admin's own editing
 // view, never anywhere a non-admin could read the response.
 async function contentItemsForLessonPlan(lessonPlanId, { includeAnswerKey = false } = {}) {
-  const items = await db.prepare('SELECT * FROM lesson_plan_content_items WHERE lesson_plan_id = ? ORDER BY position, id').all(lessonPlanId);
+  const items = await db
+    .prepare(
+      `SELECT ci.* FROM lesson_plan_content_items ci LEFT JOIN lesson_plan_lessons l ON l.id = ci.lesson_id
+       WHERE ci.lesson_plan_id = ? ORDER BY l.position NULLS FIRST, l.id NULLS FIRST, ci.position, ci.id`
+    )
+    .all(lessonPlanId);
+  return decorateLessonPlanItems(items, includeAnswerKey);
+}
+
+// A real request: a library plan holds lessons, each with its own
+// assignments - the same lesson/assignment design as the Teacher Portal.
+async function contentItemsForLessonPlanLesson(lessonId, { includeAnswerKey = false } = {}) {
+  const items = await db.prepare('SELECT * FROM lesson_plan_content_items WHERE lesson_id = ? ORDER BY position, id').all(lessonId);
+  return decorateLessonPlanItems(items, includeAnswerKey);
+}
+
+async function decorateLessonPlanItems(items, includeAnswerKey) {
   return Promise.all(
     items.map(async (item) => {
       const withAttachment = { ...item, attachmentUrl: lessonAttachmentUrl(item.attachment_url) };
@@ -200,16 +234,65 @@ async function contentItemsForLessonPlan(lessonPlanId, { includeAnswerKey = fals
 // No dueDate here (unlike createContentItem) - see the migration's own
 // comment on why a due date only ever makes sense once a copy is
 // attached to a real class.
-async function createLessonPlanContentItem({ lessonPlanId, type, title, videoUrl, body, fileUrl, description, attachmentUrl, attachmentName, pointsPossible }) {
+// lessonId - which of the plan's lessons this assignment belongs to; when
+// left out it goes on the plan's first lesson (one is made if the plan
+// has none yet).
+async function createLessonPlanContentItem({ lessonPlanId, lessonId, type, title, videoUrl, body, fileUrl, description, attachmentUrl, attachmentName, pointsPossible }) {
+  let targetLessonId = lessonId || null;
+  if (targetLessonId) {
+    const lesson = await getLessonPlanLesson(targetLessonId);
+    if (!lesson || lesson.lesson_plan_id !== lessonPlanId) targetLessonId = null;
+  }
+  if (!targetLessonId) targetLessonId = await firstLessonPlanLessonId(lessonPlanId);
   const { next_position: nextPosition } = await db
-    .prepare('SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM lesson_plan_content_items WHERE lesson_plan_id = ?')
-    .get(lessonPlanId);
+    .prepare('SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM lesson_plan_content_items WHERE lesson_id = ?')
+    .get(targetLessonId);
   const info = await db
     .prepare(
-      'INSERT INTO lesson_plan_content_items (lesson_plan_id, type, position, title, video_url, body, file_url, description, attachment_url, attachment_name, points_possible) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO lesson_plan_content_items (lesson_plan_id, lesson_id, type, position, title, video_url, body, file_url, description, attachment_url, attachment_name, points_possible) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id'
     )
-    .run(lessonPlanId, type, nextPosition, title || null, videoUrl || null, body || null, fileUrl || null, description || null, attachmentUrl || null, attachmentName || null, pointsPossible != null ? pointsPossible : null);
-  return info.lastInsertRowid;
+    .get(lessonPlanId, targetLessonId, type, nextPosition, title || null, videoUrl || null, body || null, fileUrl || null, description || null, attachmentUrl || null, attachmentName || null, pointsPossible != null ? pointsPossible : null);
+  return info.id;
+}
+
+// --- A plan's lessons (lesson_plan_lessons) ---
+
+async function getLessonPlanLesson(id) {
+  return id ? db.prepare('SELECT * FROM lesson_plan_lessons WHERE id = ?').get(id) : null;
+}
+
+async function lessonsForLessonPlan(lessonPlanId, { includeAnswerKey = false } = {}) {
+  const lessons = await db.prepare('SELECT * FROM lesson_plan_lessons WHERE lesson_plan_id = ? ORDER BY position, id').all(lessonPlanId);
+  const out = [];
+  for (const lesson of lessons) {
+    out.push({ ...lesson, contentItems: await contentItemsForLessonPlanLesson(lesson.id, { includeAnswerKey }) });
+  }
+  return out;
+}
+
+async function createLessonPlanLesson({ lessonPlanId, title, description }) {
+  const { next_position: nextPosition } = await db
+    .prepare('SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM lesson_plan_lessons WHERE lesson_plan_id = ?')
+    .get(lessonPlanId);
+  const row = await db
+    .prepare('INSERT INTO lesson_plan_lessons (lesson_plan_id, title, description, position) VALUES (?, ?, ?, ?) RETURNING id')
+    .get(lessonPlanId, title, description || null, nextPosition);
+  return row.id;
+}
+
+async function updateLessonPlanLesson(id, { title, description }) {
+  await db.prepare('UPDATE lesson_plan_lessons SET title = ?, description = ? WHERE id = ?').run(title, description || null, id);
+}
+
+async function deleteLessonPlanLesson(id) {
+  await db.prepare('DELETE FROM lesson_plan_lessons WHERE id = ?').run(id);
+}
+
+async function firstLessonPlanLessonId(lessonPlanId) {
+  const first = await db.prepare('SELECT id FROM lesson_plan_lessons WHERE lesson_plan_id = ? ORDER BY position, id LIMIT 1').get(lessonPlanId);
+  if (first) return first.id;
+  const plan = await getLessonPlan(lessonPlanId);
+  return createLessonPlanLesson({ lessonPlanId, title: plan ? plan.title : 'Lesson 1', description: plan ? plan.description : null });
 }
 
 async function updateLessonPlanContentItem(id, { title, videoUrl, body, fileUrl, description, attachmentUrl, attachmentName, pointsPossible }) {
@@ -289,46 +372,55 @@ async function assignLessonPlanToClass(lessonPlanId, classId, createdByAccountId
   const cls = await getClass(classId);
   if (!cls) throw new Error('Class not found.');
 
-  const assignmentId = await createAssignment({
-    classId,
-    className: cls.class_name,
-    title: plan.title,
-    description: plan.description,
-    createdByAccountId,
-  });
-  // Remembered so the plan's "Allow teachers to edit/add" checkbox and
-  // Lock still decide whether this class's teacher may edit the copy
-  // (see teacherLessonPlanBlock below).
-  await db.prepare('UPDATE class_assignments SET source_lesson_plan_id = ? WHERE id = ?').run(plan.id, assignmentId);
+  // A real request: a plan holds lessons - each becomes its own lesson on
+  // the class (in order), with that lesson's assignments copied into it.
+  // A plan with no lessons yet still adds one (empty) lesson.
+  let lessons = await lessonsForLessonPlan(lessonPlanId, { includeAnswerKey: true });
+  if (!lessons.length) lessons = [{ title: plan.title, description: plan.description, contentItems: [] }];
 
-  const items = await contentItemsForLessonPlan(lessonPlanId, { includeAnswerKey: true });
-  for (const item of items) {
-    const newItemId = await createContentItem({
-      assignmentId,
-      type: item.type,
-      title: item.title,
-      videoUrl: item.video_url,
-      body: item.body,
-      fileUrl: item.file_url,
-      description: item.description,
-      attachmentUrl: item.attachment_url,
-      attachmentName: item.attachment_name,
-      pointsPossible: item.points_possible,
+  let firstAssignmentId = null;
+  for (const lesson of lessons) {
+    const assignmentId = await createAssignment({
+      classId,
+      className: cls.class_name,
+      title: lesson.title,
+      description: lesson.description,
+      createdByAccountId,
     });
-    if (item.type === 'quiz') {
-      for (const q of item.questions) {
-        await createQuizQuestion({
-          contentItemId: newItemId,
-          type: q.type,
-          prompt: q.prompt,
-          pointsPossible: q.points_possible,
-          choices: q.choices.map((c) => ({ label: c.label, isCorrect: !!c.is_correct })),
-        });
+    if (!firstAssignmentId) firstAssignmentId = assignmentId;
+    // Remembered so the plan's "Allow teachers to edit/add" checkbox and
+    // Lock still decide whether this class's teacher may edit the copy
+    // (see teacherLessonPlanBlock below).
+    await db.prepare('UPDATE class_assignments SET source_lesson_plan_id = ? WHERE id = ?').run(plan.id, assignmentId);
+
+    for (const item of lesson.contentItems) {
+      const newItemId = await createContentItem({
+        assignmentId,
+        type: item.type,
+        title: item.title,
+        videoUrl: item.video_url,
+        body: item.body,
+        fileUrl: item.file_url,
+        description: item.description,
+        attachmentUrl: item.attachment_url,
+        attachmentName: item.attachment_name,
+        pointsPossible: item.points_possible,
+      });
+      if (item.type === 'quiz') {
+        for (const q of item.questions) {
+          await createQuizQuestion({
+            contentItemId: newItemId,
+            type: q.type,
+            prompt: q.prompt,
+            pointsPossible: q.points_possible,
+            choices: q.choices.map((c) => ({ label: c.label, isCorrect: !!c.is_correct })),
+          });
+        }
       }
     }
   }
 
-  return assignmentId;
+  return firstAssignmentId;
 }
 
 // A real request: a teacher edits a lesson plan only on the co-op class
@@ -349,6 +441,12 @@ async function teacherLessonPlanBlock(assignment) {
 
 module.exports = {
   teacherLessonPlanBlock,
+  getLessonPlanLesson,
+  lessonsForLessonPlan,
+  createLessonPlanLesson,
+  updateLessonPlanLesson,
+  deleteLessonPlanLesson,
+  contentItemsForLessonPlanLesson,
   listLessonPlans,
   listFamilySchoolLessonPlans,
   familyCanUseLessonPlan,

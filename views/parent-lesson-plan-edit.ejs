@@ -14,7 +14,7 @@
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
-    <%- include('partials/lesson-plan-editor-or-readonly', { plan, contentItems, canEdit, lessonPlanBase: '/parent/family-school/lesson-plans' }) %>
+    <%- include('partials/lesson-plan-editor-or-readonly', { plan, contentItems, lessons, openLessonId, canEdit, lessonPlanBase: '/parent/family-school/lesson-plans' }) %>
   </main>
 </body>
 </html>

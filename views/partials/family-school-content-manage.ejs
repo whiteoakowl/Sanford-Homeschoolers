@@ -24,6 +24,18 @@
     referenced. %>
 <% var sourcePlanLocal = typeof sourcePlan !== 'undefined' ? sourcePlan : null; %>
 <% var sourcePlanLockedLocal = typeof sourcePlanLocked !== 'undefined' ? sourcePlanLocked : false; %>
+<%
+// Optional (the family class page shows every lesson as its own bar - a
+// real request for the same lesson/assignment design as the Teacher
+// Portal): showDetails=false hides the Lesson Details form, idSuffix
+// keeps dialog ids unique per lesson, returnTo sends forms back to that
+// page with the bar open, includeScripts=false when the page loads them.
+var fscShowDetails = typeof showDetails === 'undefined' || showDetails;
+var fscSuffix = typeof idSuffix !== 'undefined' && idSuffix ? '-' + idSuffix : '';
+var fscReturnTo = typeof returnTo !== 'undefined' && returnTo ? returnTo : '';
+var fscScripts = typeof includeScripts === 'undefined' || includeScripts;
+%>
+<% if (fscShowDetails) { %>
 <div class="manage-section">
   <div class="grid-box-header">
     <h2>Lesson Details</h2>
@@ -40,6 +52,7 @@
     </div>
   </form>
 </div>
+<% } %>
 
 <% if (sourcePlanLocal) { %>
   <div class="manage-section">
@@ -51,6 +64,7 @@
       <% if (sourcePlanLockedLocal) { %>An admin has locked this plan.<% } %>
     </p>
     <form method="POST" action="<%= basePath %>/lessons/<%= lesson.id %>/unlink-plan" onsubmit="return confirm('Remove the link to this Lesson Plan? The lesson keeps its title, but has no content until you add your own.');">
+      <% if (fscReturnTo) { %><input type="hidden" name="returnTo" value="<%= fscReturnTo %>" /><% } %>
       <button type="submit" class="roster-action-btn">Remove Lesson Plan Reference</button>
     </form>
   </div>
@@ -60,7 +74,7 @@
   <div class="grid-box-header">
     <h2>Content/Assignments (<%= contentItems.length %>)</h2>
     <% if (!sourcePlanLocal) { %>
-      <button type="button" class="roster-action-btn" onclick="document.getElementById('add-content-dialog').showModal()">+ Add New Content/Assignment</button>
+      <button type="button" class="roster-action-btn" onclick="document.getElementById('add-content-dialog<%= fscSuffix %>').showModal()">+ Add New Content/Assignment</button>
     <% } %>
   </div>
   <% if (contentItems.length === 0) { %>
@@ -134,6 +148,7 @@
                   <span class="content-item-type-label">Type: <%= CONTENT_TYPE_LABELS[item.type] || item.type %></span>
                   <button type="button" class="icon-btn" onclick="document.getElementById('edit-content-dialog-<%= item.id %>').showModal()" aria-label="Edit <%= item.title || 'content' %>" title="Edit"><svg class="icon"><use href="#icon-edit"/></svg></button>
                   <form method="POST" action="<%= basePath %>/content/<%= item.id %>/delete" onsubmit="return confirm('Remove this content?');" class="inline-block-form">
+                    <% if (fscReturnTo) { %><input type="hidden" name="returnTo" value="<%= fscReturnTo %>" /><% } %>
                     <button type="submit" class="icon-btn icon-btn-danger" aria-label="Delete <%= item.title || 'content' %>" title="Delete"><svg class="icon"><use href="#icon-trash"/></svg></button>
                   </form>
                 </div>
@@ -148,6 +163,7 @@
     <% contentItems.forEach(function(item) { %>
       <dialog id="edit-content-dialog-<%= item.id %>" class="member-picker-dialog dialog-label-stack">
         <form method="POST" action="<%= basePath %>/content/<%= item.id %>/edit" enctype="multipart/form-data">
+          <% if (fscReturnTo) { %><input type="hidden" name="returnTo" value="<%= fscReturnTo %>" /><% } %>
           <h3>Edit Content</h3>
           <label>Title
             <input type="text" name="title" value="<%= item.title || '' %>" />
@@ -206,8 +222,9 @@
   <% } %>
 
   <% if (!sourcePlanLocal) { %>
-  <dialog id="add-content-dialog" class="member-picker-dialog dialog-label-stack">
+  <dialog id="add-content-dialog<%= fscSuffix %>" class="member-picker-dialog dialog-label-stack">
     <form method="POST" action="<%= basePath %>/lessons/<%= lesson.id %>/content" enctype="multipart/form-data" class="member-form-grid" data-toggle-form>
+      <% if (fscReturnTo) { %><input type="hidden" name="returnTo" value="<%= fscReturnTo %>" /><% } %>
       <h3>Add New Content/Assignment</h3>
       <label class="member-form-full">Type
         <select name="type" data-toggle-select>
@@ -266,6 +283,8 @@
   </dialog>
   <% } %>
 </div>
+<% if (fscScripts) { %>
 <script src="/js/lesson-drag-reorder.js"></script>
 <script src="/js/lesson-content-form.js"></script>
 <script src="/js/assignment-upload-word-count.js"></script>
+<% } %>

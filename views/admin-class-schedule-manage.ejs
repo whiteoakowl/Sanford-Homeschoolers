@@ -337,53 +337,64 @@
             <a class="btn-secondary" href="/admin/class-schedule/quiz-review">Quiz Review</a>
           </div>
         </div>
+        <%# A real request: the same lesson/assignment design as the
+            Teacher Portal - each lesson is a bar; opening it shows that
+            lesson's own + Add Assignments and assignments. %>
         <% if (assignments.length === 0) { %>
-          <p class="roster-empty">No lessons yet.</p>
-        <% } else { %>
-          <div class="roster-scroll">
-            <table class="roster-table members-table condensed-table lessons-table-mobile-fit">
-              <thead>
-                <tr><th></th><th>Title</th><th>Status</th><th>Open</th><th>Due</th><th>Completed</th><th></th></tr>
-              </thead>
-              <tbody data-lesson-reorder-tbody data-class-id="<%= cls.id %>">
-                <% assignments.forEach(function(a) { %>
-                  <tr data-lesson-reorder-row="<%= a.id %>">
-                    <td class="roster-drag-col"><span data-lesson-reorder-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span></td>
-                    <td class="roster-name-col"><%= a.title %></td>
-                    <td>
-                      <% if (a.approval_status === 'pending') { %>
-                        <a href="/admin/lesson-plans/approval/<%= a.id %>"><%- include('partials/lesson-approval-badge', { status: a.approval_status }) %></a>
-                      <% } else { %>
-                        <%- include('partials/lesson-approval-badge', { status: a.approval_status }) %>
-                      <% } %>
-                    </td>
-                    <td><%= a.open_date ? a.open_date : '—' %></td>
-                    <td><%= a.dueDateLabel || '—' %></td>
-                    <%# A real request: "On lesson list show percentage of
-                        how many people in the class completed the
-                        assignments" - see completionStatsForAssignments'
-                        own comment (utils/academics.js) for what
-                        "completed" means here; "—" for a lesson with no
-                        quiz content to complete at all. %>
-                    <td><%= a.completionPercent != null ? a.completionPercent + '%' : '—' %></td>
-                    <%# A real bug report: "there is no manage or trash
-                        button at the end of each class assignment in
-                        co-op admin portal" - the row only had a Manage
-                        text link and no delete at all; both are now
-                        icon buttons, matching the site-wide row-action
-                        convention. %>
-                    <td class="roster-btn-row accounting-row-icons">
-                      <a class="icon-btn" href="/admin/class-schedule/assignments/<%= a.id %>" aria-label="Manage" title="Manage"><svg class="icon"><use href="#icon-wrench"/></svg></a>
-                      <form method="POST" action="/admin/class-schedule/assignments/<%= a.id %>/delete" data-confirm="Delete the lesson &quot;<%= a.title %>&quot;? This also removes its content, grades, and quiz results. This cannot be undone.">
-                        <button type="submit" class="icon-btn icon-btn-danger" aria-label="Delete" title="Delete"><svg class="icon"><use href="#icon-trash"/></svg></button>
-                      </form>
-                    </td>
-                  </tr>
-                <% }); %>
-              </tbody>
-            </table>
-          </div>
+          <p class="roster-empty">No lessons yet. Click + New Lesson to add the first one.</p>
         <% } %>
+        <div class="lesson-plan-bars">
+          <% assignments.forEach(function(a) { %>
+            <% var lessonReturnTo = '/admin/class-schedule/classes/' + cls.id + '/manage?tab=assignments&open=' + a.id; %>
+            <details class="lesson-plan-bar" id="lesson-<%= a.id %>" <%= openLessonId === a.id ? 'open' : '' %>>
+              <summary>
+                <span class="lesson-plan-bar-title"><%= a.title %></span>
+                <span class="lesson-plan-bar-meta">
+                  <%- include('partials/lesson-approval-badge', { status: a.approval_status }) %>
+                  <span class="hint"><%= a.contentItems.length %> assignment<%= a.contentItems.length === 1 ? '' : 's' %></span>
+                  <% if (a.open_date) { %><span class="hint">Opens <%= a.open_date %></span><% } %>
+                  <% if (a.completionPercent != null) { %><span class="hint"><%= a.completionPercent %>% completed</span><% } %>
+                </span>
+              </summary>
+              <div class="lesson-plan-bar-body">
+                <% if (a.description) { %><p class="hint plain-text-display"><%= a.description %></p><% } %>
+                <div class="roster-btn-row no-print">
+                  <button type="button" class="roster-action-btn" onclick="document.getElementById('edit-lesson-dialog-<%= a.id %>').showModal()">Edit Lesson</button>
+                  <% if (a.approval_status === 'pending') { %>
+                    <a class="roster-action-btn" href="/admin/lesson-plans/approval/<%= a.id %>">Review for Approval</a>
+                  <% } %>
+                  <a class="roster-action-btn" href="/admin/class-schedule/assignments/<%= a.id %>">Grades &amp; Submissions</a>
+                  <form method="POST" action="/admin/class-schedule/assignments/<%= a.id %>/delete" data-confirm="Delete the lesson &quot;<%= a.title %>&quot;? This also removes its content, grades, and quiz results. This cannot be undone.">
+                    <button type="submit" class="roster-action-btn">Delete Lesson</button>
+                  </form>
+                </div>
+                <%- include('partials/lesson-content-manage', { basePath: '/admin/class-schedule', assignment: a, contentItems: a.contentItems, showDetails: false, idSuffix: a.id, returnTo: lessonReturnTo, includeScripts: false }) %>
+                <dialog id="edit-lesson-dialog-<%= a.id %>" class="member-picker-dialog dialog-label-stack">
+                  <form method="POST" action="/admin/class-schedule/assignments/<%= a.id %>/edit" class="member-form-grid">
+                    <input type="hidden" name="returnTo" value="<%= lessonReturnTo %>" />
+                    <h3>Edit Lesson</h3>
+                    <label class="member-form-full">Title
+                      <input type="text" name="title" value="<%= a.title %>" required />
+                    </label>
+                    <label class="member-form-full">Description
+                      <textarea name="description" rows="3"><%= a.description || '' %></textarea>
+                    </label>
+                    <label>Open Date
+                      <input type="date" name="openDate" value="<%= a.open_date || '' %>" />
+                    </label>
+                    <label>Close Date <span class="hint">(optional)</span>
+                      <input type="date" name="closeDate" value="<%= a.close_date || '' %>" />
+                    </label>
+                    <div class="notes-dialog-actions">
+                      <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+                      <button type="submit" class="primary-btn">Save</button>
+                    </div>
+                  </form>
+                </dialog>
+              </div>
+            </details>
+          <% }); %>
+        </div>
       </div>
 
       <dialog id="add-lesson-dialog" class="class-form-dialog">
@@ -403,6 +414,9 @@
             <label>Open Date
               <input type="date" name="openDate" />
             </label>
+            <label>Close Date <span class="hint">(optional)</span>
+              <input type="date" name="closeDate" />
+            </label>
             <div class="member-form-full">
               <button type="submit" class="primary-btn">Add Lesson</button>
             </div>
@@ -410,6 +424,8 @@
         </form>
       </dialog>
       <script src="/js/lesson-drag-reorder.js"></script>
+      <script src="/js/lesson-content-form.js"></script>
+      <script src="/js/assignment-upload-word-count.js"></script>
     <% } else if (activeTab === 'grades') { %>
       <div class="manage-section">
         <div class="grid-box-header">

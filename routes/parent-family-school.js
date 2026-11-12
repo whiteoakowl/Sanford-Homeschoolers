@@ -30,7 +30,7 @@ const { lessonAttachmentFileFilter, imageFileFilter } = require('../utils/upload
 // admin-authored plan - that flag didn't exist when this was first
 // built). isLessonPlanLocked is the one shared lock lookup (see its own
 // comment in utils/lessonPlans.js).
-const { listFamilySchoolLessonPlans, getLessonPlan, isLessonPlanLocked, contentItemsForLessonPlan, familyCanUseLessonPlan, copyLessonPlanForFamily } = require('../utils/lessonPlans');
+const { listFamilySchoolLessonPlans, getLessonPlan, isLessonPlanLocked, contentItemsForLessonPlan, familyCanUseLessonPlan, copyLessonPlanForFamily, lessonsForLessonPlan } = require('../utils/lessonPlans');
 const { mountLessonPlanContentRoutes } = require('./lessonPlanContentRoutes');
 const {
   CONTENT_ITEM_TYPES,
@@ -46,6 +46,7 @@ const {
   lessonsForClass,
   getLesson,
   createLesson,
+  addLessonPlanLessonsToClass,
   updateLesson,
   deleteLesson,
   unlinkLessonFromPlan,
@@ -382,6 +383,8 @@ router.get('/family-school/lesson-plans/:id/edit', requirePortalPermission('view
     plan,
     canEdit: true,
     contentItems: await contentItemsForLessonPlan(id, { includeAnswerKey: true }),
+    lessons: await lessonsForLessonPlan(id, { includeAnswerKey: true }),
+    openLessonId: req.query.open ? parseInt(req.query.open, 10) : null,
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
@@ -406,10 +409,23 @@ router.post('/family-school/classes/:id/delete', requirePortalPermission('view_f
 router.get('/family-school/classes/:id', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const cls = await requireOwnClass(req);
   if (!cls) return res.status(404).send('Not found');
+  // Each lesson's bar shows its own assignments (or its library plan's,
+  // read-only) - the same lesson/assignment design as the Teacher Portal.
+  const lessons = [];
+  for (const lesson of await lessonsForClass(cls.id)) {
+    const sourcePlan = lesson.source_lesson_plan_id ? await getLessonPlan(lesson.source_lesson_plan_id) : null;
+    lessons.push({
+      ...lesson,
+      contentItems: await contentItemsForLesson(lesson.id),
+      sourcePlan,
+      sourcePlanLocked: sourcePlan ? await isLessonPlanLocked(sourcePlan.id) : false,
+    });
+  }
   res.render('parent-family-school-class-manage', {
     title: cls.class_name,
     cls,
-    lessons: await lessonsForClass(cls.id),
+    lessons,
+    openLessonId: req.query.open ? parseInt(req.query.open, 10) : null,
     familyStudents: await studentsForFamily(cls.family_id),
     assignedStudents: await studentsForClass(cls.id),
     lessonPlans: await listFamilySchoolLessonPlans(cls.family_id),
@@ -445,6 +461,22 @@ router.post('/family-school/classes/:id/students', requirePortalPermission('view
 // manage.ejs) picks between this and the plain "write my own" path -
 // title/description come from the chosen plan itself, not the form's
 // own (hidden, in that mode) Title/Description fields.
+// Adds ?notice=/&notice= (or error) whether or not the URL already has a
+// query string.
+function withMsg(url, kind, message) {
+  return `${url}${url.includes('?') ? '&' : '?'}${kind}=${encodeURIComponent(message)}`;
+}
+
+// A real request: the family class page shows each lesson as a bar with
+// its own assignments (same design as the Teacher Portal). A lesson or
+// assignment form submitted from there goes back to the class page with
+// that lesson's bar open; otherwise to the lesson's own page. Only ever a
+// family class page URL - never an arbitrary posted address.
+function familyLessonBack(req, lessonId) {
+  const returnTo = req && req.body ? String(req.body.returnTo || '') : '';
+  return /^\/parent\/family-school\/classes\/\d+\?open=\d+$/.test(returnTo) ? returnTo : `/parent/family-school/lessons/${lessonId}`;
+}
+
 router.post('/family-school/classes/:id/lessons', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const cls = await requireOwnClass(req);
   if (!cls) return res.status(404).send('Not found');
@@ -458,21 +490,15 @@ router.post('/family-school/classes/:id/lessons', requirePortalPermission('view_
     // tampered lessonPlanId for a plan that isn't flagged for Family
     // School Management must still be rejected even though the dropdown
     // itself already only lists flagged plans.
-    if (!familyCanUseLessonPlan(plan, cls.family_id)) return res.redirect(back + '?error=' + encodeURIComponent('Choose a lesson plan from the library.'));
-    const id = await createLesson({
-      classId: cls.id,
-      title: plan.title,
-      description: plan.description,
-      createdByAccountId: req.portalAccount.id,
-      sourceLessonPlanId: plan.id,
-    });
-    return res.redirect(`/parent/family-school/lessons/${id}?notice=` + encodeURIComponent(`Added "${plan.title}" from the Lesson Plans library.`));
+    if (!familyCanUseLessonPlan(plan, cls.family_id)) return res.redirect(withMsg(back, 'error', 'Choose a lesson plan from the library.'));
+    const id = await addLessonPlanLessonsToClass(cls.id, plan, req.portalAccount.id);
+    return res.redirect(`/parent/family-school/classes/${cls.id}?open=${id}&notice=` + encodeURIComponent(`Added "${plan.title}" from the Lesson Plans library.`));
   }
 
   const title = (req.body.title || '').trim();
-  if (!title) return res.redirect(back + '?error=' + encodeURIComponent('A lesson title is required.'));
+  if (!title) return res.redirect(withMsg(back, 'error', 'A lesson title is required.'));
   const id = await createLesson({ classId: cls.id, title, description: (req.body.description || '').trim(), createdByAccountId: req.portalAccount.id });
-  res.redirect(`/parent/family-school/lessons/${id}?notice=` + encodeURIComponent('Lesson created.'));
+  res.redirect(`/parent/family-school/classes/${cls.id}?open=${id}&notice=` + encodeURIComponent('Lesson created. Click Add Assignments to build it.'));
 });
 
 // public/js/lesson-drag-reorder.js (shared with the co-op's own lesson
@@ -517,18 +543,17 @@ router.post('/family-school/lessons/:id/unlink-plan', requirePortalPermission('v
   const found = await requireOwnLesson(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).send('Not found');
   await unlinkLessonFromPlan(found.lesson.id);
-  res.redirect(
-    `/parent/family-school/lessons/${found.lesson.id}?notice=` + encodeURIComponent('Removed the Lesson Plan reference - add your own content below.')
-  );
+  res.redirect(withMsg(familyLessonBack(req, found.lesson.id), 'notice', 'Removed the Lesson Plan reference - add your own assignments now.'));
 });
 
 router.post('/family-school/lessons/:id/edit', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const found = await requireOwnLesson(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).send('Not found');
   const title = (req.body.title || '').trim();
-  if (!title) return res.redirect(`/parent/family-school/lessons/${found.lesson.id}?error=` + encodeURIComponent('A lesson title is required.'));
+  const back = familyLessonBack(req, found.lesson.id);
+  if (!title) return res.redirect(withMsg(back, 'error', 'A lesson title is required.'));
   await updateLesson(found.lesson.id, { title, description: (req.body.description || '').trim() });
-  res.redirect(`/parent/family-school/lessons/${found.lesson.id}?notice=` + encodeURIComponent('Lesson updated.'));
+  res.redirect(withMsg(back, 'notice', 'Lesson updated.'));
 });
 
 // --- Content items (mirrors routes/admin-lesson-plans.js's own content
@@ -567,16 +592,16 @@ function uploadWeekAssignmentFile(req, res, next) {
 router.post('/family-school/lessons/:id/content', requirePortalPermission('view_fsm_classes'), uploadAttachment, async (req, res) => {
   const found = await requireOwnLesson(req, parseInt(req.params.id, 10));
   if (!found) return res.status(404).send('Not found');
-  const back = `/parent/family-school/lessons/${found.lesson.id}`;
+  const back = familyLessonBack(req, found.lesson.id);
   // A referenced lesson (views/partials/family-school-content-manage.ejs
   // never shows this form for one) always reads its content from the
   // library plan instead - see utils/familySchool.js's own
   // contentItemsForLesson. Reject server-side too, same as every other
   // "the UI already hides this, but don't trust that alone" check in
   // this router.
-  if (found.lesson.source_lesson_plan_id) return res.redirect(back + '?error=' + encodeURIComponent("This lesson is based on a Lesson Plan and can't have its own content added - remove the reference first."));
+  if (found.lesson.source_lesson_plan_id) return res.redirect(withMsg(back, 'error', "This lesson is based on a Lesson Plan and can't have its own content added - remove the reference first."));
   const type = req.body.type;
-  if (!CONTENT_ITEM_TYPES.includes(type)) return res.redirect(back + '?error=' + encodeURIComponent('Choose a content type.'));
+  if (!CONTENT_ITEM_TYPES.includes(type)) return res.redirect(withMsg(back, 'error', 'Choose a content type.'));
 
   let attachmentKey = null;
   let attachmentName = null;
@@ -608,7 +633,7 @@ router.post('/family-school/lessons/:id/content', requirePortalPermission('view_
     pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
     dueDate: (req.body.contentDueDate || '').trim() || null,
   });
-  res.redirect(back + '?notice=' + encodeURIComponent('Added to the lesson.'));
+  res.redirect(withMsg(back, 'notice', 'Added to the lesson.'));
 });
 
 async function requireOwnContentItem(req) {
@@ -625,7 +650,7 @@ router.post('/family-school/content/:id/edit', requirePortalPermission('view_fsm
   const found = await requireOwnContentItem(req);
   if (!found) return res.status(404).send('Not found');
   const { contentItem } = found;
-  const back = `/parent/family-school/lessons/${contentItem.lesson_id}`;
+  const back = familyLessonBack(req, contentItem.lesson_id);
   const type = contentItem.type;
 
   let attachmentKey = contentItem.attachment_url;
@@ -656,14 +681,14 @@ router.post('/family-school/content/:id/edit', requirePortalPermission('view_fsm
     pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
     dueDate: (req.body.contentDueDate || '').trim() || null,
   });
-  res.redirect(back + '?notice=' + encodeURIComponent('Updated.'));
+  res.redirect(withMsg(back, 'notice', 'Updated.'));
 });
 
 router.post('/family-school/content/:id/delete', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const found = await requireOwnContentItem(req);
   if (!found) return res.status(404).send('Not found');
   await deleteContentItem(found.contentItem.id);
-  res.redirect(`/parent/family-school/lessons/${found.contentItem.lesson_id}?notice=` + encodeURIComponent('Removed.'));
+  res.redirect(withMsg(familyLessonBack(req, found.contentItem.lesson_id), 'notice', 'Removed.'));
 });
 
 router.post('/family-school/lessons/:id/content/reorder', requirePortalPermission('view_fsm_classes'), async (req, res) => {

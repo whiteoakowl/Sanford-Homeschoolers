@@ -22,6 +22,10 @@ const {
   reorderLessonPlanContentItems,
   createLessonPlanQuizQuestion,
   deleteLessonPlanQuizQuestion,
+  getLessonPlanLesson,
+  createLessonPlanLesson,
+  updateLessonPlanLesson,
+  deleteLessonPlanLesson,
 } = require('../utils/lessonPlans');
 
 const MAX_LESSON_ATTACHMENT_BYTES = 10 * 1024 * 1024;
@@ -52,6 +56,44 @@ function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePat
     });
   }
 
+  // Back to the plan page with that lesson's bar open (lessonId) and a
+  // notice/error message.
+  function backTo(planId, lessonId, kind, message) {
+    const params = [];
+    if (lessonId) params.push(`open=${lessonId}`);
+    if (message) params.push(`${kind}=${encodeURIComponent(message)}`);
+    return managePath(planId) + (params.length ? `?${params.join('&')}` : '');
+  }
+
+  // A real request: a plan holds lessons ("+ Add Lesson" popup, one bar
+  // each), and each lesson holds its own assignments.
+  router.post(`${pathPrefix}/:id/lessons`, ...middleware, async (req, res) => {
+    const planId = parseInt(req.params.id, 10);
+    if (!(await editablePlan(req, res, planId))) return;
+    const title = (req.body.title || '').trim();
+    if (!title) return res.redirect(backTo(planId, null, 'error', 'A lesson title is required.'));
+    const lessonId = await createLessonPlanLesson({ lessonPlanId: planId, title, description: (req.body.description || '').trim() });
+    res.redirect(backTo(planId, lessonId, 'notice', `"${title}" added. Click Add Assignments to build it.`));
+  });
+
+  router.post(`${pathPrefix}/lessons/:lessonId/edit`, ...middleware, async (req, res) => {
+    const lesson = await getLessonPlanLesson(parseInt(req.params.lessonId, 10));
+    if (!lesson) return res.status(404).send('Not found');
+    if (!(await editablePlan(req, res, lesson.lesson_plan_id))) return;
+    const title = (req.body.title || '').trim();
+    if (!title) return res.redirect(backTo(lesson.lesson_plan_id, lesson.id, 'error', 'A lesson title is required.'));
+    await updateLessonPlanLesson(lesson.id, { title, description: (req.body.description || '').trim() });
+    res.redirect(backTo(lesson.lesson_plan_id, lesson.id, 'notice', 'Lesson updated.'));
+  });
+
+  router.post(`${pathPrefix}/lessons/:lessonId/delete`, ...middleware, async (req, res) => {
+    const lesson = await getLessonPlanLesson(parseInt(req.params.lessonId, 10));
+    if (!lesson) return res.status(404).send('Not found');
+    if (!(await editablePlan(req, res, lesson.lesson_plan_id))) return;
+    await deleteLessonPlanLesson(lesson.id);
+    res.redirect(backTo(lesson.lesson_plan_id, null, 'notice', `Deleted "${lesson.title}".`));
+  });
+
   // Loads the plan (by id, or via a content item / question), 404s if it
   // doesn't exist and 403s if this portal may not edit it.
   async function editablePlan(req, res, planId) {
@@ -70,9 +112,9 @@ function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePat
   router.post(`${pathPrefix}/:id/content`, ...middleware, uploadLessonAttachment, async (req, res) => {
     const lessonPlanId = parseInt(req.params.id, 10);
     if (!(await editablePlan(req, res, lessonPlanId))) return;
-    const back = managePath(lessonPlanId);
+    const lessonId = parseInt(req.body.lessonId, 10) || null;
     const type = req.body.type;
-    if (!LESSON_CONTENT_TYPES.includes(type)) return res.redirect(back + '?error=' + encodeURIComponent('Choose a content type.'));
+    if (!LESSON_CONTENT_TYPES.includes(type)) return res.redirect(backTo(lessonPlanId, lessonId, 'error', 'Choose an assignment type.'));
 
     let attachmentUrl = null;
     let attachmentName = null;
@@ -81,8 +123,9 @@ function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePat
       attachmentName = req.file.originalname;
     }
 
-    await createLessonPlanContentItem({
+    const newItemId = await createLessonPlanContentItem({
       lessonPlanId,
+      lessonId,
       type,
       title: (req.body.title || '').trim(),
       videoUrl: type === 'video' ? (req.body.videoUrl || '').trim() : null,
@@ -100,14 +143,14 @@ function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePat
       attachmentName,
       pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
     });
-    res.redirect(back + '?notice=' + encodeURIComponent('Added to the lesson plan.'));
+    const created = await getLessonPlanContentItem(newItemId);
+    res.redirect(backTo(lessonPlanId, created && created.lesson_id, 'notice', 'Assignment added.'));
   });
 
   router.post(`${pathPrefix}/content/:id/edit`, ...middleware, uploadLessonAttachment, async (req, res) => {
     const contentItem = await getLessonPlanContentItem(parseInt(req.params.id, 10));
     if (!contentItem) return res.status(404).send('Not found');
     if (!(await editablePlan(req, res, contentItem.lesson_plan_id))) return;
-    const back = managePath(contentItem.lesson_plan_id);
     const type = contentItem.type;
 
     let attachmentUrl = contentItem.attachment_url;
@@ -134,7 +177,7 @@ function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePat
       attachmentName,
       pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
     });
-    res.redirect(back + '?notice=' + encodeURIComponent('Updated.'));
+    res.redirect(backTo(contentItem.lesson_plan_id, contentItem.lesson_id, 'notice', 'Assignment updated.'));
   });
 
   router.post(`${pathPrefix}/content/:id/delete`, ...middleware, async (req, res) => {
@@ -142,7 +185,7 @@ function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePat
     if (!contentItem) return res.status(404).send('Not found');
     if (!(await editablePlan(req, res, contentItem.lesson_plan_id))) return;
     await deleteLessonPlanContentItem(contentItem.id);
-    res.redirect(managePath(contentItem.lesson_plan_id) + '?notice=' + encodeURIComponent('Removed.'));
+    res.redirect(backTo(contentItem.lesson_plan_id, contentItem.lesson_id, 'notice', 'Assignment removed.'));
   });
 
   router.post(`${pathPrefix}/:id/content/reorder`, ...middleware, async (req, res) => {
@@ -163,7 +206,7 @@ function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePat
     renderQuestions(req, res, {
       title: `Questions - ${contentItem.title || 'Quiz'}`,
       basePath: urlPrefix,
-      backHref: managePath(plan.id),
+      backHref: backTo(plan.id, contentItem.lesson_id, 'notice', ''),
       plan,
       contentItem,
       questions,
@@ -176,10 +219,9 @@ function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePat
     const contentItem = await getLessonPlanContentItem(parseInt(req.params.id, 10));
     if (!contentItem) return res.status(404).send('Not found');
     if (!(await editablePlan(req, res, contentItem.lesson_plan_id))) return;
-    const back = managePath(contentItem.lesson_plan_id);
     const type = req.body.type === 'short_answer' ? 'short_answer' : 'multiple_choice';
     const prompt = (req.body.prompt || '').trim();
-    if (!prompt) return res.redirect(back + '?error=' + encodeURIComponent('A question prompt is required.'));
+    if (!prompt) return res.redirect(backTo(contentItem.lesson_plan_id, contentItem.lesson_id, 'error', 'A question prompt is required.'));
     const correctIndex = req.body.correctChoice;
     const choices = [1, 2, 3, 4].map((n) => ({
       label: (req.body[`choice${n}`] || '').trim(),
@@ -192,18 +234,18 @@ function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePat
       pointsPossible: req.body.pointsPossible ? Number(req.body.pointsPossible) : 1,
       choices: type === 'multiple_choice' ? choices : [],
     });
-    res.redirect(back + '?notice=' + encodeURIComponent('Question added.'));
+    res.redirect(backTo(contentItem.lesson_plan_id, contentItem.lesson_id, 'notice', 'Question added.'));
   });
 
   router.post(`${pathPrefix}/questions/:id/delete`, ...middleware, async (req, res) => {
     const questionId = parseInt(req.params.id, 10);
     const question = await db
-      .prepare('SELECT q.*, lpci.lesson_plan_id FROM lesson_plan_quiz_questions q JOIN lesson_plan_content_items lpci ON lpci.id = q.content_item_id WHERE q.id = ?')
+      .prepare('SELECT q.*, lpci.lesson_plan_id, lpci.lesson_id FROM lesson_plan_quiz_questions q JOIN lesson_plan_content_items lpci ON lpci.id = q.content_item_id WHERE q.id = ?')
       .get(questionId);
     if (!question) return res.status(404).send('Not found');
     if (!(await editablePlan(req, res, question.lesson_plan_id))) return;
     await deleteLessonPlanQuizQuestion(questionId);
-    res.redirect(managePath(question.lesson_plan_id) + '?notice=' + encodeURIComponent('Question removed.'));
+    res.redirect(backTo(question.lesson_plan_id, question.lesson_id, 'notice', 'Question removed.'));
   });
 }
 

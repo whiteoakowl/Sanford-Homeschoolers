@@ -159,9 +159,11 @@ test('Class Manage page: create an assignment from the Assignments tab, then gra
   // A real bug report: "there is no manage or trash button at the end of
   // each class assignment in co-op admin portal" - Manage is now an icon
   // link (no "Manage" text) and a Delete icon button/form was added.
-  assert.match(afterCreate.text, new RegExp(`<a class="icon-btn" href="/admin/class-schedule/assignments/${assignment.id}" aria-label="Manage" title="Manage">`));
+  // Lessons are bars now (same design as the Teacher Portal) - each has
+  // Grades & Submissions and Delete Lesson inside it.
+  assert.match(afterCreate.text, new RegExp(`<details class="lesson-plan-bar" id="lesson-${assignment.id}"`));
+  assert.match(afterCreate.text, new RegExp(`href="/admin/class-schedule/assignments/${assignment.id}">Grades &amp; Submissions<`));
   assert.match(afterCreate.text, new RegExp(`<form method="POST" action="/admin/class-schedule/assignments/${assignment.id}/delete"`));
-  assert.match(afterCreate.text, /aria-label="Delete" title="Delete"><svg class="icon"><use href="#icon-trash"\/><\/svg><\/button>/);
 
   const gradesTab = await request(app).get(`/admin/class-schedule/classes/${cls.id}/manage?tab=grades`).set('Cookie', admin.cookie);
   assert.match(gradesTab.text, /Fractions Worksheet/);
@@ -189,7 +191,7 @@ test('Class Manage page: create an assignment from the Assignments tab, then gra
 // A real request: "co-op admin portal, classes, individual class edit,
 // lessons, shrink table of lessons to view all of it in mobile without
 // scrolling side to side."
-test('Lessons tab: the table carries the mobile no-horizontal-scroll CSS is scoped to', async () => {
+test('Lessons tab: lessons show as bars, each with its own Add Assignments', async () => {
   const admin = await loginAsAdmin();
   const cls = await createClass(admin, { className: 'Lessons Mobile Fit Class' });
   await request(app)
@@ -199,7 +201,10 @@ test('Lessons tab: the table carries the mobile no-horizontal-scroll CSS is scop
     .send({ title: 'Mobile Fit Lesson', _csrf: admin.csrfToken });
 
   const page = await request(app).get(`/admin/class-schedule/classes/${cls.id}/manage?tab=assignments`).set('Cookie', admin.cookie);
-  assert.match(page.text, /<table class="roster-table members-table condensed-table lessons-table-mobile-fit">/);
+  const lesson = await db.prepare('SELECT id FROM class_assignments WHERE class_id = ? AND title = ?').get(cls.id, 'Mobile Fit Lesson');
+  assert.match(page.text, new RegExp(`<details class="lesson-plan-bar" id="lesson-${lesson.id}"`));
+  assert.match(page.text, new RegExp(`id="add-content-dialog-${lesson.id}"`));
+  assert.match(page.text, new RegExp(`name="returnTo" value="/admin/class-schedule/classes/${cls.id}/manage\\?tab=assignments&amp;open=${lesson.id}"`));
 });
 
 // A real bug report: "there is no manage or trash button at the end of

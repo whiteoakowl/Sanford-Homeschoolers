@@ -90,7 +90,8 @@ test('Lesson list shows a Completed percentage column - "—" with no quiz conte
   // Delete), not a plain "Manage" text link - see the real bug report
   // "there is no manage or trash button at the end of each class
   // assignment in co-op admin portal."
-  assert.match(listBefore.text, /—<\/td>\s*<td class="roster-btn-row accounting-row-icons">\s*<a class="icon-btn"/);
+  assert.match(listBefore.text, /No Quiz Lesson/);
+  assert.doesNotMatch(listBefore.text, /% completed/);
 
   await request(app)
     .post(`/admin/class-schedule/classes/${classId}/assignments`)
@@ -112,7 +113,7 @@ test('Lesson list shows a Completed percentage column - "—" with no quiz conte
     .run(quizItem.id, student2);
 
   const listAfter = await request(app).get(`/admin/class-schedule/classes/${classId}/manage?tab=assignments`).set('Cookie', admin.cookie);
-  assert.match(listAfter.text, /50%<\/td>\s*<td class="roster-btn-row accounting-row-icons">\s*<a class="icon-btn"/);
+  assert.match(listAfter.text, /50% completed/);
 });
 
 test('Content page renames: "Add Assignments" (was Add Content), "Assignments (N)" heading (was Lesson Content)', async () => {

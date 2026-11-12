@@ -502,6 +502,14 @@ router.get('/class-schedule/classes/:id/manage', requireFullAdmin, async (req, r
           gradedCount: rows.filter((r) => r.points_earned != null).length,
           studentCount: rows.length,
           completionPercent: completionStats[a.id] != null ? completionStats[a.id] : null,
+          // Each lesson's bar on the Lessons tab shows its own assignments.
+          contentItems:
+            activeTab === 'assignments'
+              ? (await contentItemsForAssignment(a.id, { includeAnswerKey: true })).map((item) => ({
+                  ...item,
+                  dueDateLabel: item.due_date ? formatDateLabel(item.due_date) : null,
+                }))
+              : [],
         };
       })
     );
@@ -535,6 +543,7 @@ router.get('/class-schedule/classes/:id/manage', requireFullAdmin, async (req, r
     title: `Manage - ${cls.class_name}`,
     cls,
     activeTab,
+    openLessonId: req.query.open ? parseInt(req.query.open, 10) : null,
     dayLabel: CLASS_DAY_LABELS_FULL[cls.day],
     hours: await hoursForClass(cls),
     roomOptions: await roomOptionsForClass(cls),
@@ -581,6 +590,24 @@ router.post('/class-schedule/classes/:id/chat', requireFullAdmin, async (req, re
   res.redirect(back);
 });
 
+// Adds ?notice=/&notice= (or error) to a redirect URL whether or not it
+// already has a query string.
+function withMsg(url, kind, message) {
+  return `${url}${url.includes('?') ? '&' : '?'}${kind}=${encodeURIComponent(message)}`;
+}
+
+// A real request: the class Lessons tab shows each lesson as a bar with
+// its own assignments (same design as the Teacher Portal). A lesson or
+// assignment form submitted from there goes back to that tab with the
+// lesson's bar open; otherwise to the lesson's own page. Only ever a
+// Lessons tab URL - never an arbitrary posted address.
+function adminLessonBack(req, assignmentId) {
+  const returnTo = req && req.body ? String(req.body.returnTo || '') : '';
+  return /^\/admin\/class-schedule\/classes\/\d+\/manage\?tab=assignments(&open=\d+)?$/.test(returnTo)
+    ? returnTo
+    : `/admin/class-schedule/assignments/${assignmentId}`;
+}
+
 router.post('/class-schedule/classes/:id/assignments', requireFullAdmin, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const cls = await getClass(id);
@@ -589,17 +616,18 @@ router.post('/class-schedule/classes/:id/assignments', requireFullAdmin, async (
 
   const title = (req.body.title || '').trim();
   if (!title) return res.redirect(back + '&error=' + encodeURIComponent('A lesson title is required.'));
-  await createAssignment({
+  const newId = await createAssignment({
     classId: id,
     className: cls.class_name,
     title,
     description: (req.body.description || '').trim(),
     dueDate: req.body.dueDate || null,
     openDate: req.body.openDate || null,
+    closeDate: req.body.closeDate || null,
     pointsPossible: req.body.pointsPossible ? parseInt(req.body.pointsPossible, 10) : null,
     createdByAccountId: null,
   });
-  res.redirect(back + '&notice=' + encodeURIComponent(`"${title}" added.`));
+  res.redirect(`${back}&open=${newId}&notice=` + encodeURIComponent(`"${title}" added. Click Add Assignments to build it.`));
 });
 
 // Drag-and-drop reorder for the Lessons tab's own list, mirroring
@@ -649,9 +677,9 @@ router.post('/class-schedule/assignments/:id/edit', requireFullAdmin, async (req
   const assignmentId = parseInt(req.params.id, 10);
   const assignment = await getAssignment(assignmentId);
   if (!assignment) return res.status(404).send('Not found');
-  const back = `/admin/class-schedule/assignments/${assignmentId}`;
+  const back = adminLessonBack(req, assignmentId);
   const title = (req.body.title || '').trim();
-  if (!title) return res.redirect(back + '?error=' + encodeURIComponent('A lesson title is required.'));
+  if (!title) return res.redirect(withMsg(back, 'error', 'A lesson title is required.'));
   await updateAssignment(assignmentId, {
     title,
     description: (req.body.description || '').trim(),
@@ -660,7 +688,7 @@ router.post('/class-schedule/assignments/:id/edit', requireFullAdmin, async (req
     closeDate: req.body.closeDate || null,
     pointsPossible: req.body.pointsPossible ? parseInt(req.body.pointsPossible, 10) : null,
   });
-  res.redirect(back + '?notice=' + encodeURIComponent('Lesson details saved.'));
+  res.redirect(withMsg(back, 'notice', 'Lesson details saved.'));
 });
 
 // A real bug report: "there is no manage or trash button at the end of
@@ -709,9 +737,9 @@ router.post('/class-schedule/assignments/:id/content', requireFullAdmin, uploadL
   const assignmentId = parseInt(req.params.id, 10);
   const assignment = await getAssignment(assignmentId);
   if (!assignment) return res.status(404).send('Not found');
-  const back = `/admin/class-schedule/assignments/${assignmentId}`;
+  const back = adminLessonBack(req, assignmentId);
   const type = req.body.type;
-  if (!LESSON_CONTENT_TYPES.includes(type)) return res.redirect(back + '?error=' + encodeURIComponent('Choose a content type.'));
+  if (!LESSON_CONTENT_TYPES.includes(type)) return res.redirect(withMsg(back, 'error', 'Choose a content type.'));
 
   let attachmentUrl = null;
   let attachmentName = null;
@@ -765,7 +793,7 @@ router.post('/class-schedule/assignments/:id/content', requireFullAdmin, uploadL
     pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
     dueDate: (req.body.contentDueDate || '').trim() || null,
   });
-  res.redirect(back + '?notice=' + encodeURIComponent('Assignment added.'));
+  res.redirect(withMsg(back, 'notice', 'Assignment added.'));
 });
 
 // A real bug report: "edit lesson, there should be an edit and trash
@@ -781,7 +809,7 @@ router.post('/class-schedule/assignments/:id/content', requireFullAdmin, uploadL
 router.post('/class-schedule/content/:id/edit', requireFullAdmin, uploadLessonAttachment, async (req, res) => {
   const contentItem = await getContentItem(parseInt(req.params.id, 10));
   if (!contentItem) return res.status(404).send('Not found');
-  const back = `/admin/class-schedule/assignments/${contentItem.assignment_id}`;
+  const back = adminLessonBack(req, contentItem.assignment_id);
   const type = contentItem.type;
 
   let attachmentUrl = contentItem.attachment_url;
@@ -809,14 +837,14 @@ router.post('/class-schedule/content/:id/edit', requireFullAdmin, uploadLessonAt
     pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
     dueDate: (req.body.contentDueDate || '').trim() || null,
   });
-  res.redirect(back + '?notice=' + encodeURIComponent('Assignment updated.'));
+  res.redirect(withMsg(back, 'notice', 'Assignment updated.'));
 });
 
 router.post('/class-schedule/content/:id/delete', requireFullAdmin, async (req, res) => {
   const contentItem = await getContentItem(parseInt(req.params.id, 10));
   if (!contentItem) return res.status(404).send('Not found');
   await deleteContentItem(contentItem.id);
-  res.redirect(`/admin/class-schedule/assignments/${contentItem.assignment_id}?notice=` + encodeURIComponent('Content removed.'));
+  res.redirect(withMsg(adminLessonBack(req, contentItem.assignment_id), 'notice', 'Content removed.'));
 });
 
 // Reviewing an Assignment Submission content item's own per-student
@@ -893,7 +921,7 @@ router.post('/class-schedule/content/:id/questions', requireFullAdmin, async (re
   const back = `/admin/class-schedule/assignments/${contentItem.assignment_id}`;
   const type = req.body.type === 'short_answer' ? 'short_answer' : 'multiple_choice';
   const prompt = (req.body.prompt || '').trim();
-  if (!prompt) return res.redirect(back + '?error=' + encodeURIComponent('A question prompt is required.'));
+  if (!prompt) return res.redirect(withMsg(back, 'error', 'A question prompt is required.'));
   const correctIndex = req.body.correctChoice;
   const choices = [1, 2, 3, 4].map((n) => ({
     label: (req.body[`choice${n}`] || '').trim(),
@@ -906,7 +934,7 @@ router.post('/class-schedule/content/:id/questions', requireFullAdmin, async (re
     pointsPossible: req.body.pointsPossible ? Number(req.body.pointsPossible) : 1,
     choices: type === 'multiple_choice' ? choices : [],
   });
-  res.redirect(back + '?notice=' + encodeURIComponent('Question added.'));
+  res.redirect(withMsg(back, 'notice', 'Question added.'));
 });
 
 router.post('/class-schedule/questions/:id/delete', requireFullAdmin, async (req, res) => {
@@ -1154,7 +1182,7 @@ router.post('/class-schedule/classes/:id/duplicate', requireFullAdmin, async (re
   const targetComboId = parseInt(req.body.targetComboId, 10);
   const target = (await listScheduleCombos()).find((c) => c.id === targetComboId);
   if (!target) {
-    return res.redirect(back + '?error=' + encodeURIComponent('Choose a semester/day to duplicate into.'));
+    return res.redirect(withMsg(back, 'error', 'Choose a semester/day to duplicate into.'));
   }
 
   const copyDescription = req.body.copyDescription === '1';

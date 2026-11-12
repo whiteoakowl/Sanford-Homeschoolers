@@ -4,7 +4,7 @@
     description, permissions) stay admin-only. locals: plan, contentItems,
     canEdit, lessonPlanBase. %>
 <% if (canEdit) { %>
-  <%- include('lesson-plan-content-manage', { plan, contentItems, lessonPlanBase, showDetailsForm: false }) %>
+  <%- include('lesson-plan-content-manage', { plan, lessons, openLessonId, lessonPlanBase, showDetailsForm: false }) %>
 <% } else { %>
   <div class="alert alert-info">This lesson plan is locked by an admin, so it can't be edited right now.</div>
   <%- include('lesson-plan-content-readonly', { contentItems }) %>

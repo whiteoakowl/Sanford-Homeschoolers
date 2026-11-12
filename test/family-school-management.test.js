@@ -174,7 +174,7 @@ test('a parent can create a class, assign it to their own student, add a lesson 
     .set('Cookie', parent.cookie)
     .type('form')
     .send({ title: 'Addition', description: '', _csrf: csrf });
-  const lessonId = parseInt(createLessonRes.headers.location.match(/lessons\/(\d+)/)[1], 10);
+  const lessonId = parseInt(createLessonRes.headers.location.match(/[?&]open=(\d+)/)[1], 10);
 
   await request(app)
     .post(`/parent/family-school/lessons/${lessonId}/content`)
@@ -517,7 +517,7 @@ test('Family School classes never touch the co-op classes/class_staff/class_assi
   const classId = parseInt(createRes.headers.location.match(/classes\/(\d+)/)[1], 10);
   await request(app).post(`/parent/family-school/classes/${classId}/students`).set('Cookie', parent.cookie).type('form').send({ studentIds: String(student.memberId), _csrf: csrf });
   const lessonRes = await request(app).post(`/parent/family-school/classes/${classId}/lessons`).set('Cookie', parent.cookie).type('form').send({ title: 'No Overlap Lesson', description: '', _csrf: csrf });
-  const lessonId = parseInt(lessonRes.headers.location.match(/lessons\/(\d+)/)[1], 10);
+  const lessonId = parseInt(lessonRes.headers.location.match(/[?&]open=(\d+)/)[1], 10);
   await request(app).post(`/parent/family-school/lessons/${lessonId}/content`).set('Cookie', parent.cookie).type('form').send({ type: 'text', title: 'T', body: 'b', _csrf: csrf });
 
   const afterClasses = (await db.prepare('SELECT COUNT(*) AS n FROM classes').get()).n;

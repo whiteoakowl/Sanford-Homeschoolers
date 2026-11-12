@@ -67,31 +67,53 @@
         <h2>Lessons (<%= lessons.length %>)</h2>
         <button type="button" class="roster-action-btn" onclick="document.getElementById('add-lesson-dialog').showModal()">+ New Lesson</button>
       </div>
+      <%# A real request: the same lesson/assignment design as the Teacher
+          Portal - each lesson is a bar; opening it shows that lesson's
+          own + Add Assignments and assignments. %>
       <% if (lessons.length === 0) { %>
-        <p class="roster-empty">No lessons yet.</p>
-      <% } else { %>
-        <div class="roster-scroll">
-          <table class="roster-table members-table condensed-table">
-            <thead>
-              <tr><th></th><th>Title</th><th></th></tr>
-            </thead>
-            <tbody data-lesson-reorder-tbody data-class-id="<%= cls.id %>" data-reorder-url="/parent/family-school/classes/<%= cls.id %>/lessons/reorder">
-              <% lessons.forEach(function(l) { %>
-                <tr data-lesson-reorder-row="<%= l.id %>">
-                  <td class="roster-drag-col"><span data-lesson-reorder-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span></td>
-                  <td class="roster-name-col"><%= l.title %></td>
-                  <td class="roster-btn-row accounting-row-icons">
-                    <a class="icon-btn" href="/parent/family-school/lessons/<%= l.id %>" aria-label="Manage" title="Manage"><svg class="icon"><use href="#icon-wrench"/></svg></a>
-                    <form method="POST" action="/parent/family-school/lessons/<%= l.id %>/delete" data-confirm="Delete the lesson &quot;<%= l.title %>&quot;? This also removes its content, submissions, and grades. This cannot be undone.">
-                      <button type="submit" class="icon-btn icon-btn-danger" aria-label="Delete" title="Delete"><svg class="icon"><use href="#icon-trash"/></svg></button>
-                    </form>
-                  </td>
-                </tr>
-              <% }); %>
-            </tbody>
-          </table>
-        </div>
+        <p class="roster-empty">No lessons yet. Click + New Lesson to add the first one.</p>
       <% } %>
+      <div class="lesson-plan-bars">
+        <% lessons.forEach(function(l) { %>
+          <% var lessonReturnTo = '/parent/family-school/classes/' + cls.id + '?open=' + l.id; %>
+          <details class="lesson-plan-bar" id="lesson-<%= l.id %>" <%= openLessonId === l.id ? 'open' : '' %>>
+            <summary>
+              <span class="lesson-plan-bar-title"><%= l.title %></span>
+              <span class="lesson-plan-bar-meta">
+                <span class="hint"><%= l.contentItems.length %> assignment<%= l.contentItems.length === 1 ? '' : 's' %></span>
+                <% if (l.sourcePlan) { %><span class="hint">From the library</span><% } %>
+              </span>
+            </summary>
+            <div class="lesson-plan-bar-body">
+              <% if (l.description) { %><p class="hint plain-text-display"><%= l.description %></p><% } %>
+              <div class="roster-btn-row no-print">
+                <button type="button" class="roster-action-btn" onclick="document.getElementById('edit-lesson-dialog-<%= l.id %>').showModal()">Edit Lesson</button>
+                <a class="roster-action-btn" href="/parent/family-school/lessons/<%= l.id %>">Submissions &amp; Grades</a>
+                <form method="POST" action="/parent/family-school/lessons/<%= l.id %>/delete" data-confirm="Delete the lesson &quot;<%= l.title %>&quot;? This also removes its content, submissions, and grades. This cannot be undone.">
+                  <button type="submit" class="roster-action-btn">Delete Lesson</button>
+                </form>
+              </div>
+              <%- include('partials/family-school-content-manage', { lesson: l, contentItems: l.contentItems, sourcePlan: l.sourcePlan, sourcePlanLocked: l.sourcePlanLocked, basePath: '/parent/family-school', showDetails: false, idSuffix: l.id, returnTo: lessonReturnTo, includeScripts: false }) %>
+              <dialog id="edit-lesson-dialog-<%= l.id %>" class="member-picker-dialog dialog-label-stack">
+                <form method="POST" action="/parent/family-school/lessons/<%= l.id %>/edit" class="member-form-grid">
+                  <input type="hidden" name="returnTo" value="<%= lessonReturnTo %>" />
+                  <h3>Edit Lesson</h3>
+                  <label class="member-form-full">Title
+                    <input type="text" name="title" value="<%= l.title %>" required />
+                  </label>
+                  <label class="member-form-full">Description
+                    <textarea name="description" rows="3"><%= l.description || '' %></textarea>
+                  </label>
+                  <div class="notes-dialog-actions">
+                    <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+                    <button type="submit" class="primary-btn">Save</button>
+                  </div>
+                </form>
+              </dialog>
+            </div>
+          </details>
+        <% }); %>
+      </div>
     </div>
   </main>
 
@@ -151,5 +173,7 @@
   </dialog>
   <script src="/js/lesson-drag-reorder.js"></script>
   <script src="/js/lesson-content-form.js"></script>
+  <script src="/js/assignment-upload-word-count.js"></script>
+  <script src="/js/forum-editor.js"></script>
 </body>
 </html>

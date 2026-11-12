@@ -34,7 +34,7 @@ const { urlForUpload } = require('./uploadBackend');
 // from there, never a copy (this file never needs the plan row itself,
 // or its locked flag - see contentItemsForReferencedLessonPlan's own
 // comment below on why).
-const { contentItemsForLessonPlan, getLessonPlan } = require('./lessonPlans');
+const { contentItemsForLessonPlan, getLessonPlan, lessonsForLessonPlan, contentItemsForLessonPlanLesson } = require('./lessonPlans');
 
 // Same bucket/local-dir convention routes/admin-members.js/routes/member-
 // directory.js already established for member photos - read-only reuse
@@ -204,7 +204,7 @@ async function createClassFromLessonPlan(lessonPlanId, familyId, createdByAccoun
   // Another family's private copy (lesson_plans.family_id) is off-limits.
   if (plan.family_id != null && plan.family_id !== familyId) return null;
   const classId = await createClass({ familyId, className: plan.title, description: plan.description, createdByAccountId });
-  await createLesson({ classId, title: plan.title, description: plan.description, createdByAccountId, sourceLessonPlanId: plan.id });
+  await addLessonPlanLessonsToClass(classId, plan, createdByAccountId);
   return classId;
 }
 
@@ -271,14 +271,40 @@ async function getLesson(id) {
 // ordinary "write my own" path below it. Once set, this lesson's own
 // content items are never read (see contentItemsForLesson below) - the
 // plan's content shows through live instead.
-async function createLesson({ classId, title, description, createdByAccountId, sourceLessonPlanId }) {
+async function createLesson({ classId, title, description, createdByAccountId, sourceLessonPlanId, sourceLessonPlanLessonId }) {
   const { next_position: nextPosition } = await db
     .prepare('SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM family_school_lessons WHERE class_id = ?')
     .get(classId);
-  const info = await db
-    .prepare('INSERT INTO family_school_lessons (class_id, title, description, position, created_by_account_id, source_lesson_plan_id) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(classId, title, description || null, nextPosition, createdByAccountId, sourceLessonPlanId || null);
-  return info.lastInsertRowid;
+  const row = await db
+    .prepare(
+      'INSERT INTO family_school_lessons (class_id, title, description, position, created_by_account_id, source_lesson_plan_id, source_lesson_plan_lesson_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id'
+    )
+    .get(classId, title, description || null, nextPosition, createdByAccountId, sourceLessonPlanId || null, sourceLessonPlanLessonId || null);
+  return row.id;
+}
+
+// A real request: a library plan holds lessons, each with its own
+// assignments. Using a plan in a Family Class adds one lesson per plan
+// lesson, each reading that plan lesson's assignments live. Returns the
+// first new lesson's id.
+async function addLessonPlanLessonsToClass(classId, plan, createdByAccountId) {
+  const lessons = await lessonsForLessonPlan(plan.id);
+  if (!lessons.length) {
+    return createLesson({ classId, title: plan.title, description: plan.description, createdByAccountId, sourceLessonPlanId: plan.id });
+  }
+  let firstId = null;
+  for (const lesson of lessons) {
+    const id = await createLesson({
+      classId,
+      title: lesson.title,
+      description: lesson.description,
+      createdByAccountId,
+      sourceLessonPlanId: plan.id,
+      sourceLessonPlanLessonId: lesson.id,
+    });
+    if (!firstId) firstId = id;
+  }
+  return firstId;
 }
 
 async function updateLesson(id, { title, description }) {
@@ -319,7 +345,11 @@ async function getContentItem(id) {
 // lessonsForStudentView below - the student's read-only view) gets this
 // for free with no call-site changes of its own.
 async function contentItemsForLesson(lessonId) {
-  const lesson = await db.prepare('SELECT source_lesson_plan_id FROM family_school_lessons WHERE id = ?').get(lessonId);
+  const lesson = await db.prepare('SELECT source_lesson_plan_id, source_lesson_plan_lesson_id FROM family_school_lessons WHERE id = ?').get(lessonId);
+  if (lesson && lesson.source_lesson_plan_lesson_id) {
+    const items = await contentItemsForLessonPlanLesson(lesson.source_lesson_plan_lesson_id, { includeAnswerKey: false });
+    return items.map((item) => ({ ...item, due_date: null, fromLessonPlan: true }));
+  }
   if (lesson && lesson.source_lesson_plan_id) {
     return contentItemsForReferencedLessonPlan(lesson.source_lesson_plan_id);
   }
@@ -1234,6 +1264,7 @@ async function assignmentOptionsForFamily(familyId) {
       `SELECT lpci.id, lpci.title, c.class_name FROM lesson_plan_content_items lpci
        JOIN lesson_plans lp ON lp.id = lpci.lesson_plan_id
        JOIN family_school_lessons l ON l.source_lesson_plan_id = lp.id
+         AND (l.source_lesson_plan_lesson_id IS NULL OR l.source_lesson_plan_lesson_id = lpci.lesson_id)
        JOIN family_school_classes c ON c.id = l.class_id
        WHERE c.family_id = ? AND lp.allow_family_school_use = true AND lpci.type IN ('assignment_upload', 'assignment_submission')`
     )
@@ -1376,6 +1407,7 @@ module.exports = {
   lessonsForClass,
   getLesson,
   createLesson,
+  addLessonPlanLessonsToClass,
   updateLesson,
   deleteLesson,
   unlinkLessonFromPlan,

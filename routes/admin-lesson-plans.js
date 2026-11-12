@@ -33,7 +33,7 @@ const {
   createLessonPlan,
   updateLessonPlan,
   deleteLessonPlan,
-  contentItemsForLessonPlan,
+  lessonsForLessonPlan,
   assignLessonPlanToClass,
   toggleLessonPlanLocked,
 } = require('../utils/lessonPlans');
@@ -159,11 +159,11 @@ router.get('/lesson-plans/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const plan = await getLessonPlan(id);
   if (!plan) return res.status(404).send('Not found');
-  const contentItems = (await contentItemsForLessonPlan(id, { includeAnswerKey: true })).map((item) => item);
   res.render('admin-lesson-plan-manage', {
     title: plan.title,
     plan,
-    contentItems,
+    lessons: await lessonsForLessonPlan(id, { includeAnswerKey: true }),
+    openLessonId: req.query.open ? parseInt(req.query.open, 10) : null,
     classes: await allClassesList(),
     notice: req.query.notice || null,
     error: req.query.error || null,
