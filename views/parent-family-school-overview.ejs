@@ -94,48 +94,70 @@
     <% } else { %>
       <div class="fs-overview-grid">
         <% students.forEach(function(s) { %>
-          <div class="fs-overview-card">
-            <div class="fs-overview-card-header">
-              <span class="member-avatar fs-overview-avatar member-avatar-<%= avatarColorFor(s.id) %>">
+          <%# A real request: "Family school management portal homepage.
+              Each student card summary should look like this" - a soft
+              blue wave across the top behind a large ringed avatar, the
+              name with a graduation cap + grade, a menu (Grades /
+              Attendance / Portfolio), GPA and Attendance side by side in
+              icon circles, the 180-day bar, then each class with its
+              grade pill. %>
+          <% var fsPct = s.attendanceTargetDays > 0 ? Math.min(100, Math.round((s.presentDays / s.attendanceTargetDays) * 100)) : 0; %>
+          <article class="fs-overview-card fs-student-card">
+            <svg class="fs-student-card-wave" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0 H400 V30 C 300 70, 170 40, 80 85 C 50 100, 20 105, 0 104 Z" /></svg>
+            <details class="fs-student-card-menu">
+              <summary aria-label="<%= s.name %> options" title="Options"><svg class="icon"><use href="#icon-more"/></svg></summary>
+              <div class="fs-student-card-menu-list">
+                <a href="/parent/family-school/grades?studentId=<%= s.id %>">Grades</a>
+                <a href="/parent/family-school/attendance?studentId=<%= s.id %>">Attendance</a>
+                <a href="/parent/family-school/portfolio?studentId=<%= s.id %>">Portfolio</a>
+              </div>
+            </details>
+            <div class="fs-student-card-header">
+              <span class="fs-student-card-avatar">
                 <% if (s.photoUrl) { %>
                   <img src="<%= s.photoUrl %>" alt="" />
                 <% } else { %>
                   <%= s.name.charAt(0).toUpperCase() %>
                 <% } %>
               </span>
-              <div>
+              <div class="fs-student-card-who">
                 <h3 class="fs-overview-name"><%= s.name %></h3>
-                <p class="hint"><%= s.grade_level || 'No grade level set' %></p>
+                <p class="fs-student-card-grade"><svg class="icon"><use href="#icon-graduation-cap"/></svg><span><%= s.grade_level || 'No grade level set' %></span></p>
               </div>
             </div>
-
-            <div class="fs-overview-stats">
-              <div class="fs-overview-stat">
-                <span class="fs-overview-stat-label">GPA</span>
-                <span class="fs-overview-stat-value"><%= s.gpa != null ? s.gpa.toFixed(2) : '—' %></span>
+            <hr class="fs-student-card-divider" />
+            <div class="fs-student-card-stats">
+              <div class="fs-student-card-stat">
+                <span class="fs-student-card-stat-icon"><svg class="icon"><use href="#icon-star"/></svg></span>
+                <span class="fs-student-card-stat-text">
+                  <span class="fs-overview-stat-label">GPA</span>
+                  <span class="fs-overview-stat-value"><%= s.gpa != null ? s.gpa.toFixed(2) : '—' %></span>
+                </span>
               </div>
-              <div class="fs-overview-stat">
-                <span class="fs-overview-stat-label">Attendance</span>
-                <span class="fs-overview-stat-value"><%= s.presentDays %>/<%= s.attendanceTargetDays %></span>
+              <div class="fs-student-card-stat">
+                <span class="fs-student-card-stat-icon"><svg class="icon"><use href="#icon-calendar-check"/></svg></span>
+                <span class="fs-student-card-stat-text">
+                  <span class="fs-overview-stat-label">Attendance</span>
+                  <span class="fs-overview-stat-value"><%= s.presentDays %>/<%= s.attendanceTargetDays %></span>
+                </span>
               </div>
             </div>
-            <%- include('partials/fs-attendance-bar', { presentDays: s.presentDays, attendanceTargetDays: s.attendanceTargetDays }) %>
-
-            <div class="fs-overview-classes">
-              <% if (s.classes.length === 0) { %>
-                <p class="roster-empty">Not assigned to any family classes yet.</p>
-              <% } else { %>
-                <ul class="fs-overview-classes-list">
-                  <% s.classes.forEach(function(c) { %>
-                    <li>
-                      <a href="/parent/family-school/classes/<%= c.id %>"><%= c.class_name %></a>
-                      <span class="badge-pill <%= gradeBadgeClass(c.gradeLetter) %>"><%= c.gradeLetter || 'No grade yet' %></span>
-                    </li>
-                  <% }); %>
-                </ul>
-              <% } %>
+            <div class="fs-student-card-bar" role="progressbar" aria-valuenow="<%= fsPct %>" aria-valuemin="0" aria-valuemax="100" aria-label="<%= fsPct %>% of <%= s.attendanceTargetDays %> instructional days completed" title="<%= fsPct %>% of <%= s.attendanceTargetDays %> days">
+              <span class="fs-student-card-bar-fill" style="width: max(<%= fsPct %>%, 0.9rem);"></span>
             </div>
-          </div>
+            <% if (s.classes.length === 0) { %>
+              <p class="roster-empty">Not assigned to any family classes yet.</p>
+            <% } else { %>
+              <ul class="fs-student-card-classes">
+                <% s.classes.forEach(function(c) { %>
+                  <li>
+                    <a href="/parent/family-school/classes/<%= c.id %>"><svg class="icon"><use href="#icon-book"/></svg><span><%= c.class_name %></span></a>
+                    <span class="fs-student-card-grade-pill<%= c.gradeLetter ? ' fs-student-card-grade-pill-' + gradeBadgeClass(c.gradeLetter).replace('badge-pill-', '') : '' %>"><%= c.gradeLetter || 'No grade yet' %></span>
+                  </li>
+                <% }); %>
+              </ul>
+            <% } %>
+          </article>
         <% }); %>
       </div>
     <% } %>

@@ -571,12 +571,12 @@ test('Overview: the bare /parent/family-school page shows a card per student wit
   assert.match(overview.text, /3\/180/, 'present-day count over the 180-day target');
   // A real request: "add a bar graph tracker to show percentage of 180
   // days completed." - 3/180 rounds to 2%.
-  assert.match(overview.text, /fs-attendance-bar-fill" style="width: 2%;"/);
+  assert.match(overview.text, /fs-student-card-bar-fill" style="width: max\(2%, 0.9rem\);"/);
   assert.match(overview.text, /2% of 180 days/);
 
   assert.match(overview.text, /Overview Ungraded Student/);
   assert.match(overview.text, /0\/180/, 'a student with no attendance rows yet shows 0\\/180');
-  assert.match(overview.text, /fs-attendance-bar-fill" style="width: 0%;"/);
+  assert.match(overview.text, /fs-student-card-bar-fill" style="width: max\(0%, 0.9rem\);"/);
   assert.match(overview.text, /No grade level set/);
 
   const otherFamilyId = await createFamily('Overview Other Family');
