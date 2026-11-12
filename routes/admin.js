@@ -315,7 +315,22 @@ router.get('/', requireAdmin, async (req, res) => {
   // the other.
   const [studentStats, parentStats] = await Promise.all([statsWithTrends('student', today, previousDate), statsWithTrends(['parent', 'admin'], today, previousDate)]);
 
+  // A real request: "add a pending request box to co-op admin homepage to
+  // count lesson plan approvals, teacher reimbursement, name tag
+  // requests." Same queues the Lesson Plan Approval page (pending),
+  // Teachers > Reimbursements (still Submitted) and Design > Name Tag
+  // Requests (not archived) list.
+  const countOf = async (sql) => Number(((await db.prepare(sql).get()) || {}).n || 0);
+  const [lessonApprovalsCount, reimbursementsCount, nameTagRequestsCount] = await Promise.all([
+    countOf("SELECT COUNT(*) AS n FROM class_assignments WHERE approval_status = 'pending' AND submitted_at IS NOT NULL"),
+    countOf("SELECT COUNT(*) AS n FROM reimbursement_requests WHERE status = 'submitted'"),
+    countOf('SELECT COUNT(*) AS n FROM name_tag_requests WHERE archived = 0'),
+  ]);
+
   res.render('admin-dashboard', {
+    lessonApprovalsCount,
+    reimbursementsCount,
+    nameTagRequestsCount,
     title: 'Dashboard',
     selectedDate: today,
     selectedDateLabel: formatShortDateLabel(today),

@@ -47,12 +47,12 @@
       { icon: 'shield', label: 'Admins', value: adminCount, href: '/main-admin/admins' },
     ];
     var mahRequests = [
-      { icon: 'user-plus', label: 'Membership Requests', value: pendingCount, href: '/main-admin/members?tab=approvals' },
-      { icon: 'calendar-check', label: 'Event Requests', value: eventRequestsCount, href: '/main-admin/events?tab=requests' },
-      { icon: 'smile', label: 'Babysitter Approvals', value: babysitterApprovalsCount, href: '/main-admin/babysitters?tab=approvals' },
-      { icon: 'camera', label: 'Photo Submissions', value: photoSubmissionsCount, href: '/main-admin/photos#pending-photos' },
-      { icon: 'store', label: 'Business Directory Requests', value: directoryRequestsCount, href: '/main-admin/directory?tab=requests' },
-      { icon: 'tag', label: 'Classifieds Requests', value: classifiedsRequestsCount, href: '/main-admin/classifieds?tab=requests' },
+      { icon: 'users', color: 'blue', label: 'Membership Requests', value: pendingCount, href: '/main-admin/members?tab=approvals' },
+      { icon: 'calendar-check', color: 'purple', label: 'Event Requests', value: eventRequestsCount, href: '/main-admin/events?tab=requests' },
+      { icon: 'smile', color: 'green', label: 'Babysitter Approvals', value: babysitterApprovalsCount, href: '/main-admin/babysitters?tab=approvals' },
+      { icon: 'camera', color: 'orange', label: 'Photo Submissions', value: photoSubmissionsCount, href: '/main-admin/photos#pending-photos' },
+      { icon: 'briefcase', color: 'teal', label: 'Business Directory Requests', value: directoryRequestsCount, href: '/main-admin/directory?tab=requests' },
+      { icon: 'star', color: 'gold', label: 'Classifieds Requests', value: classifiedsRequestsCount, href: '/main-admin/classifieds?tab=requests' },
     ];
     %>
     <section class="mah-card">
@@ -72,22 +72,7 @@
       </div>
     </section>
 
-    <section class="mah-card">
-      <div class="mah-card-header mah-card-header-blue">
-        <svg class="icon"><use href="#icon-hourglass"/></svg>
-        <h2>Pending Requests</h2>
-        <a class="mah-viewall" href="/main-admin/members?tab=approvals">View All <svg class="icon"><use href="#icon-arrow-right"/></svg></a>
-      </div>
-      <div class="mah-requests">
-        <% mahRequests.forEach(function(r) { %>
-          <a class="mah-request<%= r.value > 0 ? ' mah-request-has' : '' %>" href="<%= r.href %>">
-            <span class="mah-request-icon"><svg class="icon"><use href="#icon-<%= r.icon %>"/></svg></span>
-            <span class="mah-request-count"><%= r.value %></span>
-            <span class="mah-request-label"><%= r.label %></span>
-          </a>
-        <% }); %>
-      </div>
-    </section>
+    <%- include('partials/pending-requests-card', { items: mahRequests, viewAllHref: '/main-admin/members?tab=approvals' }) %>
   </main>
 </body>
 </html>

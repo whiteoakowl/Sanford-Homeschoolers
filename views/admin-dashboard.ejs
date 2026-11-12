@@ -62,6 +62,14 @@
       </div>
     </div>
 
+    <%- include('partials/pending-requests-card', {
+      viewAllHref: '/admin/lesson-plans/approval',
+      items: [
+        { icon: 'clipboard-list', color: 'blue', label: 'Lesson Plan Approvals', value: lessonApprovalsCount, href: '/admin/lesson-plans/approval' },
+        { icon: 'coin', color: 'green', label: 'Teacher Reimbursements', value: reimbursementsCount, href: '/admin/teachers/reimbursements?status=submitted' },
+        { icon: 'badge', color: 'orange', label: 'Name Tag Requests', value: nameTagRequestsCount, href: '/admin/design?tab=requests' },
+      ],
+    }) %>
     <%# A real request: match a provided design - 4 status rows (Checked
         In/Checked Out/Absent/Late), each showing Students + Parents
         together, instead of the previous Parents-column/Students-column

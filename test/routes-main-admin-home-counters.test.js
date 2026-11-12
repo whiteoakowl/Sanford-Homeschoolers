@@ -86,7 +86,7 @@ test('GET /main-admin shows Families/Parents/Students counters and a plain setti
   // Users tab was removed, this link was repointed at Members > Approvals
   // (the same underlying pending member_accounts queue - see
   // utils/membershipApprovals.js's own header comment).
-  assert.match(res.text, /class="mah-request" href="\/main-admin\/members\?tab=approvals"[^]*?Membership Requests/);
+  assert.match(res.text, /class="pr-card-item" href="\/main-admin\/members\?tab=approvals"[^]*?Membership Requests/);
   assert.match(res.text, /href="\/main-admin\/events\?tab=requests"[^]*?Event Requests/);
   assert.match(res.text, /href="\/main-admin\/babysitters\?tab=approvals"[^]*?Babysitter Approvals/);
   assert.match(res.text, /href="\/main-admin\/photos#pending-photos"[^]*?Photo Submissions/);

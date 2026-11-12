@@ -1,0 +1,30 @@
+<%# A real request: the Pending Requests card on the Main Admin homepage
+    "should look like this image" - a large soft circle with an
+    hourglass, the title with a "Manage your pending requests." line,
+    View All, and a 3-across grid of request types, each with its own
+    colored icon circle. Shared with the Co-op Admin homepage's own
+    Pending Requests box (lesson plan approvals, teacher reimbursements,
+    name tag requests). A request type with something waiting shows its
+    count on the corner of its icon circle.
+    Locals: items ([{ icon, color, label, value, href }]), viewAllHref. %>
+<section class="pr-card">
+  <div class="pr-card-header">
+    <span class="pr-card-header-icon"><svg class="icon"><use href="#icon-hourglass"/></svg></span>
+    <div class="pr-card-heading">
+      <h2>Pending Requests</h2>
+      <p>Manage your pending requests.</p>
+    </div>
+    <a class="pr-card-viewall" href="<%= viewAllHref %>">View All <svg class="icon"><use href="#icon-arrow-right"/></svg></a>
+  </div>
+  <div class="pr-card-grid">
+    <% items.forEach(function(r) { var n = Number(r.value) || 0; %>
+      <a class="pr-card-item" href="<%= r.href %>">
+        <span class="pr-card-item-icon pr-color-<%= r.color %>">
+          <svg class="icon"><use href="#icon-<%= r.icon %>"/></svg>
+          <% if (n > 0) { %><span class="pr-card-count" aria-label="<%= n %> waiting"><%= n > 99 ? '99+' : n %></span><% } %>
+        </span>
+        <span class="pr-card-item-label"><%= r.label %></span>
+      </a>
+    <% }); %>
+  </div>
+</section>
