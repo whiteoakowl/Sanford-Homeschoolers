@@ -16477,3 +16477,88 @@ a.member-schedule-class-title:hover { color: var(--brand-darker); }
 .submission-response { margin-top: 0.35rem; }
 .submission-response > summary { cursor: pointer; color: var(--brand-dark); font-weight: 600; }
 .submission-response .forum-editable-display { margin-top: 0.4rem; }
+
+/* A real request: "Training cards should look exactly like this" -
+   views/partials/training-card.ejs. Blue art panel on the left (a soft
+   classroom scene, graduation cap, wave and TRAINING label), details on
+   the right. Stacks the art above the details on a narrow phone. */
+.training-card-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 1.25rem; }
+.training-card {
+  display: grid;
+  grid-template-columns: 42% 1fr;
+  background: #fff;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 14px 34px rgba(30, 58, 90, 0.16), 0 2px 6px rgba(30, 58, 90, 0.08);
+  min-height: 250px;
+}
+.training-card-art { position: relative; color: #fff; background: #2f5f8a; overflow: hidden; }
+.training-card-scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.training-card-cap { position: absolute; top: 18%; left: 50%; transform: translateX(-50%); }
+.training-card-cap .icon { width: 3.6rem; height: 3.6rem; stroke-width: 1.6; color: #fff; }
+.training-card-kicker {
+  position: absolute;
+  left: 1.4rem;
+  bottom: 1.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.training-card-kicker::after { content: ''; display: block; width: 2.4rem; height: 2px; margin-top: 0.85rem; background: rgba(255, 255, 255, 0.85); }
+.training-card-body { display: flex; flex-direction: column; align-items: flex-start; gap: 0.7rem; padding: 1.4rem 1.4rem 1.3rem; min-width: 0; }
+.training-card-title { margin: 0; font-size: 1.45rem; line-height: 1.2; color: #0f2340; overflow-wrap: anywhere; }
+.training-card-meta { display: flex; align-items: center; gap: 0.55rem; margin: 0; color: #1f2f45; font-size: 1rem; white-space: nowrap; }
+.training-card-meta .icon { width: 1.15rem; height: 1.15rem; flex-shrink: 0; color: #1f2f45; }
+.training-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+.training-card-status .icon { width: 1.05rem; height: 1.05rem; }
+.training-card-status-in_progress { background: #fde3c8; color: #a4520f; }
+.training-card-status-not_started,
+.training-card-status-expired { background: #e8edf3; color: #4a5b70; }
+.training-card-status-passed { background: #d9f2e1; color: #1d7a3d; }
+.training-card-status-failed,
+.training-card-status-retry_required { background: #fde0de; color: #b3261e; }
+.training-card-divider { width: 100%; border: 0; border-top: 1px solid #d6e0ea; margin: 0.15rem 0; }
+.training-card-body form { width: 100%; margin: 0; }
+.training-card-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  margin-top: auto;
+  padding: 0.8rem 1.2rem;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f5a33a, #e98b2a);
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(233, 139, 42, 0.3);
+  white-space: nowrap;
+}
+.training-card-btn:hover { background: linear-gradient(90deg, #ef9a2c, #de7f1f); color: #fff; }
+.training-card-btn .icon { width: 1.15rem; height: 1.15rem; }
+@media (max-width: 480px) {
+  .training-card { grid-template-columns: 36% 1fr; min-height: 220px; border-radius: 18px; }
+  .training-card-cap .icon { width: 2.6rem; height: 2.6rem; }
+  .training-card-kicker { left: 0.8rem; bottom: 1.1rem; font-size: 0.68rem; letter-spacing: 0.24em; }
+  .training-card-kicker::after { width: 1.8rem; margin-top: 0.6rem; }
+  .training-card-body { gap: 0.55rem; padding: 1rem 0.9rem; }
+  .training-card-title { font-size: 1.15rem; }
+  .training-card-meta { font-size: 0.85rem; gap: 0.4rem; white-space: normal; }
+  .training-card-meta .icon { width: 1rem; height: 1rem; }
+  .training-card-status { font-size: 0.8rem; padding: 0.3rem 0.7rem; }
+  .training-card-btn { font-size: 0.85rem; padding: 0.65rem 0.8rem; gap: 0.45rem; }
+}

@@ -1,0 +1,61 @@
+<%# A real request: "Training cards should look exactly like this" - a
+    blue left panel (soft classroom scene, graduation cap, a wave and a
+    TRAINING label) beside the details: title, lessons/minutes, a status
+    pill, a divider, the due date, and an orange action button. Shared by
+    the Teacher Portal, Parent Portal and My Training pages. locals: a
+    (a training assignment: id, title, lessonCount, estimatedMinutes,
+    status, due_at). %>
+<%
+var tcStatusLabels = { not_started: 'Not Started', in_progress: 'In Progress', passed: 'Passed', failed: 'Failed', retry_required: 'Retry Required', expired: 'Expired' };
+var tcStatusIcons = { not_started: 'clock', in_progress: 'clock', passed: 'check', failed: 'x-circle', retry_required: 'refresh', expired: 'clock' };
+var tcStatus = a.status || 'not_started';
+%>
+<article class="training-card">
+  <div class="training-card-art" aria-hidden="true">
+    <svg class="training-card-scene" viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <filter id="training-card-blur-<%= a.id %>" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="3.2" /></filter>
+        <linearGradient id="training-card-bg-<%= a.id %>" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#8fa6bd" />
+          <stop offset="1" stop-color="#5d7891" />
+        </linearGradient>
+      </defs>
+      <rect width="200" height="240" fill="url(#training-card-bg-<%= a.id %>)" />
+      <g filter="url(#training-card-blur-<%= a.id %>)" opacity="0.85">
+        <rect x="12" y="10" width="70" height="95" fill="#c9d6e2" />
+        <rect x="90" y="10" width="70" height="95" fill="#c1cfdc" />
+        <rect x="45" y="10" width="4" height="95" fill="#7d93a9" />
+        <rect x="123" y="10" width="4" height="95" fill="#7d93a9" />
+        <rect x="0" y="118" width="200" height="8" fill="#4f6982" />
+        <rect x="20" y="140" width="70" height="12" rx="2" fill="#3e566e" />
+        <rect x="110" y="140" width="80" height="12" rx="2" fill="#3e566e" />
+        <rect x="30" y="152" width="6" height="40" fill="#34495e" />
+        <rect x="75" y="152" width="6" height="40" fill="#34495e" />
+        <rect x="120" y="152" width="6" height="40" fill="#34495e" />
+        <rect x="175" y="152" width="6" height="40" fill="#34495e" />
+        <rect x="40" y="120" width="30" height="22" rx="3" fill="#6f879e" />
+        <rect x="135" y="120" width="30" height="22" rx="3" fill="#6f879e" />
+      </g>
+      <rect width="200" height="240" fill="#2e5d87" opacity="0.35" />
+      <path d="M0 135 C 60 115, 120 150, 200 205 L200 240 L0 240 Z" fill="#2f5f8a" />
+    </svg>
+    <span class="training-card-cap"><svg class="icon"><use href="#icon-graduation-cap"/></svg></span>
+    <span class="training-card-kicker">Training</span>
+  </div>
+  <div class="training-card-body">
+    <h3 class="training-card-title"><%= a.title %></h3>
+    <p class="training-card-meta"><svg class="icon"><use href="#icon-clock"/></svg><span><%= a.lessonCount %> lesson<%= a.lessonCount == 1 ? '' : 's' %><% if (a.estimatedMinutes) { %> &bull; <%= a.estimatedMinutes %> minutes<% } %></span></p>
+    <span class="training-card-status training-card-status-<%= tcStatus %>"><svg class="icon"><use href="#icon-<%= tcStatusIcons[tcStatus] || 'clock' %>"/></svg><%= tcStatusLabels[tcStatus] || tcStatus %></span>
+    <hr class="training-card-divider" />
+    <p class="training-card-meta"><svg class="icon"><use href="#icon-calendar-check"/></svg><span><% if (a.due_at) { %>Due <%= a.due_at %><% } else { %>No due date<% } %></span></p>
+    <% if (tcStatus === 'in_progress' || tcStatus === 'not_started') { %>
+      <a class="training-card-btn" href="/training/<%= a.id %>/play"><%= tcStatus === 'not_started' ? 'Start Training' : 'Continue Training' %> <svg class="icon"><use href="#icon-arrow-right"/></svg></a>
+    <% } else if (tcStatus === 'retry_required' || tcStatus === 'failed') { %>
+      <form method="POST" action="/training/<%= a.id %>/retake">
+        <button type="submit" class="training-card-btn">Retake Training <svg class="icon"><use href="#icon-arrow-right"/></svg></button>
+      </form>
+    <% } else { %>
+      <a class="training-card-btn" href="/training/<%= a.id %>/play">Review Training <svg class="icon"><use href="#icon-arrow-right"/></svg></a>
+    <% } %>
+  </div>
+</article>
