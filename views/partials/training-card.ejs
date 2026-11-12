@@ -2,13 +2,22 @@
     blue left panel (soft classroom scene, graduation cap, a wave and a
     TRAINING label) beside the details: title, lessons/minutes, a status
     pill, a divider, the due date, and an orange action button. Shared by
-    the Teacher Portal, Parent Portal and My Training pages. locals: a
+    the Teacher Portal, Parent Portal, My Training and the Co-op Admin /
+    Main Admin Training lists. locals: a
     (a training assignment: id, title, lessonCount, estimatedMinutes,
     status, due_at). %>
 <%
 var tcStatusLabels = { not_started: 'Not Started', in_progress: 'In Progress', passed: 'Passed', failed: 'Failed', retry_required: 'Retry Required', expired: 'Expired' };
 var tcStatusIcons = { not_started: 'clock', in_progress: 'clock', passed: 'check', failed: 'x-circle', retry_required: 'refresh', expired: 'clock' };
 var tcStatus = a.status || 'not_started';
+// A real request: "The new training cards should be on all training page
+// portals" - the Co-op Admin and Main Admin Training lists pass adminBase
+// ('/admin' or '/main-admin'); the card then shows the training's
+// Published/Draft state, how many are assigned, and Edit/Assign/Report.
+var tcAdmin = locals.adminBase || null;
+var tcAdminLabels = { published: 'Published', draft: 'Draft', archived: 'Archived' };
+var tcAdminClass = { published: 'passed', draft: 'in_progress', archived: 'expired' };
+var tcAdminIcons = { published: 'check', draft: 'clock', archived: 'clock' };
 %>
 <article class="training-card">
   <div class="training-card-art" aria-hidden="true">
@@ -44,6 +53,20 @@ var tcStatus = a.status || 'not_started';
     <span class="training-card-cap"><svg class="icon"><use href="#icon-graduation-cap"/></svg></span>
     <span class="training-card-kicker">Training</span>
   </div>
+  <% if (tcAdmin) { %>
+  <div class="training-card-body">
+    <h3 class="training-card-title"><a href="<%= tcAdmin %>/training/<%= a.id %>/builder"><%= a.title %></a></h3>
+    <p class="training-card-meta"><svg class="icon"><use href="#icon-clock"/></svg><span><%= a.lessonCount %> lesson<%= a.lessonCount == 1 ? '' : 's' %><% if (a.estimatedMinutes) { %> &bull; <%= a.estimatedMinutes %> minutes<% } %></span></p>
+    <span class="training-card-status training-card-status-<%= tcAdminClass[a.trainingStatus] || 'not_started' %>"><svg class="icon"><use href="#icon-<%= tcAdminIcons[a.trainingStatus] || 'clock' %>"/></svg><%= tcAdminLabels[a.trainingStatus] || a.trainingStatus %></span>
+    <hr class="training-card-divider" />
+    <p class="training-card-meta"><svg class="icon"><use href="#icon-calendar-check"/></svg><span><%= a.assignmentCount %> assigned &bull; passing <%= a.passingScore %>%</span></p>
+    <div class="training-card-actions">
+      <a class="training-card-btn" href="<%= tcAdmin %>/training/<%= a.id %>/builder">Edit <svg class="icon"><use href="#icon-arrow-right"/></svg></a>
+      <a class="training-card-btn training-card-btn-blue" href="<%= tcAdmin %>/training/<%= a.id %>/assign">Assign</a>
+      <a class="training-card-btn training-card-btn-blue" href="<%= tcAdmin %>/training/<%= a.id %>/report">Report</a>
+    </div>
+  </div>
+  <% } else { %>
   <div class="training-card-body">
     <h3 class="training-card-title"><%= a.title %></h3>
     <p class="training-card-meta"><svg class="icon"><use href="#icon-clock"/></svg><span><%= a.lessonCount %> lesson<%= a.lessonCount == 1 ? '' : 's' %><% if (a.estimatedMinutes) { %> &bull; <%= a.estimatedMinutes %> minutes<% } %></span></p>
@@ -60,4 +83,5 @@ var tcStatus = a.status || 'not_started';
       <a class="training-card-btn" href="/training/<%= a.id %>/play">Review Training <svg class="icon"><use href="#icon-arrow-right"/></svg></a>
     <% } %>
   </div>
+  <% } %>
 </article>

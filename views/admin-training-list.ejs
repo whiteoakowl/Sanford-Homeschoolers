@@ -21,21 +21,9 @@
       <p class="roster-empty">No trainings yet &mdash; create one above.</p>
     <% } %>
 
-    <div class="team-card-grid">
+    <div class="training-card-grid">
       <% trainings.forEach(function(t) { %>
-        <div class="team-col">
-          <div class="team-info-card">
-            <span class="team-info-icon"><svg class="icon"><use href="#icon-graduation-cap"/></svg></span>
-            <h3 class="team-info-title"><a href="/admin/training/<%= t.id %>/builder"><%= t.title %></a></h3>
-            <span class="badge-pill badge-pill-<%= t.status === 'published' ? 'green' : t.status === 'archived' ? 'gray' : 'orange' %>"><%= t.status.charAt(0).toUpperCase() + t.status.slice(1) %></span>
-            <p class="hint"><%= t.lessonCount %> lesson<%= t.lessonCount == 1 ? '' : 's' %> &bull; <%= t.assignmentCount %> assigned &bull; passing <%= t.passing_score %>%</p>
-            <div class="roster-btn-row">
-              <a class="roster-action-btn" href="/admin/training/<%= t.id %>/builder">Edit</a>
-              <a class="roster-action-btn" href="/admin/training/<%= t.id %>/assign">Assign</a>
-              <a class="roster-action-btn" href="/admin/training/<%= t.id %>/report">Report</a>
-            </div>
-          </div>
-        </div>
+        <%- include('partials/training-card', { a: { id: t.id, title: t.title, imageKey: t.image_key, lessonCount: t.lessonCount, estimatedMinutes: t.estimated_minutes, trainingStatus: t.status, assignmentCount: t.assignmentCount, passingScore: t.passing_score }, adminBase: '/admin' }) %>
       <% }); %>
     </div>
 

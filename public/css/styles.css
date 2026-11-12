@@ -16594,3 +16594,11 @@ dialog form:has(.permission-section) > h3,
 }
 .permission-section:first-child .permission-section-title { margin-top: 0.75rem; }
 .permission-checkbox-grid .permission-group-label { font-size: 1rem; font-weight: 700; color: var(--ink); margin-top: 0.6rem; }
+/* Admin Training lists: Edit (orange) plus Assign / Report (app blue). */
+.training-card-title a { color: inherit; text-decoration: none; }
+.training-card-title a:hover { text-decoration: underline; }
+.training-card-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; width: 100%; margin-top: auto; }
+.training-card-actions .training-card-btn { flex: 1 1 auto; width: auto; margin-top: 0; }
+.training-card-actions .training-card-btn:first-child { flex-basis: 100%; }
+.training-card-btn-blue { background: var(--btn-blue); color: #fff; box-shadow: 0 4px 10px rgba(46, 109, 164, 0.25); }
+.training-card-btn-blue:hover { background: var(--btn-blue-hover); color: #fff; }
