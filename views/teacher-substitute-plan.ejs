@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Co-op Teacher Portal' }) %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p class="subtitle"><a href="/teacher/classes/<%= cls.id %>">&larr; <%= cls.class_name %></a></p>
+    <h1><%= cls.class_name %> Substitute Plans</h1>
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <%- include('partials/substitute-plan-manage', { basePath, plans, openPlanId }) %>
+  </main>
+</body>
+</html>

@@ -61,6 +61,7 @@ const { findMemberByBarcodeOrName } = require('../utils/memberLookup');
 const { createRateLimiter } = require('../utils/rateLimit');
 const trainingModule = require('../utils/training');
 const { teacherLessonPlanBlock } = require('../utils/lessonPlans');
+const { mountSubstitutePlanRoutes } = require('./substitutePlanRoutes');
 
 // Same per-device throttle shape as the kiosk's own Class Check-In scan
 // (routes/kiosk-class-checkin.js's own classScanLimiter) - its own
@@ -1226,6 +1227,17 @@ router.get('/training', requirePortalPermission('view_teacher_training'), async 
   if (!member) return res.render('teacher-training', { title: 'Training', assignments: [] });
   req.session.trainingMemberId = member.id;
   res.render('teacher-training', { title: 'Training', assignments: await trainingModule.myAssignments(member.id) });
+});
+
+// A real request: "Next to add a lesson plan button should be the add a
+// substitute plan button" - a teacher's own classes only.
+mountSubstitutePlanRoutes(router, {
+  pathPrefix: '/classes',
+  middleware: [requirePortalPermission('view_teacher_assignments')],
+  pathFor: (classId) => `/teacher/classes/${classId}/substitute-plan`,
+  loadClass: ownClassForTeacher,
+  onForbidden: notYourClass,
+  view: 'teacher-substitute-plan',
 });
 
 module.exports = router;

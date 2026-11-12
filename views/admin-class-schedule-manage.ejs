@@ -334,6 +334,9 @@
                 replaces the old always-visible inline "New Lesson" card
                 at the bottom of this tab. %>
             <button type="button" class="roster-action-btn" onclick="document.getElementById('add-lesson-dialog').showModal()">+ New Lesson</button>
+            <%# A real request: "Next to add a lesson plan button should be
+                the add a substitute plan button." %>
+            <a class="roster-action-btn" href="/admin/class-schedule/classes/<%= cls.id %>/substitute-plan">Add/Edit Substitute Plan</a>
             <a class="btn-secondary" href="/admin/class-schedule/quiz-review">Quiz Review</a>
           </div>
         </div>

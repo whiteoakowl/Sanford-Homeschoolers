@@ -46,6 +46,7 @@ const { toCsvRow, sendCsv, buildTemplateWorkbook, readRowsFromFile } = require('
 const { spreadsheetFileFilter, imageFileFilter, lessonAttachmentFileFilter } = require('../utils/uploads');
 const { createStorageClient, uploadFile, deleteFile, generateKey } = require('../utils/storage');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
+const { mountSubstitutePlanRoutes } = require('./substitutePlanRoutes');
 const {
   CLASS_DAY_LABELS_FULL,
   HOUR_POSITIONS,
@@ -1787,6 +1788,17 @@ router.get('/class-schedule/:day/download.pdf', requireAdmin, requireClassDay, a
   res.set('Content-Type', 'application/pdf');
   res.set('Content-Disposition', `attachment; filename="${sem.slug}${day}-class-schedule.pdf"`);
   res.send(pdf);
+});
+
+// A real request: substitute plans on a class, next to its lessons -
+// Co-op Admin can manage any class's (routes/substitutePlanRoutes.js).
+mountSubstitutePlanRoutes(router, {
+  pathPrefix: '/class-schedule/classes',
+  middleware: [requireFullAdmin],
+  pathFor: (classId) => `/admin/class-schedule/classes/${classId}/substitute-plan`,
+  loadClass: (req) => getClass(parseInt(req.params.id, 10)),
+  onForbidden: (res) => res.status(404).render('404', { title: 'Not Found' }),
+  view: 'admin-class-substitute-plan',
 });
 
 module.exports = router;

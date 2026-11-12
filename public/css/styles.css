@@ -16992,3 +16992,15 @@ dialog form:has(.permission-section) > h3,
   .ga-print-page { width: 11in; height: 8.5in; max-width: none; margin: 0; box-shadow: none; overflow: hidden; }
   .ga-print-page .grade-award { width: 11in; height: 8.5in; border-radius: 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
+/* Substitute plans (views/partials/substitute-plan-details.ejs) */
+.sub-plan-details { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 0.75rem; }
+.sub-plan-details p { margin: 0; }
+.sub-plan-links { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.sub-plan-links .btn-secondary { display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none; }
+.sub-plan-links .btn-secondary .icon { width: 1rem; height: 1rem; flex-shrink: 0; }
+.sub-plan-file { font-weight: 400; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .sub-plan-links .btn-secondary { flex: 1 1 100%; justify-content: center; text-align: center; }
+}
+.sub-plan-notes { padding: 0.7rem 0.9rem; border-radius: 10px; background: var(--orange-bg); }
+.sub-plan-notes strong { display: block; margin-bottom: 0.25rem; }

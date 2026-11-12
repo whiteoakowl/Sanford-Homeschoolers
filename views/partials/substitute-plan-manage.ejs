@@ -1,0 +1,52 @@
+<%# A real request: "Create a substitute plan button goes to substitute
+    page and allows you to type a detail, description, upload a worksheet
+    for printing, link to a video or song. Special notes from teacher.
+    Can add multiple substitute plans to a class lesson plan." Shared by
+    Co-op Teacher Portal and Co-op Admin (utils/substitutePlans.js). Each
+    plan is a bar, same shape as the class's lesson bars.
+    Locals: basePath (this class's .../substitute-plan URL), plans,
+    openPlanId. %>
+<%
+  function planFields(p) {
+    p = p || {};
+    return { title: p.title || '', description: p.description || '', mediaUrl: p.media_url || '', teacherNotes: p.teacher_notes || '' };
+  }
+%>
+<div class="manage-section">
+  <div class="grid-box-header">
+    <h2>Substitute Plans (<%= plans.length %>)</h2>
+    <div class="roster-btn-row no-print">
+      <button type="button" class="roster-action-btn" onclick="document.getElementById('add-substitute-plan-dialog').showModal()">+ Add Substitute Plan</button>
+    </div>
+  </div>
+
+  <% if (plans.length === 0) { %>
+    <p class="roster-empty">No substitute plans yet. Click + Add Substitute Plan to add the first one.</p>
+  <% } %>
+
+  <div class="lesson-plan-bars">
+    <% plans.forEach(function(p) { %>
+      <details class="lesson-plan-bar" id="substitute-plan-<%= p.id %>" <%= openPlanId === p.id ? 'open' : '' %>>
+        <summary>
+          <span class="lesson-plan-bar-title"><%= p.title %></span>
+          <span class="lesson-plan-bar-meta">
+            <% if (p.worksheetUrl) { %><span class="hint">Worksheet</span><% } %>
+            <% if (p.media_url) { %><span class="hint">Video/Song</span><% } %>
+          </span>
+        </summary>
+        <div class="lesson-plan-bar-body">
+          <%- include('substitute-plan-details', { plan: p }) %>
+          <div class="roster-btn-row no-print">
+            <button type="button" class="roster-action-btn" onclick="document.getElementById('edit-substitute-plan-dialog-<%= p.id %>').showModal()">Edit Substitute Plan</button>
+            <form method="POST" action="<%= basePath %>/<%= p.id %>/delete" data-confirm="Delete the substitute plan &quot;<%= p.title %>&quot;? This cannot be undone.">
+              <button type="submit" class="roster-action-btn">Delete Substitute Plan</button>
+            </form>
+          </div>
+        </div>
+      </details>
+      <%- include('substitute-plan-form-dialog', { dialogId: 'edit-substitute-plan-dialog-' + p.id, heading: 'Edit Substitute Plan', action: basePath + '/' + p.id, submitLabel: 'Save Substitute Plan', values: planFields(p), plan: p }) %>
+    <% }); %>
+  </div>
+</div>
+
+<%- include('substitute-plan-form-dialog', { dialogId: 'add-substitute-plan-dialog', heading: 'New Substitute Plan', action: basePath, submitLabel: 'Add Substitute Plan', values: planFields(null), plan: null }) %>

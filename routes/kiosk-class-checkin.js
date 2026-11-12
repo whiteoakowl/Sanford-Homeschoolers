@@ -32,6 +32,7 @@ const pinLimiter = require('../utils/classCheckinPinRateLimit');
 const { isValidClassQrKey, isValidPlaygroundQrKey } = require('../utils/classQrKey');
 const { createRateLimiter } = require('../utils/rateLimit');
 const { assignmentsForClass, contentItemsForAssignment } = require('../utils/academics');
+const { substitutePlansForClass } = require('../utils/substitutePlans');
 
 // Separate from the main portal's own checkinLimiter (routes/kiosk.js) -
 // same generous per-kiosk-device threshold, tuned the same way, just its
@@ -217,12 +218,13 @@ router.get('/classes/:id/lesson-plan', requireClassAccess, async (req, res) => {
   res.render('kiosk-class-lesson-plan', { title: `Lesson Plan - ${cls.class_name}`, cls, lessons });
 });
 
-// No substitute plan content exists in the app yet - this page is the
-// button's landing spot until one is added.
+// The class's substitute plans (utils/substitutePlans.js), read-only -
+// added by its teacher or Co-op Admin.
 router.get('/classes/:id/substitute-plan', requireClassAccess, async (req, res) => {
   const cls = await findClassWithLabels(parseInt(req.params.id, 10));
   if (!cls) return res.status(404).render('404', { title: 'Not Found' });
-  res.render('kiosk-class-substitute-plan', { title: `Substitute Plan - ${cls.class_name}`, cls });
+  const plans = await substitutePlansForClass(cls.id);
+  res.render('kiosk-class-substitute-plan', { title: `Substitute Plan - ${cls.class_name}`, cls, plans });
 });
 
 // A real request: "class attendance should allow for manually changing

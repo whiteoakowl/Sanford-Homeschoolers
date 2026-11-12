@@ -38,6 +38,9 @@
       <% } else { %>
         <button type="button" class="roster-action-btn" onclick="document.getElementById('create-lesson-plan-dialog').showModal()">Add/Edit Lesson Plan</button>
       <% } %>
+      <%# A real request: "Next to add a lesson plan button should be the
+          add a substitute plan button." %>
+      <a class="roster-action-btn" href="/teacher/classes/<%= cls.id %>/substitute-plan">Add/Edit Substitute Plan</a>
     </div>
     <% if (!lessonPlanId) { %>
       <dialog id="create-lesson-plan-dialog" class="member-picker-dialog">
