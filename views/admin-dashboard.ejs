@@ -64,6 +64,7 @@
 
     <%- include('partials/pending-requests-card', {
       viewAllHref: '/admin/lesson-plans/approval',
+      compact: true,
       items: [
         { icon: 'clipboard-list', color: 'blue', label: 'Lesson Plan Approvals', value: lessonApprovalsCount, href: '/admin/lesson-plans/approval' },
         { icon: 'coin', color: 'green', label: 'Teacher Reimbursements', value: reimbursementsCount, href: '/admin/teachers/reimbursements?status=submitted' },

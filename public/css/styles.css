@@ -16700,14 +16700,19 @@ dialog form:has(.permission-section) > h3,
 .mah-member:hover .mah-member-icon { background: var(--brand-soft); color: var(--brand-dark); }
 .mah-member-value { font-size: 1.3rem; font-weight: 700; line-height: 1.1; }
 .mah-member-label { font-size: 0.85rem; color: var(--ink); text-align: center; overflow-wrap: anywhere; }
-.mah-request-has @media (max-width: 480px) {
-  .mah-card { padding: 0.9rem 0.75rem 1rem; }
-  .mah-member { padding: 0.25rem 0.15rem; }
-  .mah-member-icon { width: 42px; height: 42px; }
-  .mah-member-icon .icon { width: 20px; height: 20px; }
-  .mah-member-value { font-size: 1.1rem; }
-  .mah-member-label { font-size: 0.72rem; }
-  }
+@media (max-width: 640px) {
+  .mah-card { padding: 0.8rem 0.6rem 0.85rem; }
+  .mah-card-header { gap: 0.45rem; }
+  .mah-card-header > .icon { width: 18px; height: 18px; }
+  .mah-card-header h2 { font-size: 1rem; }
+  .mah-viewall { font-size: 0.82rem; gap: 0.25rem; }
+  .mah-viewall .icon { width: 14px; height: 14px; }
+  .mah-member { gap: 0.15rem; padding: 0.15rem 0.1rem; }
+  .mah-member-icon { width: 34px; height: 34px; margin-bottom: 0.25rem; }
+  .mah-member-icon .icon { width: 16px; height: 16px; }
+  .mah-member-value { font-size: 0.95rem; }
+  .mah-member-label { font-size: 0.66rem; }
+}
 /* A real request: "This is how the class cards should look on the
    teacher portal homepage" - photo left, details right. */
 .teacher-class-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 1.25rem; margin-top: 0.75rem; }
@@ -16779,9 +16784,9 @@ dialog form:has(.permission-section) > h3,
 .mah-card-header-blue .mah-viewall:hover { color: #fff; }
 .mah-card-header-orange .mah-viewall:hover { color: var(--ink); text-decoration: underline; }
 .mah-card-header-blue .mah-viewall:hover { text-decoration: underline; }
-.mah-card-header-blue + @media (max-width: 480px) {
+@media (max-width: 640px) {
   .mah-card-header-orange,
-  .mah-card-header-blue { margin: -0.9rem -0.75rem 0.9rem; padding: 0.7rem 0.75rem; }
+  .mah-card-header-blue { margin: -0.8rem -0.6rem 0.75rem; padding: 0.6rem 0.7rem; }
 }
 /* A real request: "Family school management portal homepage. Each
    student card summary should look like this." */
@@ -16915,16 +16920,44 @@ dialog form:has(.permission-section) > h3,
 .pr-color-teal { background: #dcf1f3; color: #0f7c86; }
 .pr-color-gold { background: #fdf1d8; color: #d18a00; }
 @media (max-width: 640px) {
-  .pr-card { padding: 1rem 0.9rem 0.5rem; }
-  .pr-card-header { gap: 0.8rem; flex-wrap: wrap; }
-  .pr-card-header-icon { width: 60px; height: 60px; }
-  .pr-card-header-icon .icon { width: 26px; height: 26px; }
-  .pr-card-heading h2 { font-size: 1.3rem; }
-  .pr-card-heading p { font-size: 0.9rem; }
-  .pr-card-item-icon { width: 54px; height: 54px; }
-  .pr-card-item-icon .icon { width: 25px; height: 25px; }
-  .pr-card-item-label { font-size: 0.82rem; }
-  .pr-card-item { padding: 0.9rem 0.3rem 1rem; }
+  .pr-card { padding: 0.8rem 0.6rem 0.35rem; border-radius: 16px; }
+  .pr-card-header { gap: 0.6rem; margin-bottom: 0.25rem; }
+  .pr-card-header-icon { width: 40px; height: 40px; }
+  .pr-card-header-icon .icon { width: 19px; height: 19px; }
+  .pr-card-heading h2 { font-size: 1rem; }
+  .pr-card-heading p { font-size: 0.72rem; margin-top: 0.1rem; }
+  .pr-card-viewall { font-size: 0.82rem; gap: 0.25rem; }
+  .pr-card-viewall .icon { width: 14px; height: 14px; }
+  .pr-card-item { gap: 0.4rem; padding: 0.6rem 0.2rem 0.7rem; }
+  .pr-card-item-icon { width: 38px; height: 38px; }
+  .pr-card-item-icon .icon { width: 18px; height: 18px; }
+  .pr-card-item-label { font-size: 0.68rem; line-height: 1.25; }
+  .pr-card-count { top: -5px; right: -7px; min-width: 1.15rem; height: 1.15rem; line-height: 1.15rem; padding: 0 0.25rem; font-size: 0.62rem; }
+}
+/* Co-op Admin homepage: sized to match its other cards (Co-op Member
+   Counts, Today's Attendance - 480px wide, 20px header icon, 1.05rem
+   title, 30px row icons, 0.85rem labels). */
+.pr-card-compact { max-width: 480px; padding: 1.1rem 1.25rem 0.4rem; border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.pr-card-compact .pr-card-header { gap: 0.6rem; margin-bottom: 0.35rem; }
+.pr-card-compact .pr-card-header-icon { width: 34px; height: 34px; }
+.pr-card-compact .pr-card-header-icon .icon { width: 18px; height: 18px; }
+.pr-card-compact .pr-card-heading h2 { font-size: 1.05rem; }
+.pr-card-compact .pr-card-heading p { font-size: 0.75rem; margin-top: 0.1rem; }
+.pr-card-compact .pr-card-viewall { font-size: 0.85rem; gap: 0.25rem; }
+.pr-card-compact .pr-card-viewall .icon { width: 14px; height: 14px; }
+.pr-card-compact .pr-card-item { gap: 0.45rem; padding: 0.7rem 0.3rem 0.8rem; }
+.pr-card-compact .pr-card-item-icon { width: 40px; height: 40px; }
+.pr-card-compact .pr-card-item-icon .icon { width: 19px; height: 19px; }
+.pr-card-compact .pr-card-item-label { font-size: 0.8rem; line-height: 1.3; }
+.pr-card-compact .pr-card-count { top: -5px; right: -7px; min-width: 1.2rem; height: 1.2rem; line-height: 1.2rem; padding: 0 0.25rem; font-size: 0.65rem; }
+@media (max-width: 720px) {
+  .pr-card-compact { max-width: none; padding: 0.9rem 0.85rem 0.35rem; }
+  .pr-card-compact .pr-card-heading h2 { font-size: 0.95rem; }
+  .pr-card-compact .pr-card-heading p { font-size: 0.7rem; }
+  .pr-card-compact .pr-card-viewall { font-size: 0.78rem; }
+  .pr-card-compact .pr-card-item-icon { width: 34px; height: 34px; }
+  .pr-card-compact .pr-card-item-icon .icon { width: 16px; height: 16px; }
+  .pr-card-compact .pr-card-item-label { font-size: 0.68rem; }
 }
 /* Grade Level Awards (views/partials/grade-award.ejs, -builder.ejs) */
 .grade-award { display: block; width: 100%; height: auto; aspect-ratio: 1100 / 850; border-radius: 4px; background: #fff; }

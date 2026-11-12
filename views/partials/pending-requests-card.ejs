@@ -6,8 +6,10 @@
     Pending Requests box (lesson plan approvals, teacher reimbursements,
     name tag requests). A request type with something waiting shows its
     count on the corner of its icon circle.
-    Locals: items ([{ icon, color, label, value, href }]), viewAllHref. %>
-<section class="pr-card">
+    Locals: items ([{ icon, color, label, value, href }]), viewAllHref,
+    compact (optional - the Co-op Admin homepage's smaller size, to
+    match its other cards). %>
+<section class="pr-card<%= (typeof compact !== 'undefined' && compact) ? ' pr-card-compact' : '' %>">
   <div class="pr-card-header">
     <span class="pr-card-header-icon"><svg class="icon"><use href="#icon-hourglass"/></svg></span>
     <div class="pr-card-heading">
