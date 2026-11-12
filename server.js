@@ -273,6 +273,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.set('view engine', 'ejs');
+// Class times saved in 24-hour form print as "11:00 AM" - see utils/dates.js.
+app.locals.formatClockTime = require('./utils/dates').formatClockTime;
 // __dirname is correct for a normal `node server.js` run, but esbuild
 // bundles this whole file (and everything it requires) into one file
 // living at netlify/functions/app.js for the Netlify deployment - at

@@ -469,7 +469,25 @@ function closestUpcomingDate(dates, today) {
   return upcoming[0] || null;
 }
 
+// A real request: "Class times should show am and pm." Some class times
+// were saved in 24-hour form ("11:00", "13:30" - Bulk Edit's time picker),
+// and printed as-is. Turns those into "11:00 AM"/"1:30 PM"; anything that
+// already has AM/PM (or isn't a plain HH:MM) is returned unchanged.
+function formatClockTime(value) {
+  if (value == null) return value;
+  const text = String(value).trim();
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(text);
+  if (!m) return text;
+  let hour = parseInt(m[1], 10);
+  if (hour > 23) return text;
+  const period = hour >= 12 ? 'PM' : 'AM';
+  hour %= 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${m[2]} ${period}`;
+}
+
 module.exports = {
+  formatClockTime,
   todayISO,
   nowEasternMinutes,
   addDays,

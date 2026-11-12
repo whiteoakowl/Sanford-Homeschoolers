@@ -100,10 +100,10 @@
                 row." %>
             <div class="member-form-full class-edit-slots-row">
               <label>Start Time
-                <input type="text" name="startTime" value="<%= cls.start_time || '' %>" placeholder="9:00 AM" />
+                <input type="text" name="startTime" value="<%= formatClockTime(cls.start_time) || '' %>" placeholder="9:00 AM" />
               </label>
               <label>End Time
-                <input type="text" name="endTime" value="<%= cls.end_time || '' %>" placeholder="10:00 AM" />
+                <input type="text" name="endTime" value="<%= formatClockTime(cls.end_time) || '' %>" placeholder="10:00 AM" />
               </label>
             </div>
 

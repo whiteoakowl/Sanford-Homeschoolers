@@ -28,9 +28,29 @@
         report already called out once on a different page: ".parent-
         home-main .roster-action-btn" needed flex-grow: 0 for the same
         reason). %>
+    <%# A real request: "There should be a button called add/edit lesson
+        plan next to edit class button" - opens the class's lesson plan,
+        or asks to create one when there isn't one yet. %>
     <div class="roster-btn-row no-print">
       <a class="roster-action-btn" href="/teacher/classes/<%= cls.id %>/edit">Edit Class</a>
+      <% if (lessonPlanId) { %>
+        <a class="roster-action-btn" href="/teacher/classes/<%= cls.id %>/lesson-plan">Add/Edit Lesson Plan</a>
+      <% } else { %>
+        <button type="button" class="roster-action-btn" onclick="document.getElementById('create-lesson-plan-dialog').showModal()">Add/Edit Lesson Plan</button>
+      <% } %>
     </div>
+    <% if (!lessonPlanId) { %>
+      <dialog id="create-lesson-plan-dialog" class="member-picker-dialog">
+        <form method="POST" action="/teacher/classes/<%= cls.id %>/lesson-plan">
+          <h3>No Lesson Plan Yet</h3>
+          <p>There is no lesson plan for this class. Would you like to create a new one?</p>
+          <div class="notes-dialog-actions">
+            <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+            <button type="submit" class="primary-btn">Yes</button>
+          </div>
+        </form>
+      </dialog>
+    <% } %>
 
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
 

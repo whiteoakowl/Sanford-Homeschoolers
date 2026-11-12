@@ -43,7 +43,7 @@
         <p><span class="class-roster-print-label">Room:</span> <%= cls.room || '—' %></p>
         <p>
           <span class="class-roster-print-label">Time:</span>
-          <%= dayLabel %><% if (cls.start_time) { %>, <%= cls.start_time %><% if (cls.end_time) { %>&ndash;<%= cls.end_time %><% } %><% } %>
+          <%= dayLabel %><% if (cls.start_time) { %>, <%= formatClockTime(cls.start_time) %><% if (cls.end_time) { %>&ndash;<%= formatClockTime(cls.end_time) %><% } %><% } %>
         </p>
         <p><span class="class-roster-print-label">Teacher:</span> <%= teachers.length ? teachers.join(', ') : '—' %></p>
         <p><span class="class-roster-print-label">Assistants:</span> <%= assistants.length ? assistants.join(', ') : '—' %></p>

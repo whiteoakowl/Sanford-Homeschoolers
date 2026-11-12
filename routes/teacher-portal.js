@@ -21,6 +21,7 @@ const {
   classImageUrl,
   formatGradeRange,
   ensureDayRoster,
+  updateClassTeacherFields,
 } = require('../utils/classSchedule');
 const { CLASS_DAY_ORDER, CLASS_DAY_LABELS_FULL } = require('../utils/classDays');
 const { renderViewToPdf } = require('../utils/pdfRender');
@@ -52,7 +53,6 @@ const {
 } = require('../utils/academics');
 const { formatDateLabel, formatFriendlyTimestamp, todayISO, formatDateLong } = require('../utils/dates');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
-const { byLastName } = require('../utils/members');
 const { instructorProfile, saveInstructorProfile } = require('../utils/instructorProfiles');
 const { buildRosterGridData } = require('../utils/rosterGrid');
 const { lessonAttachmentFileFilter } = require('../utils/uploads');
@@ -338,7 +338,8 @@ router.get('/classes/:id', requirePortalPermission('view_teacher_classes'), asyn
           createdAtLabel: formatFriendlyTimestamp(m.created_at),
         }))
       : [];
-  res.render('teacher-class-detail', { title: cls.class_name, cls, tab, lessons, chatMessages, notice: req.query.notice || null });
+  const lessonPlanId = await classLessonPlanId(cls.id);
+  res.render('teacher-class-detail', { title: cls.class_name, cls, tab, lessons, chatMessages, lessonPlanId, notice: req.query.notice || null });
 });
 
 router.post('/classes/:id/chat', requirePortalPermission('view_teacher_classes'), async (req, res) => {
@@ -383,44 +384,132 @@ router.get('/content/:id', requirePortalPermission('view_teacher_assignments'), 
   res.render('teacher-lesson-content', { title: item.title || 'Assignment', cls, lesson, item, nextItem, nextItemHref });
 });
 
-// The old roster + assignment-management page, now reached via its own
-// "Edit Class" button instead of being what clicking a class lands on.
-router.get('/classes/:id/edit', requirePortalPermission('view_teacher_classes'), async (req, res) => {
+async function ownClassForTeacher(req) {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
-  const cls = classes.find((c) => c.id === parseInt(req.params.id, 10));
-  if (!cls) {
-    return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
+  return classes.find((c) => c.id === parseInt(req.params.id, 10)) || null;
+}
+
+function notYourClass(res) {
+  return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
+}
+
+// A real request: "Edit class button shows class time, day, room, cost in
+// a clean list. Allows teacher to change title, description, supply
+// list." Lesson plans moved to their own Add/Edit Lesson Plan button.
+router.get('/classes/:id/edit', requirePortalPermission('view_teacher_classes'), async (req, res) => {
+  const cls = await ownClassForTeacher(req);
+  if (!cls) return notYourClass(res);
+  res.render('teacher-class-edit', { title: `Edit ${cls.class_name}`, cls, error: req.query.error || null, notice: req.query.notice || null });
+});
+
+router.post('/classes/:id/edit', requirePortalPermission('view_teacher_classes'), async (req, res) => {
+  const cls = await ownClassForTeacher(req);
+  if (!cls) return notYourClass(res);
+  const back = `/teacher/classes/${cls.id}/edit`;
+  const className = (req.body.className || '').trim();
+  if (!className) return res.redirect(back + '?error=' + encodeURIComponent('A class title is required.'));
+  await updateClassTeacherFields(cls.id, {
+    className,
+    description: sanitizePostBody(req.body.description || ''),
+    supplyList: (req.body.supplyList || '').trim(),
+  });
+  res.redirect(back + '?notice=' + encodeURIComponent('Class updated.'));
+});
+
+// A real request: "Add/edit lesson plan - if a lesson plan exists it will
+// open the lesson plan to edit. If no lesson plan exists there will be a
+// pop up that says there is no lesson plan for this class. Would you like
+// to create a new one?" Then: "The page should have a button called add
+// lesson... Click save and it becomes a bar on the screen. Click the bar
+// and below it shows add assignments button..." A class's lesson plan is
+// all of its lessons; each lesson holds its assignments. Lessons stay
+// drafts until the teacher clicks Submit for Admin Approval, then show
+// on the admins' Lesson Plan Approval log, and are published to the
+// class once approved.
+async function classLessonPlanId(classId) {
+  const lessons = await assignmentsForClass(classId);
+  return lessons.length ? lessons[0].id : null;
+}
+
+// "Yes" on the no-lesson-plan popup - opens the (empty) Lesson Plan page
+// to add the first lesson.
+router.post('/classes/:id/lesson-plan', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
+  const cls = await ownClassForTeacher(req);
+  if (!cls) return notYourClass(res);
+  res.redirect(`/teacher/classes/${cls.id}/lesson-plan?notice=` + encodeURIComponent('Click Add Lesson to add the first lesson.'));
+});
+
+router.get('/classes/:id/lesson-plan{/:lessonId}', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
+  const cls = await ownClassForTeacher(req);
+  if (!cls) return notYourClass(res);
+  const openLessonId = req.params.lessonId ? parseInt(req.params.lessonId, 10) : null;
+  const lessons = [];
+  for (const lesson of await assignmentsForClass(cls.id)) {
+    const contentItems = (await contentItemsForAssignment(lesson.id, { includeAnswerKey: true })).map((item) => ({
+      ...item,
+      dueDateLabel: item.due_date ? formatDateLabel(item.due_date) : null,
+    }));
+    lessons.push({
+      ...lesson,
+      contentItems,
+      openDateLabel: lesson.open_date ? formatDateLabel(lesson.open_date) : null,
+      closeDateLabel: lesson.close_date ? formatDateLabel(lesson.close_date) : null,
+      lessonPlanBlock: await teacherLessonPlanBlock(lesson),
+    });
   }
-  const students = (
-    await db.prepare(`SELECT m.* FROM class_enrollments ce JOIN members m ON m.id = ce.student_id WHERE ce.class_id = ?`).all(cls.id)
-  ).sort(byLastName);
-  const assignments = (await assignmentsForClass(cls.id)).map((a) => ({ ...a, dueDateLabel: a.due_date ? formatDateLabel(a.due_date) : null }));
-  res.render('teacher-roster', { title: cls.class_name, cls, students, assignments, error: req.query.error || null, notice: req.query.notice || null });
+  res.render('teacher-lesson-plan', {
+    title: `${cls.class_name} Lesson Plan`,
+    cls,
+    lessons,
+    openLessonId,
+    canSubmit: lessons.some((l) => l.approval_status === 'draft' || l.approval_status === 'rejected'),
+    notice: req.query.notice || null,
+    error: req.query.error || null,
+  });
+});
+
+// One Submit for Admin Approval for the whole plan: every draft or
+// rejected lesson goes to the admins' approval log.
+router.post('/classes/:id/lesson-plan/submit', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
+  const cls = await ownClassForTeacher(req);
+  if (!cls) return notYourClass(res);
+  const back = `/teacher/classes/${cls.id}/lesson-plan`;
+  let count = 0;
+  for (const lesson of await assignmentsForClass(cls.id)) {
+    if (lesson.approval_status === 'draft' || lesson.approval_status === 'rejected') {
+      if (await submitAssignmentForApproval(lesson.id, req.portalAccount.id)) count += 1;
+    }
+  }
+  if (!count) return res.redirect(back + '?error=' + encodeURIComponent('There are no draft or rejected lessons to submit.'));
+  res.redirect(back + '?notice=' + encodeURIComponent(`Submitted ${count} lesson${count === 1 ? '' : 's'} for admin approval. Students will see ${count === 1 ? 'it' : 'them'} once approved.`));
 });
 
 router.post('/classes/:id/assignments', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const classes = await classesForTeacher(member);
   const cls = classes.find((c) => c.id === parseInt(req.params.id, 10));
-  const back = `/teacher/classes/${req.params.id}/edit`;
+  // A real request: the Lesson Plan page's "Add Lesson" popup saves here
+  // and the new lesson shows as an open bar on that page.
+  const back = `/teacher/classes/${req.params.id}/lesson-plan`;
   if (!cls) {
     return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
   }
   const title = (req.body.title || '').trim();
-  if (!title) return res.redirect(back + '?error=' + encodeURIComponent('An assignment title is required.'));
-  await createAssignment({
+  if (!title) return res.redirect(back + '?error=' + encodeURIComponent('A lesson title is required.'));
+  const id = await createAssignment({
     classId: cls.id,
     className: cls.class_name,
     title,
     description: (req.body.description || '').trim(),
     dueDate: req.body.dueDate || null,
     openDate: req.body.openDate || null,
+    closeDate: req.body.closeDate || null,
     pointsPossible: req.body.pointsPossible ? parseInt(req.body.pointsPossible, 10) : null,
     createdByAccountId: req.portalAccount.id,
     approvalStatus: 'draft',
   });
-  res.redirect(back + '?notice=' + encodeURIComponent(`"${title}" added as a draft. Submit it for approval when it's ready for students.`));
+  res.redirect(`${back}/${id}?notice=` + encodeURIComponent(`"${title}" added. Click Add Assignments to build it.`));
 });
 
 router.post('/classes/:id/assignments/reorder', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
@@ -464,8 +553,8 @@ router.post('/assignments/:id/edit', requirePortalPermission('view_teacher_assig
   if (!cls) {
     return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
   }
-  if (await blockLessonPlanEdit(res, assignment)) return;
-  const back = `/teacher/assignments/${assignmentId}`;
+  if (await blockLessonPlanEdit(res, assignment, req)) return;
+  const back = lessonBack(req, assignmentId);
   const title = (req.body.title || '').trim();
   if (!title) return res.redirect(back + '?error=' + encodeURIComponent('A lesson title is required.'));
   await updateAssignment(assignmentId, {
@@ -513,11 +602,20 @@ async function assignmentForTeacher(req, assignmentId) {
 // allows teacher edits and isn't locked - see utils/lessonPlans.js's own
 // teacherLessonPlanBlock. Redirects back with the reason and returns true
 // when the edit isn't allowed.
-async function blockLessonPlanEdit(res, assignment) {
+async function blockLessonPlanEdit(res, assignment, req) {
   const reason = await teacherLessonPlanBlock(assignment);
   if (!reason) return false;
-  res.redirect(`/teacher/assignments/${assignment.id}?error=` + encodeURIComponent(reason));
+  res.redirect(lessonBack(req, assignment.id) + '?error=' + encodeURIComponent(reason));
   return true;
+}
+
+// Where a lesson/assignment form goes back to: the class Lesson Plan page
+// (with that lesson's bar open) when it was submitted from there, else the
+// lesson's own page. Only ever a Lesson Plan page path - never an
+// arbitrary posted URL.
+function lessonBack(req, assignmentId) {
+  const returnTo = req && req.body ? String(req.body.returnTo || '') : '';
+  return /^\/teacher\/classes\/\d+\/lesson-plan(\/\d+)?$/.test(returnTo) ? returnTo : `/teacher/assignments/${assignmentId}`;
 }
 
 async function contentItemForTeacher(req, contentItemId) {
@@ -550,8 +648,8 @@ router.post('/assignments/:id/content', requirePortalPermission('view_teacher_as
   const assignmentId = parseInt(req.params.id, 10);
   const found = await assignmentForTeacher(req, assignmentId);
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
-  if (await blockLessonPlanEdit(res, found.assignment)) return;
-  const back = `/teacher/assignments/${assignmentId}`;
+  if (await blockLessonPlanEdit(res, found.assignment, req)) return;
+  const back = lessonBack(req, assignmentId);
   const type = req.body.type;
   if (!LESSON_CONTENT_TYPES.includes(type)) return res.redirect(back + '?error=' + encodeURIComponent('Choose a content type.'));
 
@@ -607,9 +705,9 @@ router.post('/assignments/:id/content', requirePortalPermission('view_teacher_as
 router.post('/content/:id/edit', requirePortalPermission('view_teacher_assignments'), uploadLessonAttachment, async (req, res) => {
   const found = await contentItemForTeacher(req, parseInt(req.params.id, 10));
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
-  if (await blockLessonPlanEdit(res, found.assignment)) return;
+  if (await blockLessonPlanEdit(res, found.assignment, req)) return;
   const contentItem = found.contentItem;
-  const back = `/teacher/assignments/${found.assignment.id}`;
+  const back = lessonBack(req, found.assignment.id);
   const type = contentItem.type;
 
   let attachmentUrl = contentItem.attachment_url;
@@ -643,9 +741,9 @@ router.post('/content/:id/edit', requirePortalPermission('view_teacher_assignmen
 router.post('/content/:id/delete', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const found = await contentItemForTeacher(req, parseInt(req.params.id, 10));
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
-  if (await blockLessonPlanEdit(res, found.assignment)) return;
+  if (await blockLessonPlanEdit(res, found.assignment, req)) return;
   await deleteContentItem(found.contentItem.id);
-  res.redirect(`/teacher/assignments/${found.assignment.id}?notice=` + encodeURIComponent('Content removed.'));
+  res.redirect(lessonBack(req, found.assignment.id) + '?notice=' + encodeURIComponent('Content removed.'));
 });
 
 // Mirrors routes/admin-class-schedule.js's own content/:id/submissions
@@ -715,7 +813,7 @@ router.get('/content/:id/questions', requirePortalPermission('view_teacher_assig
 router.post('/content/:id/questions', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const found = await contentItemForTeacher(req, parseInt(req.params.id, 10));
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
-  if (await blockLessonPlanEdit(res, found.assignment)) return;
+  if (await blockLessonPlanEdit(res, found.assignment, req)) return;
   const back = `/teacher/assignments/${found.assignment.id}`;
   const type = req.body.type === 'short_answer' ? 'short_answer' : 'multiple_choice';
   const prompt = (req.body.prompt || '').trim();
@@ -741,7 +839,7 @@ router.post('/questions/:id/delete', requirePortalPermission('view_teacher_assig
   if (!question) return res.status(404).send('Not found');
   const found = await assignmentForTeacher(req, question.assignment_id);
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
-  if (await blockLessonPlanEdit(res, found.assignment)) return;
+  if (await blockLessonPlanEdit(res, found.assignment, req)) return;
   await deleteQuizQuestion(questionId);
   res.redirect(`/teacher/assignments/${found.assignment.id}?notice=` + encodeURIComponent('Question removed.'));
 });

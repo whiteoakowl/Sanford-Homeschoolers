@@ -31,7 +31,7 @@ const {
   formatGradeRange,
 } = require('../utils/classSchedule');
 const { CLASS_DAY_ORDER } = require('../utils/classDays');
-const { formatFriendlyTimestamp } = require('../utils/dates');
+const { formatFriendlyTimestamp, formatClockTime } = require('../utils/dates');
 const {
   assignmentsForStudent,
   assignmentsForStudentInClass,
@@ -320,7 +320,7 @@ router.get('/classes/export.csv', requirePortalPermission('view_student_classes'
   classList.forEach((cls) => {
     lines.push(toCsvRow([
       cls.class_name,
-      `${cls.start_time || ''}-${cls.end_time || ''}`,
+      `${formatClockTime(cls.start_time) || ''}-${formatClockTime(cls.end_time) || ''}`,
       cls.room || '',
       cls.gradeLabel || '',
       cls.teacherNames.join('; '),

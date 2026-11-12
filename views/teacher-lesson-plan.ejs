@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Co-op Teacher Portal' }) %>
+
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p class="subtitle no-print"><a href="/teacher/classes/<%= cls.id %>">&larr; Back to <%= cls.class_name %></a></p>
+    <h1><%= cls.class_name %> Lesson Plan</h1>
+
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+    <%# A real request: "The page should have a button called add lesson.
+        Popup... title, description, dates etc. Click save and it becomes a
+        bar on the screen. Click the bar and below it shows add assignments
+        button to create assignments for that lesson and see the
+        assignments created for that lesson." Each lesson is a <details>
+        bar; opening it shows that lesson's own assignments editor. %>
+    <div class="roster-btn-row no-print">
+      <button type="button" class="roster-action-btn" onclick="document.getElementById('add-lesson-dialog').showModal()">+ Add Lesson</button>
+      <% if (canSubmit) { %>
+        <form method="POST" action="/teacher/classes/<%= cls.id %>/lesson-plan/submit">
+          <button type="submit" class="roster-action-btn">Submit for Admin Approval</button>
+        </form>
+      <% } %>
+    </div>
+    <p class="hint">Lessons stay in Draft until you click Submit for Admin Approval. An admin reviews them on the Lesson Plan Approval log, and each lesson is published to the class once it's approved.</p>
+
+    <% if (lessons.length === 0) { %>
+      <p class="roster-empty">No lessons yet. Click Add Lesson to add the first one.</p>
+    <% } %>
+
+    <div class="lesson-plan-bars">
+      <% lessons.forEach(function(lesson) { %>
+        <% var returnTo = '/teacher/classes/' + cls.id + '/lesson-plan/' + lesson.id; %>
+        <details class="lesson-plan-bar" id="lesson-<%= lesson.id %>" <%= openLessonId === lesson.id ? 'open' : '' %>>
+          <summary>
+            <span class="lesson-plan-bar-title"><%= lesson.title %></span>
+            <span class="lesson-plan-bar-meta">
+              <%- include('partials/lesson-approval-badge', { status: lesson.approval_status }) %>
+              <span class="hint"><%= lesson.contentItems.length %> assignment<%= lesson.contentItems.length === 1 ? '' : 's' %></span>
+              <% if (lesson.openDateLabel || lesson.closeDateLabel) { %>
+                <span class="hint"><%= lesson.openDateLabel || '' %><% if (lesson.closeDateLabel) { %> &ndash; <%= lesson.closeDateLabel %><% } %></span>
+              <% } %>
+            </span>
+          </summary>
+          <div class="lesson-plan-bar-body">
+            <% if (lesson.approval_status === 'rejected' && lesson.review_note) { %>
+              <div class="alert alert-error"><strong>Rejected by a Co-op Admin</strong><div class="plain-text-display"><%= lesson.review_note %></div></div>
+            <% } %>
+            <% if (lesson.description) { %><p class="hint plain-text-display"><%= lesson.description %></p><% } %>
+            <% if (lesson.lessonPlanBlock) { %>
+              <div class="alert alert-info"><%= lesson.lessonPlanBlock %></div>
+              <%- include('partials/lesson-plan-content-readonly', { contentItems: lesson.contentItems }) %>
+            <% } else { %>
+              <div class="roster-btn-row no-print">
+                <button type="button" class="roster-action-btn" onclick="document.getElementById('edit-lesson-dialog-<%= lesson.id %>').showModal()">Edit Lesson</button>
+                <a class="roster-action-btn" href="/teacher/assignments/<%= lesson.id %>">Grades &amp; Submissions</a>
+              </div>
+              <%- include('partials/lesson-content-manage', { basePath: '/teacher', assignment: lesson, contentItems: lesson.contentItems, showDetails: false, idSuffix: lesson.id, returnTo, includeScripts: false }) %>
+              <dialog id="edit-lesson-dialog-<%= lesson.id %>" class="member-picker-dialog dialog-label-stack">
+                <form method="POST" action="/teacher/assignments/<%= lesson.id %>/edit" class="member-form-grid">
+                  <input type="hidden" name="returnTo" value="<%= returnTo %>" />
+                  <h3>Edit Lesson</h3>
+                  <label class="member-form-full">Title
+                    <input type="text" name="title" value="<%= lesson.title %>" required />
+                  </label>
+                  <label class="member-form-full">Description
+                    <textarea name="description" rows="3"><%= lesson.description || '' %></textarea>
+                  </label>
+                  <label>Open Date
+                    <input type="date" name="openDate" value="<%= lesson.open_date || '' %>" />
+                  </label>
+                  <label>Close Date <span class="hint">(optional)</span>
+                    <input type="date" name="closeDate" value="<%= lesson.close_date || '' %>" />
+                  </label>
+                  <div class="notes-dialog-actions">
+                    <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+                    <button type="submit" class="primary-btn">Save</button>
+                  </div>
+                </form>
+              </dialog>
+            <% } %>
+          </div>
+        </details>
+      <% }); %>
+    </div>
+
+    <dialog id="add-lesson-dialog" class="member-picker-dialog dialog-label-stack">
+      <form method="POST" action="/teacher/classes/<%= cls.id %>/assignments" class="member-form-grid">
+        <h3>Add Lesson</h3>
+        <label class="member-form-full">Title
+          <input type="text" name="title" required />
+        </label>
+        <label class="member-form-full">Description
+          <textarea name="description" rows="3"></textarea>
+        </label>
+        <label>Open Date
+          <input type="date" name="openDate" />
+        </label>
+        <label>Close Date <span class="hint">(optional)</span>
+          <input type="date" name="closeDate" />
+        </label>
+        <div class="notes-dialog-actions">
+          <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+          <button type="submit" class="primary-btn">Save</button>
+        </div>
+      </form>
+    </dialog>
+  </main>
+  <script src="/js/lesson-drag-reorder.js"></script>
+  <script src="/js/lesson-content-form.js"></script>
+  <script src="/js/assignment-upload-word-count.js"></script>
+  <script src="/js/forum-editor.js"></script>
+</body>
+</html>

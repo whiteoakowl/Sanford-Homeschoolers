@@ -19,7 +19,7 @@ const { getListByDay, sectionsForList, membersForList, removeMemberFromSection, 
 const { byLastName } = require('./members');
 const { amountPaidForCharge, cancelCharge } = require('./payments');
 const { createStorageClient, publicUrl } = require('./storage');
-const { formatDateLabel, formatTime } = require('./dates');
+const { formatDateLabel, formatTime, formatClockTime } = require('./dates');
 
 // A real request: "sql editor copy paste should be for event photo,
 // class photo and shop photo" - one shared helper so every portal's own
@@ -810,6 +810,13 @@ async function createClass(fields) {
   const id = info.lastInsertRowid;
   await ensureClassRoster(id);
   return id;
+}
+
+// A real request: teachers may change only their class's title,
+// description and supply list (Teacher Portal > Edit Class) - everything
+// else (day, time, room, cost, ...) stays admin-only.
+async function updateClassTeacherFields(id, { className, description, supplyList }) {
+  await db.prepare('UPDATE classes SET class_name = ?, description = ?, supply_list = ? WHERE id = ?').run(className, description || null, supplyList || null, id);
 }
 
 async function updateClass(id, fields) {
@@ -2546,7 +2553,7 @@ async function rawHourLabel(day, position, semesterId = null) {
 // effectiveClassRange's own comment on the same fix already made for
 // Arrival/Departure and the Schedule Card).
 async function timeRangeForClass(cls) {
-  if (cls.start_time && cls.end_time) return `${cls.start_time} - ${cls.end_time}`;
+  if (cls.start_time && cls.end_time) return `${formatClockTime(cls.start_time)} - ${formatClockTime(cls.end_time)}`;
   const hour = (await hoursForClass(cls)).find((h) => h.position === cls.hour_position);
   const range = effectiveClassRange(cls, hour ? { [cls.hour_position]: hour } : {});
   return rangeToLabel(range) || (await rawHourLabel(cls.day, cls.hour_position, classSemesterKey(cls)));
@@ -2599,7 +2606,7 @@ async function liveMemberScheduleRowsForDay(day) {
   for (const cls of classes) {
     const range = effectiveClassRange(cls, hoursOfClass(cls));
     const time = (cls.start_time && cls.end_time)
-      ? `${cls.start_time} - ${cls.end_time}`
+      ? `${formatClockTime(cls.start_time)} - ${formatClockTime(cls.end_time)}`
       : rangeToLabel(range) || (await rawHourLabel(day, cls.hour_position, classSemesterKey(cls)));
     const staff = await staffForClass(cls.id);
     const teacherNames = staff.filter((s) => s.role === 'teacher').map((s) => s.name).join(', ');
@@ -2681,7 +2688,7 @@ async function syncMemberSchedulesForDay(day) {
   const hoursOfClass = await hourMapsForClasses(day, classes);
   for (const cls of classes) {
     const time = (cls.start_time && cls.end_time)
-      ? `${cls.start_time} - ${cls.end_time}`
+      ? `${formatClockTime(cls.start_time)} - ${formatClockTime(cls.end_time)}`
       : rangeToLabel(effectiveClassRange(cls, hoursOfClass(cls))) || (await rawHourLabel(day, cls.hour_position, classSemesterKey(cls)));
     const staff = await staffForClass(cls.id);
     const teacherNames = staff.filter((s) => s.role === 'teacher').map((s) => s.name).join(', ');
@@ -2755,6 +2762,7 @@ module.exports = {
   colorForClassName,
   updateClass,
   bulkUpdateClasses,
+  updateClassTeacherFields,
   setClassImage,
   classImageUrl,
   CLASS_IMAGES_BUCKET,

@@ -106,7 +106,7 @@
         <span class="class-view-info-label">Day &amp; Time</span>
         <strong class="class-view-info-value">
           <%= dayLabels[cls.day] || cls.day %>
-          <% if (cls.start_time || cls.end_time) { %><br /><%= cls.start_time || '?' %>&ndash;<%= cls.end_time || '?' %><% } %>
+          <% if (cls.start_time || cls.end_time) { %><br /><%= formatClockTime(cls.start_time) || '?' %>&ndash;<%= formatClockTime(cls.end_time) || '?' %><% } %>
         </strong>
       </div>
     </div>

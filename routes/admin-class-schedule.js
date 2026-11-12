@@ -7,7 +7,7 @@ const db = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
 const { memberForAccount } = require('../utils/portalAuth');
-const { ageFromBirthday, formatFriendlyTimestamp, formatDateNumeric, formatDateLabel, isValidISODate } = require('../utils/dates');
+const { ageFromBirthday, formatFriendlyTimestamp, formatDateNumeric, formatDateLabel, isValidISODate, formatClockTime } = require('../utils/dates');
 const { qsSemester, comboSemesterId } = require('../utils/scheduleComboLinks');
 const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
 const {
@@ -1074,8 +1074,10 @@ router.post('/class-schedule/:day/bulk-edit', requireFullAdmin, async (req, res)
   if ((req.body.room || '').trim()) patch.room = req.body.room.trim();
   const bulkHour = parseInt(req.body.hourPosition, 10);
   if (HOUR_POSITIONS.includes(bulkHour)) patch.hourPosition = bulkHour;
-  if ((req.body.startTime || '').trim()) patch.startTime = req.body.startTime.trim();
-  if ((req.body.endTime || '').trim()) patch.endTime = req.body.endTime.trim();
+  // The time picker sends 24-hour "13:30"; saved as "1:30 PM" like every
+  // other class time.
+  if ((req.body.startTime || '').trim()) patch.startTime = formatClockTime(req.body.startTime);
+  if ((req.body.endTime || '').trim()) patch.endTime = formatClockTime(req.body.endTime);
   if ((req.body.startDate || '').trim()) patch.startDate = req.body.startDate.trim();
   if ((req.body.endDate || '').trim()) patch.endDate = req.body.endDate.trim();
   if ((req.body.description || '').trim()) patch.description = sanitizePostBody(req.body.description);

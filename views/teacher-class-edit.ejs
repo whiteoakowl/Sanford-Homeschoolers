@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Co-op Teacher Portal' }) %>
+
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p class="subtitle no-print"><a href="/teacher/classes/<%= cls.id %>">&larr; Back to <%= cls.class_name %></a></p>
+    <h1>Edit <%= cls.class_name %></h1>
+
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+    <%# A real request: teachers change only the title, description and
+        supply list here (the Class Info list was later removed). %>
+    <div class="manage-section">
+      <div class="grid-box-header"><h2>Class Details</h2></div>
+      <form method="POST" action="/teacher/classes/<%= cls.id %>/edit" class="member-form-grid" data-forum-editor-form>
+        <label class="member-form-full">Title
+          <input type="text" name="className" value="<%= cls.class_name %>" required />
+        </label>
+        <div class="member-form-full" data-forum-editor>
+          <label>Description</label>
+          <%- include('partials/forum-editor-toolbar') %>
+          <div class="forum-editable" data-forum-editable contenteditable="true"><%- cls.description || '' %></div>
+          <input type="hidden" name="description" data-forum-body-input />
+        </div>
+        <label class="member-form-full">Supply List
+          <textarea name="supplyList" rows="4"><%= cls.supply_list || '' %></textarea>
+        </label>
+        <div class="member-form-full">
+          <button type="submit" class="primary-btn">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </main>
+  <script src="/js/forum-editor.js"></script>
+</body>
+</html>

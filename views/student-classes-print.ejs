@@ -49,7 +49,7 @@
         <tbody>
           <% classList.forEach(function(cls) { %>
             <tr>
-              <td><%= cls.start_time || '?' %>&ndash;<%= cls.end_time || '?' %></td>
+              <td><%= formatClockTime(cls.start_time) || '?' %>&ndash;<%= formatClockTime(cls.end_time) || '?' %></td>
               <td><%= cls.class_name %></td>
               <td><%= cls.room || '—' %></td>
               <td><%= cls.gradeLabel || '—' %></td>

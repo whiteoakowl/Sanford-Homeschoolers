@@ -2,7 +2,19 @@
     different links and activities" from a real request, shared between
     Co-op Admin's own lesson page and Co-op Teacher Portal's own lesson page so
     the two don't drift. basePath is '/admin/class-schedule' or
-    '/teacher'; assignment/contentItems come from the including page. %>
+    '/teacher'; assignment/contentItems come from the including page.
+    Optional (Teacher Portal's class Lesson Plan page shows several
+    lessons, each as its own bar): showDetails=false hides the Lesson
+    Details form, idSuffix keeps each lesson's dialog ids unique,
+    returnTo sends every form back to that page, includeScripts=false
+    when the page loads the scripts once itself. %>
+<%
+var lcmShowDetails = typeof showDetails === 'undefined' || showDetails;
+var lcmSuffix = typeof idSuffix !== 'undefined' && idSuffix ? '-' + idSuffix : '';
+var lcmReturnTo = typeof returnTo !== 'undefined' && returnTo ? returnTo : '';
+var lcmScripts = typeof includeScripts === 'undefined' || includeScripts;
+%>
+<% if (lcmShowDetails) { %>
 <div class="manage-section" id="lesson-details">
   <div class="grid-box-header">
     <h2>Lesson Details</h2>
@@ -30,6 +42,7 @@
     </div>
   </form>
 </div>
+<% } %>
 
 <div class="manage-section">
   <%# A real request: "lesson content says assignments" - renamed from
@@ -44,7 +57,7 @@
         inline "Add Assignments" card at the bottom of this section, same
         pattern views/admin-class-schedule-manage.ejs's own "+ New
         Lesson" button/dialog already established. %>
-    <button type="button" class="roster-action-btn" onclick="document.getElementById('add-content-dialog').showModal()">+ Add Assignments</button>
+    <button type="button" class="roster-action-btn" onclick="document.getElementById('add-content-dialog<%= lcmSuffix %>').showModal()">+ Add Assignments</button>
   </div>
   <% if (contentItems.length === 0) { %>
     <p class="roster-empty">No assignments added yet.</p>
@@ -123,6 +136,7 @@
                   <% } %>
                   <button type="button" class="icon-btn" onclick="document.getElementById('edit-content-dialog-<%= item.id %>').showModal()" aria-label="Edit <%= item.title || 'assignment' %>" title="Edit"><svg class="icon"><use href="#icon-edit"/></svg></button>
                   <form method="POST" action="<%= basePath %>/content/<%= item.id %>/delete" onsubmit="return confirm('Remove this assignment?');" class="inline-block-form">
+                    <% if (lcmReturnTo) { %><input type="hidden" name="returnTo" value="<%= lcmReturnTo %>" /><% } %>
                     <button type="submit" class="icon-btn icon-btn-danger" aria-label="Delete <%= item.title || 'assignment' %>" title="Delete"><svg class="icon"><use href="#icon-trash"/></svg></button>
                   </form>
                 </div>
@@ -141,6 +155,7 @@
     <% contentItems.forEach(function(item) { %>
       <dialog id="edit-content-dialog-<%= item.id %>" class="member-picker-dialog dialog-label-stack">
         <form method="POST" action="<%= basePath %>/content/<%= item.id %>/edit" enctype="multipart/form-data">
+          <% if (lcmReturnTo) { %><input type="hidden" name="returnTo" value="<%= lcmReturnTo %>" /><% } %>
           <h3>Edit Assignment</h3>
           <label>Title
             <input type="text" name="title" value="<%= item.title || '' %>" />
@@ -199,8 +214,9 @@
     <% }); %>
   <% } %>
 
-  <dialog id="add-content-dialog" class="member-picker-dialog dialog-label-stack">
+  <dialog id="add-content-dialog<%= lcmSuffix %>" class="member-picker-dialog dialog-label-stack">
     <form method="POST" action="<%= basePath %>/assignments/<%= assignment.id %>/content" enctype="multipart/form-data" class="member-form-grid" data-toggle-form>
+      <% if (lcmReturnTo) { %><input type="hidden" name="returnTo" value="<%= lcmReturnTo %>" /><% } %>
       <h3>Add Assignments</h3>
       <label class="member-form-full">Type
         <select name="type" data-toggle-select>
@@ -293,6 +309,8 @@
     </form>
   </dialog>
 </div>
+<% if (lcmScripts) { %>
 <script src="/js/lesson-drag-reorder.js"></script>
 <script src="/js/lesson-content-form.js"></script>
 <script src="/js/assignment-upload-word-count.js"></script>
+<% } %>

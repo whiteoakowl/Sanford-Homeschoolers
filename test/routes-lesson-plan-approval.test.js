@@ -124,10 +124,9 @@ test('teacher-created lesson starts as a draft, hidden from students and parents
   const { lesson, itemId } = await teacherCreatesLesson(teacher, classId, 'Draft Lesson');
   assert.equal(lesson.approval_status, 'draft');
 
-  const teacherEdit = await request(app).get(`/teacher/classes/${classId}/edit`).set('Cookie', teacher.cookie);
-  assert.match(teacherEdit.text, /badge-pill-gray">Draft</);
   const teacherManage = await request(app).get(`/teacher/assignments/${lesson.id}`).set('Cookie', teacher.cookie);
-  assert.match(teacherManage.text, /Submit for Approval/);
+  assert.match(teacherManage.text, /badge-pill-gray">Draft</);
+  assert.match(teacherManage.text, /Submit for Admin Approval/);
   // Teachers still see every status on their own class view.
   const teacherView = await request(app).get(`/teacher/classes/${classId}?tab=lessons`).set('Cookie', teacher.cookie);
   assert.match(teacherView.text, /Draft Lesson/);
@@ -162,7 +161,7 @@ test('submit -> pending on the approval page; approve -> visible to enrolled stu
   assert.equal(await statusOf(lesson.id), 'pending');
   const teacherManage = await request(app).get(`/teacher/assignments/${lesson.id}`).set('Cookie', teacher.cookie);
   assert.match(teacherManage.text, /badge-pill-orange">Submitted</);
-  assert.doesNotMatch(teacherManage.text, /Submit for Approval/);
+  assert.doesNotMatch(teacherManage.text, /Submit for Admin Approval/);
   // Still hidden while pending.
   const pendingStudent = await request(app).get(`/student/classes/dashboard/${classId}?tab=lessons`).set('Cookie', family.student.cookie);
   assert.doesNotMatch(pendingStudent.text, /Happy Lesson/);
@@ -267,7 +266,7 @@ test('reject requires a message; rejected lesson is hidden from students, messag
   const teacherManage = await request(app).get(`/teacher/assignments/${lesson.id}`).set('Cookie', teacher.cookie);
   assert.match(teacherManage.text, /badge-pill-red">Rejected</);
   assert.match(teacherManage.text, /id="lesson-rejection"[\s\S]*Please add a video\.[\s\S]*Edit &amp; Resubmit/);
-  assert.match(teacherManage.text, /Resubmit for Approval/);
+  assert.match(teacherManage.text, /Resubmit for Admin Approval/);
   const teacherList = await request(app).get('/teacher/assignments').set('Cookie', teacher.cookie);
   assert.match(teacherList.text, /Please add a video\./);
   assert.match(teacherList.text, /badge-pill-red">Rejected</);

@@ -41,11 +41,11 @@
       <% } else if (assignment.approval_status === 'rejected') { %>
         <p class="hint">Edit the lesson below to address the message above, then resubmit it. It goes back to Pending.</p>
       <% } else { %>
-        <p class="hint">Approved - visible to students enrolled in this class. Edits you make keep it approved.</p>
+        <p class="hint">Approved by an admin and published - visible to the students enrolled in this class and their parents. Edits you make keep it approved.</p>
       <% } %>
       <% if (assignment.approval_status === 'draft' || assignment.approval_status === 'rejected') { %>
         <form method="POST" action="/teacher/assignments/<%= assignment.id %>/submit-approval">
-          <button type="submit" class="primary-btn"><%= assignment.approval_status === 'rejected' ? 'Resubmit for Approval' : 'Submit for Approval' %></button>
+          <button type="submit" class="primary-btn"><%= assignment.approval_status === 'rejected' ? 'Resubmit for Admin Approval' : 'Submit for Admin Approval' %></button>
         </form>
       <% } %>
       <% var rejections = approvalEvents.filter(function(e) { return e.action === 'rejected'; }); %>

@@ -51,7 +51,7 @@
         <% } %>
       </div>
       <div class="class-card-info">
-        <% if (view === 'list') { %><p class="class-card-line"><span class="class-card-line-label">Time:</span> <%= cls.start_time || '?' %>&ndash;<%= cls.end_time || '?' %></p><% } %>
+        <% if (view === 'list') { %><p class="class-card-line"><span class="class-card-line-label">Time:</span> <%= formatClockTime(cls.start_time) || '?' %>&ndash;<%= formatClockTime(cls.end_time) || '?' %></p><% } %>
         <% if (cls.gradeLabel) { %><p class="class-card-line"><%= cls.gradeLabel %></p><% } %>
         <p class="class-card-line"><span class="class-card-line-label">Teacher:</span> <%= cls.teacherNames.length ? cls.teacherNames.join(', ') : '—' %></p>
         <%# A real request: "room: ... should not be on each class card on
