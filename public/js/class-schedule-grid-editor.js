@@ -50,9 +50,24 @@ document.querySelectorAll('[data-grid-editor-dialog]').forEach((dialog) => {
         '<div class="edit-hour-time-row">' +
         '<label class="edit-hour-field"><span class="hint">Start Time</span><input type="text" name="startTimes" placeholder="9:00 AM" /></label>' +
         '<label class="edit-hour-field"><span class="hint">End Time</span><input type="text" name="endTimes" placeholder="9:45 AM" /></label>' +
-        '</div>';
+        '</div>' +
+        '<button type="button" class="icon-btn icon-btn-danger edit-hour-remove" aria-label="Remove column" title="Remove column" data-grid-editor-remove-column><svg class="icon"><use href="#icon-trash"/></svg></button>';
       hoursGrid.appendChild(block);
+      wireRemoveColumn(block);
       block.querySelector('input').focus();
     });
   }
+
+  // A real request: each semester/day grid has its own columns - remove
+  // one here (the last one always stays). The server keeps any column a
+  // class still sits in.
+  function wireRemoveColumn(block) {
+    const btn = block.querySelector('[data-grid-editor-remove-column]');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (hoursGrid.querySelectorAll('.edit-hour-block').length <= 1) return;
+      block.remove();
+    });
+  }
+  if (hoursGrid) hoursGrid.querySelectorAll('.edit-hour-block').forEach(wireRemoveColumn);
 });

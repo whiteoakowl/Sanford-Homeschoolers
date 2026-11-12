@@ -463,10 +463,15 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
                 <input type="text" name="endTimes" value="<%= h.end_time || '' %>" placeholder="9:45 AM" />
               </label>
             </div>
+            <%# A real request: each semester/day grid has its own rows and
+                columns - a column can be removed here too (a column that
+                still has a class in it is kept when saved). %>
+            <button type="button" class="icon-btn icon-btn-danger edit-hour-remove" aria-label="Remove column" title="Remove column" data-grid-editor-remove-column><svg class="icon"><use href="#icon-trash"/></svg></button>
           </div>
         <% }); %>
       </div>
       <button type="button" class="btn-secondary" data-grid-editor-add-column>+ Add Column</button>
+      <p class="hint">Columns and rows are saved for this semester and day only. A column with a class in it can't be removed.</p>
     </div>
 
     <div class="grid-editor-section">

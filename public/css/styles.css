@@ -7026,6 +7026,7 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
 .grid-editor-visibility { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .edit-hours-grid { display: flex; flex-wrap: wrap; gap: 1.1rem; justify-content: center; width: 100%; margin-bottom: 0.75rem; }
 .edit-hour-block { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--control-radius); min-width: 150px; }
+.edit-hour-remove { align-self: flex-end; }
 .edit-hour-field { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.8rem; }
 .edit-hour-field .hint { margin: 0; }
 .edit-hour-field input { width: 100%; text-align: center; }

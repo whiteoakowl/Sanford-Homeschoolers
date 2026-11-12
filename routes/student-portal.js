@@ -285,7 +285,7 @@ router.get('/classes', requirePortalPermission('view_student_classes'), async (r
     view,
     activeDays,
     dayLabels: CLASS_DAY_LABELS_FULL,
-    hours: await hoursForDay(day, gridSemesterId),
+    hours: roomGrid ? roomGrid.hours : await hoursForDay(day, gridSemesterId),
     roomGrid,
     classList,
     semesters,

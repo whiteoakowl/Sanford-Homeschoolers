@@ -14,7 +14,6 @@ const {
   allClassesList,
   listSemesters,
   roomGridForDay,
-  hoursForDay,
   listActiveClassDays,
   hideClassesNotVisibleToMembers,
   getClass,
@@ -212,7 +211,7 @@ router.get('/classes', requirePortalPermission('view_teacher_classes'), async (r
     day,
     activeDays,
     dayLabels: CLASS_DAY_LABELS_FULL,
-    hours: view === 'grid' ? await hoursForDay(day, gridSemesterId) : [],
+    hours: roomGrid ? roomGrid.hours : [],
     roomGrid,
     semesters,
     selectedSemesterId,
@@ -241,7 +240,7 @@ router.get('/classes/print', requirePortalPermission('view_teacher_classes'), as
     title: 'Class Schedule Print Preview',
     byDay,
     view,
-    hours: view === 'grid' ? await hoursForDay(day, gridSemesterId) : [],
+    hours: roomGrid ? roomGrid.hours : [],
     roomGrid,
   });
 });
@@ -271,7 +270,7 @@ router.get('/classes/download.pdf', requirePortalPermission('view_teacher_classe
     title: 'Class Schedule Print Preview',
     byDay,
     view,
-    hours: view === 'grid' ? await hoursForDay(day, gridSemesterId) : [],
+    hours: roomGrid ? roomGrid.hours : [],
     roomGrid,
   });
   res.set('Content-Type', 'application/pdf');

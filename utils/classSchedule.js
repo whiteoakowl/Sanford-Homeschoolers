@@ -229,25 +229,35 @@ async function hourMapsForClasses(day, classes) {
 // rows; a real semesterId saves that one semester's own customized copy
 // instead, leaving every other semester's (or the shared) rows untouched.
 async function saveHourLabels(day, labels, startTimes = [], endTimes = [], semesterId = null) {
-  // A real request: "+ Add Column" on the Edit Schedule Grids popup adds
-  // a new blank hour block client-side (public/js/class-schedule-grid-
-  // editor.js), so a save can submit more labels than HOUR_POSITIONS
-  // currently has - grow the shared count first so the loop below (and
-  // every other page reading HOUR_POSITIONS) picks up the new column too.
-  if (labels.length > HOUR_POSITIONS.length) {
-    growHourPositions(labels.length);
+  // A real request: "Each semester/day class schedule grid should have
+  // its own setting for rows and columns." This grid keeps exactly the
+  // columns its Edit Schedule Grids popup submitted (+ Add Column / the
+  // per-column remove button), never fewer than the last column a class
+  // on this grid actually sits in, so no class can drop off the grid.
+  // Other semesters/days keep their own column counts. HOUR_POSITIONS
+  // still grows to the largest count any grid uses, for the pages that
+  // loop over every possible hour.
+  const used = await db
+    .prepare('SELECT COALESCE(MAX(hour_position), 0) AS "maxPos" FROM classes WHERE day = ? AND semester_id IS NOT DISTINCT FROM ?')
+    .get(day, semesterId);
+  const count = Math.max(labels.length, Number(used ? used.maxPos : 0) || 0, 1);
+  if (count > HOUR_POSITIONS.length) {
+    growHourPositions(count);
     await setAppSetting(HOUR_COLUMN_COUNT_KEY, String(HOUR_POSITIONS.length));
   }
   const upsert = db.prepare(
     `INSERT INTO class_schedule_hours (day, position, label, start_time, end_time, semester_id) VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(day, coalesce(semester_id, -1), position) DO UPDATE SET label = excluded.label, start_time = excluded.start_time, end_time = excluded.end_time`
   );
-  for (const position of HOUR_POSITIONS) {
+  for (let position = 1; position <= count; position++) {
     const label = (labels[position - 1] || `Hour ${position}`).trim() || `Hour ${position}`;
     const startTime = (startTimes[position - 1] || '').trim() || null;
     const endTime = (endTimes[position - 1] || '').trim() || null;
     await upsert.run(day, position, label, startTime, endTime, semesterId);
   }
+  await db
+    .prepare('DELETE FROM class_schedule_hours WHERE day = ? AND semester_id IS NOT DISTINCT FROM ? AND position > ?')
+    .run(day, semesterId, count);
 }
 
 // A single hour's label, for callers editing just one card at a time (the
@@ -471,6 +481,16 @@ async function saveRoomOrder(day, rooms) {
 // from live classes exactly as they always have (see this file's own
 // migration comment: purely additive, nothing changes until the popup
 // is actually used for that specific day+semester).
+// The active (kiosk) semester, when one is set - the grid layout an "All
+// Semesters" view borrows (see roomGridForDay). Lazy require: kioskSettings
+// is a leaf module, but keeping it out of the top-level imports avoids
+// any load-order surprises.
+async function activeLayoutSemesterId() {
+  const { getActiveKioskSemesterId } = require('./kioskSettings');
+  const id = await getActiveKioskSemesterId();
+  return id || undefined;
+}
+
 async function declaredRoomsForGrid(day, semesterId) {
   return db
     .prepare('SELECT * FROM class_schedule_rooms WHERE day = ? AND semester_id IS NOT DISTINCT FROM ? ORDER BY position')
@@ -501,7 +521,15 @@ async function saveRoomsForGrid(day, semesterId, names) {
 }
 
 async function roomGridForDay(day, semesterId) {
-  const storedHours = await hoursForDay(day, semesterId);
+  // A real request: "When printing or viewing pdf or viewing class
+  // schedule grid in any way, it should still show the rows and columns
+  // created for that class schedule grid, even if there isn't a class
+  // assigned to it at the moment." With no semester chosen ("All
+  // Semesters" - the member portals' own default), the grid's rooms and
+  // hour columns come from the active semester's own grid, so its empty
+  // rooms/columns still show; classes still come from every semester.
+  const layoutSemesterId = semesterId !== undefined ? semesterId : await activeLayoutSemesterId();
+  const storedHours = await hoursForDay(day, layoutSemesterId);
   const rawClasses = await classesForDaySemester(day, semesterId);
 
   // Each position's real effective start time, derived from whichever
@@ -524,7 +552,19 @@ async function roomGridForDay(day, semesterId) {
       earliestMinutesByPosition[cls.hour_position] = minutes;
     }
   });
-  const hours = storedHours.map((h) => {
+  // This grid's own column count (its Edit Schedule Grids setting), plus
+  // any later column a class still sits in, so nothing is ever hidden.
+  const gridPositionCount = Math.max(
+    storedHours.reduce((m, h) => Math.max(m, h.position), 0),
+    rawClasses.reduce((m, c) => Math.max(m, c.hour_position || 0), 0),
+    1
+  );
+  const gridPositions = [];
+  for (let p = 1; p <= gridPositionCount; p++) gridPositions.push(p);
+  const storedByPosition = {};
+  storedHours.forEach((h) => { storedByPosition[h.position] = h; });
+  const hours = gridPositions.map((p) => {
+    const h = storedByPosition[p] || { day, position: p, label: `Hour ${p}`, start_time: null, end_time: null };
     const minutes = earliestMinutesByPosition[h.position];
     return minutes != null ? { ...h, label: minutesToClockLabelLocal(minutes) } : h;
   });
@@ -543,7 +583,7 @@ async function roomGridForDay(day, semesterId) {
     if (endMinutes == null) return 1;
     let span = 1;
     let p = cls.hour_position + 1;
-    while (p <= HOUR_POSITIONS.length && earliestMinutesByPosition[p] != null && endMinutes > earliestMinutesByPosition[p]) {
+    while (p <= gridPositionCount && earliestMinutesByPosition[p] != null && endMinutes > earliestMinutesByPosition[p]) {
       span++;
       p++;
     }
@@ -574,7 +614,7 @@ async function roomGridForDay(day, semesterId) {
   // dropped. A combo that's never had rooms declared keeps deriving
   // rooms from live classes + the day's drag-reordered save, exactly as
   // before this feature existed.
-  const declaredRooms = await declaredRoomsForGrid(day, semesterId);
+  const declaredRooms = await declaredRoomsForGrid(day, layoutSemesterId);
   let roomNames;
   if (declaredRooms.length > 0) {
     const declaredNames = declaredRooms.map((r) => r.name);
@@ -599,7 +639,7 @@ async function roomGridForDay(day, semesterId) {
 
   const rows = roomNames.map((room) => {
     const byHour = {};
-    for (const h of HOUR_POSITIONS) byHour[h] = [];
+    for (const h of gridPositions) byHour[h] = [];
     classes.forEach((cls) => {
       const clsRoom = cls.room && cls.room.trim() ? cls.room.trim() : UNASSIGNED_ROOM;
       if (clsRoom === room) byHour[cls.hour_position].push(cls);
@@ -607,7 +647,7 @@ async function roomGridForDay(day, semesterId) {
 
     const cells = [];
     let h = 1;
-    while (h <= HOUR_POSITIONS.length) {
+    while (h <= gridPositionCount) {
       const here = byHour[h];
 
       // Preferred over the name/color/grade merge below when the class
@@ -630,7 +670,7 @@ async function roomGridForDay(day, semesterId) {
       // column still gets its own cell on the next loop iteration
       // instead of being swallowed.
       if (here.length === 1 && here[0].endTimeSpan > 1) {
-        const maxSpan = Math.min(here[0].endTimeSpan, HOUR_POSITIONS.length - h + 1);
+        const maxSpan = Math.min(here[0].endTimeSpan, gridPositionCount - h + 1);
         let span = 1;
         while (span < maxSpan && byHour[h + span].length === 0) span++;
         cells.push({ span, classes: [here[0]] });
