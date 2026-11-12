@@ -130,7 +130,13 @@ router.get('/', async (req, res) => {
     memberForAccount(req.portalAccount.id),
     announcementsForAccount(req.portalAccount.id),
   ]);
-  const classes = await classesForTeacher(member);
+  // A real request: the homepage class card's "Co-taught with" line names
+  // everyone else staffed on the class (teachers and assistants), never
+  // the signed-in teacher themself.
+  const classes = (await classesForTeacher(member)).map((c) => ({
+    ...c,
+    coTeacherNames: [...c.teacherNames, ...c.assistantNames].filter((n) => !member || n !== member.name),
+  }));
   res.render('teacher-home', { title: 'Co-op Teacher Portal', member, classes, announcements });
 });
 

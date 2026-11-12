@@ -33,16 +33,33 @@
     <% if (classes.length === 0) { %>
       <p class="roster-empty">You're not staffed on any classes yet. Contact an admin if this looks wrong.</p>
     <% } else { %>
-      <div class="portal-dashboard-grid">
+      <%# A real request: "This is how the class cards should look on the
+          teacher portal homepage" - the class photo on the left (or a blue
+          panel when none is uploaded), then the class name in a pill, the
+          big enrolled count, the day and time, grades, who it's co-taught
+          with, and a View Roster button. %>
+      <div class="teacher-class-card-grid">
         <% classes.forEach(function(c) { %>
-          <section class="portal-dashboard-card">
-            <h2><%= c.class_name %></h2>
-            <p class="hint"><%= c.dayLabel %> &middot; <%= c.timeLabel %> &middot; <%= c.gradeLabel || 'All grades' %></p>
-            <p class="portal-dashboard-stat"><%= c.studentCount %></p>
-            <p class="hint">student<%= Number(c.studentCount) === 1 ? '' : 's' %> enrolled</p>
-            <% if (c.assistantNames.length) { %><p class="hint">Co-taught with <%= c.assistantNames.join(', ') %></p><% } %>
-            <a class="roster-action-btn" href="/teacher/classes/<%= c.id %>">View Roster</a>
-          </section>
+          <article class="teacher-class-card">
+            <div class="teacher-class-card-art">
+              <% if (c.classImageUrl) { %>
+                <img src="<%= c.classImageUrl %>" alt="" loading="lazy" />
+              <% } else { %>
+                <span class="teacher-class-card-art-icon" aria-hidden="true"><svg class="icon"><use href="#icon-graduation-cap"/></svg></span>
+              <% } %>
+            </div>
+            <div class="teacher-class-card-body">
+              <span class="teacher-class-card-pill"><%= c.class_name %></span>
+              <p class="teacher-class-card-count"><span class="teacher-class-card-count-num"><%= c.studentCount %></span><span class="teacher-class-card-count-label">student<%= Number(c.studentCount) === 1 ? '' : 's' %><br />enrolled</span></p>
+              <hr class="teacher-class-card-divider" />
+              <p class="teacher-class-card-meta"><svg class="icon"><use href="#icon-calendar-check"/></svg><span><%= c.dayLabel %><% if (c.timeLabel) { %><br /><%= c.timeLabel %><% } %></span></p>
+              <p class="teacher-class-card-meta"><svg class="icon"><use href="#icon-graduation-cap"/></svg><span><% if (!c.gradeLabel) { %>All grades<% } else if (/grade/i.test(c.gradeLabel)) { %><%= c.gradeLabel %><% } else { %>Grades <%= c.gradeLabel %><% } %></span></p>
+              <% if (c.coTeacherNames.length) { %>
+                <p class="teacher-class-card-meta"><svg class="icon"><use href="#icon-users"/></svg><span>Co-taught with <strong><%= c.coTeacherNames.join(', ') %></strong></span></p>
+              <% } %>
+              <a class="teacher-class-card-btn" href="/teacher/classes/<%= c.id %>">View Roster <svg class="icon"><use href="#icon-arrow-right"/></svg></a>
+            </div>
+          </article>
         <% }); %>
       </div>
     <% } %>
