@@ -16570,3 +16570,27 @@ a.member-schedule-class-title:hover { color: var(--brand-darker); }
   .training-card-btn { font-size: 0.85rem; padding: 0.65rem 0.8rem; gap: 0.45rem; }
 }
 .training-builder-photo { display: block; max-width: 320px; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); margin-bottom: 0.75rem; }
+/* A real request: "Admins, roles and permissions. Make larger, more
+   clear titles, all the same font size. For each section." The Edit
+   Admin Position popup (its own title and Roles & Permissions heading),
+   the Portal Permissions popups' titles, and every portal section title
+   inside the permissions checklist now share one larger, bold size; each
+   portal section title gets a divider line so sections read clearly. */
+.admin-edit-dialog-spacing h3,
+.admin-edit-dialog-spacing h4,
+dialog form:has(.permission-section) > h3,
+.permission-section-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+.permission-section-title {
+  margin: 1.5rem 0 0.6rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid var(--brand);
+}
+.permission-section:first-child .permission-section-title { margin-top: 0.75rem; }
+.permission-checkbox-grid .permission-group-label { font-size: 1rem; font-weight: 700; color: var(--ink); margin-top: 0.6rem; }
