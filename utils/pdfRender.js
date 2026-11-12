@@ -82,6 +82,9 @@ async function renderHtmlToPdf(html) {
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'load' });
+    // Web fonts (the diploma's blackletter/script fonts) finish loading
+    // after 'load' - wait for them so the PDF never prints a fallback font.
+    await page.evaluate(() => (globalThis.document && globalThis.document.fonts ? globalThis.document.fonts.ready.then(() => true) : true));
     await page.emulateMediaType('print');
     return await page.pdf({ printBackground: true, preferCSSPageSize: true });
   } finally {

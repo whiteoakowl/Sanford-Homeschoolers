@@ -6,6 +6,7 @@
 // columns classes itself gained (see the portal-platform-foundation
 // migration).
 const express = require('express');
+const { diplomaFieldsFromBody } = require('../utils/diplomaDesign');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
@@ -74,7 +75,6 @@ const {
   getTranscriptEntry,
   updateTranscriptEntry,
   deleteTranscriptEntry,
-  DIPLOMA_TEMPLATES,
 } = require('../utils/academics');
 const { renderViewToPdf } = require('../utils/pdfRender');
 const {
@@ -1375,38 +1375,31 @@ router.get('/academics/transcripts/:studentId/download.pdf', requirePortalPermis
 // with any settings."), so this is the only way a diploma gets made now.
 router.get('/academics/diplomas', requirePortalPermission('view_fsm_diplomas'), async (req, res) => {
   const children = await childrenForAccount(req.portalAccount);
-  const diplomas = [];
-  for (const child of children) {
-    const diploma = await diplomaForStudent(child.id);
-    diplomas.push({ child, diploma });
-  }
-  res.render('parent-academics-diplomas', { title: 'Diplomas', diplomas, todayISO: todayISO(), DIPLOMA_TEMPLATES });
+  const wanted = parseInt(req.query.studentId, 10);
+  const child = children.find((c) => c.id === wanted) || children[0] || null;
+  res.render('parent-academics-diplomas', {
+    title: 'Diplomas',
+    children,
+    rec: child ? { child, diploma: await diplomaForStudent(child.id) } : null,
+    familySettings: await familySettingsForAccount(req.portalAccount),
+    todayISO: todayISO(),
+    notice: req.query.notice || null,
+    error: req.query.error || null,
+  });
 });
 
+// A real request: the diploma builder's "Update Preview" saves and shows
+// the changes; its "Print" saves and opens the print page.
 router.post('/academics/diplomas', requirePortalPermission('view_fsm_diplomas'), async (req, res) => {
   const children = await childrenForAccount(req.portalAccount);
   const studentId = parseInt(req.body.studentId, 10);
   if (!children.some((c) => c.id === studentId)) {
     return res.redirect('/parent/academics/diplomas?error=' + encodeURIComponent('Select one of your own children.'));
   }
-  const title = (req.body.title || '').trim() || 'Diploma of Completion';
-  const issuedDate = req.body.issuedDate || todayISO();
-  const template = DIPLOMA_TEMPLATES.includes(req.body.template) ? req.body.template : 'classic';
-  await issueDiploma({
-    studentId,
-    title,
-    issuedDate,
-    bodyText: req.body.bodyText,
-    issuedByAccountId: req.portalAccount.id,
-    template,
-    color: (req.body.color || '').trim() || '#2e6da4',
-    displayName: (req.body.displayName || '').trim(),
-    signature1Name: (req.body.signature1Name || '').trim(),
-    signature1Title: (req.body.signature1Title || '').trim(),
-    signature2Name: (req.body.signature2Name || '').trim(),
-    signature2Title: (req.body.signature2Title || '').trim(),
-  });
-  res.redirect('/parent/academics/diplomas?notice=' + encodeURIComponent('Diploma saved.'));
+  const fields = diplomaFieldsFromBody(req.body);
+  await issueDiploma({ ...fields, studentId, issuedDate: fields.issuedDate || todayISO(), issuedByAccountId: req.portalAccount.id });
+  if (req.body.next === 'print') return res.redirect(`/parent/academics/diplomas/${studentId}/print`);
+  res.redirect(`/parent/academics/diplomas?studentId=${studentId}&notice=` + encodeURIComponent('Diploma saved - preview updated.') + '#diploma-preview');
 });
 
 router.get('/academics/diplomas/:studentId/print', requirePortalPermission('view_fsm_diplomas'), async (req, res) => {
@@ -1415,7 +1408,7 @@ router.get('/academics/diplomas/:studentId/print', requirePortalPermission('view
   if (!child) return res.status(404).render('404', { title: 'Not Found' });
   const diploma = await diplomaForStudent(child.id);
   if (!diploma) return res.redirect('/parent/academics/diplomas?error=' + encodeURIComponent('Design a diploma for this child first.'));
-  res.render('parent-academics-diploma-print', { title: 'Diploma', member: child, diploma });
+  res.render('parent-academics-diploma-print', { title: 'Diploma', member: child, diploma, familySettings: await familySettingsForAccount(req.portalAccount), backHref: `/parent/academics/diplomas?studentId=${child.id}` });
 });
 
 // A real request: "the download should be a pdf of exactly how it
@@ -1428,7 +1421,9 @@ router.get('/academics/diplomas/:studentId/download.pdf', requirePortalPermissio
   if (!child) return res.status(404).render('404', { title: 'Not Found' });
   const diploma = await diplomaForStudent(child.id);
   if (!diploma) return res.redirect('/parent/academics/diplomas?error=' + encodeURIComponent('Design a diploma for this child first.'));
-  const pdf = await renderViewToPdf(req, 'parent-academics-diploma-print', { title: 'Diploma', member: child, diploma });
+  const pdf = await renderViewToPdf(req, 'parent-academics-diploma-print', {
+    title: 'Diploma', member: child, diploma, familySettings: await familySettingsForPdf(await familySettingsForAccount(req.portalAccount)),
+  });
   sendPdf(res, `${child.name.replace(/[^a-z0-9]+/gi, '-')}-diploma.pdf`, pdf);
 });
 

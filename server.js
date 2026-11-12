@@ -278,6 +278,9 @@ app.locals.formatClockTime = require('./utils/dates').formatClockTime;
 // A real request: "All dates and times for trainings should be August 1,
 // 2025 and 4:45pm where applicable." A date alone reads "August 1, 2025";
 // a saved date+time reads "August 1, 2025 4:45pm" (Eastern time).
+// The diploma certificate partial's view-model (utils/diplomaDesign.js).
+app.locals.diplomaView = require('./utils/diplomaDesign').diplomaView;
+app.locals.diplomaOptions = require('./utils/diplomaDesign');
 app.locals.trainingDate = (iso) => {
   if (!iso) return '';
   const day = String(iso).slice(0, 10);

@@ -65,7 +65,7 @@ const natureNews = require('../utils/natureNews');
 // Aliased - this file already has its own local classesForStudent(member)
 // (the co-op's own, a few lines below) with a different signature
 // (member, not a bare studentId).
-const { classesForStudent: familyClassesForStudent } = require('../utils/familySchool');
+const { classesForStudent: familyClassesForStudent, getFamilySchoolSettings, familySettingsForPdf } = require('../utils/familySchool');
 const wordOfWeek = require('../utils/wordOfWeek');
 const spellingBee = require('../utils/spellingBee');
 const { imageFileFilter, lessonAttachmentFileFilter } = require('../utils/uploads');
@@ -652,7 +652,7 @@ function sendPdf(res, filename, pdfBuffer) {
 router.get('/diploma', async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const diploma = member ? await diplomaForStudent(member.id) : null;
-  res.render('student-diploma', { title: 'Diploma', member, diploma });
+  res.render('student-diploma', { title: 'Diploma', member, diploma, familySettings: member ? await getFamilySchoolSettings(member.family_id) : null });
 });
 
 // A real request: "All print button should show a print preview full
@@ -666,7 +666,7 @@ router.get('/diploma', async (req, res) => {
 router.get('/diploma/print', async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const diploma = member ? await diplomaForStudent(member.id) : null;
-  res.render('student-diploma-print', { title: 'Diploma', member, diploma });
+  res.render('student-diploma-print', { title: 'Diploma', member, diploma, familySettings: member ? await getFamilySchoolSettings(member.family_id) : null });
 });
 
 // A real request: "the download should be a pdf of exactly how it
@@ -676,7 +676,7 @@ router.get('/diploma/print', async (req, res) => {
 router.get('/diploma/download.pdf', async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const diploma = member ? await diplomaForStudent(member.id) : null;
-  const pdf = await renderViewToPdf(req, 'student-diploma-print', { title: 'Diploma', member, diploma });
+  const pdf = await renderViewToPdf(req, 'student-diploma-print', { title: 'Diploma', member, diploma, familySettings: member ? await familySettingsForPdf(await getFamilySchoolSettings(member.family_id)) : null });
   sendPdf(res, `${(member ? member.name : 'diploma').replace(/[^a-z0-9]+/gi, '-')}-diploma.pdf`, pdf);
 });
 

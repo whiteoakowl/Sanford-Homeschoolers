@@ -13,6 +13,7 @@
       job and this <base> tag is simply absent. %>
   <% if (typeof pdfBaseUrl !== 'undefined' && pdfBaseUrl) { %><base href="<%= pdfBaseUrl %>/"><% } %>
   <%- include('partials/head', { title }) %>
+  <style>@page { size: letter landscape; margin: 0.35in; }</style>
 </head>
 <body>
   <%- include('partials/portal-nav', { portalTitle: 'Student Portal' }) %>
@@ -26,7 +27,7 @@
     <% if (!diploma) { %>
       <p class="roster-empty">No diploma has been issued yet.</p>
     <% } else { %>
-      <%- include('partials/diploma-certificate', { diploma, member }) %>
+      <%- include('partials/diploma-certificate', { diploma, member, familySettings: typeof familySettings !== 'undefined' ? familySettings : null }) %>
     <% } %>
   </main>
 </body>

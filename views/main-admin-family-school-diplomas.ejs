@@ -28,7 +28,7 @@
     <% } else if (!selectedStudent) { %>
       <p class="roster-empty">Choose a student above to design or view their diploma.</p>
     <% } else { %>
-      <%- include('partials/diploma-student-builder', { rec: { child: selectedStudent, diploma }, todayISO, DIPLOMA_TEMPLATES, basePath: '/main-admin/family-school/diplomas' }) %>
+      <%- include('partials/diploma-student-builder', { rec: { child: selectedStudent, diploma }, todayISO, familySettings, basePath: '/main-admin/family-school/diplomas' }) %>
     <% } %>
   </main>
   <script src="/js/diploma-designer.js"></script>

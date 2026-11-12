@@ -8,22 +8,27 @@
 
   <main id="main-content" tabindex="-1" class="admin-main">
     <h1>Diplomas</h1>
-    <p class="hint">Design and print a diploma for your own student - pick a template and color, then edit the name, dates, and signatures. Saving again replaces its design - each student has one diploma.</p>
+    <p class="hint">Choose a design, fill in the details, pick a seal and who signs it, then press Update Preview to see your changes. Each student has one diploma.</p>
 
     <% if (typeof notice !== 'undefined' && notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
     <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
-    <% if (diplomas.length === 0) { %>
+    <% if (!rec) { %>
       <p class="roster-empty">No students are linked to your family yet. Contact an admin if this looks wrong.</p>
+    <% } else { %>
+      <% if (children.length > 1) { %>
+        <div class="manage-section no-print">
+          <label>Student
+            <select onchange="window.location.href = '/parent/academics/diplomas?studentId=' + this.value">
+              <% children.forEach(function(c) { %>
+                <option value="<%= c.id %>" <%= rec.child.id === c.id ? 'selected' : '' %>><%= c.name %></option>
+              <% }); %>
+            </select>
+          </label>
+        </div>
+      <% } %>
+      <%- include('partials/diploma-student-builder', { rec, todayISO, familySettings, basePath: '/parent/academics/diplomas' }) %>
     <% } %>
-
-    <%# The per-student designer itself (card + Edit Design dialog) is
-        shared with Main Admin's own Diplomas page (any student, not
-        just one's own children) - see views/partials/diploma-student-
-        builder.ejs. %>
-    <% diplomas.forEach(function(rec) { %>
-      <%- include('partials/diploma-student-builder', { rec, todayISO, DIPLOMA_TEMPLATES, basePath: '/parent/academics/diplomas' }) %>
-    <% }); %>
   </main>
   <script src="/js/diploma-designer.js"></script>
 </body>

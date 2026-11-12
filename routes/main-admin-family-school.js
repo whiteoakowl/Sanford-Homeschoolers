@@ -22,6 +22,7 @@
 // utils/academics.js helper (transcriptBuilderDataForStudent) both
 // routes call - see that function's own header comment.
 const express = require('express');
+const { diplomaFieldsFromBody } = require('../utils/diplomaDesign');
 const router = express.Router();
 const db = require('../db');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
@@ -38,7 +39,6 @@ const {
   TRANSCRIPT_GRADE_LETTERS,
   diplomaForStudent,
   issueDiploma,
-  DIPLOMA_TEMPLATES,
 } = require('../utils/academics');
 const { renderViewToPdf } = require('../utils/pdfRender');
 const {
@@ -185,8 +185,8 @@ router.get('/family-school/diplomas', requirePortalPermission('view_family_schoo
     students,
     selectedStudent,
     diploma,
+    familySettings: selectedStudent ? await getFamilySchoolSettings(selectedStudent.family_id) : null,
     todayISO: todayISO(),
-    DIPLOMA_TEMPLATES,
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
@@ -196,24 +196,10 @@ router.post('/family-school/diplomas', requirePortalPermission('view_family_scho
   const studentId = parseInt(req.body.studentId, 10);
   const student = await requireStudent(studentId);
   if (!student) return res.redirect('/main-admin/family-school/diplomas?error=' + encodeURIComponent('Choose a student.'));
-  const title = (req.body.title || '').trim() || 'Diploma of Completion';
-  const issuedDate = req.body.issuedDate || todayISO();
-  const template = DIPLOMA_TEMPLATES.includes(req.body.template) ? req.body.template : 'classic';
-  await issueDiploma({
-    studentId,
-    title,
-    issuedDate,
-    bodyText: req.body.bodyText,
-    issuedByAccountId: req.portalAccount.id,
-    template,
-    color: (req.body.color || '').trim() || '#2e6da4',
-    displayName: (req.body.displayName || '').trim(),
-    signature1Name: (req.body.signature1Name || '').trim(),
-    signature1Title: (req.body.signature1Title || '').trim(),
-    signature2Name: (req.body.signature2Name || '').trim(),
-    signature2Title: (req.body.signature2Title || '').trim(),
-  });
-  res.redirect(`/main-admin/family-school/diplomas?studentId=${studentId}&notice=` + encodeURIComponent('Diploma saved.'));
+  const fields = diplomaFieldsFromBody(req.body);
+  await issueDiploma({ ...fields, studentId, issuedDate: fields.issuedDate || todayISO(), issuedByAccountId: req.portalAccount.id });
+  if (req.body.next === 'print') return res.redirect(`/main-admin/family-school/diplomas/${studentId}/print`);
+  res.redirect(`/main-admin/family-school/diplomas?studentId=${studentId}&notice=` + encodeURIComponent('Diploma saved - preview updated.') + '#diploma-preview');
 });
 
 router.get('/family-school/diplomas/:studentId/print', requirePortalPermission('view_family_school_diplomas_main_admin'), async (req, res) => {
@@ -226,6 +212,7 @@ router.get('/family-school/diplomas/:studentId/print', requirePortalPermission('
     title: 'Diploma',
     member: student,
     diploma,
+    familySettings: await getFamilySchoolSettings(student.family_id),
     portalTitle: 'Main Admin',
     backHref: `/main-admin/family-school/diplomas?studentId=${studentId}`,
   });
@@ -241,6 +228,7 @@ router.get('/family-school/diplomas/:studentId/download.pdf', requirePortalPermi
     title: 'Diploma',
     member: student,
     diploma,
+    familySettings: await familySettingsForPdf(await getFamilySchoolSettings(student.family_id)),
     portalTitle: 'Main Admin',
     backHref: `/main-admin/family-school/diplomas?studentId=${studentId}`,
   });

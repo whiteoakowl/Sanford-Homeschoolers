@@ -268,26 +268,31 @@ async function allDiplomas() {
 // default to the migration's own fallback values when a caller doesn't
 // pass one; every other design field is nullable (no signature 2
 // entered just means no signature 2 on the printed certificate).
-async function issueDiploma({ studentId, title, issuedDate, bodyText, issuedByAccountId, template, color, displayName, signature1Name, signature1Title, signature2Name, signature2Title }) {
+async function issueDiploma(f) {
+  // A real request: four diploma designs with school name/city/state, a
+  // header line, seal/logo choices and three signatures with roles - see
+  // utils/diplomaDesign.js's own diplomaFieldsFromBody for where each of
+  // these comes from.
+  const cols = [
+    ['title', f.title], ['issued_date', f.issuedDate], ['body_text', f.bodyText || null], ['issued_by_account_id', f.issuedByAccountId],
+    ['template', f.template || 'design1'], ['color', f.color || '#2e6da4'], ['display_name', f.displayName || null],
+    ['school_name', f.schoolName || null], ['school_city', f.schoolCity || null], ['school_state', f.schoolState || null],
+    ['header_text', f.headerText || null], ['seal1', f.seal1 || null], ['seal2', f.seal2 || null],
+    ['signature1_name', f.signature1Name || null], ['signature1_title', f.signature1Title || null],
+    ['signature2_name', f.signature2Name || null], ['signature2_title', f.signature2Title || null],
+    ['signature3_name', f.signature3Name || null], ['signature3_title', f.signature3Title || null],
+  ];
   await db
     .prepare(
-      `INSERT INTO diplomas (student_id, title, issued_date, body_text, issued_by_account_id, template, color, display_name, signature1_name, signature1_title, signature2_name, signature2_title)
-       VALUES (?, ?, ?, ?, ?, COALESCE(?, 'classic'), COALESCE(?, '#2e6da4'), ?, ?, ?, ?, ?)
+      `INSERT INTO diplomas (student_id, ${cols.map((c) => c[0]).join(', ')})
+       VALUES (?, ${cols.map(() => '?').join(', ')})
        ON CONFLICT (student_id) DO UPDATE SET
-         title = ?, issued_date = ?, body_text = ?, issued_by_account_id = ?,
-         template = COALESCE(?, 'classic'), color = COALESCE(?, '#2e6da4'),
-         display_name = ?, signature1_name = ?, signature1_title = ?, signature2_name = ?, signature2_title = ?,
-         created_at = now_text()`
+         ${cols.map((c) => `${c[0]} = EXCLUDED.${c[0]}`).join(', ')}, created_at = now_text()`
     )
-    .run(
-      studentId, title, issuedDate, bodyText || null, issuedByAccountId,
-      template || null, color || null, displayName || null, signature1Name || null, signature1Title || null, signature2Name || null, signature2Title || null,
-      title, issuedDate, bodyText || null, issuedByAccountId,
-      template || null, color || null, displayName || null, signature1Name || null, signature1Title || null, signature2Name || null, signature2Title || null
-    );
+    .run(f.studentId, ...cols.map((c) => c[1]));
 }
 
-const DIPLOMA_TEMPLATES = ['classic', 'modern', 'elegant', 'bold'];
+const DIPLOMA_TEMPLATES = ['design1', 'design2', 'design3', 'design4'];
 
 // Past-term history (see the migration's own comment on why this only
 // covers terms archived after this feature existed) plus, so the page

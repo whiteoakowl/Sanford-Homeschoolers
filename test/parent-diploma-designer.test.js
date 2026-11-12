@@ -103,11 +103,25 @@ test('Parent Portal nav: no standalone Academics tab, Name Tags is its own tab, 
   assert.match(fsmPage.text, /href="\/parent\/academics\/diplomas"[^>]*>(?:(?!<\/a>).)*Diplomas/s);
 });
 
-test('a parent can design a diploma with a template, color, display name, and two signatures, and it shows on the list page and the print page', async () => {
+test('a parent designs a diploma: design choice, school details, seals, three signatures with roles; Update Preview and Print both save', async () => {
+  // A real request: "Diploma choices should look like this. Then text
+  // boxes below to edit the information. For signature choices there
+  // should be a dropdown menu for each... logo options... update
+  // preview... and a print button."
   const familyId = await createFamily('Diploma Design Family');
   const parent = await createPortalMember({ name: 'Design Parent', familyId, memberType: 'parent', roleKey: 'parent' });
   const student = await createPortalMember({ name: 'Design Student', familyId, memberType: 'student', roleKey: 'student' });
   const csrf = await csrfFrom(parent.cookie, '/parent/academics/diplomas');
+
+  const blank = await request(app).get('/parent/academics/diplomas').set('Cookie', parent.cookie);
+  assert.equal(blank.status, 200);
+  for (const n of [1, 2, 3, 4]) assert.match(blank.text, new RegExp(`High School Diploma - Design ${n}`));
+  assert.equal((blank.text.match(/<label class="dip-choice[ "]/g) || []).length, 4);
+  assert.match(blank.text, /<option value="Principal"/);
+  assert.match(blank.text, /<option value="Administrator"/);
+  assert.match(blank.text, /name="seal1" value="coop"/);
+  assert.match(blank.text, /Update Preview/);
+  assert.match(blank.text, /name="next" value="print" formtarget="_blank"/);
 
   const res = await request(app)
     .post('/parent/academics/diplomas')
@@ -115,47 +129,63 @@ test('a parent can design a diploma with a template, color, display name, and tw
     .type('form')
     .send({
       studentId: student.memberId,
-      title: 'Certificate of Homeschool Completion',
+      template: 'design3',
+      schoolName: 'Sanford Classical Academy',
+      schoolCity: 'Sanford',
+      schoolState: 'North Carolina',
+      headerText: 'Board of Education',
       displayName: 'Designed Student Full Legal Name',
-      issuedDate: '2026-06-01',
-      template: 'bold',
-      color: '#aa3366',
+      issuedDate: '2026-06-18',
+      title: 'Diploma',
       bodyText: 'Having completed all requirements.',
+      seal1: 'blue',
+      seal2: 'coop',
       signature1Name: 'Jane Smith',
-      signature1Title: 'Program Director',
+      signature1Title: 'Principal',
       signature2Name: 'John Smith',
-      signature2Title: 'Parent/Guardian',
+      signature2Title: 'Parent',
+      signature3Name: '',
+      signature3Title: 'Teacher',
+      next: 'preview',
       _csrf: csrf,
     });
   assert.equal(res.status, 302);
-  assert.match(res.headers.location, /notice=/);
+  assert.match(res.headers.location, new RegExp(`studentId=${student.memberId}&notice=.*#diploma-preview$`));
 
   const diploma = await diplomaForStudent(student.memberId);
-  assert.equal(diploma.template, 'bold');
-  assert.equal(diploma.color, '#aa3366');
-  assert.equal(diploma.display_name, 'Designed Student Full Legal Name');
-  assert.equal(diploma.signature1_name, 'Jane Smith');
-  assert.equal(diploma.signature2_title, 'Parent/Guardian');
+  assert.equal(diploma.template, 'design3');
+  assert.equal(diploma.school_name, 'Sanford Classical Academy');
+  assert.equal(diploma.seal1, 'blue');
+  assert.equal(diploma.seal2, 'coop');
+  assert.equal(diploma.signature1_title, 'Principal');
+  assert.equal(diploma.signature3_title, 'Teacher');
 
-  const list = await request(app).get('/parent/academics/diplomas').set('Cookie', parent.cookie);
-  assert.equal(list.status, 200);
-  assert.match(list.text, /diploma-tpl-bold/);
-  assert.match(list.text, /--diploma-color: #aa3366/);
-  assert.match(list.text, /Designed Student Full Legal Name/);
-  assert.match(list.text, /Jane Smith/);
-  assert.match(list.text, /Program Director/);
+  const page = await request(app).get(`/parent/academics/diplomas?studentId=${student.memberId}`).set('Cookie', parent.cookie);
+  assert.match(page.text, /class="diploma-cert dip dip-design3"/);
+  assert.match(page.text, /Designed Student Full Legal Name/);
+  assert.match(page.text, /June 18th, 2026/);
+  assert.match(page.text, /<option value="Principal" selected>/);
+  assert.match(page.text, /<a class="icon-btn" href="\/parent\/academics\/diplomas\/\d+\/download\.pdf" aria-label="Download PDF"/);
 
   const print = await request(app).get(`/parent/academics/diplomas/${student.memberId}/print`).set('Cookie', parent.cookie);
   assert.equal(print.status, 200);
-  assert.match(print.text, /diploma-tpl-bold/);
-  assert.match(print.text, /Designed Student Full Legal Name/);
-  assert.match(print.text, /John Smith/);
+  assert.match(print.text, /@page \{ size: letter landscape/);
+  assert.match(print.text, /Sanford Classical Academy/);
   assert.match(print.text, /Having completed all requirements\./);
+  assert.match(print.text, /src="\/img\/logo\.png"/, 'the second seal is the co-op logo');
+  assert.match(print.text, /<span class="dip-sig-role">Teacher<\/span>/);
 
-  assert.match(list.text, /<a class="icon-btn" href="\/parent\/academics\/diplomas\/\d+\/download\.pdf" aria-label="Download PDF"/);
+  // Print saves first, then opens the print page.
+  const printRes = await request(app)
+    .post('/parent/academics/diplomas')
+    .set('Cookie', parent.cookie)
+    .type('form')
+    .send({ studentId: student.memberId, template: 'design1', issuedDate: '2026-06-18', next: 'print', _csrf: csrf });
+  assert.equal(printRes.headers.location, `/parent/academics/diplomas/${student.memberId}/print`);
+  const d1 = await request(app).get(`/parent/academics/diplomas/${student.memberId}/print`).set('Cookie', parent.cookie);
+  assert.match(d1.text, /dip-design1/);
+  assert.match(d1.text, /Given this eighteenth day of June, two thousand twenty-six/);
 
-  // A real request: "the download should be a pdf of exactly how it
-  // would also look when printing" - this same diploma, now a real PDF.
   const pdfRes = await getBuffer(`/parent/academics/diplomas/${student.memberId}/download.pdf`, parent.cookie);
   assert.equal(pdfRes.status, 200);
   assert.equal(pdfRes.headers['content-type'], 'application/pdf');
@@ -163,15 +193,14 @@ test('a parent can design a diploma with a template, color, display name, and tw
   assert.equal(pdfRes.body.slice(0, 5).toString(), '%PDF-');
 
   // Another family's parent cannot download this child's diploma by
-  // guessing the studentId - scoped to childrenForAccount exactly like
-  // the Print preview above.
+  // guessing the studentId.
   const otherFamilyId = await createFamily('Diploma Download Snooping Family');
   const otherParent = await createPortalMember({ name: 'Diploma Download Snooping Parent', familyId: otherFamilyId, memberType: 'parent', roleKey: 'parent' });
   const hijackRes = await request(app).get(`/parent/academics/diplomas/${student.memberId}/download.pdf`).set('Cookie', otherParent.cookie);
   assert.equal(hijackRes.status, 404);
 });
 
-test('a brand new diploma design defaults to the classic template and the site brand color', async () => {
+test('a brand new diploma defaults to Design 1, a gold seal, and the default wording; unknown roles are dropped', async () => {
   const familyId = await createFamily('Default Design Family');
   const parent = await createPortalMember({ name: 'Default Parent', familyId, memberType: 'parent', roleKey: 'parent' });
   const student = await createPortalMember({ name: 'Default Student', familyId, memberType: 'student', roleKey: 'student' });
@@ -181,11 +210,26 @@ test('a brand new diploma design defaults to the classic template and the site b
     .post('/parent/academics/diplomas')
     .set('Cookie', parent.cookie)
     .type('form')
-    .send({ studentId: student.memberId, issuedDate: '2026-06-01', _csrf: csrf });
+    .send({ studentId: student.memberId, issuedDate: '2026-06-01', signature1Title: 'Wizard', _csrf: csrf });
 
   const diploma = await diplomaForStudent(student.memberId);
-  assert.equal(diploma.template, 'classic');
-  assert.equal(diploma.color, '#2e6da4');
+  assert.equal(diploma.template, 'design1');
+  assert.equal(diploma.seal1, 'gold');
+  assert.equal(diploma.signature1_title, null);
+  const print = await request(app).get(`/parent/academics/diplomas/${student.memberId}/print`).set('Cookie', parent.cookie);
+  assert.match(print.text, /having satisfactorily completed all requirements for high school graduation/);
+  assert.match(print.text, /Given this first day of June, two thousand twenty-six/);
+});
+
+test('diploma date wording', () => {
+  const { dateInWords, dateShort } = require('../utils/diplomaDesign');
+  assert.equal(dateInWords('2026-06-18'), 'eighteenth day of June, two thousand twenty-six');
+  assert.equal(dateInWords('1997-06-07'), 'seventh day of June, nineteen hundred ninety-seven');
+  assert.equal(dateInWords('2030-05-22'), 'twenty-second day of May, two thousand thirty');
+  assert.equal(dateInWords('2026-03-30'), 'thirtieth day of March, two thousand twenty-six');
+  assert.equal(dateShort('2026-06-01'), 'June 1st, 2026');
+  assert.equal(dateShort('2026-06-11'), 'June 11th, 2026');
+  assert.equal(dateShort('2026-06-23'), 'June 23rd, 2026');
 });
 
 // A real request: "Main admin portal, remove academics tab and
@@ -204,4 +248,26 @@ test('Main Admin has no Academics tab or routes left - diplomas/transcripts are 
   // nothing issues a diploma or adds a transcript entry here anymore.
   assert.equal((await request(app).post('/main-admin/academics/diploma').set('Cookie', adminCookie).type('form').send({})).status, 403);
   assert.equal((await request(app).post('/main-admin/academics/transcript').set('Cookie', adminCookie).type('form').send({})).status, 403);
+});
+
+test('Main Admin Diplomas uses the same builder and saves the same fields', async () => {
+  const familyId = await createFamily('Main Admin Diploma Family');
+  const admin = await createPortalMember({ name: 'Diploma Main Admin', familyId: null, memberType: 'parent', roleKey: 'main_admin' });
+  const student = await createPortalMember({ name: 'Main Admin Diploma Student', familyId, memberType: 'student', roleKey: 'student' });
+  const page = await request(app).get(`/main-admin/family-school/diplomas?studentId=${student.memberId}`).set('Cookie', admin.cookie);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /High School Diploma - Design 4/);
+  const csrf = /name="csrf-token" content="([^"]*)"/.exec(page.text)[1];
+  const res = await request(app)
+    .post('/main-admin/family-school/diplomas')
+    .set('Cookie', admin.cookie)
+    .type('form')
+    .send({ studentId: student.memberId, template: 'design4', issuedDate: '2026-06-18', seal1: 'star', signature1Title: 'Administrator', next: 'preview', _csrf: csrf });
+  assert.equal(res.status, 302);
+  const diploma = await diplomaForStudent(student.memberId);
+  assert.equal(diploma.template, 'design4');
+  assert.equal(diploma.seal1, 'star');
+  assert.equal(diploma.signature1_title, 'Administrator');
+  const print = await request(app).get(`/main-admin/family-school/diplomas/${student.memberId}/print`).set('Cookie', admin.cookie);
+  assert.match(print.text, /dip-design4/);
 });

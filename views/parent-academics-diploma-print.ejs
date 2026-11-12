@@ -13,16 +13,17 @@
       job and this <base> tag is simply absent. %>
   <% if (typeof pdfBaseUrl !== 'undefined' && pdfBaseUrl) { %><base href="<%= pdfBaseUrl %>/"><% } %>
   <%- include('partials/head', { title }) %>
+  <style>@page { size: letter landscape; margin: 0.35in; }</style>
 </head>
 <body>
   <%- include('partials/portal-nav', { portalTitle: typeof portalTitle !== 'undefined' && portalTitle ? portalTitle : 'Family School Management' }) %>
 
   <main id="main-content" tabindex="-1" class="admin-main">
-    <h1>Diploma</h1>
-    <p><a class="no-print" href="<%= typeof backHref !== 'undefined' && backHref ? backHref : '/parent/academics/diplomas' %>">&larr; Diplomas</a></p>
+    <h1 class="no-print">Diploma</h1>
+    <p class="no-print"><a href="<%= typeof backHref !== 'undefined' && backHref ? backHref : '/parent/academics/diplomas' %>">&larr; Diplomas</a></p>
 
     <button type="button" class="roster-action-btn print-action-btn no-print" onclick="window.print()">Print</button>
-    <%- include('partials/diploma-certificate', { diploma, member }) %>
+    <%- include('partials/diploma-certificate', { diploma, member, familySettings: typeof familySettings !== 'undefined' ? familySettings : null }) %>
   </main>
 </body>
 </html>

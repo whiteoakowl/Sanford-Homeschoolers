@@ -1,80 +1,121 @@
-<%# One student's own Diploma card + design dialog - factored out of
-    views/parent-academics-diplomas.ejs so Main Admin's own Diplomas page
-    (routes/main-admin-family-school.js, scoped to whichever student its
-    own picker selects, not "my own children") can render the exact same
-    designer a parent gets for their child, instead of a second hand-
-    copied one. `basePath` is the only thing that differs between
-    callers - Parent Portal passes '/parent/academics/diplomas', Main
-    Admin passes '/main-admin/family-school/diplomas'.
-    Locals: rec ({ child, diploma }), todayISO, DIPLOMA_TEMPLATES, basePath. %>
-<section class="portal-dashboard-card portal-dashboard-card-wide">
-  <h2><%= rec.child.name %></h2>
-  <% if (rec.diploma) { %>
-    <%- include('diploma-certificate', { diploma: rec.diploma, member: rec.child, compact: true }) %>
-    <div class="roster-btn-row">
-      <a class="roster-action-btn print-action-btn" href="<%= basePath %>/<%= rec.child.id %>/print" target="_blank">Print</a>
-      <a class="icon-btn" href="<%= basePath %>/<%= rec.child.id %>/download.pdf" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
-      <button type="button" class="roster-action-btn" onclick="document.getElementById('diploma-dialog-<%= rec.child.id %>').showModal()">Edit Design</button>
+<%# A real request: "For all portals, diplomas creation. Diploma choices
+    should look like this. Then text boxes below to edit the
+    information. For signature choices there should be a dropdown menu
+    for each to choose principal, teacher, parent, administrator etc.
+    There should be logo options to choose from as well. At the bottom
+    should have update preview which shows all of your changes on the
+    diploma for view and a print button." Shared by the Family School
+    Management (parent) and Main Admin Diplomas pages - basePath is the
+    only thing that differs.
+    Locals: rec ({ child, diploma }), todayISO, basePath, familySettings. %>
+<%
+var opts = diplomaOptions;
+var dip = rec.diploma;
+var view = diplomaView(dip, rec.child, familySettings);
+var fid = 'diploma-form-' + rec.child.id;
+var hasSchoolLogo = Boolean(familySettings && familySettings.logoUrl);
+var seals = opts.DIPLOMA_SEALS.filter(function(s) { return s.key !== 'school' || hasSchoolLogo; });
+var sealPick = function(n) { return view['seal' + n].key; };
+%>
+<form method="POST" action="<%= basePath %>" class="dip-builder" id="<%= fid %>" data-diploma-builder data-default-body="<%= JSON.stringify(opts.DEFAULT_BODY) %>">
+  <input type="hidden" name="studentId" value="<%= rec.child.id %>" />
+
+  <section class="dip-builder-section">
+    <h2>1. Choose a Design</h2>
+    <div class="dip-choice-grid">
+      <% opts.DIPLOMA_DESIGNS.forEach(function(d) { %>
+        <label class="dip-choice<%= view.design === d.key ? ' is-selected' : '' %>">
+          <input type="radio" name="template" value="<%= d.key %>" <%= view.design === d.key ? 'checked' : '' %> />
+          <span class="dip-choice-art"><%- include('diploma-certificate', { diploma: dip, member: rec.child, familySettings, design: d.key, compact: true }) %></span>
+          <span class="dip-choice-label"><%= d.label %></span>
+        </label>
+      <% }); %>
     </div>
-  <% } else { %>
-    <p class="roster-empty">No diploma designed yet.</p>
-    <button type="button" class="roster-action-btn" onclick="document.getElementById('diploma-dialog-<%= rec.child.id %>').showModal()">Design a Diploma</button>
-  <% } %>
-</section>
+  </section>
 
-<dialog id="diploma-dialog-<%= rec.child.id %>" class="member-picker-dialog diploma-design-dialog">
-  <form method="POST" action="<%= basePath %>">
-    <h3>Diploma for <%= rec.child.name %></h3>
-    <input type="hidden" name="studentId" value="<%= rec.child.id %>" />
-
-    <div class="diploma-design-preview">
-      <%- include('diploma-certificate', { diploma: rec.diploma, member: rec.child }) %>
-    </div>
-
+  <section class="dip-builder-section">
+    <h2>2. Diploma Details</h2>
     <div class="member-form-grid">
-      <label class="member-form-full">Title
-        <input type="text" name="title" value="<%= rec.diploma ? rec.diploma.title : 'Diploma of Completion' %>" required />
+      <label class="member-form-full">School Name
+        <input type="text" name="schoolName" value="<%= (dip && dip.school_name) || (familySettings && familySettings.school_name) || '' %>" placeholder="Your High School Name" />
       </label>
-      <label>Name on Diploma <span class="hint">(edit if different from their account name)</span>
-        <input type="text" name="displayName" value="<%= (rec.diploma && rec.diploma.display_name) || rec.child.name %>" />
+      <label>City
+        <input type="text" name="schoolCity" value="<%= (dip && dip.school_city) || '' %>" placeholder="Your City" />
       </label>
-      <label>Issue Date
-        <input type="date" name="issuedDate" value="<%= rec.diploma ? rec.diploma.issued_date : todayISO %>" required />
+      <label>State
+        <input type="text" name="schoolState" value="<%= (dip && dip.school_state) || '' %>" placeholder="Your State" />
       </label>
-      <label>Template
-        <select name="template">
-          <% DIPLOMA_TEMPLATES.forEach(function(t) { %>
-            <option value="<%= t %>" <%= rec.diploma && rec.diploma.template === t ? 'selected' : '' %>><%= t.charAt(0).toUpperCase() + t.slice(1) %></option>
-          <% }); %>
-        </select>
+      <label class="member-form-full" data-design-only="design3">Header Line <span class="hint">(Design 3)</span>
+        <input type="text" name="headerText" value="<%= (dip && dip.header_text) || '' %>" placeholder="Board of Education" />
       </label>
-      <label>Color
-        <input type="color" name="color" value="<%= (rec.diploma && rec.diploma.color) || '#2e6da4' %>" />
+      <label>Student Name <span class="hint">(as it should print)</span>
+        <input type="text" name="displayName" value="<%= (dip && dip.display_name) || rec.child.name %>" />
       </label>
-      <label class="member-form-full">Body Text <span class="hint">(optional wording shown on the printed diploma)</span>
-        <textarea name="bodyText" rows="3"><%= rec.diploma ? (rec.diploma.body_text || '') : '' %></textarea>
+      <label>Graduation Date
+        <input type="date" name="issuedDate" value="<%= (dip && dip.issued_date) || todayISO %>" required />
       </label>
-      <div class="member-form-full diploma-signature-pair">
-        <label>Signature 1 Name
-          <input type="text" name="signature1Name" value="<%= (rec.diploma && rec.diploma.signature1_name) || '' %>" placeholder="e.g., Jane Smith" />
-        </label>
-        <label>Signature 1 Title
-          <input type="text" name="signature1Title" value="<%= (rec.diploma && rec.diploma.signature1_title) || '' %>" placeholder="e.g., Program Director" />
-        </label>
-      </div>
-      <div class="member-form-full diploma-signature-pair">
-        <label>Signature 2 Name
-          <input type="text" name="signature2Name" value="<%= (rec.diploma && rec.diploma.signature2_name) || '' %>" placeholder="e.g., John Smith" />
-        </label>
-        <label>Signature 2 Title
-          <input type="text" name="signature2Title" value="<%= (rec.diploma && rec.diploma.signature2_title) || '' %>" placeholder="e.g., Parent/Guardian" />
-        </label>
-      </div>
+      <label>Diploma Word <span class="hint">(the large word, e.g. Diploma)</span>
+        <input type="text" name="title" value="<%= view.title %>" />
+      </label>
+      <label class="member-form-full">Wording
+        <textarea name="bodyText" rows="3"><%= view.body %></textarea>
+      </label>
     </div>
+  </section>
 
-    <div class="notes-dialog-actions">
-      <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
-      <button type="submit" class="primary-btn">Save</button>
+  <section class="dip-builder-section">
+    <h2>3. Seal / Logo</h2>
+    <% [1, 2].forEach(function(n) { %>
+      <div class="dip-seal-picker"<% if (n === 2) { %> data-design-only="design3"<% } %>>
+        <p class="dip-seal-picker-label"><%= n === 1 ? 'Seal' : 'Second Seal (Design 3)' %></p>
+        <div class="dip-seal-options">
+          <% seals.forEach(function(s) { %>
+            <label class="dip-seal-option<%= sealPick(n) === s.key ? ' is-selected' : '' %>">
+              <input type="radio" name="seal<%= n %>" value="<%= s.key %>" <%= sealPick(n) === s.key ? 'checked' : '' %> />
+              <span class="dip-seal-option-art">
+                <% if (s.key === 'none') { %><span class="dip-seal-none">None</span><% } else { %>
+                  <%- include('diploma-seal', { seal: { key: s.key, url: s.key === 'coop' ? '/img/logo.png' : s.key === 'school' ? familySettings.logoUrl : null }, schoolName: view.schoolName, uid: 'pick' + n + s.key + rec.child.id }) %>
+                <% } %>
+              </span>
+              <span class="dip-seal-option-label"><%= s.label %></span>
+            </label>
+          <% }); %>
+        </div>
+      </div>
+    <% }); %>
+    <% if (!hasSchoolLogo) { %><p class="hint">Upload your school's logo under Family School Management &gt; Settings to use it as a seal.</p><% } %>
+  </section>
+
+  <section class="dip-builder-section">
+    <h2>4. Signatures</h2>
+    <p class="hint">Pick who signs each line. Leave a name blank to sign it by hand after printing; choose "No signature" to leave a line off.</p>
+    <% [1, 2, 3].forEach(function(n) { var sg = view.signatures[n - 1]; %>
+      <div class="dip-sig-row">
+        <label>Signature <%= n %> &mdash; Role
+          <select name="signature<%= n %>Title">
+            <option value="">No signature</option>
+            <% opts.SIGNATURE_ROLES.forEach(function(r) { %>
+              <option value="<%= r %>" <%= sg.role === r ? 'selected' : '' %>><%= r %></option>
+            <% }); %>
+          </select>
+        </label>
+        <label>Name <span class="hint">(optional)</span>
+          <input type="text" name="signature<%= n %>Name" value="<%= sg.name %>" placeholder="e.g., Jane Smith" />
+        </label>
+      </div>
+    <% }); %>
+  </section>
+
+  <section class="dip-builder-section" id="diploma-preview">
+    <h2>Preview</h2>
+    <div class="dip-preview">
+      <%- include('diploma-certificate', { diploma: dip, member: rec.child, familySettings }) %>
     </div>
-  </form>
-</dialog>
+    <% if (!dip) { %><p class="hint">Not saved yet &mdash; press Update Preview to save and see your changes.</p><% } %>
+    <div class="dip-builder-actions">
+      <button type="submit" name="next" value="preview" class="roster-action-btn dip-btn-preview"><svg class="icon"><use href="#icon-refresh"/></svg> Update Preview</button>
+      <button type="submit" name="next" value="print" formtarget="_blank" class="roster-action-btn dip-btn-print"><svg class="icon"><use href="#icon-printer"/></svg> Print</button>
+      <% if (dip) { %><a class="icon-btn" href="<%= basePath %>/<%= rec.child.id %>/download.pdf" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a><% } %>
+    </div>
+  </section>
+</form>

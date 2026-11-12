@@ -1,0 +1,28 @@
+<%# One seal / logo on a diploma (utils/diplomaDesign.js's DIPLOMA_SEALS).
+    Locals: seal ({ key, url }), schoolName, uid. %>
+<% if (seal.key === 'none') { %>
+  <span class="dip-seal dip-seal-empty" aria-hidden="true"></span>
+<% } else if (seal.url) { %>
+  <span class="dip-seal dip-seal-logo"><img src="<%= seal.url %>" alt="" /></span>
+<% } else {
+  var sc = seal.key === 'blue' ? { ring: '#2e6da4', fill: '#e4eef8', ink: '#1f4e7a' } : { ring: '#b8923a', fill: '#f6ecd0', ink: '#8a6a1f' };
+  var ringText = String(schoolName || '').toUpperCase().slice(0, 30);
+%>
+  <span class="dip-seal" aria-hidden="true">
+    <svg viewBox="0 0 200 200">
+      <defs><path id="dip-seal-arc-<%= uid %>" d="M 100 100 m -70 0 a 70 70 0 1 1 140 0 a 70 70 0 1 1 -140 0" /></defs>
+      <% for (var i = 0; i < 48; i++) { var a = (i / 48) * Math.PI * 2; %>
+        <circle cx="<%= (100 + Math.cos(a) * 94).toFixed(1) %>" cy="<%= (100 + Math.sin(a) * 94).toFixed(1) %>" r="5.5" fill="<%= sc.ring %>" />
+      <% } %>
+      <circle cx="100" cy="100" r="90" fill="<%= sc.fill %>" stroke="<%= sc.ring %>" stroke-width="4" />
+      <circle cx="100" cy="100" r="56" fill="none" stroke="<%= sc.ring %>" stroke-width="2.5" />
+      <text font-family="Georgia, serif" font-size="13" fill="<%= sc.ink %>" textLength="425" lengthAdjust="spacingAndGlyphs"><textPath href="#dip-seal-arc-<%= uid %>" startOffset="0"><%= ringText %> &#9733; OFFICIAL SEAL &#9733; </textPath></text>
+      <% if (seal.key === 'star') { %>
+        <polygon points="100,62 111,88 139,90 117,107 124,135 100,120 76,135 83,107 61,90 89,88" fill="<%= sc.ring %>" />
+      <% } else { %>
+        <text x="100" y="95" text-anchor="middle" font-family="Georgia, serif" font-size="20" font-weight="700" fill="<%= sc.ink %>">SEAL</text>
+        <text x="100" y="120" text-anchor="middle" font-family="Georgia, serif" font-size="13" fill="<%= sc.ink %>">&#9733; &#9733; &#9733;</text>
+      <% } %>
+    </svg>
+  </span>
+<% } %>
