@@ -43,32 +43,31 @@ async function loginAsAdmin() {
   return loginRes.headers['set-cookie'];
 }
 
-test('Class Schedules toolbar: Add Class and Edit Schedule Grids share their own row, directly inside the toolbar (not the filter-row or the icon row)', async () => {
+// A later request: "Add class, edit schedule grid and bulk edit buttons
+// should be on the same row, side by side" - Bulk Edit joined this row.
+test('Class Schedules toolbar: Add Class, Edit Schedule Grids and Bulk Edit share their own row, directly inside the toolbar (not the filter-row or the icon row)', async () => {
   const cookie = await loginAsAdmin();
   const page = await request(app).get('/admin/schedule?tab=monday').set('Cookie', cookie);
   assert.equal(page.status, 200);
 
-  const rowMatch = /<div class="roster-btn-row">\s*<button type="button" class="roster-action-btn" onclick="document\.getElementById\('add-class-dialog-monday'\)\.showModal\(\)">\+ Add Class<\/button>\s*<button type="button" class="roster-action-btn" onclick="document\.getElementById\('edit-schedule-dialog-monday'\)\.showModal\(\)">Edit Schedule Grids<\/button>\s*<\/div>/.exec(page.text);
-  assert.ok(rowMatch, 'expected + Add Class and Edit Schedule Grids to be the only two buttons in their own roster-btn-row, side by side');
+  const rowMatch = /<div class="roster-btn-row">\s*<button type="button" class="roster-action-btn" onclick="document\.getElementById\('add-class-dialog-monday'\)\.showModal\(\)">\+ Add Class<\/button>\s*<button type="button" class="roster-action-btn" onclick="document\.getElementById\('edit-schedule-dialog-monday'\)\.showModal\(\)">Edit Schedule Grids<\/button>\s*<button type="button" class="roster-action-btn" data-bulk-edit-toggle="class-bulk-edit-form-monday"[^>]*>Bulk Edit<\/button>\s*<\/div>/.exec(page.text);
+  assert.ok(rowMatch, 'expected + Add Class, Edit Schedule Grids and Bulk Edit to be the only three buttons in their own roster-btn-row, side by side');
 });
 
-test('Class Schedules toolbar: Bulk Edit, Filter, Select All, and the Grid/List view toggle all share the filter-row, in that order', async () => {
+test('Class Schedules toolbar: Filter, Select All, and the Grid/List view toggle share the filter-row, in that order (Bulk Edit moved up)', async () => {
   const cookie = await loginAsAdmin();
   const page = await request(app).get('/admin/schedule?tab=monday').set('Cookie', cookie);
 
   const filterRowStart = page.text.indexOf('<div class="filter-row">');
   assert.ok(filterRowStart !== -1, 'expected to find the filter-row');
-  const bulkEditIdx = page.text.indexOf('data-bulk-edit-toggle="class-bulk-edit-form-monday"', filterRowStart);
   const filterIdx = page.text.indexOf('>Filter</summary>', filterRowStart);
   const selectAllIdx = page.text.indexOf('data-select-all-for="class-bulk-edit-form-monday"', filterRowStart);
   const viewToggleIdx = page.text.indexOf('class="class-schedule-view-toggle"', filterRowStart);
 
-  assert.ok(bulkEditIdx !== -1 && bulkEditIdx < viewToggleIdx, 'expected Bulk Edit button inside the filter-row');
+  assert.equal(page.text.indexOf('data-bulk-edit-toggle="class-bulk-edit-form-monday"', filterRowStart), -1, 'Bulk Edit now sits in the top button row, not the filter-row');
   assert.ok(filterIdx !== -1 && filterIdx < viewToggleIdx, 'expected Filter trigger inside the filter-row');
   assert.ok(selectAllIdx !== -1 && selectAllIdx < viewToggleIdx, 'expected Select All checkbox inside the filter-row');
   assert.ok(viewToggleIdx !== -1, 'expected the Grid/List view toggle inside the filter-row');
-  // "Bulk edit classes filter, select all, list vs grid view" - that order.
-  assert.ok(bulkEditIdx < filterIdx, 'expected Bulk Edit before Filter');
   assert.ok(filterIdx < selectAllIdx, 'expected Filter before Select All');
   assert.ok(selectAllIdx < viewToggleIdx, 'expected Select All before the Grid/List toggle');
 });
@@ -79,7 +78,7 @@ test('Class Schedules toolbar: Import/Export/PDF/Print icons sit together in the
 
   const importIdx = page.text.indexOf("document.getElementById('import-dialog-monday').showModal()");
   assert.ok(importIdx !== -1, 'expected an Import icon button');
-  const rowStart = page.text.lastIndexOf('<div class="roster-btn-row">', importIdx);
+  const rowStart = page.text.lastIndexOf('<div class="roster-btn-row class-schedule-icon-row">', importIdx);
   assert.ok(rowStart !== -1, 'expected the Import icon to sit inside its own roster-btn-row');
   const rowEnd = page.text.indexOf('</div>', page.text.indexOf('download.pdf', importIdx));
   const row = page.text.slice(rowStart, rowEnd);

@@ -5611,6 +5611,16 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
   .roster-btn-row > .class-schedule-view-toggle {
     grid-column: 1 / -1;
   }
+  /* A real request: "Import, export, print and pdf icons should be in a
+     single row side by side above the class schedule." An icon-only row
+     has no .roster-action-btn for roster-btn-row-grid.js to count, so the
+     grid above fell back to one column and stacked every icon. */
+  .roster-btn-row.class-schedule-icon-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
   /* A toolbar action that's really a tiny <form method="POST"> (Resync,
      Archive, ...) around its own .roster-action-btn button, not a plain
      <button>, is still a .roster-btn-row grid item - display: contents

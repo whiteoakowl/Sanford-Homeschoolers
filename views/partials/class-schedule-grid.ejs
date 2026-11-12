@@ -20,10 +20,14 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
       "orange buttons in their own row, everything else below" shape the
       Accounts page's own .accounting-orange-buttons-group already
       established for this exact request elsewhere in the app. %>
+  <%# A later request: "Add class, edit schedule grid and bulk edit
+      buttons should be on the same row, side by side" - Bulk Edit moved
+      up here from the Filter row below. %>
   <% if (!gridReadOnly) { %>
     <div class="roster-btn-row">
       <button type="button" class="roster-action-btn" onclick="document.getElementById('add-class-dialog-<%= day %>').showModal()">+ Add Class</button>
       <button type="button" class="roster-action-btn" onclick="document.getElementById('edit-schedule-dialog-<%= day %>').showModal()">Edit Schedule Grids</button>
+      <button type="button" class="roster-action-btn" data-bulk-edit-toggle="class-bulk-edit-form-<%= day %>" data-bulk-edit-dialog="bulk-edit-dialog-<%= day %>" aria-pressed="false">Bulk Edit</button>
     </div>
   <% } %>
   <div class="filter-row">
@@ -33,9 +37,6 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
         row below (data-bulk-edit-toggle/data-bulk-edit-dialog are
         attribute selectors, not positional - see public/js/class-
         schedule-bulk-edit.js - so this move needed no JS changes). %>
-    <% if (!gridReadOnly) { %>
-      <button type="button" class="roster-action-btn" data-bulk-edit-toggle="class-bulk-edit-form-<%= day %>" data-bulk-edit-dialog="bulk-edit-dialog-<%= day %>" aria-pressed="false">Bulk Edit</button>
-    <% } %>
     <%# A real request: "Class page filter drop down. Filter button, grade
         level, hour, day, full, for co-op admin" - a follow-up confirmed
         Date/Hour (already standalone dropdowns here) move into this same
@@ -148,8 +149,10 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
   <%# A real request: "Underneath that row should be all of the import,
       export, pdf and print icons, side by side." Own .roster-btn-row,
       same "icons together in their own row" shape Row A above and the
-      Accounts page's own icons row already use. %>
-  <div class="roster-btn-row">
+      Accounts page's own icons row already use. A real bug report: on a
+      phone these stacked one per line - .class-schedule-icon-row keeps
+      them a single row side by side (styles.css). %>
+  <div class="roster-btn-row class-schedule-icon-row">
     <% if (!gridReadOnly) { %>
       <button type="button" class="icon-btn" onclick="document.getElementById('import-dialog-<%= day %>').showModal()" aria-label="Import" title="Import"><svg class="icon"><use href="#icon-upload"/></svg></button>
     <% } %>
