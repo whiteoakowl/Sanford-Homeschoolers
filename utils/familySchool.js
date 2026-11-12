@@ -201,6 +201,8 @@ async function createClass({ familyId, className, description, createdByAccountI
 async function createClassFromLessonPlan(lessonPlanId, familyId, createdByAccountId) {
   const plan = await getLessonPlan(lessonPlanId);
   if (!plan || !plan.allow_family_school_use) return null;
+  // Another family's private copy (lesson_plans.family_id) is off-limits.
+  if (plan.family_id != null && plan.family_id !== familyId) return null;
   const classId = await createClass({ familyId, className: plan.title, description: plan.description, createdByAccountId });
   await createLesson({ classId, title: plan.title, description: plan.description, createdByAccountId, sourceLessonPlanId: plan.id });
   return classId;

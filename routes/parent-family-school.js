@@ -30,7 +30,8 @@ const { lessonAttachmentFileFilter, imageFileFilter } = require('../utils/upload
 // admin-authored plan - that flag didn't exist when this was first
 // built). isLessonPlanLocked is the one shared lock lookup (see its own
 // comment in utils/lessonPlans.js).
-const { listFamilySchoolLessonPlans, getLessonPlan, isLessonPlanLocked, contentItemsForLessonPlan } = require('../utils/lessonPlans');
+const { listFamilySchoolLessonPlans, getLessonPlan, isLessonPlanLocked, contentItemsForLessonPlan, familyCanUseLessonPlan, copyLessonPlanForFamily } = require('../utils/lessonPlans');
+const { mountLessonPlanContentRoutes } = require('./lessonPlanContentRoutes');
 const {
   CONTENT_ITEM_TYPES,
   classesForFamily,
@@ -298,7 +299,8 @@ router.get('/family-school/classes', requirePortalPermission('view_fsm_classes')
     familyStudents,
     selectedStudentId,
     classes,
-    lessonPlans: await listFamilySchoolLessonPlans(),
+    familyId,
+    lessonPlans: await listFamilySchoolLessonPlans(familyId),
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
@@ -335,14 +337,63 @@ router.post('/family-school/classes/from-lesson-plan', requirePortalPermission('
 router.get('/family-school/lesson-plans/:id', requirePortalPermission('view_fsm_classes'), async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const plan = id ? await getLessonPlan(id) : null;
-  if (!plan || !plan.allow_family_school_use) return res.status(404).send('Not found');
+  const familyId = await familyIdForAccount(req.portalAccount);
+  if (!familyCanUseLessonPlan(plan, familyId)) return res.status(404).send('Not found');
   res.render('parent-lesson-plan-view', {
     title: plan.title,
     plan,
+    isFamilyCopy: plan.family_id != null,
     contentItems: await contentItemsForLessonPlan(id),
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
+});
+
+// A real request: parents allowed to "edit or add to the lesson plan
+// from the Family School Management portal" only ever change it "for
+// their personal family use". Edit makes the family its own private copy
+// (utils/lessonPlans.js's copyLessonPlanForFamily) and they edit that -
+// the shared library plan, other families and co-op classes are never
+// affected. A locked plan can't be copied for editing.
+async function parentCanEditPlan(req, plan) {
+  const familyId = await familyIdForAccount(req.portalAccount);
+  return !!(plan && familyId && plan.family_id === familyId);
+}
+
+router.post('/family-school/lesson-plans/:id/copy', requirePortalPermission('view_fsm_classes'), async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const plan = id ? await getLessonPlan(id) : null;
+  const familyId = await familyIdForAccount(req.portalAccount);
+  if (!plan || plan.family_id != null || !familyCanUseLessonPlan(plan, familyId) || !plan.allow_member_edit) return res.status(404).send('Not found');
+  if (plan.locked) {
+    return res.redirect(`/parent/family-school/lesson-plans/${id}?error=` + encodeURIComponent('This lesson plan is locked by an admin, so it can\'t be edited right now.'));
+  }
+  const copyId = await copyLessonPlanForFamily(id, familyId, req.portalAccount.id);
+  if (!copyId) return res.status(404).send('Not found');
+  res.redirect(`/parent/family-school/lesson-plans/${copyId}/edit?notice=` + encodeURIComponent('This is your family\'s own copy - your changes only affect your family.'));
+});
+
+router.get('/family-school/lesson-plans/:id/edit', requirePortalPermission('view_fsm_classes'), async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const plan = id ? await getLessonPlan(id) : null;
+  if (!plan || !(await parentCanEditPlan(req, plan))) return res.status(404).send('Not found');
+  res.render('parent-lesson-plan-edit', {
+    title: `Edit ${plan.title}`,
+    plan,
+    canEdit: true,
+    contentItems: await contentItemsForLessonPlan(id, { includeAnswerKey: true }),
+    notice: req.query.notice || null,
+    error: req.query.error || null,
+  });
+});
+
+mountLessonPlanContentRoutes(router, {
+  pathPrefix: '/family-school/lesson-plans',
+  urlPrefix: '/parent/family-school/lesson-plans',
+  managePath: (id) => `/parent/family-school/lesson-plans/${id}/edit`,
+  middleware: [requirePortalPermission('view_fsm_classes')],
+  canEdit: parentCanEditPlan,
+  renderQuestions: (req, res, locals) => res.render('portal-lesson-plan-quiz-questions', { ...locals, portalTitle: 'Family School Management' }),
 });
 
 router.post('/family-school/classes/:id/delete', requirePortalPermission('view_fsm_classes'), async (req, res) => {
@@ -361,7 +412,7 @@ router.get('/family-school/classes/:id', requirePortalPermission('view_fsm_class
     lessons: await lessonsForClass(cls.id),
     familyStudents: await studentsForFamily(cls.family_id),
     assignedStudents: await studentsForClass(cls.id),
-    lessonPlans: await listFamilySchoolLessonPlans(),
+    lessonPlans: await listFamilySchoolLessonPlans(cls.family_id),
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
@@ -407,7 +458,7 @@ router.post('/family-school/classes/:id/lessons', requirePortalPermission('view_
     // tampered lessonPlanId for a plan that isn't flagged for Family
     // School Management must still be rejected even though the dropdown
     // itself already only lists flagged plans.
-    if (!plan || !plan.allow_family_school_use) return res.redirect(back + '?error=' + encodeURIComponent('Choose a lesson plan from the library.'));
+    if (!familyCanUseLessonPlan(plan, cls.family_id)) return res.redirect(back + '?error=' + encodeURIComponent('Choose a lesson plan from the library.'));
     const id = await createLesson({
       classId: cls.id,
       title: plan.title,

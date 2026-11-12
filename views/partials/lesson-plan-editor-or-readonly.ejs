@@ -1,0 +1,11 @@
+<%# A non-admin portal's lesson plan editor (Co-op Teacher Portal, Family
+    School Management): the full content editor when this portal may edit
+    the plan, otherwise a read-only list with why. Plan details (title,
+    description, permissions) stay admin-only. locals: plan, contentItems,
+    canEdit, lessonPlanBase. %>
+<% if (canEdit) { %>
+  <%- include('lesson-plan-content-manage', { plan, contentItems, lessonPlanBase, showDetailsForm: false }) %>
+<% } else { %>
+  <div class="alert alert-info">This lesson plan is locked by an admin, so it can't be edited right now.</div>
+  <%- include('lesson-plan-content-readonly', { contentItems }) %>
+<% } %>

@@ -6,12 +6,21 @@
     copy is attached to a real class - see the lesson_plans migration's
     own comment), and no "Review Submissions" link (no submissions can
     exist against a template). plan/contentItems come from the including
-    page; basePath is always '/admin/lesson-plans'. %>
+    page; lessonPlanBase/showDetailsForm are optional (see below). %>
+<%
+// lpBase - where this editor's forms post ('/admin/lesson-plans',
+// '/teacher/lesson-plans' or '/parent/family-school/lesson-plans', see
+// routes/lessonPlanContentRoutes.js). showDetailsForm - the title/
+// description/permission checkboxes are admin-only.
+var lpBase = typeof lessonPlanBase !== 'undefined' && lessonPlanBase ? lessonPlanBase : '/admin/lesson-plans';
+var showDetails = typeof showDetailsForm === 'undefined' || showDetailsForm;
+%>
+<% if (showDetails) { %>
 <div class="manage-section">
   <div class="grid-box-header">
     <h2>Lesson Plan Details</h2>
   </div>
-  <form method="POST" action="/admin/lesson-plans/<%= plan.id %>/edit" class="member-form-grid">
+  <form method="POST" action="<%= lpBase %>/<%= plan.id %>/edit" class="member-form-grid">
     <label class="member-form-full">Title
       <input type="text" name="title" value="<%= plan.title %>" required />
     </label>
@@ -39,16 +48,19 @@
         <input type="checkbox" name="allowTeacherEdit" value="1" <%= plan.allow_teacher_edit ? 'checked' : '' %> />
         Allow teachers to edit/add to the lesson plan
       </label>
+      <p class="hint">Teachers edit it only on the co-op class it's assigned to - that class's parents and students see the changes. This plan itself never changes.</p>
       <label class="checkbox-option">
         <input type="checkbox" name="allowMemberEdit" value="1" <%= plan.allow_member_edit ? 'checked' : '' %> />
-        Allow members to edit/add to the lesson plan in Family School Management
+        Allow parents to edit or add to the lesson plan from the Family School Management portal
       </label>
+      <p class="hint">Parents edit their own family's copy - this plan itself never changes.</p>
     </div>
     <div class="member-form-full">
       <button type="submit" class="primary-btn">Save Lesson Plan Details</button>
     </div>
   </form>
 </div>
+<% } %>
 
 <div class="manage-section">
   <div class="grid-box-header">
@@ -69,7 +81,7 @@
         <thead>
           <tr><th></th><th>Content</th><th></th></tr>
         </thead>
-        <tbody data-content-reorder-tbody data-assignment-id="<%= plan.id %>" data-reorder-url="/admin/lesson-plans/<%= plan.id %>/content/reorder">
+        <tbody data-content-reorder-tbody data-assignment-id="<%= plan.id %>" data-reorder-url="<%= lpBase %>/<%= plan.id %>/content/reorder">
           <% contentItems.forEach(function(item) { %>
             <tr data-content-reorder-row="<%= item.id %>">
               <td class="roster-drag-col"><span data-content-reorder-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span></td>
@@ -94,10 +106,10 @@
                 <div class="roster-btn-row content-item-row-icons">
                   <span class="content-item-type-label">Type: <%= CONTENT_TYPE_LABELS[item.type] || item.type %></span>
                   <% if (item.type === 'quiz') { %>
-                    <a class="roster-action-btn content-item-manage-link" href="/admin/lesson-plans/content/<%= item.id %>/questions">Manage Questions</a>
+                    <a class="roster-action-btn content-item-manage-link" href="<%= lpBase %>/content/<%= item.id %>/questions">Manage Questions</a>
                   <% } %>
                   <button type="button" class="icon-btn" onclick="document.getElementById('edit-content-dialog-<%= item.id %>').showModal()" aria-label="Edit <%= item.title || 'content' %>" title="Edit"><svg class="icon"><use href="#icon-edit"/></svg></button>
-                  <form method="POST" action="/admin/lesson-plans/content/<%= item.id %>/delete" onsubmit="return confirm('Remove this content?');" class="inline-block-form">
+                  <form method="POST" action="<%= lpBase %>/content/<%= item.id %>/delete" onsubmit="return confirm('Remove this content?');" class="inline-block-form">
                     <button type="submit" class="icon-btn icon-btn-danger" aria-label="Delete <%= item.title || 'content' %>" title="Delete"><svg class="icon"><use href="#icon-trash"/></svg></button>
                   </form>
                 </div>
@@ -109,7 +121,7 @@
     </div>
     <% contentItems.forEach(function(item) { %>
       <dialog id="edit-content-dialog-<%= item.id %>" class="member-picker-dialog dialog-label-stack">
-        <form method="POST" action="/admin/lesson-plans/content/<%= item.id %>/edit" enctype="multipart/form-data">
+        <form method="POST" action="<%= lpBase %>/content/<%= item.id %>/edit" enctype="multipart/form-data">
           <h3>Edit Content</h3>
           <label>Title
             <input type="text" name="title" value="<%= item.title || '' %>" />
@@ -166,7 +178,7 @@
   <% } %>
 
   <dialog id="add-content-dialog" class="member-picker-dialog dialog-label-stack">
-    <form method="POST" action="/admin/lesson-plans/<%= plan.id %>/content" enctype="multipart/form-data" class="member-form-grid" data-toggle-form>
+    <form method="POST" action="<%= lpBase %>/<%= plan.id %>/content" enctype="multipart/form-data" class="member-form-grid" data-toggle-form>
       <h3>Add Content</h3>
       <label class="member-form-full">Type
         <select name="type" data-toggle-select>

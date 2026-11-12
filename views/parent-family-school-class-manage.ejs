@@ -132,7 +132,7 @@
         <select name="lessonPlanId">
           <option value="">Choose a lesson plan&hellip;</option>
           <% lessonPlans.forEach(function(p) { %>
-            <option value="<%= p.id %>"><%= p.title %><%= p.locked ? ' (Locked)' : '' %></option>
+            <option value="<%= p.id %>"><%= p.title %><%= p.family_id ? " (My Family's Copy)" : '' %><%= p.locked ? ' (Locked)' : '' %></option>
           <% }); %>
         </select>
       </label>

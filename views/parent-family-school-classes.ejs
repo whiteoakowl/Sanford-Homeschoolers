@@ -150,9 +150,17 @@
               <div class="team-info-card">
                 <span class="team-info-icon"><svg class="icon"><use href="#icon-book"/></svg></span>
                 <h3 class="team-info-title"><%= p.title %></h3>
+                <% if (p.family_id) { %><p class="hint">Your family's own copy</p><% } %>
                 <% if (p.description) { %><p class="hint"><%= p.description %></p><% } %>
                 <div class="roster-btn-row roster-btn-row-fit-text">
                   <a class="roster-action-btn" href="/parent/family-school/lesson-plans/<%= p.id %>">View</a>
+                  <% if (p.family_id) { %>
+                    <a class="roster-action-btn" href="/parent/family-school/lesson-plans/<%= p.id %>/edit">Edit</a>
+                  <% } else if (p.allow_member_edit && !p.locked) { %>
+                    <form method="POST" action="/parent/family-school/lesson-plans/<%= p.id %>/copy">
+                      <button type="submit" class="roster-action-btn">Edit for My Family</button>
+                    </form>
+                  <% } %>
                   <form method="POST" action="/parent/family-school/classes/from-lesson-plan">
                     <input type="hidden" name="lessonPlanId" value="<%= p.id %>" />
                     <button type="submit" class="roster-action-btn">Add to Family Class List</button>

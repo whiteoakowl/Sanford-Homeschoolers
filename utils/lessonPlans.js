@@ -16,8 +16,10 @@ const db = require('../db');
 const { createAssignment, createContentItem, createQuizQuestion, lessonAttachmentUrl } = require('./academics');
 const { getClass } = require('./classSchedule');
 
+// The shared library only - a family's own private copy (family_id set,
+// see copyLessonPlanForFamily) never shows to admins' list or teachers.
 async function listLessonPlans() {
-  return db.prepare('SELECT * FROM lesson_plans ORDER BY title').all();
+  return db.prepare('SELECT * FROM lesson_plans WHERE family_id IS NULL ORDER BY title').all();
 }
 
 // A real request: "Allow members to use this lesson plan for Homeschool
@@ -26,8 +28,73 @@ async function listLessonPlans() {
 // planner add lessons." The one filtered lookup every Family School
 // Management surface that lists lesson plans calls, instead of each
 // route re-querying lesson_plans.allow_family_school_use on its own.
-async function listFamilySchoolLessonPlans() {
-  return db.prepare('SELECT * FROM lesson_plans WHERE allow_family_school_use = true ORDER BY title').all();
+// familyId adds that family's own private copies; other families'
+// copies never show.
+async function listFamilySchoolLessonPlans(familyId) {
+  return db
+    .prepare('SELECT * FROM lesson_plans WHERE allow_family_school_use = true AND (family_id IS NULL OR family_id = ?) ORDER BY title, family_id NULLS FIRST')
+    .all(familyId || null);
+}
+
+// Whether a family may see/use this plan at all: a shared library plan
+// offered to Family School Management, or that family's own copy.
+function familyCanUseLessonPlan(plan, familyId) {
+  if (!plan || !plan.allow_family_school_use) return false;
+  return plan.family_id == null || (familyId != null && plan.family_id === familyId);
+}
+
+// A real request: parents edit a library plan for "their personal family
+// use" only. Makes (or reuses) this family's private copy of a shared
+// plan - its content and quiz questions too - and points this family's
+// own Family Classes lessons that used the original at the copy, so
+// their edits show up in their own classes. The original, and every
+// other family, are untouched.
+async function copyLessonPlanForFamily(lessonPlanId, familyId, createdByAccountId) {
+  const plan = await getLessonPlan(lessonPlanId);
+  if (!plan || plan.family_id != null || !familyId) return null;
+  const existing = await db.prepare('SELECT id FROM lesson_plans WHERE family_id = ? AND copied_from_lesson_plan_id = ?').get(familyId, plan.id);
+  if (existing) return existing.id;
+
+  return db.withTransaction(async (tx) => {
+    const copyId = (
+      await tx
+        .prepare(
+          `INSERT INTO lesson_plans (title, description, created_by_account_id, allow_family_school_use, allow_teacher_edit, allow_member_edit, family_id, copied_from_lesson_plan_id)
+           VALUES (?, ?, ?, true, false, false, ?, ?) RETURNING id`
+        )
+        .get(plan.title, plan.description, createdByAccountId || null, familyId, plan.id)
+    ).id;
+    const items = await tx.prepare('SELECT * FROM lesson_plan_content_items WHERE lesson_plan_id = ? ORDER BY position, id').all(plan.id);
+    for (const item of items) {
+      const newItemId = (
+        await tx
+          .prepare(
+            `INSERT INTO lesson_plan_content_items (lesson_plan_id, type, position, title, video_url, body, file_url, description, attachment_url, attachment_name, points_possible)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+          )
+          .get(copyId, item.type, item.position, item.title, item.video_url, item.body, item.file_url, item.description, item.attachment_url, item.attachment_name, item.points_possible)
+      ).id;
+      const questions = await tx.prepare('SELECT * FROM lesson_plan_quiz_questions WHERE content_item_id = ? ORDER BY position, id').all(item.id);
+      for (const q of questions) {
+        const newQuestionId = (
+          await tx
+            .prepare('INSERT INTO lesson_plan_quiz_questions (content_item_id, type, prompt, points_possible, position) VALUES (?, ?, ?, ?, ?) RETURNING id')
+            .get(newItemId, q.type, q.prompt, q.points_possible, q.position)
+        ).id;
+        const choices = await tx.prepare('SELECT * FROM lesson_plan_quiz_choices WHERE question_id = ? ORDER BY position, id').all(q.id);
+        for (const c of choices) {
+          await tx.prepare('INSERT INTO lesson_plan_quiz_choices (question_id, label, is_correct, position) VALUES (?, ?, ?, ?)').run(newQuestionId, c.label, c.is_correct, c.position);
+        }
+      }
+    }
+    await tx
+      .prepare(
+        `UPDATE family_school_lessons SET source_lesson_plan_id = ?, updated_at = now_text()
+         WHERE source_lesson_plan_id = ? AND class_id IN (SELECT id FROM family_school_classes WHERE family_id = ?)`
+      )
+      .run(copyId, plan.id, familyId);
+    return copyId;
+  });
 }
 
 async function getLessonPlan(id) {
@@ -63,7 +130,13 @@ async function updateLessonPlan(id, { title, description, allowFamilySchoolUse, 
 // enforcement point calls, instead of each route file re-querying
 // lesson_plans.locked on its own.
 //
-// Where this is actually checked today:
+// A later request: the "Allow teachers to edit/add" and "Allow parents
+// to edit or add ... from the Family School Management portal"
+// checkboxes now let those portals edit the plan itself (routes/
+// lessonPlanContentRoutes.js) - and a locked plan blocks both
+// (memberCanEditPlan there); only admins can edit a locked plan.
+//
+// Where this is also checked:
 //   - Family School Management (routes/parent-family-school.js, via
 //     utils/familySchool.js's own contentItemsForLesson/getLesson call
 //     sites) - a parent's lesson that references a plan always renders
@@ -223,6 +296,10 @@ async function assignLessonPlanToClass(lessonPlanId, classId, createdByAccountId
     description: plan.description,
     createdByAccountId,
   });
+  // Remembered so the plan's "Allow teachers to edit/add" checkbox and
+  // Lock still decide whether this class's teacher may edit the copy
+  // (see teacherLessonPlanBlock below).
+  await db.prepare('UPDATE class_assignments SET source_lesson_plan_id = ? WHERE id = ?').run(plan.id, assignmentId);
 
   const items = await contentItemsForLessonPlan(lessonPlanId, { includeAnswerKey: true });
   for (const item of items) {
@@ -254,9 +331,28 @@ async function assignLessonPlanToClass(lessonPlanId, classId, createdByAccountId
   return assignmentId;
 }
 
+// A real request: a teacher edits a lesson plan only on the co-op class
+// it was assigned to - "these shared changes only show up on the co-op
+// class it is attached to" - never the shared plan or Family School
+// Management. Returns why this teacher can't edit a class lesson that
+// came from a plan (null when they can): the plan doesn't allow teacher
+// edits, or an admin locked it. Lessons a teacher wrote themselves, or
+// whose plan was deleted, are always editable.
+async function teacherLessonPlanBlock(assignment) {
+  if (!assignment || !assignment.source_lesson_plan_id) return null;
+  const plan = await getLessonPlan(assignment.source_lesson_plan_id);
+  if (!plan) return null;
+  if (plan.locked) return `This lesson comes from the "${plan.title}" lesson plan, which an admin has locked, so it can't be edited right now.`;
+  if (!plan.allow_teacher_edit) return `This lesson comes from the "${plan.title}" lesson plan, which teachers aren't allowed to edit.`;
+  return null;
+}
+
 module.exports = {
+  teacherLessonPlanBlock,
   listLessonPlans,
   listFamilySchoolLessonPlans,
+  familyCanUseLessonPlan,
+  copyLessonPlanForFamily,
   getLessonPlan,
   createLessonPlan,
   updateLessonPlan,

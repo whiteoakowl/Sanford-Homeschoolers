@@ -274,7 +274,7 @@ test('Lesson Plan Details form: the teacher/member edit checkboxes default off a
   assert.match(manage.text, /name="allowTeacherEdit" value="1"\s*\/>/);
   assert.match(manage.text, /Allow teachers to edit\/add to the lesson plan/);
   assert.match(manage.text, /name="allowMemberEdit" value="1"\s*\/>/);
-  assert.match(manage.text, /Allow members to edit\/add to the lesson plan in Family School Management/);
+  assert.match(manage.text, /Allow parents to edit or add to the lesson plan from the Family School Management portal/);
   assert.doesNotMatch(manage.text, /name="allowTeacherEdit" value="1" checked/);
   assert.doesNotMatch(manage.text, /name="allowMemberEdit" value="1" checked/);
 

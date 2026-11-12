@@ -12,13 +12,9 @@
 // (routes/teacher-portal.js) is entirely untouched by this file.
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
 const db = require('../db');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
-const { sanitizePostBody } = require('../utils/sanitizeHtml');
-const { lessonAttachmentFileFilter } = require('../utils/uploads');
 const {
-  saveLessonAttachment,
   getAssignment,
   contentItemsForAssignment,
   lessonsForApprovalQueue,
@@ -30,20 +26,14 @@ const { formatDateLabel, formatFriendlyTimestamp } = require('../utils/dates');
 const notifications = require('../utils/notifications');
 const { logError } = require('../utils/logger');
 const { allClassesList } = require('../utils/classSchedule');
+const { mountLessonPlanContentRoutes } = require('./lessonPlanContentRoutes');
 const {
   listLessonPlans,
   getLessonPlan,
   createLessonPlan,
   updateLessonPlan,
   deleteLessonPlan,
-  getLessonPlanContentItem,
   contentItemsForLessonPlan,
-  createLessonPlanContentItem,
-  updateLessonPlanContentItem,
-  deleteLessonPlanContentItem,
-  reorderLessonPlanContentItems,
-  createLessonPlanQuizQuestion,
-  deleteLessonPlanQuizQuestion,
   assignLessonPlanToClass,
   toggleLessonPlanLocked,
 } = require('../utils/lessonPlans');
@@ -229,164 +219,16 @@ router.post('/lesson-plans/:id/assign', async (req, res) => {
   res.redirect(`/admin/class-schedule/assignments/${assignmentId}?notice=` + encodeURIComponent(`Added "${plan.title}" as a new lesson.`));
 });
 
-// --- Content items (mirrors routes/admin-class-schedule.js's own
-// /class-schedule/assignments/:id/content routes field-for-field, just
-// targeting the lesson_plan_* tables instead - see utils/lessonPlans.js's
-// own header comment on why this is a parallel set, not a shared one,
-// matching this codebase's own established per-portal duplication
-// convention (teacher-portal.js already keeps its own identical copy of
-// the class version these are modeled on). ---
-
-const MAX_LESSON_ATTACHMENT_BYTES = 10 * 1024 * 1024;
-const lessonAttachmentUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_LESSON_ATTACHMENT_BYTES }, fileFilter: lessonAttachmentFileFilter });
-function uploadLessonAttachment(req, res, next) {
-  lessonAttachmentUpload.single('attachment')(req, res, (err) => {
-    if (err && err.code === 'LIMIT_FILE_SIZE') {
-      return res.redirect(
-        `/admin/lesson-plans/${req.params.id}?error=` +
-          encodeURIComponent(`That file is too large - lesson plan attachments are limited to ${MAX_LESSON_ATTACHMENT_BYTES / (1024 * 1024)}MB.`)
-      );
-    }
-    next(err);
-  });
-}
-
-const LESSON_CONTENT_TYPES = ['video', 'text', 'file', 'quiz', 'assignment_upload', 'assignment_submission'];
-
-router.post('/lesson-plans/:id/content', uploadLessonAttachment, async (req, res) => {
-  const lessonPlanId = parseInt(req.params.id, 10);
-  const plan = await getLessonPlan(lessonPlanId);
-  if (!plan) return res.status(404).send('Not found');
-  const back = `/admin/lesson-plans/${lessonPlanId}`;
-  const type = req.body.type;
-  if (!LESSON_CONTENT_TYPES.includes(type)) return res.redirect(back + '?error=' + encodeURIComponent('Choose a content type.'));
-
-  let attachmentUrl = null;
-  let attachmentName = null;
-  if (type === 'assignment_upload' && req.file) {
-    attachmentUrl = await saveLessonAttachment(req.file);
-    attachmentName = req.file.originalname;
-  }
-
-  await createLessonPlanContentItem({
-    lessonPlanId,
-    type,
-    title: (req.body.title || '').trim(),
-    videoUrl: type === 'video' ? (req.body.videoUrl || '').trim() : null,
-    body:
-      type === 'text'
-        ? (req.body.body || '').trim()
-        : type === 'assignment_upload'
-        ? sanitizePostBody(req.body.assignmentBody || '')
-        : type === 'assignment_submission'
-        ? sanitizePostBody(req.body.submissionBody || '')
-        : null,
-    fileUrl: type === 'file' ? (req.body.fileUrl || '').trim() : null,
-    description: type === 'video' ? (req.body.description || '').trim() : type === 'file' ? (req.body.fileDescription || '').trim() : null,
-    attachmentUrl,
-    attachmentName,
-    pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
-  });
-  res.redirect(back + '?notice=' + encodeURIComponent('Added to the lesson plan.'));
-});
-
-router.post('/lesson-plans/content/:id/edit', uploadLessonAttachment, async (req, res) => {
-  const contentItem = await getLessonPlanContentItem(parseInt(req.params.id, 10));
-  if (!contentItem) return res.status(404).send('Not found');
-  const back = `/admin/lesson-plans/${contentItem.lesson_plan_id}`;
-  const type = contentItem.type;
-
-  let attachmentUrl = contentItem.attachment_url;
-  let attachmentName = contentItem.attachment_name;
-  if (type === 'assignment_upload' && req.file) {
-    attachmentUrl = await saveLessonAttachment(req.file);
-    attachmentName = req.file.originalname;
-  }
-
-  await updateLessonPlanContentItem(contentItem.id, {
-    title: (req.body.title || '').trim(),
-    videoUrl: type === 'video' ? (req.body.videoUrl || '').trim() : contentItem.video_url,
-    body:
-      type === 'text'
-        ? (req.body.body || '').trim()
-        : type === 'assignment_upload'
-        ? sanitizePostBody(req.body.assignmentBody || '')
-        : type === 'assignment_submission'
-        ? sanitizePostBody(req.body.submissionBody || '')
-        : contentItem.body,
-    fileUrl: type === 'file' ? (req.body.fileUrl || '').trim() : contentItem.file_url,
-    description: type === 'video' ? (req.body.description || '').trim() : type === 'file' ? (req.body.fileDescription || '').trim() : contentItem.description,
-    attachmentUrl,
-    attachmentName,
-    pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
-  });
-  res.redirect(back + '?notice=' + encodeURIComponent('Updated.'));
-});
-
-router.post('/lesson-plans/content/:id/delete', async (req, res) => {
-  const contentItem = await getLessonPlanContentItem(parseInt(req.params.id, 10));
-  if (!contentItem) return res.status(404).send('Not found');
-  await deleteLessonPlanContentItem(contentItem.id);
-  res.redirect(`/admin/lesson-plans/${contentItem.lesson_plan_id}?notice=` + encodeURIComponent('Removed.'));
-});
-
-router.post('/lesson-plans/:id/content/reorder', async (req, res) => {
-  const lessonPlanId = parseInt(req.params.id, 10);
-  const contentItemIds = [].concat(req.body.contentItemIds || []).map((v) => parseInt(v, 10));
-  await reorderLessonPlanContentItems(lessonPlanId, contentItemIds);
-  res.json({ ok: true });
-});
-
-// --- Quiz questions (mirrors routes/admin-class-schedule.js's own
-// /class-schedule/content/:id/questions routes). ---
-
-router.get('/lesson-plans/content/:id/questions', async (req, res) => {
-  const contentItem = await getLessonPlanContentItem(parseInt(req.params.id, 10));
-  if (!contentItem || contentItem.type !== 'quiz') return res.status(404).send('Not found');
-  const plan = await getLessonPlan(contentItem.lesson_plan_id);
-  const items = await contentItemsForLessonPlan(plan.id, { includeAnswerKey: true });
-  const questions = items.find((i) => i.id === contentItem.id).questions;
-  res.render('admin-lesson-plan-quiz-questions', {
-    title: `Questions - ${contentItem.title || 'Quiz'}`,
-    basePath: '/admin/lesson-plans',
-    plan,
-    contentItem,
-    questions,
-    error: req.query.error || null,
-    notice: req.query.notice || null,
-  });
-});
-
-router.post('/lesson-plans/content/:id/questions', async (req, res) => {
-  const contentItem = await getLessonPlanContentItem(parseInt(req.params.id, 10));
-  if (!contentItem) return res.status(404).send('Not found');
-  const back = `/admin/lesson-plans/${contentItem.lesson_plan_id}`;
-  const type = req.body.type === 'short_answer' ? 'short_answer' : 'multiple_choice';
-  const prompt = (req.body.prompt || '').trim();
-  if (!prompt) return res.redirect(back + '?error=' + encodeURIComponent('A question prompt is required.'));
-  const correctIndex = req.body.correctChoice;
-  const choices = [1, 2, 3, 4].map((n) => ({
-    label: (req.body[`choice${n}`] || '').trim(),
-    isCorrect: String(correctIndex) === String(n),
-  }));
-  await createLessonPlanQuizQuestion({
-    contentItemId: contentItem.id,
-    type,
-    prompt,
-    pointsPossible: req.body.pointsPossible ? Number(req.body.pointsPossible) : 1,
-    choices: type === 'multiple_choice' ? choices : [],
-  });
-  res.redirect(back + '?notice=' + encodeURIComponent('Question added.'));
-});
-
-router.post('/lesson-plans/questions/:id/delete', async (req, res) => {
-  const questionId = parseInt(req.params.id, 10);
-  const question = await db
-    .prepare('SELECT q.*, lpci.lesson_plan_id FROM lesson_plan_quiz_questions q JOIN lesson_plan_content_items lpci ON lpci.id = q.content_item_id WHERE q.id = ?')
-    .get(questionId);
-  if (!question) return res.status(404).send('Not found');
-  await deleteLessonPlanQuizQuestion(questionId);
-  res.redirect(`/admin/lesson-plans/${question.lesson_plan_id}?notice=` + encodeURIComponent('Question removed.'));
+// --- Content items and quiz questions - shared with the Co-op Teacher
+// Portal and Family School Management (routes/lessonPlanContentRoutes.js),
+// which only allow it when the plan's own checkbox is on and it isn't
+// locked. Admins can always edit. ---
+mountLessonPlanContentRoutes(router, {
+  pathPrefix: '/lesson-plans',
+  urlPrefix: '/admin/lesson-plans',
+  managePath: (id) => `/admin/lesson-plans/${id}`,
+  canEdit: async () => true,
+  renderQuestions: (req, res, locals) => res.render('admin-lesson-plan-quiz-questions', locals),
 });
 
 module.exports = router;

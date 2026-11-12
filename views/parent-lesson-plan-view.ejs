@@ -31,56 +31,24 @@
         <input type="hidden" name="lessonPlanId" value="<%= plan.id %>" />
         <button type="submit" class="primary-btn">Add to Family Class List</button>
       </form>
-    </div>
-
-    <div class="manage-section">
-      <div class="grid-box-header">
-        <h2>Content (<%= contentItems.length %>)</h2>
-      </div>
-      <% if (contentItems.length === 0) { %>
-        <p class="roster-empty">This lesson plan has no content yet.</p>
-      <% } else { %>
-        <%
-          var CONTENT_TYPE_LABELS = {
-            video: 'Video', text: 'Text', file: 'File', quiz: 'Quiz',
-            assignment_upload: 'Assignment', assignment_submission: 'Assignment (student uploads work)',
-          };
-        %>
-        <div class="roster-scroll">
-          <table class="roster-table members-table condensed-table table-stack-mobile">
-            <thead>
-              <tr><th>Content</th><th></th></tr>
-            </thead>
-            <tbody>
-              <% contentItems.forEach(function(item) { %>
-                <tr>
-                  <td class="roster-name-col table-stack-heading">
-                    <span><%= item.title || '(untitled)' %></span>
-                    <% if (item.type === 'video' && item.video_url) { %><div class="hint"><a href="<%= item.video_url %>" target="_blank" rel="noopener">Video link</a></div><% } %>
-                    <% if (item.type === 'video' && item.description) { %><div class="hint"><%= item.description %></div><% } %>
-                    <% if (item.type === 'file' && item.file_url) { %><div class="hint"><a href="<%= item.file_url %>" target="_blank" rel="noopener">File link</a></div><% } %>
-                    <% if (item.type === 'file' && item.description) { %><div class="hint"><%= item.description %></div><% } %>
-                    <% if (item.type === 'text' && item.body) { %><div class="hint plain-text-display"><%= item.body %></div><% } %>
-                    <% if (item.type === 'quiz') { %><div class="hint"><%= item.questions.length %> question<%= item.questions.length === 1 ? '' : 's' %></div><% } %>
-                    <% if (item.type === 'assignment_upload') { %>
-                      <% if (item.body) { %><div class="hint forum-editable-display"><%- item.body %></div><% } %>
-                      <% if (item.attachmentUrl) { %><div class="hint"><a href="<%= item.attachmentUrl %>" target="_blank" rel="noopener"><%= item.attachment_name || 'Attachment' %></a></div><% } %>
-                    <% } %>
-                    <% if (item.type === 'assignment_submission') { %>
-                      <% if (item.body) { %><div class="hint forum-editable-display"><%- item.body %></div><% } %>
-                      <div class="hint"><% if (item.points_possible != null) { %><%= item.points_possible %> points<% } %></div>
-                    <% } %>
-                  </td>
-                  <td data-label="" class="table-stack-full">
-                    <span class="content-item-type-label">Type: <%= CONTENT_TYPE_LABELS[item.type] || item.type %></span>
-                  </td>
-                </tr>
-              <% }); %>
-            </tbody>
-          </table>
-        </div>
+      <%# Parents only ever edit their own family's private copy - Edit
+          on a library plan makes that copy first (POST .../copy). %>
+      <% if (isFamilyCopy) { %>
+        <p class="hint">This is your family's own copy - changes only affect your family.</p>
+        <p><a class="roster-action-btn" href="/parent/family-school/lesson-plans/<%= plan.id %>/edit">Edit Lesson Plan</a></p>
+      <% } else if (plan.allow_member_edit) { %>
+        <% if (plan.locked) { %>
+          <p class="hint">This lesson plan is locked by an admin, so it can't be edited right now.</p>
+        <% } else { %>
+          <form method="POST" action="/parent/family-school/lesson-plans/<%= plan.id %>/copy">
+            <button type="submit" class="roster-action-btn">Edit for My Family</button>
+          </form>
+          <p class="hint">Makes your family's own copy to edit. The library version, and every other family's, stays the same.</p>
+        <% } %>
       <% } %>
     </div>
+
+    <%- include('partials/lesson-plan-content-readonly', { contentItems }) %>
   </main>
 </body>
 </html>

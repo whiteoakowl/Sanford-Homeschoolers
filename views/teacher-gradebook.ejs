@@ -59,7 +59,14 @@
       <% } %>
     </div>
 
-    <%- include('partials/lesson-content-manage', { basePath: '/teacher', assignment, contentItems }) %>
+    <%# A lesson from an admin's lesson plan that teachers aren't allowed
+        to edit (or that's locked) shows read-only, with why. %>
+    <% if (typeof lessonPlanBlock !== 'undefined' && lessonPlanBlock) { %>
+      <div class="alert alert-info"><%= lessonPlanBlock %></div>
+      <%- include('partials/lesson-plan-content-readonly', { contentItems }) %>
+    <% } else { %>
+      <%- include('partials/lesson-content-manage', { basePath: '/teacher', assignment, contentItems }) %>
+    <% } %>
 
     <div class="manage-section">
       <div class="grid-box-header">

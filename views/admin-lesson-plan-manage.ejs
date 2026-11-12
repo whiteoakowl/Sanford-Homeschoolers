@@ -29,7 +29,7 @@
       </form>
     </div>
     <p class="hint no-print">
-      <% if (plan.locked) { %>Locked - a co-op class's own copy of this plan is still a separate, editable copy, but a Family Classes lesson that references this plan directly shows its content read-only.<% } else { %>Unlocked.<% } %>
+      <% if (plan.locked) { %>Locked - only admins can edit this plan. Teachers can't edit it on the classes it's assigned to, and parents can't make a new family copy to edit, even if they're allowed below.<% } else { %>Unlocked - teachers (on their own class) and parents (their own family's copy) can edit it if they're allowed below.<% } %>
     </p>
 
     <dialog id="assign-lesson-plan-dialog" class="member-picker-dialog">

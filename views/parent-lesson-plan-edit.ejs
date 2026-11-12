@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Family School Management' }) %>
+
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p class="no-print"><a href="/parent/family-school/lesson-plans/<%= plan.id %>">&larr; Back to <%= plan.title %></a></p>
+    <h1>Edit <%= plan.title %> <% if (plan.locked) { %><span class="status-badge status-badge-none">Locked</span><% } %></h1>
+    <p class="hint">This is your family's own copy - changes here only affect your family. The library version, other families and co-op classes are never changed.</p>
+
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+    <%- include('partials/lesson-plan-editor-or-readonly', { plan, contentItems, canEdit, lessonPlanBase: '/parent/family-school/lesson-plans' }) %>
+  </main>
+</body>
+</html>

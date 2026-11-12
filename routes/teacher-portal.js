@@ -61,6 +61,7 @@ const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
 const { findMemberByBarcodeOrName } = require('../utils/memberLookup');
 const { createRateLimiter } = require('../utils/rateLimit');
 const trainingModule = require('../utils/training');
+const { teacherLessonPlanBlock } = require('../utils/lessonPlans');
 
 // Same per-device throttle shape as the kiosk's own Class Check-In scan
 // (routes/kiosk-class-checkin.js's own classScanLimiter) - its own
@@ -450,7 +451,8 @@ router.get('/assignments/:id', requirePortalPermission('view_teacher_assignments
     dueDateLabel: item.due_date ? formatDateLabel(item.due_date) : null,
   }));
   const approvalEvents = await approvalEventsForAssignment(assignment.id);
-  res.render('teacher-gradebook', { title: assignment.title, cls, assignment, rows, contentItems, approvalEvents, notice: req.query.notice || null, error: req.query.error || null });
+  const lessonPlanBlock = await teacherLessonPlanBlock(assignment);
+  res.render('teacher-gradebook', { title: assignment.title, cls, assignment, rows, contentItems, approvalEvents, lessonPlanBlock, notice: req.query.notice || null, error: req.query.error || null });
 });
 
 router.post('/assignments/:id/edit', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
@@ -462,6 +464,7 @@ router.post('/assignments/:id/edit', requirePortalPermission('view_teacher_assig
   if (!cls) {
     return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
   }
+  if (await blockLessonPlanEdit(res, assignment)) return;
   const back = `/teacher/assignments/${assignmentId}`;
   const title = (req.body.title || '').trim();
   if (!title) return res.redirect(back + '?error=' + encodeURIComponent('A lesson title is required.'));
@@ -505,6 +508,18 @@ async function assignmentForTeacher(req, assignmentId) {
   return cls ? { assignment, cls } : null;
 }
 
+// A real request: a lesson that came from an admin's lesson plan can only
+// be edited on this class (never the shared plan) and only when that plan
+// allows teacher edits and isn't locked - see utils/lessonPlans.js's own
+// teacherLessonPlanBlock. Redirects back with the reason and returns true
+// when the edit isn't allowed.
+async function blockLessonPlanEdit(res, assignment) {
+  const reason = await teacherLessonPlanBlock(assignment);
+  if (!reason) return false;
+  res.redirect(`/teacher/assignments/${assignment.id}?error=` + encodeURIComponent(reason));
+  return true;
+}
+
 async function contentItemForTeacher(req, contentItemId) {
   const contentItem = await getContentItem(contentItemId);
   if (!contentItem) return null;
@@ -535,6 +550,7 @@ router.post('/assignments/:id/content', requirePortalPermission('view_teacher_as
   const assignmentId = parseInt(req.params.id, 10);
   const found = await assignmentForTeacher(req, assignmentId);
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
+  if (await blockLessonPlanEdit(res, found.assignment)) return;
   const back = `/teacher/assignments/${assignmentId}`;
   const type = req.body.type;
   if (!LESSON_CONTENT_TYPES.includes(type)) return res.redirect(back + '?error=' + encodeURIComponent('Choose a content type.'));
@@ -591,6 +607,7 @@ router.post('/assignments/:id/content', requirePortalPermission('view_teacher_as
 router.post('/content/:id/edit', requirePortalPermission('view_teacher_assignments'), uploadLessonAttachment, async (req, res) => {
   const found = await contentItemForTeacher(req, parseInt(req.params.id, 10));
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
+  if (await blockLessonPlanEdit(res, found.assignment)) return;
   const contentItem = found.contentItem;
   const back = `/teacher/assignments/${found.assignment.id}`;
   const type = contentItem.type;
@@ -626,6 +643,7 @@ router.post('/content/:id/edit', requirePortalPermission('view_teacher_assignmen
 router.post('/content/:id/delete', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const found = await contentItemForTeacher(req, parseInt(req.params.id, 10));
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
+  if (await blockLessonPlanEdit(res, found.assignment)) return;
   await deleteContentItem(found.contentItem.id);
   res.redirect(`/teacher/assignments/${found.assignment.id}?notice=` + encodeURIComponent('Content removed.'));
 });
@@ -671,6 +689,8 @@ router.post('/assignments/:id/content/reorder', requirePortalPermission('view_te
   const assignmentId = parseInt(req.params.id, 10);
   const found = await assignmentForTeacher(req, assignmentId);
   if (!found) return res.status(403).json({ error: 'not your class' });
+  const blocked = await teacherLessonPlanBlock(found.assignment);
+  if (blocked) return res.status(403).json({ error: blocked });
   const contentItemIds = [].concat(req.body.contentItemIds || []).map((v) => parseInt(v, 10));
   await reorderContentItems(assignmentId, contentItemIds);
   res.json({ ok: true });
@@ -695,6 +715,7 @@ router.get('/content/:id/questions', requirePortalPermission('view_teacher_assig
 router.post('/content/:id/questions', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
   const found = await contentItemForTeacher(req, parseInt(req.params.id, 10));
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
+  if (await blockLessonPlanEdit(res, found.assignment)) return;
   const back = `/teacher/assignments/${found.assignment.id}`;
   const type = req.body.type === 'short_answer' ? 'short_answer' : 'multiple_choice';
   const prompt = (req.body.prompt || '').trim();
@@ -720,6 +741,7 @@ router.post('/questions/:id/delete', requirePortalPermission('view_teacher_assig
   if (!question) return res.status(404).send('Not found');
   const found = await assignmentForTeacher(req, question.assignment_id);
   if (!found) return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
+  if (await blockLessonPlanEdit(res, found.assignment)) return;
   await deleteQuizQuestion(questionId);
   res.redirect(`/teacher/assignments/${found.assignment.id}?notice=` + encodeURIComponent('Question removed.'));
 });
