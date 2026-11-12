@@ -17004,3 +17004,4 @@ dialog form:has(.permission-section) > h3,
 }
 .sub-plan-notes { padding: 0.7rem 0.9rem; border-radius: 10px; background: var(--orange-bg); }
 .sub-plan-notes strong { display: block; margin-bottom: 0.25rem; }
+.sub-plan-tab-section { margin-top: 1.5rem; }

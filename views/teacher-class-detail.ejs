@@ -145,6 +145,40 @@
             same reasoning as Parent Portal's own staff view (canTakeQuiz
             is always false here, no student to complete anything for). %>
         <%- include('partials/lessons-view', { lessons, canTakeQuiz: false, quizBasePath: '/teacher', quizQuery: '', showApprovalStatus: true }) %>
+        <%# A real request: "Show substitute plans on the teacher's class
+            Lessons tab too" - read-only here, every status (this is the
+            teacher's own view); Add/Edit Substitute Plan manages them. %>
+        <div class="manage-section sub-plan-tab-section">
+          <div class="grid-box-header">
+            <h2>Substitute Plans (<%= subPlans.length %>)</h2>
+            <div class="roster-btn-row no-print">
+              <a class="roster-action-btn" href="/teacher/classes/<%= cls.id %>/substitute-plan">Add/Edit Substitute Plan</a>
+            </div>
+          </div>
+          <% if (subPlans.length === 0) { %>
+            <p class="roster-empty">No substitute plans yet.</p>
+          <% } %>
+          <div class="lesson-plan-bars">
+            <% subPlans.forEach(function(p) { %>
+              <details class="lesson-plan-bar">
+                <summary>
+                  <span class="lesson-plan-bar-title"><%= p.title %></span>
+                  <span class="lesson-plan-bar-meta">
+                    <%- include('partials/lesson-approval-badge', { status: p.approval_status }) %>
+                    <% if (p.worksheetUrl) { %><span class="hint">Worksheet</span><% } %>
+                    <% if (p.media_url) { %><span class="hint">Video/Song</span><% } %>
+                  </span>
+                </summary>
+                <div class="lesson-plan-bar-body">
+                  <% if (p.approval_status === 'rejected' && p.review_note) { %>
+                    <div class="alert alert-error plain-text-display">Rejection message: <%= p.review_note %></div>
+                  <% } %>
+                  <%- include('partials/substitute-plan-details', { plan: p }) %>
+                </div>
+              </details>
+            <% }); %>
+          </div>
+        </div>
       <% } else if (tab === 'chat') { %>
         <%- include('partials/class-chat', { chatMessages, postUrl: `/teacher/classes/${cls.id}/chat` }) %>
       <% } %>

@@ -62,7 +62,7 @@ const { createRateLimiter } = require('../utils/rateLimit');
 const trainingModule = require('../utils/training');
 const { teacherLessonPlanBlock } = require('../utils/lessonPlans');
 const { mountSubstitutePlanRoutes } = require('./substitutePlanRoutes');
-const { submitSubstitutePlansForClass, unsubmittedSubstitutePlanCount } = require('../utils/substitutePlans');
+const { submitSubstitutePlansForClass, unsubmittedSubstitutePlanCount, substitutePlansForClass } = require('../utils/substitutePlans');
 
 // Same per-device throttle shape as the kiosk's own Class Check-In scan
 // (routes/kiosk-class-checkin.js's own classScanLimiter) - its own
@@ -346,7 +346,8 @@ router.get('/classes/:id', requirePortalPermission('view_teacher_classes'), asyn
         }))
       : [];
   const lessonPlanId = await classLessonPlanId(cls.id);
-  res.render('teacher-class-detail', { title: cls.class_name, cls, tab, lessons, chatMessages, lessonPlanId, notice: req.query.notice || null });
+  const subPlans = tab === 'lessons' ? await substitutePlansForClass(cls.id) : [];
+  res.render('teacher-class-detail', { title: cls.class_name, cls, tab, lessons, subPlans, chatMessages, lessonPlanId, notice: req.query.notice || null });
 });
 
 router.post('/classes/:id/chat', requirePortalPermission('view_teacher_classes'), async (req, res) => {

@@ -216,3 +216,30 @@ test('substitute plans need a lesson to be sent with', async () => {
   assert.match(decodeURIComponent(submit.headers.location), /Add a lesson first/);
   assert.equal((await db.prepare("SELECT approval_status FROM class_substitute_plans WHERE title = 'Lonely Plan'").get()).approval_status, 'draft');
 });
+
+test("the teacher's class Lessons tab lists the class's substitute plans with their status", async () => {
+  const classId = await createClass({ day: 'monday', hourPosition: 7, className: 'Tab Class', room: 'Room 9' });
+  const teacher = await loginTeacher([classId]);
+  const page = await request(app).get(`/teacher/classes/${classId}/substitute-plan`).set('Cookie', teacher);
+  const csrf = extractCsrf(page.text);
+
+  const empty = await request(app).get(`/teacher/classes/${classId}?tab=lessons`).set('Cookie', teacher);
+  assert.match(empty.text, /Substitute Plans \(0\)/);
+
+  await request(app)
+    .post(`/teacher/classes/${classId}/substitute-plan?_csrf=${csrf}`)
+    .set('Cookie', teacher)
+    .field('title', 'Snow Day Plan')
+    .field('teacherNotes', 'Extra mittens in the closet.');
+  const tab = await request(app).get(`/teacher/classes/${classId}?tab=lessons`).set('Cookie', teacher);
+  assert.equal(tab.status, 200);
+  assert.match(tab.text, /Substitute Plans \(1\)/);
+  assert.match(tab.text, /Snow Day Plan/);
+  assert.match(tab.text, /Extra mittens in the closet\./);
+  assert.match(tab.text, /badge-pill-gray">Draft</);
+  assert.doesNotMatch(tab.text, />Edit Substitute Plan</, 'read-only on the Lessons tab');
+  assert.doesNotMatch(tab.text, />Delete Substitute Plan</);
+
+  const details = await request(app).get(`/teacher/classes/${classId}?tab=details`).set('Cookie', teacher);
+  assert.doesNotMatch(details.text, /Snow Day Plan/, 'only on the Lessons tab');
+});
