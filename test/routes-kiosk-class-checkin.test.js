@@ -521,3 +521,50 @@ test('the main kiosk portal never writes to a class roster', async (t) => {
     assert.equal(classAttendance, undefined, 'main portal check-in must not touch a class roster');
   });
 });
+
+// A real request: the class QR code "won't just be for check in" - the
+// attendance page gets View Lesson Plan and View Substitute Plan buttons
+// above Check In/Check Out, each opening its own read-only page.
+test('class attendance page: View Lesson Plan and View Substitute Plan', async (t) => {
+  const { classId } = await setUpClassWithStudent();
+  await db
+    .prepare("INSERT INTO class_assignments (class_id, class_name, title, description, position, approval_status) VALUES (?, ?, 'Approved Lesson', 'Read chapter 1', 1, 'approved')")
+    .run(classId, 'Test Class');
+  await db
+    .prepare("INSERT INTO class_assignments (class_id, class_name, title, position, approval_status) VALUES (?, ?, 'Draft Lesson', 2, 'draft')")
+    .run(classId, 'Test Class');
+  const agent = request.agent(app);
+  await agent.post('/kiosk/class-checkin/unlock').type('form').send({ pin: '0000' });
+
+  await t.test('both buttons sit above Check In/Check Out', async () => {
+    const res = await agent.get(`/kiosk/class-checkin/classes/${classId}/attendance`);
+    assert.equal(res.status, 200);
+    const lp = res.text.indexOf('View Lesson Plan');
+    const sp = res.text.indexOf('View Substitute Plan');
+    const ci = res.text.indexOf('Check In\n');
+    assert.ok(lp > 0 && sp > lp && ci > sp, 'View Lesson Plan, View Substitute Plan, then Check In');
+    assert.match(res.text, new RegExp(`href="/kiosk/class-checkin/classes/${classId}/lesson-plan"`));
+    assert.match(res.text, new RegExp(`href="/kiosk/class-checkin/classes/${classId}/substitute-plan"`));
+  });
+
+  await t.test('the lesson plan page shows approved lessons only', async () => {
+    const res = await agent.get(`/kiosk/class-checkin/classes/${classId}/lesson-plan`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /Approved Lesson/);
+    assert.match(res.text, /Read chapter 1/);
+    assert.doesNotMatch(res.text, /Draft Lesson/);
+  });
+
+  await t.test('the substitute plan page loads', async () => {
+    const res = await agent.get(`/kiosk/class-checkin/classes/${classId}/substitute-plan`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /Substitute Plan/);
+  });
+
+  await t.test('both pages stay locked without the PIN or QR key', async () => {
+    for (const p of ['lesson-plan', 'substitute-plan']) {
+      const res = await request(app).get(`/kiosk/class-checkin/classes/${classId}/${p}`);
+      assert.equal(res.status, 302);
+    }
+  });
+});

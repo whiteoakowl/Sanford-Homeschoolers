@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body class="public-page">
+  <%- include('partials/icon-sprite') %>
+  <%# View Lesson Plan, from a class's QR code attendance page - read-only,
+      approved lessons only (routes/kiosk-class-checkin.js). %>
+  <main id="main-content" tabindex="-1" class="form-wrap form-wrap-roster">
+    <div class="form-outer-panel">
+      <a href="/kiosk/class-checkin/classes/<%= cls.id %>/attendance" class="kiosk-home kiosk-home-inline">&larr; Back to <%= cls.class_name %> Attendance</a>
+      <h1><%= cls.class_name %> Lesson Plan</h1>
+      <% if (lessons.length === 0) { %>
+        <p class="roster-empty">No approved lessons have been added to this class yet.</p>
+      <% } %>
+      <% lessons.forEach(function(lesson) { %>
+        <section class="kiosk-plan-lesson">
+          <h2><%= lesson.title %></h2>
+          <% if (lesson.openDateLabel || lesson.closeDateLabel) { %>
+            <p class="kiosk-plan-lesson-dates"><% if (lesson.openDateLabel) { %>Opens <%= lesson.openDateLabel %><% } %><% if (lesson.openDateLabel && lesson.closeDateLabel) { %> &middot; <% } %><% if (lesson.closeDateLabel) { %>Closes <%= lesson.closeDateLabel %><% } %></p>
+          <% } %>
+          <% if (lesson.description) { %><p class="kiosk-plan-lesson-desc"><%= lesson.description %></p><% } %>
+          <% if (lesson.contentItems.length) { %>
+            <ul class="kiosk-plan-items">
+              <% lesson.contentItems.forEach(function(item) { %>
+                <li><%= item.title || 'Untitled' %><% if (item.dueDateLabel) { %> &mdash; due <%= item.dueDateLabel %><% } %></li>
+              <% }); %>
+            </ul>
+          <% } %>
+        </section>
+      <% }); %>
+    </div>
+  </main>
+  <script src="/js/fullscreen-nav.js"></script>
+</body>
+</html>

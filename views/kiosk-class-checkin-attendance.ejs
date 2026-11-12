@@ -9,6 +9,18 @@
     <div class="form-outer-panel">
       <div class="class-checkin-attendance-header">
         <a href="/kiosk/class-checkin/classes/<%= cls.day %>" class="kiosk-home kiosk-home-inline">&larr; Back to <%= cls.dayLabel %> Classes</a>
+        <%# A real request: the class QR code "won't just be for check
+            in" - View Lesson Plan and View Substitute Plan side by side
+            above Check In/Check Out. %>
+        <div class="class-checkin-action-stack">
+        <div class="class-checkin-actions">
+          <a class="class-checkin-btn class-checkin-btn-plan" href="/kiosk/class-checkin/classes/<%= cls.id %>/lesson-plan">
+            <svg class="icon"><use href="#icon-clipboard-list"/></svg> View Lesson Plan
+          </a>
+          <a class="class-checkin-btn class-checkin-btn-plan" href="/kiosk/class-checkin/classes/<%= cls.id %>/substitute-plan">
+            <svg class="icon"><use href="#icon-book"/></svg> View Substitute Plan
+          </a>
+        </div>
         <div class="class-checkin-actions">
           <a class="class-checkin-btn" href="/kiosk/class-checkin/classes/<%= cls.id %>/scan?mode=checkin">
             <svg class="icon"><use href="#icon-check"/></svg> Check In
@@ -16,6 +28,7 @@
           <a class="class-checkin-btn" href="/kiosk/class-checkin/classes/<%= cls.id %>/scan?mode=checkout">
             <svg class="icon"><use href="#icon-log-out"/></svg> Check Out
           </a>
+        </div>
         </div>
       </div>
       <h1><%= cls.class_name %> Attendance</h1>

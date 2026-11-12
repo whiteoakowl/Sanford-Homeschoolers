@@ -31,6 +31,7 @@ const { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate } = re
 const pinLimiter = require('../utils/classCheckinPinRateLimit');
 const { isValidClassQrKey, isValidPlaygroundQrKey } = require('../utils/classQrKey');
 const { createRateLimiter } = require('../utils/rateLimit');
+const { assignmentsForClass, contentItemsForAssignment } = require('../utils/academics');
 
 // Separate from the main portal's own checkinLimiter (routes/kiosk.js) -
 // same generous per-kiosk-device threshold, tuned the same way, just its
@@ -192,6 +193,36 @@ router.get('/classes/:id/attendance', requireClassAccess, async (req, res) => {
     dateLabels: grid.dateLabels,
     summary: grid.summary,
   });
+});
+
+// A real request: the class QR code "won't just be for check in" - the
+// attendance page gets View Lesson Plan and View Substitute Plan buttons.
+// Read-only, same QR key/PIN gate as the attendance page. The lesson plan
+// shows only admin-approved lessons (what students see), with each
+// lesson's content titles but never quiz answers.
+router.get('/classes/:id/lesson-plan', requireClassAccess, async (req, res) => {
+  const cls = await findClassWithLabels(parseInt(req.params.id, 10));
+  if (!cls) return res.status(404).render('404', { title: 'Not Found' });
+  const lessons = [];
+  for (const lesson of await assignmentsForClass(cls.id)) {
+    if (lesson.approval_status !== 'approved') continue;
+    const items = await contentItemsForAssignment(lesson.id);
+    lessons.push({
+      ...lesson,
+      openDateLabel: lesson.open_date ? formatDateLong(lesson.open_date) : null,
+      closeDateLabel: lesson.close_date ? formatDateLong(lesson.close_date) : null,
+      contentItems: items.map((i) => ({ title: i.title, type: i.type, dueDateLabel: i.due_date ? formatDateLong(i.due_date) : null })),
+    });
+  }
+  res.render('kiosk-class-lesson-plan', { title: `Lesson Plan - ${cls.class_name}`, cls, lessons });
+});
+
+// No substitute plan content exists in the app yet - this page is the
+// button's landing spot until one is added.
+router.get('/classes/:id/substitute-plan', requireClassAccess, async (req, res) => {
+  const cls = await findClassWithLabels(parseInt(req.params.id, 10));
+  if (!cls) return res.status(404).render('404', { title: 'Not Found' });
+  res.render('kiosk-class-substitute-plan', { title: `Substitute Plan - ${cls.class_name}`, cls });
 });
 
 // A real request: "class attendance should allow for manually changing

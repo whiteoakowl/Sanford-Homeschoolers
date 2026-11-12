@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body class="public-page">
+  <%- include('partials/icon-sprite') %>
+  <%# View Substitute Plan, from a class's QR code attendance page. No
+      substitute plan content exists in the app yet (routes/kiosk-class-
+      checkin.js). %>
+  <main id="main-content" tabindex="-1" class="form-wrap form-wrap-roster">
+    <div class="form-outer-panel">
+      <a href="/kiosk/class-checkin/classes/<%= cls.id %>/attendance" class="kiosk-home kiosk-home-inline">&larr; Back to <%= cls.class_name %> Attendance</a>
+      <h1><%= cls.class_name %> Substitute Plan</h1>
+      <p class="roster-empty">No substitute plan has been added for this class yet.</p>
+    </div>
+  </main>
+  <script src="/js/fullscreen-nav.js"></script>
+</body>
+</html>
