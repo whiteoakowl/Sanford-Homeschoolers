@@ -276,6 +276,9 @@ async function nameTagSubmissions(showArchived, dateFilter) {
 //     dates that roster actually met) with neither a real check-in
 //     (attendance.check_in_time) NOR an absence_submissions row for that
 //     roster/date - they simply never showed up and never said why.
+//     A real request ("Check if manual input of attendance is checked"):
+//     an admin marking them Present or Late by hand on the Attendance
+//     grid (source 'manual', no check_in_time) also counts as showing up.
 //
 // A later real request: "Should only count that day and the previous
 // dates. Should not count nothing being marked for upcoming dates." Both
@@ -330,7 +333,8 @@ async function noShowRows() {
          AND NOT EXISTS (
            SELECT 1 FROM attendance a
            WHERE a.member_id = rm.member_id AND a.roster_id = rd.roster_id
-             AND a.session_date = rd.session_date AND a.check_in_time IS NOT NULL
+             AND a.session_date = rd.session_date
+             AND (a.check_in_time IS NOT NULL OR a.status IN ('present', 'late'))
          )
          AND NOT EXISTS (
            SELECT 1 FROM absence_submissions s
