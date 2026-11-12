@@ -49,7 +49,7 @@ var tcStatus = a.status || 'not_started';
     <p class="training-card-meta"><svg class="icon"><use href="#icon-clock"/></svg><span><%= a.lessonCount %> lesson<%= a.lessonCount == 1 ? '' : 's' %><% if (a.estimatedMinutes) { %> &bull; <%= a.estimatedMinutes %> minutes<% } %></span></p>
     <span class="training-card-status training-card-status-<%= tcStatus %>"><svg class="icon"><use href="#icon-<%= tcStatusIcons[tcStatus] || 'clock' %>"/></svg><%= tcStatusLabels[tcStatus] || tcStatus %></span>
     <hr class="training-card-divider" />
-    <p class="training-card-meta"><svg class="icon"><use href="#icon-calendar-check"/></svg><span><% if (a.due_at) { %>Due <%= a.due_at %><% } else { %>No due date<% } %></span></p>
+    <p class="training-card-meta"><svg class="icon"><use href="#icon-calendar-check"/></svg><span><% if (a.due_at) { %>Due <%= trainingDate(a.due_at) %><% } else { %>No due date<% } %></span></p>
     <% if (tcStatus === 'in_progress' || tcStatus === 'not_started') { %>
       <a class="training-card-btn" href="/training/<%= a.id %>/play"><%= tcStatus === 'not_started' ? 'Start Training' : 'Continue Training' %> <svg class="icon"><use href="#icon-arrow-right"/></svg></a>
     <% } else if (tcStatus === 'retry_required' || tcStatus === 'failed') { %>

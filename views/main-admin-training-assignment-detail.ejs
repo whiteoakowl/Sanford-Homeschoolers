@@ -18,7 +18,7 @@
 
     <div class="manage-section">
       <div class="grid-box-header"><h2>Assignment</h2></div>
-      <p><%- include('partials/training-status-badge', { status: detail.status }) %> &nbsp; Assigned <%= detail.assigned_at.slice(0, 10) %><% if (detail.due_at) { %> &middot; Due <%= detail.due_at %><% } %><% if (detail.completed_at) { %> &middot; Completed <%= detail.completed_at.slice(0, 10) %><% } %></p>
+      <p><%- include('partials/training-status-badge', { status: detail.status }) %> &nbsp; Assigned <%= trainingDateTime(detail.assigned_at) %><% if (detail.due_at) { %> &middot; Due <%= trainingDate(detail.due_at) %><% } %><% if (detail.completed_at) { %> &middot; Completed <%= trainingDateTime(detail.completed_at) %><% } %></p>
       <p class="hint">Best score: <%= detail.best_score != null ? detail.best_score + '%' : 'n/a' %> &middot; Latest score: <%= detail.latest_score != null ? detail.latest_score + '%' : 'n/a' %> &middot; Passing score: <%= detail.trainingPassingScore %>% &middot; <%= detail.attempt_count %> attempt<%= detail.attempt_count == 1 ? '' : 's' %></p>
     </div>
 
@@ -31,7 +31,7 @@
         <div class="training-lesson-row">
           <div class="training-lesson-row-main">
             <strong>Attempt <%= a.attempt_number %></strong>
-            <span class="hint">Started <%= a.started_at.slice(0, 16).replace('T', ' ') %><% if (a.completed_at) { %> &middot; Completed <%= a.completed_at.slice(0, 16).replace('T', ' ') %><% } %></span>
+            <span class="hint">Started <%= trainingDateTime(a.started_at) %><% if (a.completed_at) { %> &middot; Completed <%= trainingDateTime(a.completed_at) %><% } %></span>
             <% if (a.score != null) { %>
               <span class="badge-pill badge-pill-<%= a.passed === 1 ? 'green' : 'red' %>"><%= a.score %>% &mdash; <%= a.passed === 1 ? 'Passed' : 'Not Passed' %></span>
             <% } else { %>
@@ -45,7 +45,7 @@
                 <span class="hint">
                   <%= lp.status %>
                   <% if (lp.lesson_type_snapshot === 'video') { %> &middot; watched <%= lp.video_percent %>%<% } %>
-                  <% if (lp.completed_at) { %> &middot; <%= lp.completed_at.slice(0, 16).replace('T', ' ') %><% } %>
+                  <% if (lp.completed_at) { %> &middot; <%= trainingDateTime(lp.completed_at) %><% } %>
                 </span>
               </div>
             <% }); %>

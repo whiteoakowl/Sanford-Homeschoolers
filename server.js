@@ -275,6 +275,20 @@ const PORT = process.env.PORT || 3000;
 app.set('view engine', 'ejs');
 // Class times saved in 24-hour form print as "11:00 AM" - see utils/dates.js.
 app.locals.formatClockTime = require('./utils/dates').formatClockTime;
+// A real request: "All dates and times for trainings should be August 1,
+// 2025 and 4:45pm where applicable." A date alone reads "August 1, 2025";
+// a saved date+time reads "August 1, 2025 4:45pm" (Eastern time).
+app.locals.trainingDate = (iso) => {
+  if (!iso) return '';
+  const day = String(iso).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? require('./utils/dates').formatDateLongNoWeekday(day) : String(iso);
+};
+app.locals.trainingDateTime = (ts) => {
+  if (!ts) return '';
+  const text = String(ts);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return app.locals.trainingDate(text);
+  return require('./utils/dates').formatFriendlyTimestamp(text.replace('T', ' ').slice(0, 19)) || text;
+};
 // __dirname is correct for a normal `node server.js` run, but esbuild
 // bundles this whole file (and everything it requires) into one file
 // living at netlify/functions/app.js for the Netlify deployment - at

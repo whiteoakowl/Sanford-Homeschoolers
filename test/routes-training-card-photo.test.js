@@ -35,7 +35,7 @@ test('Admin uploads a card photo in the builder; the member card shows it; remov
   const memberId = (await db.prepare("INSERT INTO members (name, barcode, member_code, member_type, active) VALUES ('Photo Teacher', 'pt1', 'pt1', 'parent', 1) RETURNING id").get()).id;
   const accountId = (await db.prepare("INSERT INTO member_accounts (member_id, email, password_hash, status, approved_at) VALUES (?, 'pt@example.com', ?, 'active', now_text()) RETURNING id").get(memberId, hashPassword('pw123456'))).id;
   await db.prepare("INSERT INTO member_account_roles (member_account_id, role_id) VALUES (?, (SELECT id FROM roles WHERE key = 'teacher'))").run(accountId);
-  await T.assignTrainingToMembers(trainingId, [memberId], null);
+  await T.assignTrainingToMembers(trainingId, [memberId], '2026-08-28');
 
   const admin = request.agent(app);
   await admin.post('/login').type('form').send({ email: 'mainadmin@coop.local', password: 'changeme123', next: '/admin' });
@@ -52,6 +52,14 @@ test('Admin uploads a card photo in the builder; the member card shows it; remov
   const cards = await teacher.get('/teacher/training');
   assert.match(cards.text, new RegExp(`class="training-card-photo" src="[^"]*${key}"`));
   assert.doesNotMatch(cards.text, /class="training-card-scene"/);
+  // A real request: training dates read "August 1, 2025" (and times "4:45pm").
+  assert.match(cards.text, /Due August 28, 2026/);
+  const assignmentId = (await db.prepare('SELECT id FROM training_assignments WHERE training_id = ?').get(trainingId)).id;
+  await db.prepare("UPDATE training_assignments SET assigned_at = '2025-08-01 20:45:00' WHERE id = ?").run(assignmentId);
+  const detail = await admin.get(`/admin/training/${trainingId}/assignments/${assignmentId}`);
+  assert.equal(detail.status, 200);
+  assert.match(detail.text, /Assigned August 1, 2025 4:45pm/);
+  assert.match(detail.text, /Due August 28, 2026/);
 
   const del = await admin.post(`/admin/training/${trainingId}/image/delete`).type('form').send({ _csrf: csrf });
   assert.equal(del.status, 302);

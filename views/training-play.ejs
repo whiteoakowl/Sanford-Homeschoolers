@@ -72,7 +72,7 @@
           <% if (lessonRow && lessonRow.description) { %><p class="hint"><%= lessonRow.description %></p><% } %>
 
           <% if (selected.status === 'completed') { %>
-            <p class="training-outline-item-completed"><svg class="icon"><use href="#icon-check-circle"/></svg> Completed<% if (selected.completed_at) { %> <%= String(selected.completed_at).slice(0, 16).replace('T', ' ') %><% } %></p>
+            <p class="training-outline-item-completed"><svg class="icon"><use href="#icon-check-circle"/></svg> Completed<% if (selected.completed_at) { %> <%= trainingDateTime(selected.completed_at) %><% } %></p>
           <% } %>
 
           <% if (selected.lesson_type_snapshot === 'video' && lessonRow) { %>
