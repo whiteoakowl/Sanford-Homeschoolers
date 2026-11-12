@@ -16602,3 +16602,88 @@ dialog form:has(.permission-section) > h3,
 .training-card-actions .training-card-btn:first-child { flex-basis: 100%; }
 .training-card-btn-blue { background: var(--btn-blue); color: #fff; box-shadow: 0 4px 10px rgba(46, 109, 164, 0.25); }
 .training-card-btn-blue:hover { background: var(--btn-blue-hover); color: #fff; }
+/* A real request: "Main admin homepage should look like this image. Use
+   the colors on the homepage for co-op admin portal" - Members (5 counts
+   side by side) and Pending Requests (3 x 2 grid) cards, in the Co-op
+   Admin dashboard's orange and blue. */
+.mah-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  padding: 1.1rem 1.25rem 1.25rem;
+  margin-top: 1.5rem;
+  max-width: 760px;
+}
+.mah-card-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+.mah-card-header > .icon { width: 24px; height: 24px; color: var(--ink); flex-shrink: 0; }
+.mah-card-header h2 { margin: 0; font-size: 1.2rem; font-weight: 700; }
+.mah-viewall { margin-left: auto; display: inline-flex; align-items: center; gap: 0.35rem; color: var(--ink); font-weight: 500; text-decoration: none; white-space: nowrap; }
+.mah-viewall:hover { color: var(--brand-dark); }
+.mah-viewall .icon { width: 16px; height: 16px; }
+.mah-members { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.mah-member {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.4rem;
+  color: var(--ink);
+  text-decoration: none;
+  border-left: 1px solid var(--border);
+  min-width: 0;
+}
+.mah-member:first-child { border-left: 0; }
+.mah-member-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--orange-bg);
+  color: var(--accent-dark);
+  margin-bottom: 0.45rem;
+}
+.mah-member-icon .icon { width: 26px; height: 26px; }
+.mah-member:hover .mah-member-icon { background: var(--brand-soft); color: var(--brand-dark); }
+.mah-member-value { font-size: 1.3rem; font-weight: 700; line-height: 1.1; }
+.mah-member-label { font-size: 0.85rem; color: var(--ink); text-align: center; overflow-wrap: anywhere; }
+.mah-requests { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--border); margin: 0 -0.25rem; }
+.mah-request {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 1rem 0.5rem 0.9rem;
+  color: var(--ink);
+  text-decoration: none;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.mah-request:nth-child(3n + 1) { border-left: 0; }
+.mah-request:nth-last-child(-n + 3) { border-bottom: 0; }
+.mah-request:hover { background: var(--brand-soft); }
+.mah-request-icon .icon { width: 24px; height: 24px; color: var(--brand-dark); }
+.mah-request-count {
+  min-width: 1.5rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
+.mah-request-has .mah-request-count { background: var(--orange-bg); color: var(--accent-dark); }
+.mah-request-label { font-size: 0.85rem; }
+@media (max-width: 480px) {
+  .mah-card { padding: 0.9rem 0.75rem 1rem; }
+  .mah-member { padding: 0.25rem 0.15rem; }
+  .mah-member-icon { width: 42px; height: 42px; }
+  .mah-member-icon .icon { width: 20px; height: 20px; }
+  .mah-member-value { font-size: 1.1rem; }
+  .mah-member-label { font-size: 0.72rem; }
+  .mah-request-label { font-size: 0.75rem; }
+}

@@ -67,11 +67,11 @@ test('GET /main-admin shows Families/Parents/Students counters and a plain setti
   // page's own .family-student-counts-card/-row markup (views/admin-
   // dashboard.ejs) instead of the plain .totals-card/stat-value grid this
   // used to render.
-  assert.match(res.text, /<span class="family-student-row-label">Parents<\/span>\s*<span class="family-student-row-value">1<\/span>/);
-  assert.match(res.text, /<span class="family-student-row-label">Students<\/span>\s*<span class="family-student-row-value">2<\/span>/);
-  assert.match(res.text, /<span class="family-student-row-label">Families<\/span>\s*<span class="family-student-row-value">1<\/span>/);
-  assert.match(res.text, /<span class="family-student-row-label">Teachers<\/span>/);
-  assert.match(res.text, /<span class="family-student-row-label">Admins<\/span>/);
+  assert.match(res.text, /<span class="mah-member-value">1<\/span>\s*<span class="mah-member-label">Parents<\/span>/);
+  assert.match(res.text, /<span class="mah-member-value">2<\/span>\s*<span class="mah-member-label">Students<\/span>/);
+  assert.match(res.text, /<span class="mah-member-value">1<\/span>\s*<span class="mah-member-label">Families<\/span>/);
+  assert.match(res.text, /<span class="mah-member-label">Teachers<\/span>/);
+  assert.match(res.text, /<span class="mah-member-label">Admins<\/span>/);
 
   // A real request: "family count should be first" - Families' own row
   // now renders ahead of Parents/Students/Teachers/Admins in document
@@ -86,7 +86,7 @@ test('GET /main-admin shows Families/Parents/Students counters and a plain setti
   // Users tab was removed, this link was repointed at Members > Approvals
   // (the same underlying pending member_accounts queue - see
   // utils/membershipApprovals.js's own header comment).
-  assert.match(res.text, /class="totals-item" href="\/main-admin\/members\?tab=approvals"[^]*?Membership Requests/);
+  assert.match(res.text, /class="mah-request" href="\/main-admin\/members\?tab=approvals"[^]*?Membership Requests/);
   assert.match(res.text, /href="\/main-admin\/events\?tab=requests"[^]*?Event Requests/);
   assert.match(res.text, /href="\/main-admin\/babysitters\?tab=approvals"[^]*?Babysitter Approvals/);
   assert.match(res.text, /href="\/main-admin\/photos#pending-photos"[^]*?Photo Submissions/);
@@ -179,7 +179,7 @@ test('Teacher count: distinct members assigned as teacher on class_staff, teachi
   const cookie = await loginAsMainAdmin();
   const res = await request(app).get('/main-admin').set('Cookie', cookie);
   assert.equal(res.status, 200);
-  assert.match(res.text, /<span class="family-student-row-label">Teachers<\/span>\s*<span class="family-student-row-value">1<\/span>/);
+  assert.match(res.text, /<span class="mah-member-value">1<\/span>\s*<span class="mah-member-label">Teachers<\/span>/);
 });
 
 // A real request: "admin count should be based off how many members are
@@ -212,7 +212,7 @@ test('Admin count: distinct active members holding an Admin Position (Settings >
   const cookie = await loginAsMainAdmin();
   const res = await request(app).get('/main-admin').set('Cookie', cookie);
   assert.equal(res.status, 200);
-  assert.match(res.text, /<span class="family-student-row-label">Admins<\/span>\s*<span class="family-student-row-value">1<\/span>/);
+  assert.match(res.text, /<span class="mah-member-value">1<\/span>\s*<span class="mah-member-label">Admins<\/span>/);
 });
 
 // A real request: "On desktop the blue buttons at the top for settings,
