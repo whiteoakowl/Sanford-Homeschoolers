@@ -20,6 +20,9 @@
     </div>
   </div>
 
+  <% if (typeof approvalHint !== 'undefined' && approvalHint) { %>
+    <p class="hint"><%- approvalHint %></p>
+  <% } %>
   <% if (plans.length === 0) { %>
     <p class="roster-empty">No substitute plans yet. Click + Add Substitute Plan to add the first one.</p>
   <% } %>
@@ -30,11 +33,15 @@
         <summary>
           <span class="lesson-plan-bar-title"><%= p.title %></span>
           <span class="lesson-plan-bar-meta">
+            <%- include('lesson-approval-badge', { status: p.approval_status }) %>
             <% if (p.worksheetUrl) { %><span class="hint">Worksheet</span><% } %>
             <% if (p.media_url) { %><span class="hint">Video/Song</span><% } %>
           </span>
         </summary>
         <div class="lesson-plan-bar-body">
+          <% if (p.approval_status === 'rejected' && p.review_note) { %>
+            <div class="alert alert-error plain-text-display">Rejection message: <%= p.review_note %></div>
+          <% } %>
           <%- include('substitute-plan-details', { plan: p }) %>
           <div class="roster-btn-row no-print">
             <button type="button" class="roster-action-btn" onclick="document.getElementById('edit-substitute-plan-dialog-<%= p.id %>').showModal()">Edit Substitute Plan</button>

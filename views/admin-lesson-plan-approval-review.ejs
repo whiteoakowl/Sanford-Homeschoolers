@@ -75,6 +75,26 @@
       <% }); %>
     </div>
 
+    <%# A real request: "When teachers submit lessons for approval it will
+        send the entire lesson and any substitute lessons together for
+        approval." The substitute plans sent with this lesson - Approve/
+        Reject below decides them too. %>
+    <% var pendingSubPlans = subPlans.filter(function(p) { return p.approval_status === 'pending'; }); %>
+    <div class="manage-section">
+      <h2>Substitute Plans Sent With This Lesson (<%= subPlans.length %>)</h2>
+      <% if (subPlans.length === 0) { %>
+        <p class="roster-empty">No substitute plans were sent with this lesson.</p>
+      <% } else if (pendingSubPlans.length && assignment.approval_status !== 'pending') { %>
+        <p class="hint">This lesson was already <%= assignment.approval_status === 'approved' ? 'approved' : assignment.approval_status %>; the teacher sent these substitute plans with it afterward. Approve or Reject below decides just the substitute plans.</p>
+      <% } %>
+      <% subPlans.forEach(function(p) { %>
+        <div class="portal-dashboard-card portal-dashboard-card-wide">
+          <h3><%= p.title %> <%- include('partials/lesson-approval-badge', { status: p.approval_status }) %></h3>
+          <%- include('partials/substitute-plan-details', { plan: p }) %>
+        </div>
+      <% }); %>
+    </div>
+
     <div class="manage-section">
       <h2>Approval History</h2>
       <% if (events.length === 0) { %>
@@ -102,9 +122,12 @@
       <% } %>
     </div>
 
-    <% if (assignment.approval_status === 'pending') { %>
+    <% if (assignment.approval_status === 'pending' || pendingSubPlans.length) { %>
       <div class="manage-section">
         <h2>Decision</h2>
+        <% if (pendingSubPlans.length) { %>
+          <p class="hint"><%= assignment.approval_status === 'pending' ? 'Approves or rejects this lesson and its ' : 'Approves or rejects the ' %><%= pendingSubPlans.length %> substitute plan<%= pendingSubPlans.length === 1 ? '' : 's' %> together.</p>
+        <% } %>
         <div class="roster-btn-row">
           <form method="POST" action="/admin/lesson-plans/approval/<%= assignment.id %>/approve" class="inline-block-form">
             <button type="submit" class="primary-btn">Approve</button>

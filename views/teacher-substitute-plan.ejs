@@ -10,7 +10,8 @@
     <h1><%= cls.class_name %> Substitute Plans</h1>
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
-    <%- include('partials/substitute-plan-manage', { basePath, plans, openPlanId }) %>
+    <%- include('partials/substitute-plan-manage', { basePath, plans, openPlanId,
+      approvalHint: 'New substitute plans stay in Draft until you click Submit for Admin Approval on your <a href="/teacher/classes/' + cls.id + '/lesson-plan">Lesson Plan</a> page. They are sent with your lessons, and substitutes see them once an admin approves them.' }) %>
   </main>
 </body>
 </html>

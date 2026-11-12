@@ -322,7 +322,9 @@ router.get('/', requireAdmin, async (req, res) => {
   // Requests (not archived) list.
   const countOf = async (sql) => Number(((await db.prepare(sql).get()) || {}).n || 0);
   const [lessonApprovalsCount, reimbursementsCount, nameTagRequestsCount] = await Promise.all([
-    countOf("SELECT COUNT(*) AS n FROM class_assignments WHERE approval_status = 'pending' AND submitted_at IS NOT NULL"),
+    // Lessons waiting, plus lessons with substitute plans sent along with
+    // them waiting (utils/academics.js's lessonsForApprovalQueue).
+    countOf("SELECT COUNT(*) AS n FROM class_assignments ca WHERE (ca.approval_status = 'pending' AND ca.submitted_at IS NOT NULL) OR EXISTS (SELECT 1 FROM class_substitute_plans sp WHERE sp.submitted_with_assignment_id = ca.id AND sp.approval_status = 'pending')"),
     countOf("SELECT COUNT(*) AS n FROM reimbursement_requests WHERE status = 'submitted'"),
     countOf('SELECT COUNT(*) AS n FROM name_tag_requests WHERE archived = 0'),
   ]);

@@ -21,7 +21,9 @@ const worksheetUpload = multer({ storage: multer.memoryStorage(), limits: { file
 // pathFor(classId) -> this class's substitute plan page URL.
 // loadClass(req) -> the class (with class_name) or null when this user
 // can't manage it; onForbidden(res) renders the refusal.
-function mountSubstitutePlanRoutes(router, { pathPrefix, middleware, pathFor, loadClass, onForbidden, view, viewLocals }) {
+// newPlanStatus: 'draft' for teachers (sent for approval with the lesson
+// plan), 'approved' for Co-op Admin.
+function mountSubstitutePlanRoutes(router, { pathPrefix, middleware, pathFor, loadClass, onForbidden, view, viewLocals, newPlanStatus = 'approved' }) {
   const back = (classId, params) => pathFor(classId) + (params ? '?' + new URLSearchParams(params).toString() : '');
 
   function uploadWorksheet(req, res, next) {
@@ -58,7 +60,7 @@ function mountSubstitutePlanRoutes(router, { pathPrefix, middleware, pathFor, lo
     if (!cls) return onForbidden(res);
     const fields = fieldsFromBody(req.body);
     if (!fields.title) return res.redirect(back(cls.id, { error: 'A substitute plan title is required.' }));
-    const id = await createSubstitutePlan({ classId: cls.id, ...fields, file: req.file || null, accountId: req.portalAccount ? req.portalAccount.id : null });
+    const id = await createSubstitutePlan({ classId: cls.id, ...fields, file: req.file || null, accountId: req.portalAccount ? req.portalAccount.id : null, approvalStatus: newPlanStatus });
     res.redirect(back(cls.id, { open: id, notice: `"${fields.title}" added.` }));
   });
 

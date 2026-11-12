@@ -218,12 +218,12 @@ router.get('/classes/:id/lesson-plan', requireClassAccess, async (req, res) => {
   res.render('kiosk-class-lesson-plan', { title: `Lesson Plan - ${cls.class_name}`, cls, lessons });
 });
 
-// The class's substitute plans (utils/substitutePlans.js), read-only -
-// added by its teacher or Co-op Admin.
+// The class's approved substitute plans (utils/substitutePlans.js),
+// read-only - a teacher's plan shows once Co-op Admin approves it.
 router.get('/classes/:id/substitute-plan', requireClassAccess, async (req, res) => {
   const cls = await findClassWithLabels(parseInt(req.params.id, 10));
   if (!cls) return res.status(404).render('404', { title: 'Not Found' });
-  const plans = await substitutePlansForClass(cls.id);
+  const plans = await substitutePlansForClass(cls.id, { approvedOnly: true });
   res.render('kiosk-class-substitute-plan', { title: `Substitute Plan - ${cls.class_name}`, cls, plans });
 });
 

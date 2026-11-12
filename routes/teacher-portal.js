@@ -62,6 +62,7 @@ const { createRateLimiter } = require('../utils/rateLimit');
 const trainingModule = require('../utils/training');
 const { teacherLessonPlanBlock } = require('../utils/lessonPlans');
 const { mountSubstitutePlanRoutes } = require('./substitutePlanRoutes');
+const { submitSubstitutePlansForClass, unsubmittedSubstitutePlanCount } = require('../utils/substitutePlans');
 
 // Same per-device throttle shape as the kiosk's own Class Check-In scan
 // (routes/kiosk-class-checkin.js's own classScanLimiter) - its own
@@ -469,7 +470,8 @@ router.get('/classes/:id/lesson-plan{/:lessonId}', requirePortalPermission('view
     cls,
     lessons,
     openLessonId,
-    canSubmit: lessons.some((l) => l.approval_status === 'draft' || l.approval_status === 'rejected'),
+    unsubmittedSubPlans: await unsubmittedSubstitutePlanCount(cls.id),
+    canSubmit: lessons.some((l) => l.approval_status === 'draft' || l.approval_status === 'rejected') || (await unsubmittedSubstitutePlanCount(cls.id)) > 0,
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
@@ -481,14 +483,33 @@ router.post('/classes/:id/lesson-plan/submit', requirePortalPermission('view_tea
   const cls = await ownClassForTeacher(req);
   if (!cls) return notYourClass(res);
   const back = `/teacher/classes/${cls.id}/lesson-plan`;
-  let count = 0;
-  for (const lesson of await assignmentsForClass(cls.id)) {
+  const lessons = await assignmentsForClass(cls.id);
+  const submittedIds = [];
+  for (const lesson of lessons) {
     if (lesson.approval_status === 'draft' || lesson.approval_status === 'rejected') {
-      if (await submitAssignmentForApproval(lesson.id, req.portalAccount.id)) count += 1;
+      if (await submitAssignmentForApproval(lesson.id, req.portalAccount.id)) submittedIds.push(lesson.id);
     }
   }
-  if (!count) return res.redirect(back + '?error=' + encodeURIComponent('There are no draft or rejected lessons to submit.'));
-  res.redirect(back + '?notice=' + encodeURIComponent(`Submitted ${count} lesson${count === 1 ? '' : 's'} for admin approval. Students will see ${count === 1 ? 'it' : 'them'} once approved.`));
+  // A real request: "When teachers submit lessons for approval it will
+  // send the entire lesson and any substitute lessons together for
+  // approval." Draft/rejected substitute plans ride along with the first
+  // lesson being sent - or, when no lesson needs sending, with the
+  // class's most recent lesson, so Co-op Admin still reviews them on a
+  // lesson's own approval page. They need a lesson to travel with.
+  let subCount = 0;
+  if (await unsubmittedSubstitutePlanCount(cls.id)) {
+    const carrierId = submittedIds[0] || (lessons.length ? lessons[lessons.length - 1].id : null);
+    if (!carrierId && !submittedIds.length) {
+      return res.redirect(back + '?error=' + encodeURIComponent('Add a lesson first - substitute plans are sent for approval together with a lesson.'));
+    }
+    subCount = await submitSubstitutePlansForClass(cls.id, carrierId, req.portalAccount.id);
+  }
+  const count = submittedIds.length;
+  if (!count && !subCount) return res.redirect(back + '?error=' + encodeURIComponent('There are no draft or rejected lessons or substitute plans to submit.'));
+  const parts = [];
+  if (count) parts.push(`${count} lesson${count === 1 ? '' : 's'}`);
+  if (subCount) parts.push(`${subCount} substitute plan${subCount === 1 ? '' : 's'}`);
+  res.redirect(back + '?notice=' + encodeURIComponent(`Submitted ${parts.join(' and ')} for admin approval. ${count && subCount ? 'Students and substitutes' : count ? 'Students' : 'Substitutes'} will see ${count + subCount === 1 ? 'it' : 'them'} once approved.`));
 });
 
 router.post('/classes/:id/assignments', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
@@ -1238,6 +1259,7 @@ mountSubstitutePlanRoutes(router, {
   loadClass: ownClassForTeacher,
   onForbidden: notYourClass,
   view: 'teacher-substitute-plan',
+  newPlanStatus: 'draft',
 });
 
 module.exports = router;

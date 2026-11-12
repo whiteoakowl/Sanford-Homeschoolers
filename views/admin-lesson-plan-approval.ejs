@@ -7,8 +7,8 @@
   <%- include('partials/admin-nav') %>
   <main id="main-content" tabindex="-1" class="admin-main">
     <h1>Lesson Plan Approval</h1>
-    <p class="hint">Lessons teachers have submitted from the Co-op Teacher Portal. A lesson is only visible to the
-      students enrolled in its class once it's approved here.</p>
+    <p class="hint">Lessons teachers have submitted from the Co-op Teacher Portal, with any substitute plans sent along with them. A lesson is only visible to the
+      students enrolled in its class, and a substitute plan to substitutes, once it's approved here.</p>
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
@@ -45,6 +45,7 @@
                   <td class="roster-name-col table-stack-heading">
                     <a href="/admin/lesson-plans/approval/<%= a.id %>"><%= a.title %></a>
                     <% if (a.approval_status === 'rejected' && a.review_note) { %><div class="hint">Message: <%= a.review_note %></div><% } %>
+                    <% if (a.subPlanCount) { %><div class="hint">+ <%= a.subPlanCount %> substitute plan<%= a.subPlanCount === 1 ? '' : 's' %></div><% } %>
                   </td>
                   <td data-label="Class"><%= a.class_name %></td>
                   <td data-label="Teacher"><%= a.submitted_by_name || '—' %></td>
@@ -52,7 +53,7 @@
                   <td data-label="Submitted"><%= a.submittedAtLabel || '—' %></td>
                   <% if (status !== 'pending') { %><td data-label="Reviewed"><%= a.reviewedAtLabel || '—' %></td><% } %>
                   <td>
-                    <a class="roster-action-btn" href="/admin/lesson-plans/approval/<%= a.id %>"><%= a.approval_status === 'pending' ? 'Review' : 'View' %></a>
+                    <a class="roster-action-btn" href="/admin/lesson-plans/approval/<%= a.id %>"><%= a.approval_status === 'pending' || status === 'pending' ? 'Review' : 'View' %></a>
                   </td>
                 </tr>
               <% }); %>
