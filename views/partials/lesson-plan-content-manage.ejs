@@ -28,7 +28,9 @@
         members to edit/add to the lesson plan") added the other two,
         saved alongside it on this same form/route rather than a
         separate page - both default off, same as Homeschool use. %>
-    <div class="member-form-full">
+    <%# A later request: the third option reads "in family school
+        management", and each question gets space between it. %>
+    <div class="member-form-full lesson-plan-permission-list">
       <label class="checkbox-option">
         <input type="checkbox" name="allowFamilySchoolUse" value="1" <%= plan.allow_family_school_use ? 'checked' : '' %> />
         Allow members to use this lesson plan for Homeschool family management
@@ -39,7 +41,7 @@
       </label>
       <label class="checkbox-option">
         <input type="checkbox" name="allowMemberEdit" value="1" <%= plan.allow_member_edit ? 'checked' : '' %> />
-        Allow all members to edit/add to the lesson plan
+        Allow members to edit/add to the lesson plan in Family School Management
       </label>
     </div>
     <div class="member-form-full">

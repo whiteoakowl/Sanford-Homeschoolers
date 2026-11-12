@@ -16415,3 +16415,9 @@ a.member-schedule-class-title:hover { color: var(--brand-darker); }
   /* The class title already reads as the card's own heading. */
   .member-schedule-table td.member-schedule-details::before { content: none; }
 }
+
+/* Lesson plan permission checkboxes: a little space between each
+   question, checkbox lined up with the first line of wrapped text. */
+.lesson-plan-permission-list { display: flex; flex-direction: column; gap: 0.85rem; }
+.lesson-plan-permission-list .checkbox-option { align-items: flex-start; }
+.lesson-plan-permission-list .checkbox-option input { margin-top: 0.2rem; }
