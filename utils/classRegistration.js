@@ -468,7 +468,8 @@ async function allClassRegistrationActions() {
     .prepare(
       `SELECT c.class_name AS "className", c.day AS "classDay",
               m.name AS "memberName", m.family_id AS "familyId", f.name AS "familyName",
-              cr.status, cr.created_at AS "createdAt", cr.cancelled_at AS "cancelledAt"
+              cr.status, cr.created_at AS "createdAt", cr.cancelled_at AS "cancelledAt",
+              (SELECT MIN(substr(cr2.created_at, 1, 10)) FROM class_registrations cr2 WHERE cr2.student_id = cr.student_id) AS "firstDate"
        FROM class_registrations cr
        JOIN classes c ON c.id = cr.class_id
        JOIN members m ON m.id = cr.student_id
@@ -488,6 +489,11 @@ async function allClassRegistrationActions() {
       actionLabel: r.status === 'waitlisted' ? 'Waitlisted' : 'Registered',
       date,
       dateLabel: formatDateLabel(date),
+      // A real request: "Show new next to members name if its the first
+      // class they have signed up for so we know that its a new family."
+      // Sign-ups from the day this member first signed up for any class
+      // (several picked at once all count) - never on a Cancelled row.
+      isNew: date === r.firstDate,
     });
     if (r.cancelledAt) {
       const cancelDate = r.cancelledAt.slice(0, 10);
@@ -512,12 +518,12 @@ async function allClassRegistrationActions() {
   );
 }
 
-const CLASS_REGISTRATION_LOG_EXPORT_HEADER = ['Date', 'Family', 'Name', 'Class', 'Day', 'Action'];
+const CLASS_REGISTRATION_LOG_EXPORT_HEADER = ['Date', 'Family', 'Name', 'New', 'Class', 'Day', 'Action'];
 
 function buildClassRegistrationLogExportCsvLines(actions) {
   return [
     toCsvRow(CLASS_REGISTRATION_LOG_EXPORT_HEADER),
-    ...actions.map((a) => toCsvRow([a.dateLabel, a.familyName || '', a.memberName, a.className, a.classDayLabel, a.actionLabel])),
+    ...actions.map((a) => toCsvRow([a.dateLabel, a.familyName || '', a.memberName, a.isNew ? 'New' : '', a.className, a.classDayLabel, a.actionLabel])),
   ];
 }
 

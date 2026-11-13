@@ -244,7 +244,7 @@
                     <p class="reglog-family-heading"><%= fg.familyName %></p>
                     <% fg.members.forEach(function(r) { %>
                       <div class="absence-member-row">
-                        <span class="absence-member-name"><%= r.memberName %></span>
+                        <span class="absence-member-name"><%= r.memberName %><% if (r.isNew) { %> <span class="badge-pill badge-pill-blue" title="First class this member signed up for">New</span><% } %></span>
                         <span class="status-badge <%= r.actionLabel === 'Cancelled' ? 'status-badge-absent' : r.actionLabel === 'Waitlisted' ? 'status-badge-late' : 'status-badge-present' %>"><%= r.actionLabel %></span>
                         <span class="absence-member-detail"><%= r.className %></span>
                         <span class="absence-member-detail"><%= r.classDayLabel %></span>
@@ -271,7 +271,7 @@
               <tr>
                 <td><%= r.dateLabel %></td>
                 <td><%= r.familyName || '—' %></td>
-                <td><%= r.memberName %></td>
+                <td><%= r.memberName %><% if (r.isNew) { %> <span class="badge-pill badge-pill-blue" title="First class this member signed up for">New</span><% } %></td>
                 <td><%= r.className %></td>
                 <td><%= r.classDayLabel %></td>
                 <td><span class="status-badge <%= r.actionLabel === 'Cancelled' ? 'status-badge-absent' : r.actionLabel === 'Waitlisted' ? 'status-badge-late' : 'status-badge-present' %>"><%= r.actionLabel %></span></td>

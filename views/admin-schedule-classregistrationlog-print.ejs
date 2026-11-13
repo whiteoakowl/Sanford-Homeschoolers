@@ -44,7 +44,7 @@
             <tr>
               <td><%= r.dateLabel %></td>
               <td><%= r.familyName || '—' %></td>
-              <td><%= r.memberName %></td>
+              <td><%= r.memberName %><% if (r.isNew) { %> <strong>(New)</strong><% } %></td>
               <td><%= r.className %></td>
               <td><%= r.classDayLabel %></td>
               <td><span class="status-badge <%= r.actionLabel === 'Cancelled' ? 'status-badge-absent' : r.actionLabel === 'Waitlisted' ? 'status-badge-late' : 'status-badge-present' %>"><%= r.actionLabel %></span></td>

@@ -31,7 +31,7 @@
           <% } %>
           <% allSubmissions.forEach(function(r) { %>
             <tr>
-              <td><%= r.memberName %></td>
+              <td><%= r.memberName %><% if (r.isNew) { %> <strong>(New)</strong><% } %></td>
               <td><%= r.className %></td>
               <td><%= r.classDayLabel %></td>
               <td><%= r.dateLabel %></td>

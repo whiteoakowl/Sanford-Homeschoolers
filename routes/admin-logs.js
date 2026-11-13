@@ -150,7 +150,8 @@ async function absenceSubmissionDates() {
 async function allClassRegistrations(dateFilter) {
   let sql = `SELECT m.name AS "memberName", m.family_id AS "familyId", f.name AS "familyName",
              c.class_name AS "className", c.day AS "classDay",
-             cr.status AS status, cr.created_at AS "createdAt"
+             cr.status AS status, cr.created_at AS "createdAt",
+             (SELECT MIN(substr(cr2.created_at, 1, 10)) FROM class_registrations cr2 WHERE cr2.student_id = cr.student_id) AS "firstDate"
              FROM class_registrations cr
              JOIN members m ON m.id = cr.student_id
              LEFT JOIN families f ON f.id = m.family_id
@@ -174,6 +175,11 @@ async function allClassRegistrations(dateFilter) {
       date: r.createdAt.slice(0, 10),
       dateLabel: formatDateLabel(r.createdAt.slice(0, 10)),
       statusLabel: r.status === 'waitlisted' ? 'Waitlisted' : r.status === 'cancelled' ? 'Cancelled' : 'Confirmed',
+      // A real request: "Show new next to members name if its the first
+      // class they have signed up for so we know that its a new family."
+      // Every row from the day this member first signed up for any class
+      // (several classes picked at once all count as their first).
+      isNew: r.createdAt.slice(0, 10) === r.firstDate,
     }))
     .sort(
       (a, b) =>
@@ -921,8 +927,8 @@ router.get('/logs/classregistration/export.csv', requireAdmin, async (req, res) 
   const dateFilter = req.query.date || '';
   const registrations = await allClassRegistrations(dateFilter);
   const lines = [
-    toCsvRow(['Name', 'Class', 'Day', 'Date', 'Status']),
-    ...registrations.map((r) => toCsvRow([r.memberName, r.className, r.classDayLabel, r.dateLabel, r.statusLabel])),
+    toCsvRow(['Name', 'New', 'Class', 'Day', 'Date', 'Status']),
+    ...registrations.map((r) => toCsvRow([r.memberName, r.isNew ? 'New' : '', r.className, r.classDayLabel, r.dateLabel, r.statusLabel])),
   ];
   sendCsv(res, 'class-registration-log.csv', lines);
 });

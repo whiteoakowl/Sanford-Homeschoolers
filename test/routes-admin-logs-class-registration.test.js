@@ -155,3 +155,46 @@ test('the date filter narrows the list to just that day, and the CSV export carr
   assert.match(csv.text, /Name.*Class.*Day.*Date.*Status/);
   assert.match(csv.text, /Logs Test Art/);
 });
+
+// A real request: "Class registration log. Show new next to members name
+// if its the first class they have signed up for so we know that its a
+// new family." Both registration logs (Logs > Class Registration and
+// Classes > Class Registration Log), plus their CSV exports.
+test('both class registration logs mark a member\'s first sign-up as New, not a returning member\'s', async () => {
+  const admin = await loginAsAdmin();
+  const cls = await createOpenClass(admin, { className: 'Logs Test Weaving' });
+  const olderCls = await createOpenClass(admin, { className: 'Logs Test Older Class' });
+
+  const newbie = await createParentWithChild('Newbie Family');
+  const returning = await createParentWithChild('Returning Family');
+  // The returning child signed up for a class last year already.
+  await db
+    .prepare("INSERT INTO class_registrations (class_id, student_id, registered_by_account_id, status, created_at) VALUES (?, ?, (SELECT MIN(id) FROM member_accounts), 'confirmed', '2025-09-01 12:00:00')")
+    .run(olderCls.id, returning.childId);
+
+  for (const fam of [newbie, returning]) {
+    await request(app)
+      .post(`/parent/classes/${cls.id}/register`)
+      .set('Cookie', fam.cookie)
+      .type('form')
+      .send({ studentId: String(fam.childId), day: 'monday', _csrf: fam.csrfToken });
+  }
+
+  const newBadge = '<span class="badge-pill badge-pill-blue" title="First class this member signed up for">New</span>';
+  const today = (await db.prepare('SELECT now_text() AS now').get()).now.slice(0, 10);
+  for (const url of [`/admin/logs?tab=classregistration&date=${today}`, `/admin/schedule?tab=classregistrationlog&date=${today}`]) {
+    const page = await request(app).get(url).set('Cookie', admin.cookie);
+    assert.equal(page.status, 200, url);
+    assert.ok(page.text.includes(`${newbie.childName} ${newBadge}`), `${url}: the first-time member is marked New`);
+    assert.ok(page.text.includes(returning.childName), `${url}: the returning member is listed`);
+    assert.ok(!page.text.includes(`${returning.childName} ${newBadge}`), `${url}: the returning member is not marked New`);
+  }
+
+  const csv = (await request(app).get('/admin/logs/classregistration/export.csv').set('Cookie', admin.cookie)).text;
+  assert.match(csv, /"Name","New","Class","Day","Date","Status"/);
+  assert.ok(csv.split('\n').some((l) => l.includes(newbie.childName) && l.includes(',"New",')));
+  assert.ok(csv.split('\n').some((l) => l.includes(returning.childName) && l.includes('Weaving') && l.includes(',"",')));
+  const csv2 = (await request(app).get('/admin/schedule/classregistrationlog/export.csv').set('Cookie', admin.cookie)).text;
+  assert.match(csv2, /"Date","Family","Name","New","Class","Day","Action"/);
+  assert.ok(csv2.split('\n').some((l) => l.includes(newbie.childName) && l.includes(',"New",')));
+});
