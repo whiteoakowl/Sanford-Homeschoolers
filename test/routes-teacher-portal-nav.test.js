@@ -240,3 +240,15 @@ test('Co-op Teacher Portal nav: every page carries the same centralized nav, not
     assert.match(res.text, /Class(<br\/?>|\s)Schedule/, `expected ${url} to show the renamed Class Schedule tab`);
   }
 });
+
+// A real request: "Teacher portal dashboard panel. Remove assignments tab."
+test('Co-op Teacher Portal nav: no Assignments tab (its pages still load by URL)', async () => {
+  const cookie = await loginTeacher([]);
+  const page = await request(app).get('/teacher').set('Cookie', cookie);
+  const navSection = page.text.slice(page.text.indexOf('id="admin-nav-links"'), page.text.indexOf('</nav>'));
+  assert.doesNotMatch(navSection, />\s*Assignments\s*</, 'no Assignments tab in the side panel');
+  assert.doesNotMatch(page.text, /href="\/teacher\/assignments"/, 'no Assignments link anywhere in the nav (side panel or phone tab bar)');
+  assert.doesNotMatch(page.text, /href="\/teacher\/lesson-plans\/approved"/);
+  assert.equal((await request(app).get('/teacher/assignments').set('Cookie', cookie)).status, 200);
+  assert.equal((await request(app).get('/teacher/lesson-plans/approved').set('Cookie', cookie)).status, 200);
+});
