@@ -61,11 +61,14 @@
         meaningless for a teacher looking at their own class, same
         reasoning as the Parent Portal staff view this mirrors. %>
     <div class="view-tabs no-print">
-      <a class="view-tab<%= tab === 'details' ? ' active' : '' %>" href="?tab=details">Details</a>
-      <a class="view-tab<%= tab === 'lessons' ? ' active' : '' %>" href="?tab=lessons">Lessons</a>
-      <% if (cls.allow_parent_chat) { %>
-        <a class="view-tab<%= tab === 'chat' ? ' active' : '' %>" href="?tab=chat">Chat</a>
-      <% } %>
+      <%# A real request: "the tabs should be details, lessons, Attendance,
+          chat and grades" (routes/teacher-portal.js's own
+          TEACHER_CLASS_DETAIL_TABS - Attendance/Grades only when this
+          account has those portal permissions). %>
+      <% var tabLabels = { details: 'Details', lessons: 'Lessons', attendance: 'Attendance', chat: 'Chat', grades: 'Grades' }; %>
+      <% tabs.forEach(function(t) { %>
+        <a class="view-tab<%= tab === t ? ' active' : '' %>" href="?tab=<%= t %>"><%= tabLabels[t] %></a>
+      <% }); %>
     </div>
 
     <div class="view-tab-panel">
@@ -179,8 +182,38 @@
             <% }); %>
           </div>
         </div>
+      <% } else if (tab === 'attendance') { %>
+        <%- include('partials/teacher-attendance-today', { cls, dateLabel: attendance.dateLabel, rows: attendance.rows, summary: attendance.summary, showHeading: false }) %>
+        <script src="/js/attendance-grid.js"></script>
       <% } else if (tab === 'chat') { %>
-        <%- include('partials/class-chat', { chatMessages, postUrl: `/teacher/classes/${cls.id}/chat` }) %>
+        <% if (cls.allow_parent_chat) { %>
+          <%- include('partials/class-chat', { chatMessages, postUrl: `/teacher/classes/${cls.id}/chat` }) %>
+        <% } else { %>
+          <p class="roster-empty">Chat is turned off for this class. A Co-op Admin can turn it on in the class settings.</p>
+        <% } %>
+      <% } else if (tab === 'grades') { %>
+        <% if (grades.length === 0) { %>
+          <p class="roster-empty">No lessons to grade yet - add one from Add/Edit Lesson Plan.</p>
+        <% } else { %>
+          <div class="roster-scroll">
+            <table class="roster-table members-table condensed-table table-stack-mobile">
+              <thead>
+                <tr><th>Lesson</th><th>Status</th><th>Due</th><th>Graded</th><th></th></tr>
+              </thead>
+              <tbody>
+                <% grades.forEach(function(a) { %>
+                  <tr>
+                    <td class="roster-name-col table-stack-heading"><%= a.title %></td>
+                    <td data-label="Status"><%- include('partials/lesson-approval-badge', { status: a.approval_status }) %></td>
+                    <td data-label="Due"><%= a.dueDateLabel || '—' %></td>
+                    <td data-label="Graded"><%= a.gradedCount %> / <%= a.studentCount %></td>
+                    <td><a class="roster-action-btn" href="/teacher/assignments/<%= a.id %>">Grade</a></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
       <% } %>
     </div>
   </main>
