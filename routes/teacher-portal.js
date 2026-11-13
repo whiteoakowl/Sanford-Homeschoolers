@@ -62,6 +62,7 @@ const { createRateLimiter } = require('../utils/rateLimit');
 const trainingModule = require('../utils/training');
 const { teacherLessonPlanBlock } = require('../utils/lessonPlans');
 const { mountSubstitutePlanRoutes } = require('./substitutePlanRoutes');
+const { lessonPlanSummary } = require('../utils/lessonPlanSummary');
 const { submitSubstitutePlansForClass, unsubmittedSubstitutePlanCount, substitutePlansForClass } = require('../utils/substitutePlans');
 
 // Same per-device throttle shape as the kiosk's own Class Check-In scan
@@ -978,6 +979,22 @@ router.get('/classes/:id/attendance', requirePortalPermission('view_teacher_atte
     return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher/attendance', backLabel: 'Back to Attendance' });
   }
   res.render('teacher-class-attendance', { title: `${cls.class_name} Attendance`, cls, ...(await todayAttendanceForClass(cls)) });
+});
+
+// A real request: the sidebar Attendance page "should only have check in,
+// check out, view lesson plan and view substitute plan" - read-only views
+// of this teacher's own class (every status, with its badge), same
+// content as the class QR code's pages.
+router.get('/classes/:id/view-lesson-plan', requirePortalPermission('view_teacher_attendance'), async (req, res) => {
+  const cls = await ownClassForTeacher(req);
+  if (!cls) return notYourClass(res);
+  res.render('teacher-class-view-lesson-plan', { title: `${cls.class_name} Lesson Plan`, cls, lessons: await lessonPlanSummary(cls.id, { approvedOnly: false }) });
+});
+
+router.get('/classes/:id/view-substitute-plan', requirePortalPermission('view_teacher_attendance'), async (req, res) => {
+  const cls = await ownClassForTeacher(req);
+  if (!cls) return notYourClass(res);
+  res.render('teacher-class-view-substitute-plan', { title: `${cls.class_name} Substitute Plan`, cls, plans: await substitutePlansForClass(cls.id) });
 });
 
 // Same status:<memberId>:<date> body-key convention as every other

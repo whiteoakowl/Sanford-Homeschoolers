@@ -8,7 +8,7 @@
 
   <main id="main-content" tabindex="-1" class="admin-main">
     <p><a href="/teacher/attendance">&larr; Back to Attendance</a></p>
-    <%- include('partials/teacher-attendance-today', { cls, dateLabel, rows, summary }) %>
+    <%- include('partials/teacher-attendance-today', { cls, dateLabel, rows, summary, showPlanButtons: true }) %>
   </main>
   <script src="/js/attendance-grid.js"></script>
 </body>

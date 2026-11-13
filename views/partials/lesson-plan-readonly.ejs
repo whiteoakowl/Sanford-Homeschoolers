@@ -1,0 +1,23 @@
+<%# Read-only lesson plan (utils/lessonPlanSummary.js) - the class QR
+    code's View Lesson Plan page and Co-op Teacher Portal's Attendance >
+    class > View Lesson Plan. Locals: lessons, showStatus (optional -
+    the approval badge on each lesson, for the teacher's own view). %>
+<% if (lessons.length === 0) { %>
+  <p class="roster-empty"><%= typeof showStatus !== 'undefined' && showStatus ? 'No lessons have been added to this class yet.' : 'No approved lessons have been added to this class yet.' %></p>
+<% } %>
+<% lessons.forEach(function(lesson) { %>
+  <section class="kiosk-plan-lesson">
+    <h2><%= lesson.title %><% if (typeof showStatus !== 'undefined' && showStatus) { %> <%- include('lesson-approval-badge', { status: lesson.approval_status }) %><% } %></h2>
+    <% if (lesson.openDateLabel || lesson.closeDateLabel) { %>
+      <p class="kiosk-plan-lesson-dates"><% if (lesson.openDateLabel) { %>Opens <%= lesson.openDateLabel %><% } %><% if (lesson.openDateLabel && lesson.closeDateLabel) { %> &middot; <% } %><% if (lesson.closeDateLabel) { %>Closes <%= lesson.closeDateLabel %><% } %></p>
+    <% } %>
+    <% if (lesson.description) { %><p class="kiosk-plan-lesson-desc"><%= lesson.description %></p><% } %>
+    <% if (lesson.contentItems.length) { %>
+      <ul class="kiosk-plan-items">
+        <% lesson.contentItems.forEach(function(item) { %>
+          <li><%= item.title || 'Untitled' %><% if (item.dueDateLabel) { %> &mdash; due <%= item.dueDateLabel %><% } %></li>
+        <% }); %>
+      </ul>
+    <% } %>
+  </section>
+<% }); %>

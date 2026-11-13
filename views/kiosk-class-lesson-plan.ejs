@@ -11,25 +11,7 @@
     <div class="form-outer-panel">
       <a href="/kiosk/class-checkin/classes/<%= cls.id %>/attendance" class="kiosk-home kiosk-home-inline">&larr; Back to <%= cls.class_name %> Attendance</a>
       <h1><%= cls.class_name %> Lesson Plan</h1>
-      <% if (lessons.length === 0) { %>
-        <p class="roster-empty">No approved lessons have been added to this class yet.</p>
-      <% } %>
-      <% lessons.forEach(function(lesson) { %>
-        <section class="kiosk-plan-lesson">
-          <h2><%= lesson.title %></h2>
-          <% if (lesson.openDateLabel || lesson.closeDateLabel) { %>
-            <p class="kiosk-plan-lesson-dates"><% if (lesson.openDateLabel) { %>Opens <%= lesson.openDateLabel %><% } %><% if (lesson.openDateLabel && lesson.closeDateLabel) { %> &middot; <% } %><% if (lesson.closeDateLabel) { %>Closes <%= lesson.closeDateLabel %><% } %></p>
-          <% } %>
-          <% if (lesson.description) { %><p class="kiosk-plan-lesson-desc"><%= lesson.description %></p><% } %>
-          <% if (lesson.contentItems.length) { %>
-            <ul class="kiosk-plan-items">
-              <% lesson.contentItems.forEach(function(item) { %>
-                <li><%= item.title || 'Untitled' %><% if (item.dueDateLabel) { %> &mdash; due <%= item.dueDateLabel %><% } %></li>
-              <% }); %>
-            </ul>
-          <% } %>
-        </section>
-      <% }); %>
+      <%- include('partials/lesson-plan-readonly', { lessons }) %>
     </div>
   </main>
   <script src="/js/fullscreen-nav.js"></script>

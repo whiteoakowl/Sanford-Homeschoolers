@@ -31,7 +31,7 @@ const { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate } = re
 const pinLimiter = require('../utils/classCheckinPinRateLimit');
 const { isValidClassQrKey, isValidPlaygroundQrKey } = require('../utils/classQrKey');
 const { createRateLimiter } = require('../utils/rateLimit');
-const { assignmentsForClass, contentItemsForAssignment } = require('../utils/academics');
+const { lessonPlanSummary } = require('../utils/lessonPlanSummary');
 const { substitutePlansForClass } = require('../utils/substitutePlans');
 
 // Separate from the main portal's own checkinLimiter (routes/kiosk.js) -
@@ -204,17 +204,7 @@ router.get('/classes/:id/attendance', requireClassAccess, async (req, res) => {
 router.get('/classes/:id/lesson-plan', requireClassAccess, async (req, res) => {
   const cls = await findClassWithLabels(parseInt(req.params.id, 10));
   if (!cls) return res.status(404).render('404', { title: 'Not Found' });
-  const lessons = [];
-  for (const lesson of await assignmentsForClass(cls.id)) {
-    if (lesson.approval_status !== 'approved') continue;
-    const items = await contentItemsForAssignment(lesson.id);
-    lessons.push({
-      ...lesson,
-      openDateLabel: lesson.open_date ? formatDateLong(lesson.open_date) : null,
-      closeDateLabel: lesson.close_date ? formatDateLong(lesson.close_date) : null,
-      contentItems: items.map((i) => ({ title: i.title, type: i.type, dueDateLabel: i.due_date ? formatDateLong(i.due_date) : null })),
-    });
-  }
+  const lessons = await lessonPlanSummary(cls.id, { approvedOnly: true });
   res.render('kiosk-class-lesson-plan', { title: `Lesson Plan - ${cls.class_name}`, cls, lessons });
 });
 

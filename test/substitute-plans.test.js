@@ -243,3 +243,41 @@ test("the teacher's class Lessons tab lists the class's substitute plans with th
   const details = await request(app).get(`/teacher/classes/${classId}?tab=details`).set('Cookie', teacher);
   assert.doesNotMatch(details.text, /Snow Day Plan/, 'only on the Lessons tab');
 });
+
+// A real request: the sidebar Attendance page "should only have check in,
+// check out, view lesson plan and view substitute plan".
+test('Attendance > class: Check In/Out plus View Lesson Plan and View Substitute Plan, read-only', async () => {
+  const classId = await createClass({ day: 'monday', hourPosition: 8, className: 'Attend Class', room: 'Room 12' });
+  const teacher = await loginTeacher([classId]);
+  const page = await request(app).get(`/teacher/classes/${classId}/substitute-plan`).set('Cookie', teacher);
+  const csrf = extractCsrf(page.text);
+  await request(app).post(`/teacher/classes/${classId}/assignments`).set('Cookie', teacher).type('form').send({ title: 'Draft Lesson X', _csrf: csrf });
+  await request(app).post(`/teacher/classes/${classId}/substitute-plan?_csrf=${csrf}`).set('Cookie', teacher).field('title', 'Sub Plan X');
+
+  const att = await request(app).get(`/teacher/classes/${classId}/attendance`).set('Cookie', teacher);
+  assert.equal(att.status, 200);
+  const lp = att.text.indexOf('View Lesson Plan');
+  const sp = att.text.indexOf('View Substitute Plan');
+  const ci = att.text.indexOf('/scan?mode=checkin');
+  assert.ok(lp > 0 && sp > lp && ci > sp, 'plan buttons above Check In/Out');
+  assert.doesNotMatch(att.text, /href="\?tab=/, 'no class tabs');
+  assert.doesNotMatch(att.text, />Edit Class</);
+  assert.doesNotMatch(att.text, /Add\/Edit Lesson Plan/);
+
+  const lessonView = await request(app).get(`/teacher/classes/${classId}/view-lesson-plan`).set('Cookie', teacher);
+  assert.equal(lessonView.status, 200);
+  assert.match(lessonView.text, /Draft Lesson X/);
+  assert.match(lessonView.text, /badge-pill-gray">Draft</);
+  assert.doesNotMatch(lessonView.text, /Add Lesson/);
+
+  const subView = await request(app).get(`/teacher/classes/${classId}/view-substitute-plan`).set('Cookie', teacher);
+  assert.equal(subView.status, 200);
+  assert.match(subView.text, /Sub Plan X/);
+  assert.doesNotMatch(subView.text, />Edit Substitute Plan</);
+
+  const tab = await request(app).get(`/teacher/classes/${classId}?tab=attendance`).set('Cookie', teacher);
+  assert.doesNotMatch(tab.text, /view-lesson-plan/, "the class page's Attendance tab keeps just Check In/Out");
+
+  const other = await createClass({ day: 'monday', hourPosition: 9, className: 'Not Mine', room: 'Room 13' });
+  assert.equal((await request(app).get(`/teacher/classes/${other}/view-lesson-plan`).set('Cookie', teacher)).status, 403);
+});

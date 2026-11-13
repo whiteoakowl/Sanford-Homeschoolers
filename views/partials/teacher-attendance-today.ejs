@@ -2,7 +2,8 @@
     Attendance page (views/teacher-class-attendance.ejs) and the class
     page's Attendance tab (views/teacher-class-detail.ejs) share it.
     Locals: cls, dateLabel, rows, summary, showHeading (default true -
-    false shows the date as the heading instead of the class name). %>
+    false shows the date as the heading instead of the class name),
+    showPlanButtons. %>
   <%# A real request: "There should also be the purple check in and out
       buttons for barcode scanning." Same .class-checkin-btn look/
       markup/scan flow as the Kiosk's own Class Check-In attendance
@@ -11,6 +12,22 @@
       GET /classes/:id/scan). %>
   <div class="class-checkin-attendance-header">
     <% if (typeof showHeading === 'undefined' || showHeading) { %><h1><%= cls.class_name %> Attendance</h1><% } else { %><h2><%= dateLabel %></h2><% } %>
+    <%# A real request: the sidebar Attendance page "should only have check
+        in, check out, view lesson plan and view substitute plan" - same
+        layout as the class QR code page (views/kiosk-class-checkin-
+        attendance.ejs). showPlanButtons: that page only, not the class
+        page's Attendance tab. %>
+    <div class="class-checkin-action-stack">
+    <% if (typeof showPlanButtons !== 'undefined' && showPlanButtons) { %>
+      <div class="class-checkin-actions">
+        <a class="class-checkin-btn class-checkin-btn-plan" href="/teacher/classes/<%= cls.id %>/view-lesson-plan">
+          <svg class="icon"><use href="#icon-clipboard-list"/></svg> View Lesson Plan
+        </a>
+        <a class="class-checkin-btn class-checkin-btn-plan" href="/teacher/classes/<%= cls.id %>/view-substitute-plan">
+          <svg class="icon"><use href="#icon-book"/></svg> View Substitute Plan
+        </a>
+      </div>
+    <% } %>
     <div class="class-checkin-actions">
       <a class="class-checkin-btn" href="/teacher/classes/<%= cls.id %>/scan?mode=checkin">
         <svg class="icon"><use href="#icon-check"/></svg> Check In
@@ -18,6 +35,7 @@
       <a class="class-checkin-btn" href="/teacher/classes/<%= cls.id %>/scan?mode=checkout">
         <svg class="icon"><use href="#icon-log-out"/></svg> Check Out
       </a>
+    </div>
     </div>
   </div>
   <% if (typeof showHeading === 'undefined' || showHeading) { %><p class="hint"><%= dateLabel %></p><% } %>
