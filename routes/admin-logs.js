@@ -14,6 +14,8 @@ const { membersWithMedicalNotes, lastNameOf } = require('../utils/members');
 const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('../utils/pagination');
 const { scannedTasksForMemberDate } = require('../utils/setup');
 
+const { classRegistrationLogLocals } = require('../utils/classRegistrationLogPage');
+
 const LOG_TABS = ['absence', 'checkinout', 'classcheckinout', 'nametag', 'classrisk', 'substitutes', 'allergies', 'classregistration', 'missedduty'];
 
 function sendPdf(res, filename, pdfBuffer) {
@@ -187,13 +189,6 @@ async function allClassRegistrations(dateFilter) {
         lastNameOf(a.memberName).localeCompare(lastNameOf(b.memberName), undefined, { sensitivity: 'base' }) ||
         a.memberName.localeCompare(b.memberName, undefined, { sensitivity: 'base' })
     );
-}
-
-async function classRegistrationDates() {
-  return (await db
-    .prepare(`SELECT DISTINCT substr(created_at, 1, 10) AS date FROM class_registrations ORDER BY date DESC`)
-    .all())
-    .map((r) => ({ date: r.date, label: formatDateLabel(r.date) }));
 }
 
 // A real bug report: "There should be a seperate log for Class Check
@@ -711,22 +706,14 @@ router.get('/logs', requireAdmin, async (req, res) => {
     });
   }
 
+  // A real request: "Class Registration log should look like this" -
+  // one flat table (views/partials/class-registration-log.ejs), same as
+  // Classes > Class Registration Log.
   if (tab === 'classregistration') {
-    const allRegistrations = await allClassRegistrations(dateFilter);
-    const allFamilyGroups = groupAbsenceSubmissionsByFamilyAndDate(allRegistrations);
-    const pageSize = parsePageSize(req.query.pageSize, DEFAULT_PAGE_SIZE);
-    const pagination = paginate(allFamilyGroups, parsePage(req.query.page), pageSize);
     return res.render('admin-logs', {
       title: 'Class Registration Log',
       tab,
-      familyGroups: pagination.items,
-      allSubmissions: allRegistrations,
-      pagination,
-      viewingAll: pageSize === Infinity,
-      baseHref: `/admin/logs?tab=classregistration${dateFilter ? `&date=${encodeURIComponent(dateFilter)}` : ''}&`,
-      dates: await classRegistrationDates(),
-      dateFilter,
-      dateFilterLabel: dateFilter ? formatDateLabel(dateFilter) : 'All dates',
+      ...(await classRegistrationLogLocals(req, { formAction: '/admin/logs', tabParam: 'classregistration', exportBase: '/admin/logs/classregistration', isFullAdmin: res.locals.isFullAdmin })),
       error: req.query.error || null,
       notice: req.query.notice || null,
     });

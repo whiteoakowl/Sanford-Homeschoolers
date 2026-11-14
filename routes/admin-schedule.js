@@ -6,14 +6,14 @@ const fs = require('fs');
 const db = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
-const { isValidISODate, easternInputToUtcText, utcTextToEasternInput, formatTimestamp, formatDateLabel, todayISO, weekdayOf } = require('../utils/dates');
+const { isValidISODate, easternInputToUtcText, utcTextToEasternInput, formatTimestamp, todayISO, weekdayOf } = require('../utils/dates');
 const { listWindows, createWindow, updateWindow, deleteWindow, cloneRegistrationWindowsFromMostRecentSemester } = require('../utils/registrationWindows');
 const { sendCsv, buildTemplateWorkbook, readRowsFromFile } = require('../utils/spreadsheet');
 const { schedulesForMembers, scheduleMembers, memberScheduleTables } = require('../utils/schedule');
 const { sendMemberSchedules, sortFamilyForPrint } = require('../utils/memberScheduleOutput');
 const { byLastName, allFamilies } = require('../utils/members');
 const { allClassRegistrationActions, buildClassRegistrationLogExportCsvLines } = require('../utils/classRegistration');
-const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('../utils/pagination');
+const { classRegistrationLogLocals } = require('../utils/classRegistrationLogPage');
 const { renderViewToPdf } = require('../utils/pdfRender');
 const {
   CLASS_DAYS,
@@ -81,30 +81,6 @@ const uploadDesignImage = multer({
 
 const SPECIAL_SCHEDULE_TABS = ['members', 'settings', 'classregistrationlog'];
 
-// A real request: "Co-op admin portal, classes tab, add a sub page
-// called class registration log... record every time a member registers
-// for a class or cancels[,] organized by date and then by family." True
-// two-level grouping (date -> its own family sub-groups), same shape
-// routes/admin-events.js's own groupEventRegistrationActionsByDate
-// already established for Main Admin's Event Registration Log -
-// duplicated here (not imported from that file) since the two portals'
-// route files stay self-contained, same reasoning that file's own
-// comment gives for not reaching into routes/admin-logs.js either.
-function groupClassRegistrationActionsByDate(actions) {
-  const dateGroups = new Map();
-  for (const a of actions) {
-    if (!dateGroups.has(a.date)) dateGroups.set(a.date, { date: a.date, dateLabel: a.dateLabel, familyGroups: [] });
-    const dateGroup = dateGroups.get(a.date);
-    const familyKey = a.familyId != null ? `f${a.familyId}` : `solo-${a.memberName}`;
-    let familyGroup = dateGroup.familyGroups.find((f) => f.key === familyKey);
-    if (!familyGroup) {
-      familyGroup = { key: familyKey, familyName: a.familyName || a.memberName, members: [] };
-      dateGroup.familyGroups.push(familyGroup);
-    }
-    familyGroup.members.push(a);
-  }
-  return Array.from(dateGroups.values());
-}
 const SETTINGS_SUBTABS = ['general', 'registration-schedule'];
 const MEMBER_TYPE_FILTERS = ['student', 'parent'];
 const PAGE_SIZE = 25;
@@ -305,29 +281,15 @@ router.get('/schedule', requireAdmin, async (req, res) => {
     });
   }
 
+  // A real request: "Class Registration log should look like this" -
+  // one flat table (views/partials/class-registration-log.ejs), same as
+  // Logs > Class Registration.
   if (tab === 'classregistrationlog') {
-    const dateFilter = req.query.date || '';
-    const allActions = await allClassRegistrationActions();
-    // Already newest-first (allClassRegistrationActions' own sort) - a
-    // Map keyed by date preserves first-seen order, so this stays
-    // newest-first too without a separate sort.
-    const dates = Array.from(new Map(allActions.map((a) => [a.date, { date: a.date, label: a.dateLabel }])).values());
-    const filteredActions = dateFilter ? allActions.filter((a) => a.date === dateFilter) : allActions;
-    const dateGroups = groupClassRegistrationActionsByDate(filteredActions);
-    const pageSize = parsePageSize(req.query.pageSize, DEFAULT_PAGE_SIZE);
-    const pagination = paginate(dateGroups, parsePage(req.query.page), pageSize);
     return res.render('admin-schedule', {
       title: 'Class Registration Log',
       tab,
       topTab: 'classregistrationlog',
-      dateGroups: pagination.items,
-      allSubmissions: filteredActions,
-      pagination,
-      viewingAll: pageSize === Infinity,
-      baseHref: `/admin/schedule?tab=classregistrationlog${dateFilter ? `&date=${encodeURIComponent(dateFilter)}` : ''}&`,
-      dates,
-      dateFilter,
-      dateFilterLabel: dateFilter ? formatDateLabel(dateFilter) : 'All dates',
+      ...(await classRegistrationLogLocals(req, { formAction: '/admin/schedule', tabParam: 'classregistrationlog', exportBase: '/admin/schedule/classregistrationlog', isFullAdmin: res.locals.isFullAdmin })),
       error: req.query.error || null,
       notice: req.query.notice || null,
     });

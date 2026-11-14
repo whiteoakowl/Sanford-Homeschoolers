@@ -180,14 +180,14 @@ test('both class registration logs mark a member\'s first sign-up as New, not a 
       .send({ studentId: String(fam.childId), day: 'monday', _csrf: fam.csrfToken });
   }
 
-  const newBadge = '<span class="badge-pill badge-pill-blue" title="First class this member signed up for">New</span>';
   const today = (await db.prepare('SELECT now_text() AS now').get()).now.slice(0, 10);
   for (const url of [`/admin/logs?tab=classregistration&date=${today}`, `/admin/schedule?tab=classregistrationlog&date=${today}`]) {
     const page = await request(app).get(url).set('Cookie', admin.cookie);
     assert.equal(page.status, 200, url);
-    assert.ok(page.text.includes(`${newbie.childName} ${newBadge}`), `${url}: the first-time member is marked New`);
-    assert.ok(page.text.includes(returning.childName), `${url}: the returning member is listed`);
-    assert.ok(!page.text.includes(`${returning.childName} ${newBadge}`), `${url}: the returning member is not marked New`);
+    const rowOf = (name) => page.text.split('<tr>').find((r) => r.includes(name));
+    assert.match(rowOf(newbie.childName), /class="crl-new"[^>]*>NEW</, `${url}: the first-time member is marked NEW`);
+    assert.ok(rowOf(returning.childName), `${url}: the returning member is listed`);
+    assert.doesNotMatch(rowOf(returning.childName), /crl-new/, `${url}: the returning member is not marked NEW`);
   }
 
   const csv = (await request(app).get('/admin/logs/classregistration/export.csv').set('Cookie', admin.cookie)).text;
@@ -197,4 +197,58 @@ test('both class registration logs mark a member\'s first sign-up as New, not a 
   const csv2 = (await request(app).get('/admin/schedule/classregistrationlog/export.csv').set('Cookie', admin.cookie)).text;
   assert.match(csv2, /"Date","Family","Name","New","Class","Day","Action"/);
   assert.ok(csv2.split('\n').some((l) => l.includes(newbie.childName) && l.includes(',"New",')));
+});
+
+// A real request: "Class Registration log should look like this" - one
+// table with a search box, Total/Confirmed/Waitlisted counts, and a trash
+// button that cancels the registration (same as the roster's Remove).
+test('Class Registration Log table: search, counts, and the trash button cancels a registration', async () => {
+  const admin = await loginAsAdmin();
+  const cls = await createOpenClass(admin, { className: 'Logs Test Pottery Wheel' });
+  const family = await createParentWithChild('Trash Family');
+  await request(app)
+    .post(`/parent/classes/${cls.id}/register`)
+    .set('Cookie', family.cookie)
+    .type('form')
+    .send({ studentId: String(family.childId), day: 'monday', _csrf: family.csrfToken });
+  const reg = await db.prepare("SELECT * FROM class_registrations WHERE class_id = ? AND student_id = ? AND status = 'confirmed'").get(cls.id, family.childId);
+  assert.ok(reg, 'registered');
+  assert.ok(await db.prepare('SELECT 1 FROM class_enrollments WHERE class_id = ? AND student_id = ?').get(cls.id, family.childId), 'on the class list');
+
+  // Search narrows to matching student or class names.
+  const byClass = await request(app).get('/admin/schedule?tab=classregistrationlog&q=pottery%20wheel').set('Cookie', admin.cookie);
+  assert.match(byClass.text, new RegExp(family.childName));
+  assert.match(byClass.text, /Total Registrations<\/span><strong>1</);
+  assert.match(byClass.text, /Confirmed<\/span><strong>1</);
+  const noMatch = await request(app).get('/admin/logs?tab=classregistration&q=zzzz-nobody').set('Cookie', admin.cookie);
+  assert.match(noMatch.text, /No class registrations match &#34;zzzz-nobody&#34;/);
+  assert.match(noMatch.text, /Total Registrations<\/span><strong>0</);
+
+  // The trash button posts to the cancel route and comes back to the log.
+  const row = byClass.text.split('<tr>').find((r) => r.includes(family.childName));
+  assert.match(row, new RegExp(`action="/admin/class-registrations/${reg.id}/cancel"`));
+  assert.match(row, /name="returnTo" value="\/admin\/schedule\?tab=classregistrationlog&amp;q=pottery\+wheel"/);
+  const cancel = await request(app)
+    .post(`/admin/class-registrations/${reg.id}/cancel`)
+    .set('Cookie', admin.cookie)
+    .type('form')
+    .send({ returnTo: '/admin/schedule?tab=classregistrationlog&q=pottery+wheel', _csrf: admin.csrfToken });
+  assert.equal(cancel.status, 302);
+  assert.match(cancel.headers.location, /^\/admin\/schedule\?tab=classregistrationlog&q=pottery\+wheel&notice=/);
+  assert.equal((await db.prepare('SELECT status FROM class_registrations WHERE id = ?').get(reg.id)).status, 'cancelled');
+  assert.equal(await db.prepare('SELECT 1 FROM class_enrollments WHERE class_id = ? AND student_id = ?').get(cls.id, family.childId), undefined, 'off the class list');
+
+  // It stays in the log as Cancelled, with no trash button.
+  const after = await request(app).get('/admin/schedule?tab=classregistrationlog&q=pottery%20wheel').set('Cookie', admin.cookie);
+  const afterRow = after.text.split('<tr>').find((r) => r.includes(family.childName));
+  assert.match(afterRow, /crl-status-cancelled/);
+  assert.doesNotMatch(afterRow, /class-registrations\/\d+\/cancel/);
+
+  // Cancelling again is refused; an outside returnTo falls back to the log.
+  const again = await request(app)
+    .post(`/admin/class-registrations/${reg.id}/cancel`)
+    .set('Cookie', admin.cookie)
+    .type('form')
+    .send({ returnTo: 'https://example.com/evil', _csrf: admin.csrfToken });
+  assert.match(again.headers.location, /^\/admin\/schedule\?tab=classregistrationlog&error=/);
 });

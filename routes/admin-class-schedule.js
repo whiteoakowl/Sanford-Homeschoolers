@@ -1296,6 +1296,31 @@ router.post('/class-schedule/classes/:id/enrollment/add', requireFullAdmin, asyn
   res.redirect(`/admin/class-schedule/${cls.day}?semesterId=${qsSemester(cls.semester_id)}`);
 });
 
+// A real request: the Class Registration Log's trash button "Cancel
+// registration" (views/partials/class-registration-log.ejs) - the same
+// as the class roster's own Remove just below (off the class list, the
+// registration marked Cancelled, waitlist/charge bookkeeping), then back
+// to whichever log it came from. Only an active (confirmed/waitlisted)
+// registration can be cancelled.
+const CLASS_REG_LOG_RETURN = /^\/admin\/(logs\?tab=classregistration|schedule\?tab=classregistrationlog)(&[\w=%.+-]*)*$/;
+router.post('/class-registrations/:id/cancel', requireFullAdmin, async (req, res) => {
+  const returnTo = CLASS_REG_LOG_RETURN.test(String(req.body.returnTo || '')) ? req.body.returnTo : '/admin/schedule?tab=classregistrationlog';
+  const back = (key, msg) => res.redirect(`${returnTo}${returnTo.includes('?') ? '&' : '?'}${key}=${encodeURIComponent(msg)}`);
+  const registration = await db
+    .prepare('SELECT cr.*, m.name AS student_name, c.class_name FROM class_registrations cr JOIN members m ON m.id = cr.student_id JOIN classes c ON c.id = cr.class_id WHERE cr.id = ?')
+    .get(parseInt(req.params.id, 10));
+  if (!registration) return back('error', 'That registration no longer exists.');
+  if (registration.status !== 'confirmed' && registration.status !== 'waitlisted') return back('error', 'That registration is already cancelled.');
+  const cls = await getClass(registration.class_id);
+  try {
+    if (cls) await setEnrollment(cls.id, cls.students.map((s) => s.id).filter((sid) => sid !== registration.student_id));
+    await adminRemoveStudentFromClass(registration.class_id, registration.student_id, req.portalAccount ? req.portalAccount.id : null);
+  } catch (err) {
+    return back('error', `Could not cancel the registration: ${err.message}`);
+  }
+  back('notice', `Cancelled ${registration.student_name}'s registration for ${registration.class_name}.`);
+});
+
 router.post('/class-schedule/classes/:id/enrollment/:studentId/remove', requireFullAdmin, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const cls = await getClass(id);

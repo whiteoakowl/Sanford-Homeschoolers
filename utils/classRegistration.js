@@ -518,6 +518,64 @@ async function allClassRegistrationActions() {
   );
 }
 
+// A real request: "Class Registration log should look like this" - a
+// picture of one flat table (Student Name with a NEW pill, Class Name,
+// Status, Registered On, a trash Action), a search box, and Total/
+// Confirmed/Pending counts. One row per class_registrations entry (its
+// current status - Cancelled rows stay listed), newest first, shared by
+// Classes > Class Registration Log and Logs > Class Registration
+// (views/partials/class-registration-log.ejs). search matches the
+// student's or class's name; dateFilter is the day it was registered.
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function registeredOnLabel(isoDate) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  return `${SHORT_MONTHS[m - 1]} ${d}, ${y}`;
+}
+
+async function classRegistrationLogRows({ dateFilter = '', search = '' } = {}) {
+  const rows = await db
+    .prepare(
+      `SELECT cr.id, cr.class_id AS "classId", cr.student_id AS "studentId", cr.status, cr.created_at AS "createdAt",
+              m.name AS "memberName", f.name AS "familyName", c.class_name AS "className", c.day AS "classDay",
+              (SELECT MIN(substr(cr2.created_at, 1, 10)) FROM class_registrations cr2 WHERE cr2.student_id = cr.student_id) AS "firstDate"
+       FROM class_registrations cr
+       JOIN members m ON m.id = cr.student_id
+       LEFT JOIN families f ON f.id = m.family_id
+       JOIN classes c ON c.id = cr.class_id
+       ORDER BY cr.created_at DESC, cr.id DESC`
+    )
+    .all();
+  const needle = String(search || '').trim().toLowerCase();
+  return rows
+    .map((r) => {
+      const date = r.createdAt.slice(0, 10);
+      return {
+        id: r.id,
+        classId: r.classId,
+        studentId: r.studentId,
+        memberName: r.memberName,
+        familyName: r.familyName,
+        className: r.className,
+        classDayLabel: CLASS_DAY_LABELS_FULL[r.classDay] || r.classDay,
+        status: r.status,
+        statusLabel: r.status === 'waitlisted' ? 'Waitlisted' : r.status === 'cancelled' ? 'Cancelled' : 'Confirmed',
+        date,
+        registeredOnLabel: registeredOnLabel(date),
+        isNew: date === r.firstDate,
+      };
+    })
+    .filter((r) => (!dateFilter || r.date === dateFilter) && (!needle || r.memberName.toLowerCase().includes(needle) || r.className.toLowerCase().includes(needle)));
+}
+
+function classRegistrationLogCounts(rows) {
+  return {
+    total: rows.length,
+    confirmed: rows.filter((r) => r.status === 'confirmed').length,
+    waitlisted: rows.filter((r) => r.status === 'waitlisted').length,
+    cancelled: rows.filter((r) => r.status === 'cancelled').length,
+  };
+}
+
 const CLASS_REGISTRATION_LOG_EXPORT_HEADER = ['Date', 'Family', 'Name', 'New', 'Class', 'Day', 'Action'];
 
 function buildClassRegistrationLogExportCsvLines(actions) {
@@ -528,6 +586,8 @@ function buildClassRegistrationLogExportCsvLines(actions) {
 }
 
 module.exports = {
+  classRegistrationLogRows,
+  classRegistrationLogCounts,
   registerForClass,
   unregisterFromClass,
   adminRemoveStudentFromClass,
