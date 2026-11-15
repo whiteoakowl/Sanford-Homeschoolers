@@ -564,3 +564,19 @@ test('Edit Reimbursement Form: the Preview shows the real form, field by field, 
   assert.doesNotMatch(preview, /<form/, 'the preview is not a real form');
   assert.match(preview, /<select disabled>/);
 });
+
+// A real request: "Teacher portal, reimbursement the icon dollar sign is
+// backwards. It should be flipped. When teacher is viewing their
+// reimbursement it drifts off the page on mobile."
+test('Teacher reimbursements: dollar icon flipped; tables stack/wrap on phones', () => {
+  const sprite = fs.readFileSync(path.join(__dirname, '..', 'views', 'partials', 'icon-sprite.ejs'), 'utf8');
+  const coin = sprite.slice(sprite.indexOf('id="icon-coin"'), sprite.indexOf('</symbol>', sprite.indexOf('id="icon-coin"')));
+  assert.match(coin, /<path transform="matrix\(-1 0 0 1 24 0\)"/, 'the S is flipped left-to-right');
+  for (const view of ['teacher-reimbursements.ejs', 'teacher-reimbursements-class.ejs', 'partials/class-fees-table.ejs']) {
+    const s = fs.readFileSync(path.join(__dirname, '..', 'views', view), 'utf8');
+    assert.match(s, /table-stack-mobile/, `${view} stacks on phones`);
+    assert.match(s, /data-label="Status"|data-label="Leftover"/, `${view} labels its cells`);
+  }
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'styles.css'), 'utf8');
+  assert.match(css, /\.reimbursement-items-table td:first-child \{ white-space: normal;/);
+});

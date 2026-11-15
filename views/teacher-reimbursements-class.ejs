@@ -14,19 +14,19 @@
     <% if (requests.length === 0) { %>
       <p class="roster-empty">No reimbursement forms have been submitted for this class yet.</p>
     <% } else { %>
-      <table class="roster-table condensed-table reimbursement-log-table">
+      <table class="roster-table condensed-table reimbursement-log-table table-stack-mobile">
         <thead>
           <tr><th>Submitted</th><th>Name</th><th>Items</th><th>Receipts</th><th class="reimbursement-amount-col">Total</th><th>Status</th></tr>
         </thead>
         <tbody>
           <% requests.forEach(function(r) { %>
             <tr data-class-request="<%= r.id %>">
-              <td><a href="/teacher/reimbursements/<%= r.id %>"><%= formatTimestamp(r.submitted_at) %></a></td>
-              <td><%= r.member_name %></td>
-              <td><%= r.itemCount %></td>
-              <td><%= r.receiptCount %></td>
-              <td class="reimbursement-amount-col"><%= r.totalLabel %></td>
-              <td><span class="badge-pill <%= { submitted: 'badge-pill-orange', approved: 'badge-pill-green', rejected: 'badge-pill-red' }[r.status] || 'badge-pill-gray' %>"><%= r.statusLabel %></span></td>
+              <td class="table-stack-heading"><a href="/teacher/reimbursements/<%= r.id %>"><%= formatTimestamp(r.submitted_at) %></a></td>
+              <td data-label="Name"><%= r.member_name %></td>
+              <td data-label="Items"><%= r.itemCount %></td>
+              <td data-label="Receipts"><%= r.receiptCount %></td>
+              <td class="reimbursement-amount-col" data-label="Total"><%= r.totalLabel %></td>
+              <td data-label="Status"><span class="badge-pill <%= { submitted: 'badge-pill-orange', approved: 'badge-pill-green', rejected: 'badge-pill-red' }[r.status] || 'badge-pill-gray' %>"><%= r.statusLabel %></span></td>
             </tr>
           <% }); %>
         </tbody>

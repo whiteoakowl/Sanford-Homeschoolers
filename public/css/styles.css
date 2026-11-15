@@ -17185,3 +17185,17 @@ dialog form:has(.permission-section) > h3,
 /* The preview column is narrower than the real form, so its item row
    gives the Item field the most room instead of a fixed-width date. */
 .reimbursement-form-preview .reimbursement-item-row { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(0, 0.8fr) 2.5rem; }
+/* Teacher Portal reimbursements on a phone - a real request: "When
+   teacher is viewing their reimbursement it drifts off the page on
+   mobile." The item table's descriptions wrap (date and amount stay on
+   one line), and a stacked Class Fees table's Total row stacks too. */
+@media (max-width: 640px) {
+  .reimbursement-items-table { width: 100%; table-layout: auto; }
+  .reimbursement-items-table td:first-child { white-space: normal; overflow-wrap: break-word; }
+  .reimbursement-items-table th,
+  .reimbursement-items-table td { padding: 0.45rem 0.4rem; }
+  .class-fees-table.table-stack-mobile tfoot,
+  .class-fees-table.table-stack-mobile tfoot tr { display: block; width: 100%; }
+  .class-fees-table.table-stack-mobile tfoot th { display: block; text-align: right; border: none; padding: 0.2rem 0.65rem; }
+  .class-fees-table.table-stack-mobile tfoot th:first-child { text-align: left; }
+}
