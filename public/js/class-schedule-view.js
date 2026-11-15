@@ -15,7 +15,9 @@
     // also navigate away from the grid (see views/partials/class-
     // schedule-grid.ejs's own comment on why that checkbox lives inside
     // this same clickable card).
-    if (!card || e.target.closest('.class-card-checkbox')) return;
+    // A list-view row (also data-view-class) holds Bulk Edit's own
+    // checkbox the same way - ticking it must not open the class either.
+    if (!card || e.target.closest('.class-card-checkbox, input, label, a, button')) return;
     window.location.href = `/admin/class-schedule/classes/${card.getAttribute('data-view-class')}/manage`;
   });
 
@@ -25,7 +27,7 @@
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     const card = e.target.closest('[data-view-class]');
-    if (!card || card.tagName === 'BUTTON' || card.tagName === 'A' || e.target.closest('.class-card-checkbox')) return;
+    if (!card || card.tagName === 'BUTTON' || card.tagName === 'A' || e.target.closest('.class-card-checkbox, input, label, a, button')) return;
     e.preventDefault();
     window.location.href = `/admin/class-schedule/classes/${card.getAttribute('data-view-class')}/manage`;
   });

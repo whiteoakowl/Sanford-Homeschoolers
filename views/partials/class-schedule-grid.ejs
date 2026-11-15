@@ -654,6 +654,12 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
           data-class-grade-list="<%= (cls.age_group || '').split(',').map(function(g) { return g.trim(); }).filter(Boolean).join(',') %>"
           data-class-full="<%= (cls.capacity != null && cls.students.length >= cls.capacity) ? '1' : '0' %>"
           data-class-semester-id="<%= cls.semester_id != null ? cls.semester_id : 'none' %>"
+          <%# A real request: "class list view, should be able to click on
+              each class and see the information for the class the same as
+              clicking on a class in grid view" - same data-view-class
+              hook as the grid's own cards (public/js/class-schedule-
+              view.js), so it opens the same class page. %>
+          <% if (!gridReadOnly) { %>class="class-schedule-list-row-clickable" data-view-class="<%= cls.id %>" role="link" tabindex="0" aria-label="View/edit <%= cls.class_name %>"<% } %>
         >
           <%# Bulk Edit's own per-row checkbox - a real request: "when you
               click bulk edit it will show a check mark on the left next

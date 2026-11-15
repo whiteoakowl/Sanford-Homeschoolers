@@ -17130,3 +17130,7 @@ dialog form:has(.permission-section) > h3,
   .crl-family-chevron { position: absolute; top: 0.95rem; right: 0.85rem; }
   .crl-time { display: inline; margin-left: 0.3rem; }
 }
+/* Classes > List view: each row opens the class, same as a grid card. */
+.class-schedule-list-row-clickable { cursor: pointer; }
+.class-schedule-list-row-clickable:hover td { background: var(--brand-soft); }
+.class-schedule-list-row-clickable:focus-visible { outline: 2px solid var(--brand-dark); outline-offset: -2px; }
