@@ -72,13 +72,20 @@ async function resolveSemesterId(req) {
 // classes and assistant on others now gets two separate entries, one per
 // page this is called from, each with its own independent class count -
 // never one member with a single combined count spanning both roles.
+// A real request: "teacher and assistant subpages are seperate and should
+// be combined, with a pill toggle to switch between teachers and
+// assistants. Teacher page when you click on a teacher and the dropdown
+// shows the classes they are teaching it will also show any classes they
+// are assisting in so that we know their full schedule." role picks who
+// is listed (anyone with at least one class in that role); each person's
+// classes include every class they staff, either role, tagged with it.
 async function staffForSemesterByRole(semesterId, role) {
   const classes = await allClassesList(null, semesterId);
   const byMember = new Map();
   for (const cls of classes) {
     const staff = await staffForClass(cls.id);
     for (const s of staff) {
-      if (s.role !== role) continue;
+      if (s.role !== 'teacher' && s.role !== 'assistant') continue;
       if (!byMember.has(s.id)) byMember.set(s.id, { id: s.id, name: s.name, classes: [] });
       byMember.get(s.id).classes.push({
         id: cls.id,
@@ -88,54 +95,43 @@ async function staffForSemesterByRole(semesterId, role) {
         hourPosition: cls.hour_position,
         room: cls.room,
         timeLabel: cls.timeLabel,
+        role: s.role,
+        roleLabel: s.role === 'teacher' ? 'Teaching' : 'Assisting',
       });
     }
   }
-  const members = [...byMember.values()];
+  const members = [...byMember.values()].filter((m) => m.classes.some((c) => c.role === role));
   members.forEach((m) => {
     m.classes.sort((a, b) => CLASS_DAY_ORDER[a.day] - CLASS_DAY_ORDER[b.day] || a.hourPosition - b.hourPosition);
+    m.teachingCount = m.classes.filter((c) => c.role === 'teacher').length;
+    m.assistingCount = m.classes.filter((c) => c.role === 'assistant').length;
   });
   return members.sort(byLastName);
 }
 
+const STAFF_ROLES = ['teacher', 'assistant'];
+
 router.get('/teachers', requireAdmin, async (req, res) => {
   const semesterId = await resolveSemesterId(req);
-  const members = await staffForSemesterByRole(semesterId, 'teacher');
+  const role = STAFF_ROLES.includes(req.query.role) ? req.query.role : 'teacher';
   res.render('admin-teachers', {
-    title: 'Teachers',
-    roleLabel: 'teacher',
+    title: 'Teachers & Assistants',
+    role,
+    roleLabel: role,
     basePath: '/admin/teachers',
-    members,
+    members: await staffForSemesterByRole(semesterId, role),
     semesters: await listSemesters(),
     selectedSemesterId: semesterId,
   });
 });
 
-// A real request: "Separate into two different pages. One for assistants
-// and one for teachers" - see staffForSemesterByRole's own comment above.
-// Reuses the exact same admin-teachers.ejs view as GET /teachers (same
-// collapsible-list layout, semester filter, and click-through-to-class
-// behavior), just scoped to the 'assistant' role instead.
-router.get('/teachers/assistants', requireAdmin, async (req, res) => {
-  const semesterId = await resolveSemesterId(req);
-  const members = await staffForSemesterByRole(semesterId, 'assistant');
-  res.render('admin-teachers', {
-    title: 'Assistants',
-    roleLabel: 'assistant',
-    basePath: '/admin/teachers/assistants',
-    members,
-    semesters: await listSemesters(),
-    selectedSemesterId: semesterId,
-  });
+// The old separate Assistants page - same page, Assistants selected.
+router.get('/teachers/assistants', requireAdmin, (req, res) => {
+  const params = new URLSearchParams({ role: 'assistant' });
+  if (req.query.semesterId !== undefined) params.set('semesterId', req.query.semesterId);
+  res.redirect(`/admin/teachers?${params.toString()}`);
 });
 
-// --- Class Fees - a real request: "Class fees subpage should be added
-// under teachers/assistants tab. Here it will list each teacher and the
-// classes that collected fees that they are teaching listed underneath
-// them... title, day, time, semester, and supply fee total... payout
-// total and total leftover." Defaults to the active semester like the
-// Teachers/Assistants pages (resolveSemesterId); "All Semesters" shows
-// everything. Money comes from utils/reimbursements.js's classFeeSummary.
 async function classFeesLocals(req) {
   const semesterId = await resolveSemesterId(req);
   const teachers = await reimb.classFeesByTeacher(semesterId);
