@@ -76,8 +76,14 @@
     window.scrollTo(0, 0);
   }
 
+  // A hung fetch (dead connection after the device wakes) used to leave the
+  // kiosk sitting on the old page forever - give up after 8s and fall back
+  // to an ordinary page load (the .catch below).
   function go(url, push) {
-    fetch(url, { credentials: 'same-origin' })
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 8000) : null;
+    fetch(url, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .finally(() => { if (timer) clearTimeout(timer); })
       .then((res) => {
         if (!res.ok) throw new Error('nav failed: ' + res.status);
         return res.text().then((html) => ({ html, finalUrl: res.url }));

@@ -72,4 +72,46 @@
   }
 
   wireInstallPanel();
+
+  // A real bug report: "Every time I reopen the app I have to refresh the
+  // page in order to click on any pages... Otherwise it sits frozen." A
+  // page the phone kept in memory (or restored from the back/forward
+  // cache) while the app sat in the background can come back with dead
+  // connections and an expired login/CSRF token - so after a long time
+  // away, reload it fresh, exactly what the manual refresh did. Skipped
+  // while someone is in the middle of typing in a form, so nothing they
+  // entered is thrown away.
+  var STALE_AFTER_MS = 15 * 60 * 1000;
+  var hiddenAt = document.visibilityState === 'hidden' ? Date.now() : null;
+  function isTypingInForm() {
+    var el = document.activeElement;
+    if (el && el.form && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && el.type !== 'submit') return true;
+    return Array.prototype.some.call(document.querySelectorAll('form textarea, form input[type="text"], form input[type="email"]'), function (f) {
+      return f.value && f.defaultValue !== undefined && f.value !== f.defaultValue;
+    });
+  }
+  function reloadIfStale(awayMs) {
+    if (awayMs >= STALE_AFTER_MS && !isTypingInForm()) window.location.reload();
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') {
+      hiddenAt = Date.now();
+    } else if (hiddenAt) {
+      var away = Date.now() - hiddenAt;
+      hiddenAt = null;
+      reloadIfStale(away);
+      // Pick up a newer service worker too, if one has been deployed.
+      if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistration) {
+        navigator.serviceWorker.getRegistration().then(function (reg) { if (reg) reg.update(); }).catch(function () {});
+      }
+    }
+  });
+  window.addEventListener('pageshow', function (e) {
+    // Restored from the back/forward cache: none of this page's scripts
+    // re-ran. If it was stashed long ago, load it fresh instead.
+    if (e.persisted && window.__pwaPageHiddenAt && Date.now() - window.__pwaPageHiddenAt >= STALE_AFTER_MS) window.location.reload();
+  });
+  window.addEventListener('pagehide', function () {
+    window.__pwaPageHiddenAt = Date.now();
+  });
 })();
