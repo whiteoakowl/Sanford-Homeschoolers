@@ -16392,7 +16392,7 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 .reimbursement-links { padding-left: 1.1rem; word-break: break-all; }
 
 @media (max-width: 640px) {
-  .reimbursement-item-row { grid-template-columns: minmax(0, 1fr) 2.5rem; }
+  .reimbursement-item-row { grid-template-columns: minmax(0, 1fr) 6.5rem 2.5rem; }
   .reimbursement-item-row input[type="text"]:first-child { grid-column: 1 / -1; }
   .reimbursement-item-head { display: none; }
 }
@@ -17198,4 +17198,16 @@ dialog form:has(.permission-section) > h3,
   .class-fees-table.table-stack-mobile tfoot tr { display: block; width: 100%; }
   .class-fees-table.table-stack-mobile tfoot th { display: block; text-align: right; border: none; padding: 0.2rem 0.65rem; }
   .class-fees-table.table-stack-mobile tfoot th:first-child { text-align: left; }
+}
+/* A real request: "Submit for reimbursement button should be much smaller
+   to match other button sizes on the page" - same compact size as the
+   form's own + Add an Item / + Add More Receipts buttons, on its own line. */
+.reimbursement-form .primary-btn,
+.reimbursement-form-preview .reimbursement-preview-submit {
+  display: flex;
+  width: fit-content;
+  margin-top: 1rem;
+  padding: var(--control-padding-compact);
+  font-size: var(--control-font-size-compact);
+  line-height: 1.3;
 }
