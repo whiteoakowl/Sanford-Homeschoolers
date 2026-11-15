@@ -216,7 +216,8 @@ test('Main Admin: Send to is a checkbox-dropdown, buttons renamed, Schedule for 
   const { cookie } = await loginAsMainAdmin();
   const page = await request(app).get('/main-admin/announcements').set('Cookie', cookie);
   assert.match(page.text, /class="multi-select-checkbox"/);
-  assert.match(page.text, />Send Announcements Now</);
+  assert.match(page.text, /class="primary-btn">Send Now<\/button>/);
+  assert.doesNotMatch(page.text, /Send Announcements Now/);
   assert.match(page.text, /onclick="document\.getElementById\('schedule-announcement-dialog'\)\.showModal\(\)">Schedule for Later</);
   assert.match(page.text, /<dialog id="schedule-announcement-dialog" class="member-picker-dialog">/);
   assert.match(page.text, /<input type="date" data-date-time-date data-date-time-group="announceSchedule" \/>/);
