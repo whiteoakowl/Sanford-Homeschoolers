@@ -17154,3 +17154,20 @@ dialog form:has(.permission-section) > h3,
 @media print {
   .member-schedule-day-title { background: none; padding: 0; margin: 0.5rem 0 0.25rem; }
 }
+/* Every log's Print preview / PDF (views/logs-*-print.ejs, the Class and
+   Event Registration Log prints) - a real request: "Check all log pdfs
+   and printing. Make sure nothing drifts off the pages." .roster-table
+   cells never wrap (white-space: nowrap, right for scrolling on screen),
+   so a long name, reason or class pushed the table past the paper's
+   right edge, where it was cut off. On these pages cells wrap on whole
+   words instead and the table never grows wider than the page. */
+.log-print-page main table.roster-table { width: 100%; max-width: 100%; table-layout: auto; }
+.log-print-page main table.roster-table th,
+.log-print-page main table.roster-table td { white-space: normal; overflow-wrap: break-word; word-break: normal; }
+.log-print-page main table.roster-table .status-badge,
+.log-print-page main table.roster-table .badge-pill { white-space: nowrap; }
+@media print {
+  .log-print-page main table.roster-table { font-size: 0.78rem; }
+  .log-print-page main table.roster-table th,
+  .log-print-page main table.roster-table td { padding: 0.3rem 0.4rem; }
+}
