@@ -17171,3 +17171,17 @@ dialog form:has(.permission-section) > h3,
   .log-print-page main table.roster-table th,
   .log-print-page main table.roster-table td { padding: 0.3rem 0.4rem; }
 }
+/* Edit Reimbursement Form's Preview - a real request: "Should show an
+   actual preview of the form line by line under preview." The real form's
+   own fields (views/reimbursement-form.ejs), read-only, in a framed box. */
+.reimbursement-form-preview { border: 1px dashed var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; background: var(--surface); }
+.reimbursement-preview-title { margin: 0 0 0.4rem; font-size: 1.35rem; }
+.reimbursement-form-preview .reimbursement-form { pointer-events: none; }
+.reimbursement-form-preview select:disabled,
+.reimbursement-form-preview input:disabled { opacity: 1; background: var(--surface); cursor: default; }
+.reimbursement-form-preview .reimbursement-add-item,
+.reimbursement-form-preview .reimbursement-preview-submit { display: inline-flex; width: auto; }
+.reimbursement-form-preview .reimbursement-preview-submit { margin-top: 0.5rem; }
+/* The preview column is narrower than the real form, so its item row
+   gives the Item field the most room instead of a fixed-width date. */
+.reimbursement-form-preview .reimbursement-item-row { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(0, 0.8fr) 2.5rem; }

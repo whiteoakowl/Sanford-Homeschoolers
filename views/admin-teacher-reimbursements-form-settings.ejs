@@ -32,10 +32,60 @@
 
       <section class="manage-section reimbursement-settings-preview" aria-label="Preview">
         <h2>Preview</h2>
-        <h3 data-preview="title"><%= settings.title %></h3>
-        <p data-preview="intro"><%= settings.intro %></p>
-        <p class="hint">Name &middot; Semester &middot; Day of Co-op &middot; Class &middot; Items Purchased &middot; Total</p>
-        <p class="hint" data-preview="footer"><%= settings.footer %></p>
+        <%# A real request: "Should show an actual preview of the form line
+            by line under preview." The real form's own fields and styles
+            (views/reimbursement-form.ejs), in order and read-only; title,
+            instructions and footer follow what's typed on the left. %>
+        <div class="reimbursement-form-preview" aria-label="Form preview">
+          <h3 class="reimbursement-preview-title" data-preview="title"><%= settings.title %></h3>
+          <p class="reimbursement-intro" data-preview="intro"<%= settings.intro ? '' : ' hidden' %>><%= settings.intro %></p>
+          <div class="reimbursement-form" inert>
+            <div class="member-form-grid">
+              <label>Name
+                <select disabled><option>Choose your name&hellip;</option></select>
+              </label>
+              <label>Semester
+                <select disabled><option>Choose a semester&hellip;</option></select>
+              </label>
+              <label>Day of Co-op
+                <select disabled><option>Choose a semester first&hellip;</option></select>
+              </label>
+              <label>Class
+                <select disabled><option>Choose a day first&hellip;</option></select>
+              </label>
+            </div>
+
+            <h4 class="reimbursement-items-heading">Items Purchased</h4>
+            <div class="reimbursement-items">
+              <div class="reimbursement-item-row reimbursement-item-head" aria-hidden="true">
+                <span>Item</span><span>Date</span><span>Amount</span><span></span>
+              </div>
+              <div class="reimbursement-item-row">
+                <input type="text" placeholder="What did you buy?" disabled />
+                <input type="date" disabled />
+                <input type="text" placeholder="0.00" disabled />
+                <span class="icon-btn icon-btn-danger" aria-hidden="true"><svg class="icon"><use href="#icon-trash"/></svg></span>
+              </div>
+            </div>
+            <span class="btn-secondary reimbursement-add-item">+ Add an Item</span>
+
+            <p class="reimbursement-total">Total: <strong>$0.00</strong></p>
+
+            <h4 class="reimbursement-items-heading">Receipts</h4>
+            <p class="hint">Photos (JPEG, PNG, WebP, HEIC) or PDFs, up to <%= maxReceiptMb %>MB each.</p>
+            <div class="reimbursement-receipts">
+              <div class="reimbursement-receipt-row">
+                <input type="file" disabled />
+                <span class="icon-btn icon-btn-danger" aria-hidden="true"><svg class="icon"><use href="#icon-trash"/></svg></span>
+              </div>
+            </div>
+            <span class="btn-secondary reimbursement-add-item">+ Add More Receipts</span>
+
+            <p class="hint reimbursement-footer" data-preview="footer"<%= settings.footer ? '' : ' hidden' %>><%= settings.footer %></p>
+
+            <span class="primary-btn reimbursement-preview-submit">Submit for Reimbursement</span>
+          </div>
+        </div>
         <p><strong>Links to the form:</strong></p>
         <ul class="reimbursement-links">
           <li>Teachers/assistants: <a href="<%= teacherFormUrl %>" target="_blank" rel="noopener"><%= teacherFormUrl %></a> <button type="button" class="icon-btn" data-copy-link="<%= teacherFormUrl %>" aria-label="Copy link" title="Copy link"><svg class="icon"><use href="#icon-copy"/></svg></button></li>
@@ -48,7 +98,12 @@
     (function () {
       document.querySelectorAll('[data-preview-source]').forEach(function (input) {
         var target = document.querySelector('[data-preview="' + input.getAttribute('data-preview-source') + '"]');
-        input.addEventListener('input', function () { if (target) target.textContent = input.value; });
+        input.addEventListener('input', function () {
+          if (!target) return;
+          target.textContent = input.value;
+          // Instructions/footer only show on the real form when they have text.
+          if (target.tagName !== 'H3') target.hidden = !input.value.trim();
+        });
       });
       document.querySelectorAll('[data-copy-link]').forEach(function (btn) {
         btn.addEventListener('click', function () {

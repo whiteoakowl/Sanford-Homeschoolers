@@ -545,3 +545,22 @@ test('reject (message required) -> teacher sees it, edits and resubmits -> Submi
   const rejectApproved = await submitForm(cookie, `/admin/teachers/reimbursements/${id}/reject`, { _csrf: csrfToken, message: 'too late' });
   assert.equal(rejectApproved.status, 400, 'only a Submitted form can be rejected');
 });
+
+// A real request: "teacher reimbursement form page. Should show an actual
+// preview of the form line by line under preview."
+test('Edit Reimbursement Form: the Preview shows the real form, field by field, read-only', async () => {
+  const { cookie } = await loginAsAdmin();
+  const page = await request(app).get('/admin/teachers/reimbursements/form-settings').set('Cookie', cookie);
+  assert.equal(page.status, 200);
+  const preview = page.text.slice(page.text.indexOf('class="reimbursement-form-preview"'), page.text.indexOf('Links to the form:'));
+  const order = ['data-preview="title"', '>Name', '>Semester', '>Day of Co-op', '>Class', 'Items Purchased', 'What did you buy?', 'Total:', 'Receipts', 'up to 5MB each', 'Submit for Reimbursement'];
+  let at = -1;
+  for (const piece of order) {
+    const i = preview.indexOf(piece, at + 1);
+    assert.ok(i > at, `"${piece}" appears in order in the preview`);
+    at = i;
+  }
+  assert.match(preview, /class="reimbursement-form" inert/, 'read-only');
+  assert.doesNotMatch(preview, /<form/, 'the preview is not a real form');
+  assert.match(preview, /<select disabled>/);
+});

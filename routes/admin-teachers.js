@@ -398,6 +398,7 @@ router.get('/teachers/reimbursements/form-settings', requireAdmin, async (req, r
     title: 'Edit Reimbursement Form',
     settings: await reimb.formSettings(),
     teacherFormUrl: `${publicOrigin(req)}/reimbursement-form`,
+    maxReceiptMb: reimb.MAX_RECEIPT_BYTES / (1024 * 1024),
     notice: req.query.notice || null,
   });
 });
