@@ -280,3 +280,20 @@ test('Instructor Profile edit form: saves email/phone/about me/qualifications + 
     assert.match(editPage.text, /I love teaching\./);
   });
 });
+
+// A real request: "Lesson plans tab should be deleted. Lesson plans sub
+// page and Lesson plan approvals subpage should be under teacher/
+// assistants tab."
+test('Lesson Plans and Lesson Plan Approval sit under Teachers/Assistants; no Lesson Plans tab', async () => {
+  const { cookie } = await loginAsAdmin();
+  const res = await request(app).get('/admin/lesson-plans').set('Cookie', cookie);
+  assert.equal(res.status, 200);
+  const groups = res.text.split('<details class="admin-nav-group">').slice(1);
+  const teachersGroup = groups.find((g) => g.includes('Teachers/Assistants'));
+  assert.ok(teachersGroup, 'the Teachers/Assistants group exists');
+  const teachersSubpages = teachersGroup.slice(0, teachersGroup.indexOf('</details>'));
+  assert.match(teachersSubpages, /href="\/admin\/lesson-plans">Lesson Plans</);
+  assert.match(teachersSubpages, /href="\/admin\/lesson-plans\/approval">Lesson Plan Approval/);
+  assert.ok(!groups.some((g) => /<summary>[\s\S]*?Lesson Plans <svg/.test(g.slice(0, g.indexOf('</summary>') + 10))), 'no Lesson Plans group of its own');
+  assert.match(res.text, /data-match="\/admin\/lesson-plans"/, "the phone bar's Teachers/Assistants button lights up on Lesson Plans pages");
+});

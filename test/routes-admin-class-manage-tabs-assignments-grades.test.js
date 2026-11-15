@@ -97,7 +97,9 @@ test('Class Manage page: renders Details/Staff & Roster/Assignments/Grades tabs,
   assert.match(page.text, /<a class="view-tab" href="\?tab=grades">Grades<\/a>/);
   assert.match(page.text, /<a class="view-tab" href="\?tab=chat">Chat<\/a>/);
   assert.match(page.text, /Class Details/);
-  assert.doesNotMatch(page.text, /Teachers &amp; Assistants/);
+  // Scoped to the page's own content - the side panel has its own
+  // "Teachers & Assistants" link on every page.
+  assert.doesNotMatch(page.text.slice(page.text.indexOf('<main id="main-content"')), /Teachers &amp; Assistants/);
 });
 
 test('Class Manage page: Staff & Roster tab shows the roster content, Assignments/Grades tabs are empty until an assignment exists', async () => {
