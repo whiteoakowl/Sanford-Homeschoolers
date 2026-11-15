@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
-const { isValidISODate, formatDateLabel, todayISO, weekdayOf } = require('../utils/dates');
+const { isValidISODate, formatDateLabel, formatDateLong, todayISO, weekdayOf } = require('../utils/dates');
 const { byLastName } = require('../utils/members');
 const { toCsvRow, sendCsv } = require('../utils/spreadsheet');
 const {
@@ -27,6 +27,9 @@ const { absenceFormSubmissionsForRoster } = require('../utils/alerts');
 const { rosterDates, buildRosterGridData } = require('../utils/rosterGrid');
 const { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate } = require('../utils/playground');
 const { renderViewToPdf } = require('../utils/pdfRender');
+const { classScanCheckIn, classScanCheckOut } = require('../utils/classScan');
+const { lessonPlanSummary } = require('../utils/lessonPlanSummary');
+const { substitutePlansForClass } = require('../utils/substitutePlans');
 
 // Mirrors routes/admin-schedule.js's own resolveSemesterId - Attendance's
 // Parent/Student rosters, like Classes' own grid, have no single
@@ -692,6 +695,63 @@ router.get('/roster/:tab/export.csv', requireAdmin, async (req, res) => {
   });
 
   sendCsv(res, `${label.replace(/[^a-z0-9]+/gi, '-')}-roster.csv`, [toCsvRow(header), ...rowLines, ...summaryRows]);
+});
+
+// A real request: "Co-op admin portal, attendance, class rosters. When
+// you click on each class it should show check in and out buttons, as
+// well as view lesson plan, view sub plan buttons." Same buttons as the
+// class QR code page (views/kiosk-class-checkin-attendance.ejs): Check
+// In/Out open the same barcode scan screen (views/kiosk-class-checkin-
+// scan.ejs, utils/classScan.js), coming back to this roster; View
+// Lesson Plan/View Substitute Plan are read-only, every status with its
+// badge (this is admin's own view, not the substitute's).
+const CLASS_SCAN_MODES = ['checkin', 'checkout'];
+const classRosterHref = (classId) => `/admin/rosters?tab=class-${classId}`;
+
+router.get('/rosters/classes/:id/scan', requireAdmin, async (req, res) => {
+  const cls = await classRosterInfo(parseInt(req.params.id, 10));
+  if (!cls) return res.redirect('/admin/rosters?tab=classes');
+  const mode = CLASS_SCAN_MODES.includes(req.query.mode) ? req.query.mode : 'checkin';
+  res.render('kiosk-class-checkin-scan', {
+    title: `${mode === 'checkout' ? 'Check Out' : 'Check In'} - ${cls.class_name}`,
+    mode,
+    dateLabel: formatDateLong(todayISO()),
+    heading: cls.class_name,
+    scanBaseUrl: `/admin/rosters/classes/${cls.id}`,
+    completeUrl: classRosterHref(cls.id),
+  });
+});
+
+router.post('/rosters/classes/:id/scan/checkin', requireAdmin, async (req, res) => {
+  res.json(await classScanCheckIn(parseInt(req.params.id, 10), req.body.barcode, 'admin_class_checkin'));
+});
+
+router.post('/rosters/classes/:id/scan/checkout', requireAdmin, async (req, res) => {
+  res.json(await classScanCheckOut(parseInt(req.params.id, 10), req.body.barcode));
+});
+
+router.get('/rosters/classes/:id/view-lesson-plan', requireAdmin, async (req, res) => {
+  const cls = await classRosterInfo(parseInt(req.params.id, 10));
+  if (!cls) return res.redirect('/admin/rosters?tab=classes');
+  res.render('admin-class-view-plan', {
+    title: `${cls.class_name} Lesson Plan`,
+    cls,
+    kind: 'lesson',
+    backHref: classRosterHref(cls.id),
+    lessons: await lessonPlanSummary(cls.id, { approvedOnly: false }),
+  });
+});
+
+router.get('/rosters/classes/:id/view-substitute-plan', requireAdmin, async (req, res) => {
+  const cls = await classRosterInfo(parseInt(req.params.id, 10));
+  if (!cls) return res.redirect('/admin/rosters?tab=classes');
+  res.render('admin-class-view-plan', {
+    title: `${cls.class_name} Substitute Plan`,
+    cls,
+    kind: 'substitute',
+    backHref: classRosterHref(cls.id),
+    plans: await substitutePlansForClass(cls.id),
+  });
 });
 
 module.exports = router;

@@ -152,6 +152,31 @@
       </div>
     <% } else { %>
     <% if (classId) { %><p class="subtitle no-print"><a href="/admin/rosters?tab=classes">&larr; All Class Rosters</a></p><% } %>
+    <%# A real request: "Co-op admin portal, attendance, class rosters.
+        When you click on each class it should show check in and out
+        buttons, as well as view lesson plan, view sub plan buttons." Same
+        layout as the class QR code page (views/kiosk-class-checkin-
+        attendance.ejs) - routes/admin-rosters.js's /rosters/classes/:id/*. %>
+    <% if (classId) { %>
+      <div class="class-checkin-action-stack admin-class-roster-actions no-print">
+        <div class="class-checkin-actions">
+          <a class="class-checkin-btn class-checkin-btn-plan" href="/admin/rosters/classes/<%= classId %>/view-lesson-plan">
+            <svg class="icon"><use href="#icon-clipboard-list"/></svg> View Lesson Plan
+          </a>
+          <a class="class-checkin-btn class-checkin-btn-plan" href="/admin/rosters/classes/<%= classId %>/view-substitute-plan">
+            <svg class="icon"><use href="#icon-book"/></svg> View Substitute Plan
+          </a>
+        </div>
+        <div class="class-checkin-actions">
+          <a class="class-checkin-btn" href="/admin/rosters/classes/<%= classId %>/scan?mode=checkin">
+            <svg class="icon"><use href="#icon-check"/></svg> Check In
+          </a>
+          <a class="class-checkin-btn" href="/admin/rosters/classes/<%= classId %>/scan?mode=checkout">
+            <svg class="icon"><use href="#icon-log-out"/></svg> Check Out
+          </a>
+        </div>
+      </div>
+    <% } %>
 
     <div class="roster-toolbar no-print">
       <div class="roster-toolbar-left">

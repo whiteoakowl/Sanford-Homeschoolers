@@ -17088,3 +17088,6 @@ dialog form:has(.permission-section) > h3,
   .crl-stat-label { font-size: 0.78rem; white-space: normal; }
   .crl-motto { max-width: none; flex-basis: 100%; }
 }
+/* Attendance > Class Rosters > class: View Lesson Plan/View Substitute
+   Plan above Check In/Check Out (views/admin-rosters.ejs). */
+.admin-class-roster-actions { max-width: 560px; margin: 0.25rem 0 1rem; }
