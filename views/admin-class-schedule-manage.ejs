@@ -38,6 +38,7 @@
       <a class="view-tab<%= activeTab === 'details' ? ' active' : '' %>" href="?tab=details">Details</a>
       <a class="view-tab<%= activeTab === 'staffRoster' ? ' active' : '' %>" href="?tab=staffRoster">Staff &amp; Roster</a>
       <a class="view-tab<%= activeTab === 'assignments' ? ' active' : '' %>" href="?tab=assignments">Lessons</a>
+      <a class="view-tab<%= activeTab === 'attendance' ? ' active' : '' %>" href="?tab=attendance">Attendance</a>
       <a class="view-tab<%= activeTab === 'grades' ? ' active' : '' %>" href="?tab=grades">Grades</a>
       <a class="view-tab<%= activeTab === 'chat' ? ' active' : '' %>" href="?tab=chat">Chat</a>
     </div>
@@ -337,7 +338,8 @@
             <%# A real request: "Next to add a lesson plan button should be
                 the add a substitute plan button." %>
             <a class="roster-action-btn" href="/admin/class-schedule/classes/<%= cls.id %>/substitute-plan">Add/Edit Substitute Plan</a>
-            <a class="btn-secondary" href="/admin/class-schedule/quiz-review">Quiz Review</a>
+            <%# A real request: "there shouldn't be a quiz review button.
+                Quizzes are created through assignments." %>
           </div>
         </div>
         <%# A real request: the same lesson/assignment design as the
@@ -429,6 +431,32 @@
       <script src="/js/lesson-drag-reorder.js"></script>
       <script src="/js/lesson-content-form.js"></script>
       <script src="/js/assignment-upload-word-count.js"></script>
+    <% } else if (activeTab === 'attendance') { %>
+      <%# A real request: "Add an attendance tab to the classes. Click the
+          attendance tab and its will show the attendance grid. Be able to
+          manually check attendance and check in and out buttons." Same
+          grid as Attendance > Class Rosters and the class QR code page
+          (partials/class-attendance-grid.ejs) - P/L/A saves on change;
+          Check In/Out open the barcode scan screen and come back here. %>
+      <div class="manage-section">
+        <div class="grid-box-header">
+          <h2>Attendance</h2>
+          <div class="class-checkin-actions no-print">
+            <a class="class-checkin-btn" href="/admin/rosters/classes/<%= cls.id %>/scan?mode=checkin&from=manage">
+              <svg class="icon"><use href="#icon-check"/></svg> Check In
+            </a>
+            <a class="class-checkin-btn" href="/admin/rosters/classes/<%= cls.id %>/scan?mode=checkout&from=manage">
+              <svg class="icon"><use href="#icon-log-out"/></svg> Check Out
+            </a>
+          </div>
+        </div>
+        <% if (!attendanceGrid) { %>
+          <p class="roster-empty">This class doesn't have a roster yet.</p>
+        <% } else { %>
+          <%- include('partials/class-attendance-grid', { rows: attendanceGrid.rows, dateLabels: attendanceGrid.dateLabels, summary: attendanceGrid.summary, endpoint: '/admin/rosters/class-' + cls.id + '/attendance' }) %>
+          <script src="/js/attendance-grid.js"></script>
+        <% } %>
+      </div>
     <% } else if (activeTab === 'grades') { %>
       <div class="manage-section">
         <div class="grid-box-header">

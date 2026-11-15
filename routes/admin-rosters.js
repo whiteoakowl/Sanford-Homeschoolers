@@ -720,7 +720,9 @@ router.get('/rosters/classes/:id/scan', requireAdmin, async (req, res) => {
     dateLabel: formatDateLong(todayISO()),
     heading: cls.class_name,
     scanBaseUrl: `/admin/rosters/classes/${cls.id}`,
-    completeUrl: classRosterHref(cls.id),
+    // from=manage: opened from the class page's own Attendance tab
+    // (views/admin-class-schedule-manage.ejs), so it goes back there.
+    completeUrl: req.query.from === 'manage' ? `/admin/class-schedule/classes/${cls.id}/manage?tab=attendance` : classRosterHref(cls.id),
   });
 });
 

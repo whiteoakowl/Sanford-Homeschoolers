@@ -108,3 +108,47 @@ test('class roster: View Lesson Plan / View Substitute Plan above Check In / Che
   assert.notEqual((await request(app).get(`/admin/rosters/classes/${classId}/view-lesson-plan`)).status, 200);
   assert.notEqual((await request(app).post(`/admin/rosters/classes/${classId}/scan/checkin`).type('form').send({ barcode: 'RK-100' })).status, 200);
 });
+
+// A real request: "click on a class, click lessons tab, there shouldn't be
+// a quiz review button... Add an attendance tab to the classes. Click the
+// attendance tab and its will show the attendance grid. Be able to
+// manually check attendance and check in and out buttons."
+test('class page: no Quiz Review on Lessons; Attendance tab with the grid, manual P/L/A and Check In/Out', async () => {
+  const cookie = await loginAsAdmin();
+  const classId = await createClass({ day: 'monday', hourPosition: 2, className: 'Attendance Tab Class', room: 'Room 2' });
+  const cls = await db.prepare('SELECT * FROM classes WHERE id = ?').get(classId);
+  const student = (await db.prepare("INSERT INTO members (name, barcode, member_type) VALUES ('Tab Kid', 'TK-300', 'student') RETURNING id").get()).id;
+  await db.prepare("INSERT INTO roster_members (roster_id, member_id, source) VALUES (?, ?, 'auto')").run(cls.roster_id, student);
+  const studentRosterId = await ensureDayRoster('monday', 'student', cls.semester_id);
+  await db.prepare('INSERT INTO roster_dates (roster_id, session_date) VALUES (?, ?) ON CONFLICT DO NOTHING').run(studentRosterId, todayISO());
+
+  const lessons = await request(app).get(`/admin/class-schedule/classes/${classId}/manage?tab=assignments`).set('Cookie', cookie);
+  assert.equal(lessons.status, 200);
+  assert.doesNotMatch(lessons.text, />Quiz Review</);
+  assert.match(lessons.text, /href="\?tab=attendance">Attendance</);
+
+  const tab = await request(app).get(`/admin/class-schedule/classes/${classId}/manage?tab=attendance`).set('Cookie', cookie);
+  assert.equal(tab.status, 200);
+  assert.match(tab.text, /class="view-tab active" href="\?tab=attendance">Attendance</);
+  assert.match(tab.text, /Tab Kid/);
+  assert.match(tab.text, new RegExp(`data-endpoint="/admin/rosters/class-${classId}/attendance" data-member="${student}" data-date="${todayISO()}"`));
+  assert.match(tab.text, new RegExp(`href="/admin/rosters/classes/${classId}/scan\\?mode=checkin&from=manage"`));
+  assert.match(tab.text, new RegExp(`href="/admin/rosters/classes/${classId}/scan\\?mode=checkout&from=manage"`));
+  assert.match(tab.text, /\/js\/attendance-grid\.js/);
+
+  // Manually marking attendance saves through the class roster.
+  const csrf = /name="csrf-token" content="([^"]*)"/.exec(tab.text)[1];
+  const save = await request(app)
+    .post(`/admin/rosters/class-${classId}/attendance`)
+    .set('Cookie', cookie)
+    .set('X-Requested-With', 'fetch')
+    .set('X-CSRF-Token', csrf)
+    .type('form')
+    .send({ [`status:${student}:${todayISO()}`]: 'late' });
+  assert.equal(save.body.ok, true);
+  assert.equal((await db.prepare('SELECT status FROM attendance WHERE member_id = ? AND roster_id = ? AND session_date = ?').get(student, cls.roster_id, todayISO())).status, 'late');
+
+  // The scan screen opened from here comes back to this tab.
+  const scan = await request(app).get(`/admin/rosters/classes/${classId}/scan?mode=checkin&from=manage`).set('Cookie', cookie);
+  assert.match(scan.text, new RegExp(`data-complete-url="/admin/class-schedule/classes/${classId}/manage\\?tab=attendance"`));
+});

@@ -47,8 +47,10 @@ const { spreadsheetFileFilter, imageFileFilter, lessonAttachmentFileFilter } = r
 const { createStorageClient, uploadFile, deleteFile, generateKey } = require('../utils/storage');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
 const { mountSubstitutePlanRoutes } = require('./substitutePlanRoutes');
+const { buildRosterGridData, rosterDates } = require('../utils/rosterGrid');
 const {
   CLASS_DAY_LABELS_FULL,
+  ensureDayRoster,
   HOUR_POSITIONS,
   COLOR_PALETTE,
   GRADE_LEVELS,
@@ -463,7 +465,10 @@ router.get('/class-schedule/classes/:id/view-fragment', requireFullAdmin, async 
   });
 });
 
-const CLASS_MANAGE_TABS = ['details', 'staffRoster', 'assignments', 'grades', 'chat'];
+// 'attendance' - a real request: "Add an attendance tab to the classes...
+// it will show the attendance grid. Be able to manually check attendance
+// and check in and out buttons."
+const CLASS_MANAGE_TABS = ['details', 'staffRoster', 'assignments', 'attendance', 'grades', 'chat'];
 
 // Kept as a standalone page too (direct-link/bookmark friendly), even
 // though the grid's own class card now links straight here instead of
@@ -540,8 +545,21 @@ router.get('/class-schedule/classes/:id/manage', requireFullAdmin, async (req, r
     chatBaseHref = `/admin/class-schedule/classes/${id}/manage?tab=chat&`;
   }
 
+  // The class's attendance grid - one column per session date of its
+  // day's Student roster (a class roster borrows those dates), same as
+  // Attendance > Class Rosters and the class QR code page.
+  let attendanceGrid = null;
+  if (activeTab === 'attendance' && cls.roster_id) {
+    const roster = await db.prepare('SELECT * FROM rosters WHERE id = ?').get(cls.roster_id);
+    if (roster) {
+      const dates = await rosterDates(await ensureDayRoster(cls.day, 'student', cls.semester_id));
+      attendanceGrid = await buildRosterGridData(roster, dates);
+    }
+  }
+
   res.render('admin-class-schedule-manage', {
     title: `Manage - ${cls.class_name}`,
+    attendanceGrid,
     cls,
     activeTab,
     openLessonId: req.query.open ? parseInt(req.query.open, 10) : null,
