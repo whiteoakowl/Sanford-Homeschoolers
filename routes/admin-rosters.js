@@ -25,7 +25,7 @@ const { comboSemesterId, qsSemester, appendSemester, findComboId } = require('..
 const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
 const { absenceFormSubmissionsForRoster } = require('../utils/alerts');
 const { rosterDates, buildRosterGridData } = require('../utils/rosterGrid');
-const { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate } = require('../utils/playground');
+const { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate, playgroundRosterPage } = require('../utils/playground');
 const { renderViewToPdf } = require('../utils/pdfRender');
 const { classScanCheckIn, classScanCheckOut } = require('../utils/classScan');
 const { lessonPlanSummary } = require('../utils/lessonPlanSummary');
@@ -226,20 +226,17 @@ router.get('/rosters', requireAdmin, async (req, res) => {
   // ("playground-monday-1", mirroring "class-<id>" above), which the
   // regex just below matches against.
   if (requestedTab === 'playground') {
-    const entries = [];
-    for (const day of activeDays) {
-      for (const hour of HOUR_POSITIONS) {
-        entries.push({ day, hour, dayLabel: CLASS_DAY_LABELS_FULL[day], hourLabel: await playgroundHourLabel(day, hour) });
-      }
-    }
+    // A real request: "This sub page should be called Playground roster...
+    // a filter button that filters by semester, the day, then date. Page
+    // then shows the date and times and a list of those that were checked
+    // in under each time." (utils/playground.js's playgroundRosterPage).
+    // Each hour's own page (?tab=playground-<day>-<hour>) still works.
     return res.render('admin-rosters', {
-      title: 'Attendance',
+      title: 'Playground Roster',
       tab: 'playground',
       topTab: 'playground',
-      view: 'playgroundList',
-      playgroundEntries: entries,
-      activeDays,
-      dayLabels: CLASS_DAY_LABELS_FULL,
+      view: 'playgroundRoster',
+      ...(await playgroundRosterPage(req.query)),
       error: req.query.error || null,
       notice: req.query.notice || null,
     });
@@ -396,6 +393,11 @@ router.get('/rosters', requireAdmin, async (req, res) => {
 // null means "no such tab/class" - the caller decides how to respond.
 async function rostersPrintLocals(req) {
   const requestedTab = req.query.tab || '';
+
+  if (requestedTab === 'playground') {
+    const page = await playgroundRosterPage(req.query);
+    return { title: 'Playground Roster Print Preview', view: 'playgroundRoster', ...page };
+  }
 
   const playgroundMatch = new RegExp(`^playground-(${CLASS_DAYS.join('|')})-([1-4])$`).exec(requestedTab);
   if (playgroundMatch) {

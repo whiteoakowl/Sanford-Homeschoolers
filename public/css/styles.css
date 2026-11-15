@@ -17091,3 +17091,19 @@ dialog form:has(.permission-section) > h3,
 /* Attendance > Class Rosters > class: View Lesson Plan/View Substitute
    Plan above Check In/Check Out (views/admin-rosters.ejs). */
 .admin-class-roster-actions { max-width: 560px; margin: 0.25rem 0 1rem; }
+/* Playground Roster (views/partials/playground-roster.ejs) - one date's
+   playground check-ins grouped under each hour and its times. */
+.pg-roster-filter-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.pg-roster-filter-summary .roster-action-btn { display: inline-flex; align-items: center; gap: 0.4rem; flex: 0 0 auto; width: auto; }
+.pg-roster-filter-summary .roster-action-btn .icon { width: 1rem; height: 1rem; }
+.pg-roster-date { display: flex; align-items: center; gap: 0.8rem; margin: 0.5rem 0 1rem; }
+.pg-roster-date > .icon { width: 2rem; height: 2rem; color: var(--brand-dark); flex-shrink: 0; }
+.pg-roster-date h2 { margin: 0; font-size: 1.35rem; }
+.pg-roster-date .hint { margin: 0.15rem 0 0; }
+.pg-roster-hour { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 0.9rem 1.1rem; margin-bottom: 0.9rem; break-inside: avoid; page-break-inside: avoid; }
+.pg-roster-hour-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.6rem; }
+.pg-roster-hour-head h3 { margin: 0; font-size: 1.1rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.pg-roster-hour-time { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 600; font-size: 0.9rem; color: var(--brand-dark); background: var(--brand-soft); border-radius: 999px; padding: 0.15rem 0.6rem; }
+.pg-roster-hour-time .icon { width: 0.95rem; height: 0.95rem; }
+.pg-roster-empty { margin: 0; color: var(--muted-dark); font-size: 0.92rem; }
+.pg-roster-table { width: 100%; }

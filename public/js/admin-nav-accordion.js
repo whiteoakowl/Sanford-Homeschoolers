@@ -40,7 +40,11 @@
     links.forEach((a) => {
       const url = urlOf(a.getAttribute('href'));
       if (url.pathname !== here.pathname) return;
-      const params = Array.prototype.slice.call(url.searchParams.entries());
+      // Array.from, not Array.prototype.slice.call: entries() is an
+      // iterator, not array-like, so slice.call always gave [] - every
+      // ?tab= subpage (Class Rosters, Playground Roster, ...) then fell
+      // back to its group's bare first link instead of highlighting itself.
+      const params = Array.from(url.searchParams.entries());
       const isMatch = params.every(([k, v]) => here.searchParams.get(k) === v);
       if (!isMatch || !params.length) return;
       if (params.length > bestCount) {

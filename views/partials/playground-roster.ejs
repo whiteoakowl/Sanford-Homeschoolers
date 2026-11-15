@@ -1,0 +1,42 @@
+<%# Playground Roster - one date's playground check-ins, grouped under each
+    hour with its times (utils/playground.js's playgroundRosterPage). Shared
+    by the live page (views/admin-rosters.ejs) and its print preview/PDF
+    (views/admin-rosters-print.ejs).
+    Locals: dayLabel, semesterTitle, date, dateLongLabel, hours
+    ([{ label, timeLabel, log: [{ name, checkInTime, checkOutTime }] }]),
+    totalCheckedIn. %>
+<div class="pg-roster">
+  <% if (!dayLabel) { %>
+    <p class="roster-empty">No co-op days are set up yet.</p>
+  <% } else if (!date) { %>
+    <p class="roster-empty">No session dates yet for <%= dayLabel %><%= semesterTitle ? ' in ' + semesterTitle : '' %> &mdash; add one under the <%= dayLabel %> Student roster's Edit Dates.</p>
+  <% } else { %>
+    <div class="pg-roster-date">
+      <svg class="icon"><use href="#icon-calendar-check"/></svg>
+      <div>
+        <h2><%= dateLongLabel %></h2>
+        <p class="hint"><%= dayLabel %> Playground<%= semesterTitle ? ' · ' + semesterTitle : '' %> · <%= totalCheckedIn %> checked in</p>
+      </div>
+    </div>
+    <% hours.forEach(function(h) { %>
+      <section class="pg-roster-hour">
+        <div class="pg-roster-hour-head">
+          <h3><%= h.label %><% if (h.timeLabel) { %> <span class="pg-roster-hour-time"><svg class="icon"><use href="#icon-clock"/></svg> <%= h.timeLabel %></span><% } %></h3>
+          <span class="badge-pill badge-pill-blue"><%= h.log.length %> checked in</span>
+        </div>
+        <% if (h.log.length === 0) { %>
+          <p class="pg-roster-empty">Nobody checked in during this time.</p>
+        <% } else { %>
+          <table class="roster-table pg-roster-table">
+            <thead><tr><th class="roster-name-col">Name</th><th>Checked In</th><th>Checked Out</th></tr></thead>
+            <tbody>
+              <% h.log.forEach(function(row) { %>
+                <tr><td class="roster-name-col"><%= row.name %></td><td><%= row.checkInTime || '—' %></td><td><%= row.checkOutTime || '—' %></td></tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
+      </section>
+    <% }); %>
+  <% } %>
+</div>

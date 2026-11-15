@@ -37,27 +37,23 @@ async function loginAsAdmin() {
   return loginRes.headers['set-cookie'];
 }
 
-test('the Playground tab appears in the Attendance tab bar and lists all 8 (day, hour) slots', async () => {
+// A later real request: the Playground page "should be called
+// Playground roster" with a Semester/Day/Date filter, listing each hour.
+test('the Playground Roster nav link and page list each hour for the chosen day', async () => {
   const cookie = await loginAsAdmin();
-  const res = await request(app).get('/admin/rosters?tab=playground').set('Cookie', cookie);
+  const res = await request(app).get('/admin/rosters?tab=playground&day=monday').set('Cookie', cookie);
   assert.equal(res.status, 200);
-  assert.match(res.text, /href="\/admin\/rosters\?tab=playground">Playground Check in\/out<\/a>/);
-  for (const day of ['monday', 'wednesday']) {
-    for (let h = 1; h <= 4; h++) {
-      assert.match(res.text, new RegExp(`href="/admin/rosters\\?tab=playground-${day}-${h}"`));
-    }
-  }
+  assert.match(res.text, /href="\/admin\/rosters\?tab=playground">Playground Roster<\/a>/);
+  assert.match(res.text, /id="playground-filter-form"/);
+  for (const day of ['monday', 'wednesday']) assert.match(res.text, new RegExp(`<option value="${day}"`));
 });
 
-// A real bug report: "playground attendance page title should be
-// playground attendance" - the page's own <h1> fell through to the plain
-// "Attendance" every other multi-day view (Class Rosters, Archive) uses,
-// not naming Playground specifically.
-test('the Playground list page\'s own title says "Playground Attendance", not just "Attendance"', async () => {
+// A real request: "This sub page should be called Playground roster."
+test('the Playground page\'s own title says "Playground Roster"', async () => {
   const cookie = await loginAsAdmin();
   const res = await request(app).get('/admin/rosters?tab=playground').set('Cookie', cookie);
   assert.equal(res.status, 200);
-  assert.match(res.text, /<h1>Playground Attendance<\/h1>/);
+  assert.match(res.text, /<h1>Playground Roster<\/h1>/);
 });
 
 test('a specific Playground hour\'s log page keeps the same "Playground Attendance" title', async () => {
@@ -103,4 +99,58 @@ test('an hour with no session dates yet shows an empty state instead of crashing
   const res = await request(app).get('/admin/rosters?tab=playground-wednesday-4').set('Cookie', cookie);
   assert.equal(res.status, 200);
   assert.match(res.text, /No session dates yet/);
+});
+
+// A real request: "a filter button that filters by semester, the day, then
+// date. Page then shows the date and times and a list of those that were
+// checked in under each time."
+test('Playground Roster: Semester/Day/Date filter, then each hour with its times and who checked in', async () => {
+  const cookie = await loginAsAdmin();
+  const { ensureDayRoster } = require('../utils/classSchedule');
+  const fall = (await db.prepare("INSERT INTO semesters (title) VALUES ('PG Fall Test') RETURNING id").get()).id;
+  const spring = (await db.prepare("INSERT INTO semesters (title) VALUES ('PG Spring Test') RETURNING id").get()).id;
+  const fallRoster = await ensureDayRoster('wednesday', 'student', fall);
+  const springRoster = await ensureDayRoster('wednesday', 'student', spring);
+  await db.prepare('INSERT INTO roster_dates (roster_id, session_date) VALUES (?, ?) ON CONFLICT DO NOTHING').run(fallRoster, '2025-10-01');
+  await db.prepare('INSERT INTO roster_dates (roster_id, session_date) VALUES (?, ?) ON CONFLICT DO NOTHING').run(springRoster, '2026-03-04');
+  await db.prepare("UPDATE class_schedule_hours SET start_time = '09:00', end_time = '09:55' WHERE day = 'wednesday' AND position = 1 AND semester_id IS NULL").run();
+
+  const h1 = await ensurePlaygroundRoster('wednesday', 1);
+  const h3 = await ensurePlaygroundRoster('wednesday', 3);
+  const kid = async (name) => (await db.prepare("INSERT INTO members (name, barcode, member_type) VALUES (?, ?, 'student') RETURNING id").get(name, name)).id;
+  const checkIn = (m, r, d) => db.prepare("INSERT INTO attendance (member_id, roster_id, session_date, status, check_in_time, source) VALUES (?, ?, ?, 'present', ?, 'kiosk_playground')").run(m, r, d, Date.now());
+  await checkIn(await kid('Hour One Kid'), h1, '2025-10-01');
+  await checkIn(await kid('Hour Three Kid'), h3, '2025-10-01');
+  await checkIn(await kid('Spring Kid'), h1, '2026-03-04');
+
+  const res = await request(app).get(`/admin/rosters?tab=playground&semesterId=${fall}&day=wednesday&date=2025-10-01`).set('Cookie', cookie);
+  assert.equal(res.status, 200);
+  // The date heading and each hour with its time.
+  assert.match(res.text, /Wed, October 1, 2025|Wednesday, October 1, 2025/);
+  assert.match(res.text, /9:00 AM - 9:55 AM/);
+  const hourSections = res.text.split('<section class="pg-roster-hour">').slice(1);
+  assert.ok(hourSections.length >= 4, 'every hour is listed');
+  assert.match(hourSections[0], /Hour One Kid/);
+  assert.match(hourSections[2], /Hour Three Kid/);
+  assert.match(hourSections[1], /Nobody checked in during this time/);
+  assert.doesNotMatch(res.text, /Spring Kid/, 'only the chosen date');
+
+  // The filter's Date list follows the semester + day.
+  const dates = JSON.parse(/data-dates="([^"]*)"/.exec(res.text)[1].replace(/&#34;/g, '"'));
+  assert.deepEqual(dates[String(fall)].wednesday.map((d) => d.date), ['2025-10-01']);
+  assert.deepEqual(dates[String(spring)].wednesday.map((d) => d.date), ['2026-03-04']);
+  assert.match(res.text, new RegExp(`<option value="${fall}" selected>PG Fall Test</option>`));
+
+  const springRes = await request(app).get(`/admin/rosters?tab=playground&semesterId=${spring}&day=wednesday`).set('Cookie', cookie);
+  assert.match(springRes.text, /Spring Kid/, "defaults to that semester's latest date");
+  assert.doesNotMatch(springRes.text, /Hour One Kid/);
+
+  // Print and PDF follow the same filter.
+  const print = await request(app).get(`/admin/rosters/print?tab=playground&semesterId=${fall}&day=wednesday&date=2025-10-01`).set('Cookie', cookie);
+  assert.equal(print.status, 200);
+  assert.match(print.text, /<h1>Playground Roster<\/h1>/);
+  assert.match(print.text, /Hour Three Kid/);
+  const pdf = await request(app).get(`/admin/rosters/download.pdf?tab=playground&semesterId=${fall}&day=wednesday&date=2025-10-01`).set('Cookie', cookie);
+  assert.equal(pdf.status, 200);
+  assert.equal(pdf.headers['content-type'], 'application/pdf');
 });

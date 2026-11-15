@@ -11,7 +11,7 @@
       <img src="/img/logo.png" alt="" />
       <div>
         <p class="print-header-title">Sanford Homeschoolers</p>
-        <p class="print-header-sub"><%= view === 'classList' ? 'Class Rosters' : view === 'playgroundList' ? 'Playground' : view === 'playgroundLog' ? `${pgDayLabel} Playground — ${pgHourLabel}` : tabLabel %> &mdash; Attendance Spreadsheet</p>
+        <p class="print-header-sub"><%= view === 'classList' ? 'Class Rosters' : view === 'playgroundRoster' ? 'Playground Roster' : view === 'playgroundLog' ? `${pgDayLabel} Playground — ${pgHourLabel}` : tabLabel %> &mdash; Attendance Spreadsheet</p>
       </div>
     </div>
     <%# A real request: "at the top of the monday attendance page, it
@@ -25,7 +25,9 @@
         attendance" - playgroundList/playgroundLog both span both days
         too (same reasoning), but are their own distinct page, not just
         "Attendance" generically. %>
-    <h1><%= view === 'grid' ? `${dayLabel} Attendance` : (view === 'playgroundList' || view === 'playgroundLog') ? 'Playground Attendance' : view === 'classList' ? 'Class Rosters' : 'Attendance' %></h1>
+    <%# A real request: the Playground page "should be called Playground
+        roster" - each hour's own page (playgroundLog) keeps its title. %>
+    <h1><%= view === 'grid' ? `${dayLabel} Attendance` : view === 'playgroundRoster' ? 'Playground Roster' : view === 'playgroundLog' ? 'Playground Attendance' : view === 'classList' ? 'Class Rosters' : 'Attendance' %></h1>
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
@@ -109,24 +111,62 @@
           </div>
         <% } %>
       </div>
-    <% } else if (view === 'playgroundList') { %>
+    <% } else if (view === 'playgroundRoster') { %>
+      <%# A real request: "a filter button that filters by semester, the
+          day, then date. Page then shows the date and times and a list of
+          those that were checked in under each time." The Date list
+          follows the chosen Semester + Day (public/js/playground-roster-
+          filter.js, from data-dates). %>
       <div class="view-tab-panel">
-        <p class="hint">Anybody can check in and out of the playground &mdash; there's no fixed roster. Pick an hour to see who's checked in and out for a session date.</p>
-        <% activeDays.forEach(function(d) { %>
-          <h3 class="class-schedule-hour-label"><%= dayLabels[d] %></h3>
-          <div class="class-roster-list">
-            <% playgroundEntries.filter(function(e) { return e.day === d; }).forEach(function(e) { %>
-              <a class="class-roster-row-btn" href="/admin/rosters?tab=playground-<%= e.day %>-<%= e.hour %>">
-                <span class="class-roster-row-name"><%= e.hourLabel %></span>
-                <span class="class-roster-row-meta"><span><%= e.dayLabel %> Playground</span></span>
-              </a>
-            <% }); %>
+        <div class="roster-toolbar no-print">
+          <div class="pg-roster-filter-summary">
+            <button type="button" class="roster-action-btn" onclick="document.getElementById('playground-filter-dialog').showModal()"><svg class="icon"><use href="#icon-filter"/></svg> Filter</button>
+            <% if (semesterTitle) { %><span class="badge-pill badge-pill-gray"><%= semesterTitle %></span><% } %>
+            <% if (dayLabel) { %><span class="badge-pill badge-pill-gray"><%= dayLabel %></span><% } %>
           </div>
-        <% }); %>
+          <% var pgQuery = 'tab=playground' + (semesterId ? '&semesterId=' + encodeURIComponent(semesterId) : '') + (day ? '&day=' + day : '') + (date ? '&date=' + date : ''); %>
+          <div class="roster-btn-row" data-fixed-columns="2">
+            <a class="icon-btn" href="/admin/rosters/print?<%= pgQuery %>" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
+            <a class="icon-btn" href="/admin/rosters/download.pdf?<%= pgQuery %>" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
+          </div>
+        </div>
+
+        <dialog id="playground-filter-dialog" class="member-picker-dialog dialog-label-stack">
+          <form method="GET" action="/admin/rosters" id="playground-filter-form" data-dates="<%= JSON.stringify(filterOptions.datesBySemesterDay) %>" data-selected-date="<%= date || '' %>">
+            <h3>Filter Playground Roster</h3>
+            <input type="hidden" name="tab" value="playground" />
+            <% if (filterOptions.semesters.length) { %>
+              <label>Semester
+                <select name="semesterId">
+                  <% filterOptions.semesters.forEach(function(s) { %>
+                    <option value="<%= s.id %>" <%= s.id === semesterId ? 'selected' : '' %>><%= s.title %></option>
+                  <% }); %>
+                </select>
+              </label>
+            <% } %>
+            <label>Day
+              <select name="day">
+                <% filterOptions.days.forEach(function(d) { %>
+                  <option value="<%= d.day %>" <%= d.day === day ? 'selected' : '' %>><%= d.label %></option>
+                <% }); %>
+              </select>
+            </label>
+            <label>Date
+              <select name="date"></select>
+            </label>
+            <div class="notes-dialog-actions">
+              <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+              <button type="submit" class="primary-btn">Apply</button>
+            </div>
+          </form>
+        </dialog>
+
+        <%- include('partials/playground-roster', { dayLabel, semesterTitle, date, dateLongLabel, hours, totalCheckedIn }) %>
       </div>
+      <script src="/js/playground-roster-filter.js"></script>
     <% } else if (view === 'playgroundLog') { %>
       <div class="view-tab-panel">
-        <p class="subtitle no-print"><a href="/admin/rosters?tab=playground">&larr; All Playground Hours</a></p>
+        <p class="subtitle no-print"><a href="/admin/rosters?tab=playground&day=<%= pgDay %>">&larr; Playground Roster</a></p>
         <div class="roster-toolbar no-print">
           <div class="category-filter" style="margin: 0;">
             <label for="playground-date-select">Session Date</label>
