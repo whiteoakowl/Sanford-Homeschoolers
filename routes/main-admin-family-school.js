@@ -240,7 +240,7 @@ router.get('/family-school/diplomas/:studentId/download.pdf', requirePortalPermi
 
 router.get('/family-school/awards', requirePortalPermission('view_family_school_diplomas_main_admin'), async (req, res) => {
   res.render('grade-awards', {
-    title: 'Grade Level Awards',
+    title: 'Rewards Certificates',
     portalTitle: 'Main Admin',
     award: awardFromQuery(req.query),
     basePath: '/main-admin/family-school/awards',
@@ -250,7 +250,7 @@ router.get('/family-school/awards', requirePortalPermission('view_family_school_
 
 router.get('/family-school/awards/print', requirePortalPermission('view_family_school_diplomas_main_admin'), (req, res) => {
   const award = awardFromQuery(req.query);
-  res.render('grade-award-print', { title: 'Grade Level Award', award, backHref: '/main-admin/family-school/awards?' + awardQuery(award) });
+  res.render('grade-award-print', { title: 'Rewards Certificate', award, backHref: '/main-admin/family-school/awards?' + awardQuery(award) });
 });
 
 module.exports = router;

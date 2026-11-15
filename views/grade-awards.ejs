@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <%- include('partials/head', { title }) %>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Baloo+2:wght@800&family=Caveat:wght@700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Baloo+2:wght@800&family=Caveat:wght@700&family=Patrick+Hand&family=Permanent+Marker&family=Fredoka:wght@600&family=Great+Vibes&family=EB+Garamond:wght@700&display=swap" />
 </head>
 <body>
   <%- include('partials/portal-nav', { portalTitle }) %>
   <main id="main-content" tabindex="-1" class="admin-main">
-    <h1>Grade Level Awards</h1>
+    <h1>Rewards Certificates</h1>
     <p class="hint">Choose a grade level and a design, add names (or leave them blank to write in by hand), press Update Preview, then Print. Each award prints as a full landscape page.</p>
     <%- include('partials/grade-award-builder', { award, basePath, studentNames }) %>
   </main>

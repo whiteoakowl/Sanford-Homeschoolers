@@ -45,6 +45,19 @@
         <input type="text" name="parent2" value="<%= award.parent2 %>" maxlength="80" />
       </label>
     </div>
+    <%# A real request: "Add font choice for child's name and parents names." %>
+    <div class="member-form-grid ga-font-grid">
+      <label>Student Name Font
+        <select name="nameFont">
+          <% GA.AWARD_FONTS.forEach(function(f) { %><option value="<%= f.key %>" style="font-family: <%= f.css %>" <%= award.nameFont === f.key ? 'selected' : '' %>><%= f.label %></option><% }); %>
+        </select>
+      </label>
+      <label>Parent/Teacher Names Font
+        <select name="parentFont">
+          <% GA.AWARD_FONTS.forEach(function(f) { %><option value="<%= f.key %>" style="font-family: <%= f.css %>" <%= award.parentFont === f.key ? 'selected' : '' %>><%= f.label %></option><% }); %>
+        </select>
+      </label>
+    </div>
     <datalist id="ga-student-names"><% (studentNames || []).forEach(function(n) { %><option value="<%= n %>"></option><% }); %></datalist>
   </section>
 

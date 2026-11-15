@@ -1434,7 +1434,7 @@ router.get('/academics/diplomas/:studentId/download.pdf', requirePortalPermissio
 router.get('/academics/awards', requirePortalPermission('view_fsm_diplomas'), async (req, res) => {
   const children = await childrenForAccount(req.portalAccount);
   res.render('grade-awards', {
-    title: 'Grade Level Awards',
+    title: 'Rewards Certificates',
     portalTitle: 'Family School Management',
     award: awardFromQuery(req.query),
     basePath: '/parent/academics/awards',
@@ -1444,7 +1444,7 @@ router.get('/academics/awards', requirePortalPermission('view_fsm_diplomas'), as
 
 router.get('/academics/awards/print', requirePortalPermission('view_fsm_diplomas'), (req, res) => {
   const award = awardFromQuery(req.query);
-  res.render('grade-award-print', { title: 'Grade Level Award', award, backHref: '/parent/academics/awards?' + awardQuery(award) });
+  res.render('grade-award-print', { title: 'Rewards Certificate', award, backHref: '/parent/academics/awards?' + awardQuery(award) });
 });
 
 // Name Tags - a real request: parents should be able to print name tags

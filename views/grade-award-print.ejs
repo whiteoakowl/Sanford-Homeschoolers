@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <%- include('partials/head', { title }) %>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Baloo+2:wght@800&family=Caveat:wght@700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Baloo+2:wght@800&family=Caveat:wght@700&family=Patrick+Hand&family=Permanent+Marker&family=Fredoka:wght@600&family=Great+Vibes&family=EB+Garamond:wght@700&display=swap" />
   <%# A real request: "These should all be landscape, full page." %>
   <style>@page { size: letter landscape; margin: 0; }</style>
 </head>
 <body class="ga-print-body">
   <div class="print-preview-header no-print ga-print-header">
-    <a href="<%= backHref %>">&larr; Grade Level Awards</a>
+    <a href="<%= backHref %>">&larr; Rewards Certificates</a>
     <button type="button" class="roster-action-btn print-action-btn" onclick="window.print()">Print</button>
   </div>
   <main class="ga-print-page"><%- include('partials/grade-award', { award, uid: 'print' }) %></main>
