@@ -202,7 +202,7 @@
         <% }); %>
       <% } %>
       <% } else if (tab === 'classregistrationlog') { %>
-        <%- include('partials/class-registration-log', { rows, counts, search, dateFilter, dateFilterLabel, formAction, tabParam, exportBase, pagination, baseHref, canCancel, returnTo, error, notice }) %>
+        <%- include('partials/class-registration-log', { families, counts, search, dateFilter, dateFilterLabel, formAction, tabParam, exportBase, pagination, baseHref, canCancel, returnTo, error, notice }) %>
       <% } else { %>
         <%
           function buildQuery(overrides) {

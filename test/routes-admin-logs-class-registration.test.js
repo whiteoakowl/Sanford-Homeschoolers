@@ -184,18 +184,18 @@ test('both class registration logs mark a member\'s first sign-up as New, not a 
   for (const url of [`/admin/logs?tab=classregistration&date=${today}`, `/admin/schedule?tab=classregistrationlog&date=${today}`]) {
     const page = await request(app).get(url).set('Cookie', admin.cookie);
     assert.equal(page.status, 200, url);
-    const rowOf = (name) => page.text.split('<tr>').find((r) => r.includes(name));
+    const rowOf = (name) => page.text.split('<tr>').map((r) => r.split('</tr>')[0]).find((r) => r.includes(name));
     assert.match(rowOf(newbie.childName), /class="crl-new"[^>]*>NEW</, `${url}: the first-time member is marked NEW`);
     assert.ok(rowOf(returning.childName), `${url}: the returning member is listed`);
     assert.doesNotMatch(rowOf(returning.childName), /crl-new/, `${url}: the returning member is not marked NEW`);
   }
 
   const csv = (await request(app).get('/admin/logs/classregistration/export.csv').set('Cookie', admin.cookie)).text;
-  assert.match(csv, /"Name","New","Class","Day","Date","Status"/);
+  assert.match(csv, /"Name","New","Class","Day","Date","Time","Status"/);
   assert.ok(csv.split('\n').some((l) => l.includes(newbie.childName) && l.includes(',"New",')));
   assert.ok(csv.split('\n').some((l) => l.includes(returning.childName) && l.includes('Weaving') && l.includes(',"",')));
   const csv2 = (await request(app).get('/admin/schedule/classregistrationlog/export.csv').set('Cookie', admin.cookie)).text;
-  assert.match(csv2, /"Date","Family","Name","New","Class","Day","Action"/);
+  assert.match(csv2, /"Date","Time","Family","Name","New","Class","Day","Action"/);
   assert.ok(csv2.split('\n').some((l) => l.includes(newbie.childName) && l.includes(',"New",')));
 });
 
@@ -251,4 +251,38 @@ test('Class Registration Log table: search, counts, and the trash button cancels
     .type('form')
     .send({ returnTo: 'https://example.com/evil', _csrf: admin.csrfToken });
   assert.match(again.headers.location, /^\/admin\/schedule\?tab=classregistrationlog&error=/);
+});
+
+// A later real request: "It should still be organized by family, order is
+// based on newest registration. Family dropdown shows their log based on
+// date. Include time stamps of 9:47pm example for all registrations."
+test('Class Registration Log: family dropdowns, newest registration first, with times', async () => {
+  const admin = await loginAsAdmin();
+  const a = await createOpenClass(admin, { className: 'Logs Test Order A' });
+  const b = await createOpenClass(admin, { className: 'Logs Test Order B' });
+  const early = await createParentWithChild('Early Bird Family');
+  const late = await createParentWithChild('Late Owl Family');
+  const acct = (await db.prepare('SELECT MIN(id) AS id FROM member_accounts').get()).id;
+  const reg = (cls, kid, at) => db.prepare("INSERT INTO class_registrations (class_id, student_id, registered_by_account_id, status, created_at) VALUES (?, ?, ?, 'confirmed', ?)").run(cls, kid, acct, at);
+  // UTC times: 01:47 next day UTC is 9:47 PM Eastern (EDT) on Aug 19.
+  await reg(a.id, early.childId, '2026-08-18 14:05:00');
+  await reg(b.id, early.childId, '2026-08-20 01:47:00');
+  await reg(a.id, late.childId, '2026-08-19 15:30:00');
+
+  for (const url of ['/admin/schedule?tab=classregistrationlog&q=Order', '/admin/logs?tab=classregistration&q=Order']) {
+    const page = (await request(app).get(url).set('Cookie', admin.cookie)).text;
+    const families = page.split('<details class="crl-family"').slice(1);
+    const names = families.map((f) => /crl-family-name">[\s\S]*?<\/svg>\s*([^<]+?)\s*<\/span>/.exec(f)[1]);
+    assert.deepEqual(names.slice(0, 2), ['Early Bird Family', 'Late Owl Family'], `${url}: the family with the newest registration first`);
+    // Early Bird's dropdown: newest first, with Eastern times.
+    assert.match(families[0], /Aug 19, 2026 · 9:47 PM/, 'family header shows its newest registration');
+    const rows = families[0].split('<tr>').slice(2);
+    assert.match(rows[0], /Logs Test Order B[\s\S]*Aug 19, 2026 <span class="crl-time">9:47 PM<\/span>/);
+    assert.match(rows[1], /Logs Test Order A[\s\S]*Aug 18, 2026 <span class="crl-time">10:05 AM<\/span>/);
+    assert.match(families[0], /2 registrations/);
+  }
+
+  const print = await request(app).get('/admin/schedule/classregistrationlog/print').set('Cookie', admin.cookie);
+  assert.match(print.text, /<th>Time<\/th>/);
+  assert.match(print.text, /9:47 PM/);
 });

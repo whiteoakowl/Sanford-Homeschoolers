@@ -118,7 +118,7 @@ test('Co-op Admin Classes > Class Registration Log (tab=classregistrationlog)', 
     assert.equal(res.status, 200);
     assert.match(res.text, /alt="Class Registration Log/);
     assert.match(res.text, /<table class="crl-table">/);
-    const rowOf = (name) => res.text.split('<tr>').find((r) => r.includes(name));
+    const rowOf = (name) => res.text.split('<tr>').map((r) => r.split('</tr>')[0]).find((r) => r.includes(name));
     assert.match(rowOf('Andy Anderson'), /crl-status-cancelled/);
     assert.match(rowOf('Alice Anderson'), /crl-status-confirmed/);
     assert.match(rowOf('Bob Baker'), /crl-status-waitlisted/);

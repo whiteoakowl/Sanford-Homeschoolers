@@ -34,15 +34,16 @@
 
       <table class="roster-table members-table condensed-table class-reglog-print-table">
         <thead>
-          <tr><th>Date</th><th>Family</th><th>Name</th><th>Class</th><th>Day</th><th>Action</th></tr>
+          <tr><th>Date</th><th>Time</th><th>Family</th><th>Name</th><th>Class</th><th>Day</th><th>Action</th></tr>
         </thead>
         <tbody>
           <% if (allSubmissions.length === 0) { %>
-            <tr><td colspan="6" class="roster-empty">No class registrations or cancellations<%= dateFilter ? ' for this date' : ' yet' %>.</td></tr>
+            <tr><td colspan="7" class="roster-empty">No class registrations or cancellations<%= dateFilter ? ' for this date' : ' yet' %>.</td></tr>
           <% } %>
           <% allSubmissions.forEach(function(r) { %>
             <tr>
               <td><%= r.dateLabel %></td>
+              <td><%= r.timeLabel %></td>
               <td><%= r.familyName || '—' %></td>
               <td><%= r.memberName %><% if (r.isNew) { %> <strong>(New)</strong><% } %></td>
               <td><%= r.className %></td>

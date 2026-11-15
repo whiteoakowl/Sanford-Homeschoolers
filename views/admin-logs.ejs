@@ -29,7 +29,7 @@
         of a trigger+dialog here. %>
     <div class="view-tab-panel">
       <% if (tab === 'classregistration') { %>
-        <%- include('partials/class-registration-log', { rows, counts, search, dateFilter, dateFilterLabel, formAction, tabParam, exportBase, pagination, baseHref, canCancel, returnTo, error, notice }) %>
+        <%- include('partials/class-registration-log', { families, counts, search, dateFilter, dateFilterLabel, formAction, tabParam, exportBase, pagination, baseHref, canCancel, returnTo, error, notice }) %>
       <% } else if (tab === 'missedduty') { %>
         <%# A real request: "Create a co-op admin log for each day of
             scheduled classes that makes a list of the parent members who

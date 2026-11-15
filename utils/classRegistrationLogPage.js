@@ -1,9 +1,9 @@
 // Everything views/partials/class-registration-log.ejs needs - the shared
 // Class Registration Log table on Classes > Class Registration Log
 // (routes/admin-schedule.js) and Logs > Class Registration (routes/
-// admin-logs.js). ?q= searches student/class names, ?date= is the day it
-// was registered, paginated per row.
-const { classRegistrationLogRows, classRegistrationLogCounts } = require('./classRegistration');
+// admin-logs.js). ?q= searches student/class/family names, ?date= is the day it
+// was registered, paginated per family.
+const { classRegistrationLogRows, classRegistrationLogCounts, groupClassRegistrationLogByFamily } = require('./classRegistration');
 const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('./pagination');
 const { formatDateLabel } = require('./dates');
 
@@ -12,12 +12,13 @@ async function classRegistrationLogLocals(req, { formAction, tabParam, exportBas
   const search = String(req.query.q || '').trim().slice(0, 100);
   const rows = await classRegistrationLogRows({ dateFilter, search });
   const pageSize = parsePageSize(req.query.pageSize, DEFAULT_PAGE_SIZE);
-  const pagination = paginate(rows, parsePage(req.query.page), pageSize);
+  // Paginated by family, so a family's registrations never split across pages.
+  const pagination = paginate(groupClassRegistrationLogByFamily(rows), parsePage(req.query.page), pageSize);
   const params = new URLSearchParams({ tab: tabParam });
   if (dateFilter) params.set('date', dateFilter);
   if (search) params.set('q', search);
   return {
-    rows: pagination.items,
+    families: pagination.items,
     counts: classRegistrationLogCounts(rows),
     search,
     dateFilter,

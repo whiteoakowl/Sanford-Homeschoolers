@@ -17107,3 +17107,26 @@ dialog form:has(.permission-section) > h3,
 .pg-roster-hour-time .icon { width: 0.95rem; height: 0.95rem; }
 .pg-roster-empty { margin: 0; color: var(--muted-dark); font-size: 0.92rem; }
 .pg-roster-table { width: 100%; }
+/* Class Registration Log family dropdowns - a later real request: "should
+   still be organized by family, order is based on newest registration". */
+.crl-families { display: flex; flex-direction: column; gap: 0.7rem; }
+.crl-family { border: 1px solid #d9d1ee; border-radius: 16px; background: #fff; box-shadow: 0 4px 12px rgba(75, 47, 127, 0.06); overflow: hidden; }
+.crl-family > summary { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.85rem 1.1rem; cursor: pointer; background: #f6f2fd; }
+.crl-family > summary::-webkit-details-marker { display: none; }
+.crl-family[open] > summary { background: #4b2f7f; color: #fff; }
+.crl-family-name { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 1.08rem; }
+.crl-family-name .icon { width: 1.2rem; height: 1.2rem; }
+.crl-family-meta { margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; font-size: 0.92rem; }
+.crl-family-latest { display: inline-flex; align-items: center; gap: 0.3rem; }
+.crl-family-latest .icon { width: 1rem; height: 1rem; }
+.crl-family-count { padding: 0.15rem 0.6rem; border-radius: 999px; background: #e9dcfb; color: #4b2f7f; font-weight: 700; font-size: 0.82rem; }
+.crl-family-chevron { width: 1.1rem; height: 1.1rem; transition: transform 0.15s ease; }
+.crl-family[open] .crl-family-chevron { transform: rotate(180deg); }
+.crl-family .crl-table-wrap { border: 0; border-radius: 0; box-shadow: none; }
+.crl-time { display: block; color: #6b6280; font-size: 0.85rem; }
+@media (max-width: 640px) {
+  .crl-family > summary { position: relative; padding: 0.75rem 2.6rem 0.75rem 0.85rem; }
+  .crl-family-meta { margin-left: 0; width: 100%; font-size: 0.85rem; }
+  .crl-family-chevron { position: absolute; top: 0.95rem; right: 0.85rem; }
+  .crl-time { display: inline; margin-left: 0.3rem; }
+}

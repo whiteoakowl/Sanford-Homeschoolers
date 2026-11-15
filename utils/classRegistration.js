@@ -489,6 +489,7 @@ async function allClassRegistrationActions() {
       actionLabel: r.status === 'waitlisted' ? 'Waitlisted' : 'Registered',
       date,
       dateLabel: formatDateLabel(date),
+      timeLabel: easternStamp(r.createdAt).timeLabel,
       // A real request: "Show new next to members name if its the first
       // class they have signed up for so we know that its a new family."
       // Sign-ups from the day this member first signed up for any class
@@ -506,6 +507,7 @@ async function allClassRegistrationActions() {
         actionLabel: 'Cancelled',
         date: cancelDate,
         dateLabel: formatDateLabel(cancelDate),
+        timeLabel: easternStamp(r.cancelledAt).timeLabel,
       });
     }
   }
@@ -526,18 +528,24 @@ async function allClassRegistrationActions() {
 // Classes > Class Registration Log and Logs > Class Registration
 // (views/partials/class-registration-log.ejs). search matches the
 // student's or class's name; dateFilter is the day it was registered.
-const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-function registeredOnLabel(isoDate) {
-  const [y, m, d] = isoDate.split('-').map(Number);
-  return `${SHORT_MONTHS[m - 1]} ${d}, ${y}`;
+// Eastern (the co-op's own clock) date and time of a stored UTC
+// 'YYYY-MM-DD HH:MM:SS' - e.g. { date: '2026-08-19', dateLabel: 'Aug 19,
+// 2026', timeLabel: '9:47 PM' }.
+const EASTERN_PARTS = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+const EASTERN_ISO = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+function easternStamp(sqlTimestamp) {
+  const d = new Date(String(sqlTimestamp).replace(' ', 'T') + 'Z');
+  const parts = {};
+  for (const p of EASTERN_PARTS.formatToParts(d)) parts[p.type] = p.value;
+  return { date: EASTERN_ISO.format(d), dateLabel: `${parts.month} ${parts.day}, ${parts.year}`, timeLabel: `${parts.hour}:${parts.minute} ${parts.dayPeriod}` };
 }
 
 async function classRegistrationLogRows({ dateFilter = '', search = '' } = {}) {
   const rows = await db
     .prepare(
       `SELECT cr.id, cr.class_id AS "classId", cr.student_id AS "studentId", cr.status, cr.created_at AS "createdAt",
-              m.name AS "memberName", f.name AS "familyName", c.class_name AS "className", c.day AS "classDay",
-              (SELECT MIN(substr(cr2.created_at, 1, 10)) FROM class_registrations cr2 WHERE cr2.student_id = cr.student_id) AS "firstDate"
+              m.name AS "memberName", m.family_id AS "familyId", f.name AS "familyName", c.class_name AS "className", c.day AS "classDay",
+              (SELECT MIN(cr2.created_at) FROM class_registrations cr2 WHERE cr2.student_id = cr.student_id) AS "firstAt"
        FROM class_registrations cr
        JOIN members m ON m.id = cr.student_id
        LEFT JOIN families f ON f.id = m.family_id
@@ -548,23 +556,48 @@ async function classRegistrationLogRows({ dateFilter = '', search = '' } = {}) {
   const needle = String(search || '').trim().toLowerCase();
   return rows
     .map((r) => {
-      const date = r.createdAt.slice(0, 10);
+      const stamp = easternStamp(r.createdAt);
       return {
         id: r.id,
         classId: r.classId,
         studentId: r.studentId,
         memberName: r.memberName,
+        familyId: r.familyId,
         familyName: r.familyName,
         className: r.className,
         classDayLabel: CLASS_DAY_LABELS_FULL[r.classDay] || r.classDay,
         status: r.status,
         statusLabel: r.status === 'waitlisted' ? 'Waitlisted' : r.status === 'cancelled' ? 'Cancelled' : 'Confirmed',
-        date,
-        registeredOnLabel: registeredOnLabel(date),
-        isNew: date === r.firstDate,
+        createdAt: r.createdAt,
+        date: stamp.date,
+        registeredOnLabel: stamp.dateLabel,
+        registeredAtLabel: stamp.timeLabel,
+        // Every sign-up from the (Eastern) day this member first signed up.
+        isNew: stamp.date === easternStamp(r.firstAt).date,
       };
     })
-    .filter((r) => (!dateFilter || r.date === dateFilter) && (!needle || r.memberName.toLowerCase().includes(needle) || r.className.toLowerCase().includes(needle)));
+    .filter(
+      (r) =>
+        (!dateFilter || r.date === dateFilter) &&
+        (!needle || r.memberName.toLowerCase().includes(needle) || r.className.toLowerCase().includes(needle) || (r.familyName || '').toLowerCase().includes(needle))
+    );
+}
+
+// A real request: "It should still be organized by family, order is based
+// on newest registration. Family dropdown shows their log based on date."
+// rows arrive newest first, so each family's first row is its newest and
+// families stay in newest-registration order; within a family, newest
+// first. A member with no family is a family of one.
+function groupClassRegistrationLogByFamily(rows) {
+  const families = new Map();
+  for (const r of rows) {
+    const key = r.familyId != null ? `f${r.familyId}` : `m${r.studentId}`;
+    if (!families.has(key)) {
+      families.set(key, { key, familyName: r.familyName || r.memberName, latestOnLabel: r.registeredOnLabel, latestAtLabel: r.registeredAtLabel, rows: [] });
+    }
+    families.get(key).rows.push(r);
+  }
+  return Array.from(families.values()).map((f) => ({ ...f, hasNew: f.rows.some((r) => r.isNew), memberCount: new Set(f.rows.map((r) => r.studentId)).size }));
 }
 
 function classRegistrationLogCounts(rows) {
@@ -576,18 +609,20 @@ function classRegistrationLogCounts(rows) {
   };
 }
 
-const CLASS_REGISTRATION_LOG_EXPORT_HEADER = ['Date', 'Family', 'Name', 'New', 'Class', 'Day', 'Action'];
+const CLASS_REGISTRATION_LOG_EXPORT_HEADER = ['Date', 'Time', 'Family', 'Name', 'New', 'Class', 'Day', 'Action'];
 
 function buildClassRegistrationLogExportCsvLines(actions) {
   return [
     toCsvRow(CLASS_REGISTRATION_LOG_EXPORT_HEADER),
-    ...actions.map((a) => toCsvRow([a.dateLabel, a.familyName || '', a.memberName, a.isNew ? 'New' : '', a.className, a.classDayLabel, a.actionLabel])),
+    ...actions.map((a) => toCsvRow([a.dateLabel, a.timeLabel || '', a.familyName || '', a.memberName, a.isNew ? 'New' : '', a.className, a.classDayLabel, a.actionLabel])),
   ];
 }
 
 module.exports = {
+  easternStamp,
   classRegistrationLogRows,
   classRegistrationLogCounts,
+  groupClassRegistrationLogByFamily,
   registerForClass,
   unregisterFromClass,
   adminRemoveStudentFromClass,

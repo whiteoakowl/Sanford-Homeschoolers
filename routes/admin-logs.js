@@ -15,6 +15,7 @@ const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('../ut
 const { scannedTasksForMemberDate } = require('../utils/setup');
 
 const { classRegistrationLogLocals } = require('../utils/classRegistrationLogPage');
+const { easternStamp } = require('../utils/classRegistration');
 
 const LOG_TABS = ['absence', 'checkinout', 'classcheckinout', 'nametag', 'classrisk', 'substitutes', 'allergies', 'classregistration', 'missedduty'];
 
@@ -177,6 +178,7 @@ async function allClassRegistrations(dateFilter) {
       date: r.createdAt.slice(0, 10),
       dateLabel: formatDateLabel(r.createdAt.slice(0, 10)),
       statusLabel: r.status === 'waitlisted' ? 'Waitlisted' : r.status === 'cancelled' ? 'Cancelled' : 'Confirmed',
+      timeLabel: easternStamp(r.createdAt).timeLabel,
       // A real request: "Show new next to members name if its the first
       // class they have signed up for so we know that its a new family."
       // Every row from the day this member first signed up for any class
@@ -914,8 +916,8 @@ router.get('/logs/classregistration/export.csv', requireAdmin, async (req, res) 
   const dateFilter = req.query.date || '';
   const registrations = await allClassRegistrations(dateFilter);
   const lines = [
-    toCsvRow(['Name', 'New', 'Class', 'Day', 'Date', 'Status']),
-    ...registrations.map((r) => toCsvRow([r.memberName, r.isNew ? 'New' : '', r.className, r.classDayLabel, r.dateLabel, r.statusLabel])),
+    toCsvRow(['Name', 'New', 'Class', 'Day', 'Date', 'Time', 'Status']),
+    ...registrations.map((r) => toCsvRow([r.memberName, r.isNew ? 'New' : '', r.className, r.classDayLabel, r.dateLabel, r.timeLabel, r.statusLabel])),
   ];
   sendCsv(res, 'class-registration-log.csv', lines);
 });
