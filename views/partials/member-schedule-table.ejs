@@ -40,7 +40,17 @@
     <% } %>
     <% t.groups.forEach(function(g) { %>
       <<%= subTag %> class="member-schedule-subheading"><%= g.label %></<%= subTag %>>
-      <table class="member-schedule-table" data-schedule-group="<%= g.key %>">
+      <%# A real request: "Outside of the class cards their should be
+          distinct day titles seperating the schedules by day." Each
+          group's classes split by day (in week order), a day title
+          above each day's own table. %>
+      <% var dayOrder = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']; %>
+      <% var dayNames = { sunday: 'Sunday', monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday' }; %>
+      <% var byDay = {}; g.entries.forEach(function(e) { (byDay[e.day] = byDay[e.day] || []).push(e); }); %>
+      <% var days = Object.keys(byDay).sort(function(a, b) { return dayOrder.indexOf(a) - dayOrder.indexOf(b); }); %>
+      <% days.forEach(function(dayKey) { %>
+      <p class="member-schedule-day-title"><svg class="icon"><use href="#icon-calendar-check"/></svg> <%= dayNames[dayKey] || dayKey %></p>
+      <table class="member-schedule-table" data-schedule-group="<%= g.key %>" data-schedule-day="<%= dayKey %>">
         <thead>
           <tr>
             <th scope="col">Class Details</th>
@@ -48,7 +58,7 @@
           </tr>
         </thead>
         <tbody>
-          <% g.entries.forEach(function(e) { %>
+          <% byDay[dayKey].forEach(function(e) { %>
             <% var href = e.classId ? hrefFor(e.classId) : null; %>
             <% var names = e.instructors.map(function (i) { return i.name; }).join(', '); %>
             <% var where = [e.room, names].filter(Boolean).join(' / '); %>
@@ -73,6 +83,7 @@
           <% }); %>
         </tbody>
       </table>
+      <% }); %>
     <% }); %>
   </section>
 <% }); %>

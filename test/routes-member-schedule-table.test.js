@@ -338,3 +338,25 @@ test('a parent\'s Floater Assignments hour shows under its own "Floater" group',
   assert.equal(floater.entries[0].title, 'Floater');
   assert.equal(floater.entries[0].dayShort, 'Mon');
 });
+
+// A real request: "Class information should be next to class title and
+// time, especially on mobile. Outside of the class cards their should be
+// distinct day titles seperating the schedules by day."
+test('Member Schedules: a day title above each day\'s classes, in week order', async () => {
+  const cookie = await loginAsAdmin();
+  const kid = (await db.prepare("INSERT INTO members (name, barcode, member_type, active) VALUES ('Day Title Kid', 'DTK-1', 'student', 1) RETURNING id").get()).id;
+  const wed = await createClass({ day: 'wednesday', hourPosition: 1, className: 'Day Title Wed Class', room: 'Room 9' });
+  const mon = await createClass({ day: 'monday', hourPosition: 1, className: 'Day Title Mon Class', room: 'Room 8' });
+  await setEnrollment(wed, [kid]);
+  await setEnrollment(mon, [kid]);
+  const res = await request(app).get(`/admin/schedule?tab=members&memberId=${kid}`).set('Cookie', cookie);
+  assert.equal(res.status, 200);
+  const section = res.text.slice(res.text.indexOf('>Day Title Kid<'));
+  const monTitle = section.indexOf('</svg> Monday</p>');
+  const wedTitle = section.indexOf('</svg> Wednesday</p>');
+  assert.ok(monTitle > 0 && wedTitle > monTitle, 'Monday title, then Wednesday title');
+  assert.ok(section.indexOf('Day Title Mon Class') > monTitle && section.indexOf('Day Title Mon Class') < wedTitle, "Monday's class sits under Monday");
+  assert.ok(section.indexOf('Day Title Wed Class') > wedTitle, "Wednesday's class sits under Wednesday");
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'styles.css'), 'utf8');
+  assert.match(css, /\.member-schedule-table tr \{ display: grid; grid-template-columns:/, 'on phones the room/instructor sits beside the class');
+});

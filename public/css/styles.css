@@ -17134,3 +17134,23 @@ dialog form:has(.permission-section) > h3,
 .class-schedule-list-row-clickable { cursor: pointer; }
 .class-schedule-list-row-clickable:hover td { background: var(--brand-soft); }
 .class-schedule-list-row-clickable:focus-visible { outline: 2px solid var(--brand-dark); outline-offset: -2px; }
+/* Member schedules: a day title above each day's classes, and on phones
+   the room/instructor info beside the class title and time instead of a
+   separate block under it - a real request: "Class information should be
+   next to class title and time, especially on mobile. Outside of the
+   class cards their should be distinct day titles seperating the
+   schedules by day." */
+.member-schedule-day-title { display: flex; align-items: center; gap: 0.45rem; margin: 0.85rem 0 0.4rem; padding: 0.35rem 0.75rem; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark); font-weight: 700; font-size: 0.95rem; width: fit-content; }
+.member-schedule-day-title .icon { width: 1rem; height: 1rem; }
+.member-schedule-subheading + .member-schedule-day-title { margin-top: 0.3rem; }
+@media (max-width: 640px) {
+  .member-schedule-table tr { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+  .member-schedule-table td.member-schedule-location { font-size: 0.82rem; }
+  .member-schedule-table td { border-bottom: none; }
+  .member-schedule-table td.member-schedule-location { border-left: 1px solid var(--table-border); }
+  .member-schedule-table td.member-schedule-location::before { content: none; }
+  .member-schedule-table td { font-size: 0.9rem; padding: 0.6rem 0.65rem; }
+}
+@media print {
+  .member-schedule-day-title { background: none; padding: 0; margin: 0.5rem 0 0.25rem; }
+}
