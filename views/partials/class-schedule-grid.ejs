@@ -230,11 +230,20 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
         </select>
       </div>
       <div class="class-form-field">
-        <span class="class-form-field-label required">Class Room</span>
-        <input type="text" name="room" list="room-options-<%= day %>" placeholder="Select or type a room #" autocomplete="off" />
-        <datalist id="room-options-<%= day %>">
-          <% (typeof rooms !== 'undefined' ? rooms : []).forEach(function(r) { %><option value="<%= r %>"></option><% }); %>
-        </datalist>
+        <%# A real bug report: "When creating a new class the dropdown for
+            choosing a room number doesn't work." It was a text box with a
+            <datalist> of suggestions, which many browsers (iPad/iPhone
+            Safari especially) never show as a dropdown. Now a real select
+            of this grid's rooms, plus "Other..." to type a new one
+            (roomOther - see POST /class-schedule/classes/new). %>
+        <% var addRoomOptions = (typeof rooms !== 'undefined' ? rooms : []).filter(function(r) { return r && r !== 'Unassigned'; }); %>
+        <span class="class-form-field-label">Class Room</span>
+        <select name="room" onchange="var o = this.parentNode.querySelector('[data-room-other]'); o.hidden = this.value !== '__other'; if (!o.hidden) o.focus();">
+          <option value="">Select a room&hellip;</option>
+          <% addRoomOptions.forEach(function(r) { %><option value="<%= r %>"><%= r %></option><% }); %>
+          <option value="__other">Other&hellip;</option>
+        </select>
+        <input type="text" name="roomOther" placeholder="Type a room #" autocomplete="off" data-room-other hidden />
       </div>
     </div>
 
@@ -279,9 +288,11 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
     <span class="class-form-section-label">Teacher / Assistants</span>
     <div class="class-form-row">
       <div class="class-form-field">
-        <span class="class-form-field-label required">Teacher</span>
-        <select name="teacherId" required>
-          <option value="" disabled selected>Select teacher&hellip;</option>
+        <%# A real request: "It should also not require a teacher to create
+            a new class." %>
+        <span class="class-form-field-label">Teacher <span class="optional-tag">(optional)</span></span>
+        <select name="teacherId">
+          <option value="" selected>No teacher yet</option>
           <% availableStaff.forEach(function(p) { %>
             <option value="<%= p.id %>"><%= p.name %><%= p.member_type === 'student' ? ' (Student)' : '' %></option>
           <% }); %>

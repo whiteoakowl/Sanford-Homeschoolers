@@ -238,7 +238,9 @@ async function registerForClass({ classId, studentId, accountId, portalRoles, re
   // a given class, e.g. showing an age range for information only while
   // registration only checks grade.
   const allowedGrades = ageGroupList(cls.age_group);
-  if (cls.lock_by_grade && allowedGrades.length && !allowedGrades.includes(student.grade_level)) {
+  // "Lock all classes by grade/age" (Co-op Class Settings) overrides the
+  // class's own Lock class by grade/age box.
+  if ((cls.lock_by_grade || settings.defaultLockByGrade) && allowedGrades.length && !allowedGrades.includes(student.grade_level)) {
     return { ok: false, error: `${student.name} isn't in an eligible grade level for this class.` };
   }
   // A real request: "grade selection and age selection should be
@@ -247,7 +249,7 @@ async function registerForClass({ classId, studentId, accountId, portalRoles, re
   // both gates must pass" shape utils/events.js's own ageGroupAllowsMember/
   // ageBucketAllowsMember pair already uses.
   const allowedAges = ageGroupList(cls.numeric_ages);
-  if (cls.lock_by_age && allowedAges.length) {
+  if ((cls.lock_by_age || settings.defaultLockByAge) && allowedAges.length) {
     const age = ageAsOfDate(student.birthday, ageReferenceDateForClass(cls, settings));
     if (age == null || !allowedAges.includes(String(age))) {
       return { ok: false, error: `${student.name} isn't an eligible age for this class.` };

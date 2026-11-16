@@ -164,7 +164,17 @@
               <%# Checked by default, matching the old always-on behavior
                   from before grade/age locks could be turned off
                   independently. %>
-              <label class="checkbox-option"><input type="checkbox" name="lockByGrade" value="1" <%= cls.lock_by_grade == false || Number(cls.lock_by_grade) === 0 ? '' : 'checked' %> /> Lock class by grade</label>
+              <%# "Lock all classes by grade" (Co-op Class Settings) overrides
+                  this box: shown checked and greyed out, with the class's
+                  own choice kept in a hidden field so it's back when the
+                  override is turned off. %>
+              <% var ownGradeLock = !(cls.lock_by_grade == false || Number(cls.lock_by_grade) === 0); %>
+              <% if (lockAllByGrade) { %>
+                <input type="hidden" name="lockByGrade" value="<%= ownGradeLock ? '1' : '0' %>" />
+                <label class="checkbox-option"><input type="checkbox" checked disabled /> Lock class by grade <span class="hint">(locked for all classes in <a href="/admin/schedule?tab=settings&amp;settingsTab=general">Class Settings</a>)</span></label>
+              <% } else { %>
+                <label class="checkbox-option"><input type="checkbox" name="lockByGrade" value="1" <%= ownGradeLock ? 'checked' : '' %> /> Lock class by grade</label>
+              <% } %>
               <%- include('partials/multi-select-checkbox', {
                 name: 'ageGroup',
                 options: gradeLevels.map(function(g) { return { value: g, label: g }; }),
@@ -177,7 +187,17 @@
                 be separate menus of choices" %>
             <div class="member-form-full">
               <span class="roster-checkbox-label">Age <span class="hint">(select all that apply)</span></span>
-              <label class="checkbox-option"><input type="checkbox" name="lockByAge" value="1" <%= cls.lock_by_age == false || Number(cls.lock_by_age) === 0 ? '' : 'checked' %> /> Lock class by age</label>
+              <%# "Lock all classes by age" (Co-op Class Settings) overrides
+                  this box: shown checked and greyed out, with the class's
+                  own choice kept in a hidden field so it's back when the
+                  override is turned off. %>
+              <% var ownAgeLock = !(cls.lock_by_age == false || Number(cls.lock_by_age) === 0); %>
+              <% if (lockAllByAge) { %>
+                <input type="hidden" name="lockByAge" value="<%= ownAgeLock ? '1' : '0' %>" />
+                <label class="checkbox-option"><input type="checkbox" checked disabled /> Lock class by age <span class="hint">(locked for all classes in <a href="/admin/schedule?tab=settings&amp;settingsTab=general">Class Settings</a>)</span></label>
+              <% } else { %>
+                <label class="checkbox-option"><input type="checkbox" name="lockByAge" value="1" <%= ownAgeLock ? 'checked' : '' %> /> Lock class by age</label>
+              <% } %>
               <%- include('partials/multi-select-checkbox', {
                 name: 'numericAges',
                 options: ageOptions.map(function(a) { return { value: a, label: a }; }),

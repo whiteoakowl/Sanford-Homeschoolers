@@ -95,8 +95,13 @@
               </div>
             </div>
 
-            <label class="checkbox-option class-settings-row"><input type="checkbox" name="defaultLockByAge" value="1" <%= classSettings.defaultLockByAge ? 'checked' : '' %> /> By default, restrict class registration to the age(s) selected per class.</label>
-            <label class="checkbox-option class-settings-row"><input type="checkbox" name="defaultLockByGrade" value="1" <%= classSettings.defaultLockByGrade ? 'checked' : '' %> /> By default, restrict class registration to the grade(s) selected per class.</label>
+            <%# Override switches: on, every class is locked by age/grade
+                whatever its own Lock class by age/grade box says; off,
+                each class's own box decides (utils/classSchedule.js's
+                CLASS_SETTINGS_DEFAULTS). %>
+            <label class="checkbox-option class-settings-row"><input type="checkbox" name="defaultLockByAge" value="1" <%= classSettings.defaultLockByAge ? 'checked' : '' %> /> <strong>Lock all classes by age</strong> - restrict every class's registration to its selected age(s), overriding each class's own setting.</label>
+            <label class="checkbox-option class-settings-row"><input type="checkbox" name="defaultLockByGrade" value="1" <%= classSettings.defaultLockByGrade ? 'checked' : '' %> /> <strong>Lock all classes by grade</strong> - restrict every class's registration to its selected grade(s), overriding each class's own setting.</label>
+            <p class="hint class-settings-row">Leave these off to lock grade or age class by class (each class's Details tab).</p>
 
             <div class="class-settings-question">
               <div class="class-settings-question-label">Allow families to cancel class registrations:</div>

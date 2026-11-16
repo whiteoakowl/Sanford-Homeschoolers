@@ -77,6 +77,7 @@ const {
   CLASS_DAY_LABELS_FULL,
   ensureDayRoster,
   isClassArchived,
+  classGlobalSettings,
   HOUR_POSITIONS,
   COLOR_PALETTE,
   GRADE_LEVELS,
@@ -415,7 +416,7 @@ router.post('/class-schedule/classes/new', requireFullAdmin, async (req, res) =>
     day,
     hourPosition,
     className,
-    room: (req.body.room || '').trim(),
+    room: req.body.room === '__other' ? (req.body.roomOther || '').trim() : (req.body.room || '').trim(),
     ageGroup: [].concat(req.body.ageGroup || []).join(', '),
     numericAges: [].concat(req.body.numericAges || []).join(', '),
     color: req.body.color || null,
@@ -587,7 +588,10 @@ router.get('/class-schedule/classes/:id/manage', requireFullAdmin, async (req, r
     ? await db.prepare('SELECT id, title FROM semesters WHERE id = ?').get(cls.semester_id)
     : null;
 
+  const lockAllSettings = await classGlobalSettings();
   res.render('admin-class-schedule-manage', {
+    lockAllByGrade: !!lockAllSettings.defaultLockByGrade,
+    lockAllByAge: !!lockAllSettings.defaultLockByAge,
     title: `Manage - ${cls.class_name}`,
     attendanceGrid,
     archivedSemester,

@@ -341,18 +341,31 @@ async function classesForDaySemester(day, semesterId) {
 // one whose semester isn't archived.
 const NOT_IN_ARCHIVED_SEMESTER_SQL = 'NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)';
 
+// Both checks treat "can't tell" (e.g. a database that doesn't have the
+// archived_at column yet) as not archived, so they never block a save -
+// a real bug report traced class edits silently failing to exactly that.
 async function isSemesterArchived(semesterId) {
   if (semesterId == null) return false;
-  const row = await db.prepare('SELECT archived_at FROM semesters WHERE id = ?').get(semesterId);
-  return !!(row && row.archived_at);
+  try {
+    const row = await db.prepare('SELECT archived_at FROM semesters WHERE id = ?').get(semesterId);
+    return !!(row && row.archived_at);
+  } catch (err) {
+    console.error('isSemesterArchived failed:', err.message);
+    return false;
+  }
 }
 
 // The class's own semester is archived - its pages are view-only.
 async function isClassArchived(classId) {
-  const row = await db
-    .prepare('SELECT s.archived_at FROM classes c JOIN semesters s ON s.id = c.semester_id WHERE c.id = ?')
-    .get(classId);
-  return !!(row && row.archived_at);
+  try {
+    const row = await db
+      .prepare('SELECT s.archived_at FROM classes c JOIN semesters s ON s.id = c.semester_id WHERE c.id = ?')
+      .get(classId);
+    return !!(row && row.archived_at);
+  } catch (err) {
+    console.error('isClassArchived failed:', err.message);
+    return false;
+  }
 }
 
 async function setSemesterArchived(semesterId, archived) {
@@ -1028,8 +1041,15 @@ const CLASS_SETTINGS_DEFAULTS = {
   ageRestrictionMode: 'start_date', // 'start_date' | 'fixed_date'
   ageRestrictionMonth: '8',
   ageRestrictionDay: '31',
+  // A real request: "Should be able to lock grade or age levels per
+  // class. But also be able to lock age or grade levels for all classes.
+  // That setting override the rest." These two are now "Lock all classes
+  // by age/grade": on, every class is locked that way whatever its own
+  // Lock class by age/grade box says; off (the default), each class
+  // decides for itself. (Keys kept as defaultLockBy* so a saved value
+  // carries over.)
   defaultLockByAge: false,
-  defaultLockByGrade: true,
+  defaultLockByGrade: false,
   cancellationPolicy: 'through_end', // 'through_end' | 'before_start' | 'never'
   autoCreditOnParentOrSystemRemoval: true,
   autoCreditOnAdminRemoval: false,

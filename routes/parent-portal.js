@@ -15,7 +15,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../db');
-const { isClassArchived } = require('../utils/classSchedule');
+const { isClassArchived, classGlobalSettings } = require('../utils/classSchedule');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount, familyForAccount } = require('../utils/portalAuth');
@@ -507,11 +507,13 @@ router.get('/classes/:id/fragment', requirePortalPermission('view_parent_classes
   // this same answer ready at render time, not just a not-yet-registered
   // child's own real Register button.
   const windowOpenByChild = {};
+  // Co-op Class Settings' "Lock all classes by grade/age" overrides.
+  const lockAllSettings = await classGlobalSettings();
   for (const child of children) {
     const isCurrentlyRegistered = enrolledIds.has(child.id) || waitlistPositionByStudentId[child.id] != null;
     if (!isCurrentlyRegistered) {
-      if (cls.lock_by_grade && allowedGrades.length && !allowedGrades.includes(child.grade_level)) continue;
-      if (cls.lock_by_age && allowedAges.length && !allowedAges.includes(String(ageFromBirthday(child.birthday)))) continue;
+      if ((cls.lock_by_grade || lockAllSettings.defaultLockByGrade) && allowedGrades.length && !allowedGrades.includes(child.grade_level)) continue;
+      if ((cls.lock_by_age || lockAllSettings.defaultLockByAge) && allowedAges.length && !allowedAges.includes(String(ageFromBirthday(child.birthday)))) continue;
     }
     const childSectionIds = await sectionIdsForMember(child.id);
     if (!isCurrentlyRegistered && restriction.length && !memberSatisfiesRestriction(childSectionIds, restriction)) continue;
