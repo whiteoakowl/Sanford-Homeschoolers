@@ -21,6 +21,7 @@ process.env.ADMIN_USERNAME = 'testadmin';
 process.env.ADMIN_PASSWORD = 'testpassword123';
 
 const request = require('supertest');
+const { todayISO } = require('../utils/dates');
 const app = require('../server');
 const db = require('../db');
 const { generateMemberCode } = require('../utils/members');
@@ -142,7 +143,7 @@ test('the date filter narrows the list to just that day, and the CSV export carr
     .type('form')
     .send({ studentId: String(family.childId), day: 'monday', _csrf: family.csrfToken });
 
-  const today = (await db.prepare('SELECT now_text() AS now').get()).now.slice(0, 10);
+  const today = todayISO(); // Eastern - the log's own dates
 
   const wrongDate = await request(app).get('/admin/logs?tab=classregistration&date=2020-01-01').set('Cookie', admin.cookie);
   assert.doesNotMatch(wrongDate.text, /Datefilter Family/);
@@ -180,7 +181,7 @@ test('both class registration logs mark a member\'s first sign-up as New, not a 
       .send({ studentId: String(fam.childId), day: 'monday', _csrf: fam.csrfToken });
   }
 
-  const today = (await db.prepare('SELECT now_text() AS now').get()).now.slice(0, 10);
+  const today = todayISO(); // Eastern - the log's own dates
   for (const url of [`/admin/logs?tab=classregistration&date=${today}`, `/admin/schedule?tab=classregistrationlog&date=${today}`]) {
     const page = await request(app).get(url).set('Cookie', admin.cookie);
     assert.equal(page.status, 200, url);

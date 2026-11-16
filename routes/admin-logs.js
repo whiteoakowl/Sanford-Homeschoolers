@@ -154,37 +154,37 @@ async function allClassRegistrations(dateFilter) {
   let sql = `SELECT m.name AS "memberName", m.family_id AS "familyId", f.name AS "familyName",
              c.class_name AS "className", c.day AS "classDay",
              cr.status AS status, cr.created_at AS "createdAt",
-             (SELECT MIN(substr(cr2.created_at, 1, 10)) FROM class_registrations cr2 WHERE cr2.student_id = cr.student_id) AS "firstDate"
+             (SELECT MIN(cr2.created_at) FROM class_registrations cr2 WHERE cr2.student_id = cr.student_id) AS "firstAt"
              FROM class_registrations cr
              JOIN members m ON m.id = cr.student_id
              LEFT JOIN families f ON f.id = m.family_id
              JOIN classes c ON c.id = cr.class_id
              WHERE NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)`;
-  const params = [];
-  if (dateFilter) {
-    sql += ` AND substr(cr.created_at, 1, 10) = ?`;
-    params.push(dateFilter);
-  }
   sql += ' ORDER BY cr.created_at DESC';
 
+  // Dates are the Eastern calendar day it was registered (same as the
+  // on-screen log, utils/classRegistration.js's classRegistrationLogRows) -
+  // created_at is UTC, so an evening sign-up is already "tomorrow" there.
   return (await db
     .prepare(sql)
-    .all(...params))
+    .all())
+    .map((r) => ({ ...r, easternDate: easternStamp(r.createdAt).date, firstEasternDate: easternStamp(r.firstAt).date }))
+    .filter((r) => !dateFilter || r.easternDate === dateFilter)
     .map((r) => ({
       memberName: r.memberName,
       familyId: r.familyId,
       familyName: r.familyName,
       className: r.className,
       classDayLabel: CLASS_DAY_LABELS_FULL[r.classDay] || r.classDay,
-      date: r.createdAt.slice(0, 10),
-      dateLabel: formatDateLabel(r.createdAt.slice(0, 10)),
+      date: r.easternDate,
+      dateLabel: formatDateLabel(r.easternDate),
       statusLabel: r.status === 'waitlisted' ? 'Waitlisted' : r.status === 'cancelled' ? 'Cancelled' : 'Confirmed',
       timeLabel: easternStamp(r.createdAt).timeLabel,
       // A real request: "Show new next to members name if its the first
       // class they have signed up for so we know that its a new family."
       // Every row from the day this member first signed up for any class
       // (several classes picked at once all count as their first).
-      isNew: r.createdAt.slice(0, 10) === r.firstDate,
+      isNew: r.easternDate === r.firstEasternDate,
     }))
     .sort(
       (a, b) =>
