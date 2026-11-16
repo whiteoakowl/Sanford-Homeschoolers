@@ -140,6 +140,45 @@ function defaultDateForClassDay(day) {
   return weekdayOf(today) === CLASS_DAY_WEEKDAY_FULL[day] ? today : '';
 }
 
+// Member Schedules' family list: the filtered members grouped by family,
+// titled by the family's primary parent. Returns [{ key, primaryName,
+// familyName, members }] sorted by primaryName's last name.
+async function groupMembersByPrimaryParent(members) {
+  const familyIds = [...new Set(members.map((m) => m.family_id).filter((id) => id != null))];
+  const families = familyIds.length
+    ? await db.prepare(`SELECT id, name FROM families WHERE id IN (${familyIds.map(() => '?').join(',')})`).all(...familyIds)
+    : [];
+  const parents = familyIds.length
+    ? await db
+        .prepare(
+          `SELECT id, name, family_id, is_primary_parent FROM members WHERE active = 1 AND member_type IN ('parent', 'admin') AND family_id IN (${familyIds.map(() => '?').join(',')}) ORDER BY is_primary_parent DESC, id`
+        )
+        .all(...familyIds)
+    : [];
+  const familyName = new Map(families.map((f) => [f.id, f.name]));
+  const primaryByFamily = new Map();
+  parents.forEach((p) => { if (!primaryByFamily.has(p.family_id)) primaryByFamily.set(p.family_id, p); });
+
+  const groups = new Map();
+  for (const m of members) {
+    const key = m.family_id != null ? `f${m.family_id}` : `m${m.id}`;
+    if (!groups.has(key)) {
+      const primary = m.family_id != null ? primaryByFamily.get(m.family_id) : null;
+      const fam = m.family_id != null ? familyName.get(m.family_id) : null;
+      groups.set(key, { key, familyId: m.family_id, primaryName: primary ? primary.name : fam ? `${fam} Family` : m.name, sortName: primary ? primary.name : fam || m.name, familyName: fam || null, members: [] });
+    }
+    groups.get(key).members.push(m);
+  }
+  // Inside a family: the primary parent first, then other parents, then students.
+  const rank = (m, g) => {
+    const primary = g.familyId != null ? primaryByFamily.get(g.familyId) : null;
+    if (primary && m.id === primary.id) return 0;
+    return m.member_type === 'student' ? 2 : 1;
+  };
+  for (const g of groups.values()) g.members.sort((a, b) => rank(a, g) - rank(b, g) || byLastName(a, b));
+  return [...groups.values()].sort((a, b) => byLastName({ name: a.sortName }, { name: b.sortName }));
+}
+
 router.get('/schedule', requireAdmin, async (req, res) => {
   // A real request: "merge Parent + Student Schedules tabs into 'Member
   // Schedules' with filter popup" - the two separate top-level tabs are
@@ -326,17 +365,30 @@ router.get('/schedule', requireAdmin, async (req, res) => {
       .all(...memberTypes)
   ).sort(byLastName);
 
+  // A real request: "When you click on member schedules it should show a
+  // list of primary parent name and a dropdown to show the families
+  // schedules." The filtered members are grouped by family, each family
+  // listed under its primary parent's name (the family's first parent if
+  // none is marked primary, or the family name), sorted by that name's
+  // last name; a member with no family is their own entry. A page is 25
+  // families, and only those families' tables are computed.
+  const familyGroups = await groupMembersByPrimaryParent(members);
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-  const totalPages = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
-  const pageMembers = members.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(familyGroups.length / PAGE_SIZE));
+  const pageGroups = familyGroups.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageTables = await memberScheduleTables(pageGroups.flatMap((g) => g.members));
+  const tableByMemberId = new Map(pageTables.map((t) => [t.member.id, t]));
+  const familySchedules = pageGroups.map((g) => ({ ...g, tables: g.members.map((m) => tableByMemberId.get(m.id)).filter(Boolean) }));
 
   res.render('admin-schedule', {
     title: 'Schedules',
     tab,
     topTab: tab,
     typeFilter,
-    tables: await memberScheduleTables(pageMembers),
-    totalCount: members.length,
+    tables: pageTables,
+    familySchedules,
+    openAllFamilies: familySchedules.length === 1,
+    totalCount: familyGroups.length,
     page,
     totalPages,
     allNames,

@@ -319,8 +319,26 @@
               image" - one shared table per member (partials/member-
               schedule-table.ejs), same layout as every member profile's
               own Class Schedule tab, its Print/PDF, and My Profile. %>
-          <div class="member-schedule-list">
-            <%- include('partials/member-schedule-table', { tables, classHref: function (id) { return '/admin/class-schedule/classes/' + id + '/manage'; }, memberHref: function (m) { return '/admin/schedule/member/' + m.id + '/manage'; } }) %>
+          <%# A real request: "When you click on member schedules it should
+              show a list of primary parent name and a dropdown to show the
+              families schedules." One dropdown per family, titled by its
+              primary parent; open it for every member's schedule table. %>
+          <div class="ms-families">
+            <% familySchedules.forEach(function(f) { %>
+              <details class="ms-family"<%= openAllFamilies ? ' open' : '' %>>
+                <summary>
+                  <span class="ms-family-name"><svg class="icon"><use href="#icon-user"/></svg> <%= f.primaryName %></span>
+                  <span class="ms-family-meta">
+                    <% if (f.familyName && f.primaryName !== f.familyName + ' Family') { %><span class="ms-family-label"><%= f.familyName %> Family</span><% } %>
+                    <span class="ms-family-count"><%= f.members.length %> member<%= f.members.length === 1 ? '' : 's' %></span>
+                    <svg class="icon ms-family-chevron"><use href="#icon-chevron-down"/></svg>
+                  </span>
+                </summary>
+                <div class="ms-family-body member-schedule-list">
+                  <%- include('partials/member-schedule-table', { tables: f.tables, classHref: function (id) { return '/admin/class-schedule/classes/' + id + '/manage'; }, memberHref: function (m) { return '/admin/schedule/member/' + m.id + '/manage'; } }) %>
+                </div>
+              </details>
+            <% }); %>
           </div>
         <% } %>
 

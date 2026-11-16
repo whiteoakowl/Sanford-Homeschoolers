@@ -75,7 +75,7 @@
               <td class="member-schedule-location" data-label="Location/ Instructor">
                 <span class="member-schedule-line"><%= where || '—' %></span>
                 <% e.instructors.forEach(function(i) { %>
-                  <% if (i.email) { %><a class="member-schedule-line member-schedule-email" href="mailto:<%= i.email %>"><%= i.email %></a><% } %>
+                  <% if (i.email) { %><a class="member-schedule-line member-schedule-email" href="mailto:<%= i.email %>" title="<%= i.email %>"><%= i.email %></a><% } %>
                   <% if (i.phone) { %><span class="member-schedule-line member-schedule-phone"><%= i.phone %></span><% } %>
                 <% }); %>
               </td>

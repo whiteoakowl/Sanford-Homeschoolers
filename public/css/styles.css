@@ -16429,7 +16429,10 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 .member-schedule-subheading { font-size: 1.1rem; font-weight: 600; margin: 0.9rem 0 0.5rem; color: var(--ink); }
 .member-schedule-empty { color: var(--muted); margin: 0.25rem 0 0; }
 .member-schedule-table {
-  width: 100%;
+  /* A real request: "Shrink the width of the grid. Fit to text... time
+     of class on one line. Email address on one line. Neatly and clean." */
+  width: auto;
+  max-width: 100%;
   border-collapse: collapse;
   border: 1px solid var(--table-border);
   background: var(--surface);
@@ -16445,12 +16448,16 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 }
 .member-schedule-table thead th { background: var(--table-head-bg); font-weight: 700; }
 .member-schedule-table tbody tr:nth-child(even) td { background: var(--table-stripe-bg); }
-.member-schedule-details { width: 48%; }
+.member-schedule-details { min-width: 12rem; }
+.member-schedule-daytime,
+.member-schedule-dates,
+.member-schedule-email,
+.member-schedule-phone { white-space: nowrap; }
 .member-schedule-line { display: block; }
 .member-schedule-class-title { display: block; font-weight: 600; }
 a.member-schedule-class-title { color: var(--brand-dark); }
 a.member-schedule-class-title:hover { color: var(--brand-darker); }
-.member-schedule-email { color: var(--brand-dark); overflow-wrap: anywhere; }
+.member-schedule-email { color: var(--brand-dark); }
 .member-schedule-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.4rem; margin: 0 0 1rem; }
 .notes-dialog-actions .member-schedule-actions { margin: 0; }
 /* Keep each member's own table together on one printed page where it
@@ -17144,12 +17151,16 @@ dialog form:has(.permission-section) > h3,
 .member-schedule-day-title .icon { width: 1rem; height: 1rem; }
 .member-schedule-subheading + .member-schedule-day-title { margin-top: 0.3rem; }
 @media (max-width: 640px) {
-  .member-schedule-table tr { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+  .member-schedule-table tr { display: grid; grid-template-columns: auto minmax(0, 1fr); }
   .member-schedule-table td.member-schedule-location { font-size: 0.82rem; }
   .member-schedule-table td { border-bottom: none; }
   .member-schedule-table td.member-schedule-location { border-left: 1px solid var(--table-border); }
   .member-schedule-table td.member-schedule-location::before { content: none; }
   .member-schedule-table td { font-size: 0.9rem; padding: 0.6rem 0.65rem; }
+  .member-schedule-details { min-width: 0; }
+  .member-schedule-table .member-schedule-daytime,
+  .member-schedule-table .member-schedule-dates { font-size: 0.8rem; }
+  .member-schedule-table .member-schedule-email { font-size: 0.74rem; overflow: hidden; text-overflow: ellipsis; }
 }
 @media print {
   .member-schedule-day-title { background: none; padding: 0; margin: 0.5rem 0 0.25rem; }
@@ -17221,3 +17232,18 @@ dialog form:has(.permission-section) > h3,
 .archived-semester-banner form { display: inline-block; margin-left: 0.5rem; }
 .archived-semester-links { margin: 0; padding-left: 1.2rem; }
 .archived-semester-links li { margin-bottom: 0.3rem; }
+
+/* Member Schedules: one dropdown per family, titled by the primary
+   parent (views/admin-schedule.ejs, a real request). */
+.ms-families { display: flex; flex-direction: column; gap: 0.75rem; }
+.ms-family { border: 1px solid var(--border); border-radius: 14px; background: var(--surface); overflow: hidden; }
+.ms-family > summary { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.85rem 1.1rem; cursor: pointer; background: var(--brand-soft); }
+.ms-family > summary::-webkit-details-marker { display: none; }
+.ms-family[open] > summary { background: var(--brand-dark); color: var(--surface); }
+.ms-family-name { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 1.08rem; }
+.ms-family-name .icon { width: 1.2rem; height: 1.2rem; }
+.ms-family-meta { margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; font-size: 0.92rem; }
+.ms-family-count { padding: 0.15rem 0.6rem; border-radius: 999px; background: var(--surface); color: var(--brand-dark); font-weight: 700; font-size: 0.82rem; }
+.ms-family-chevron { width: 1.1rem; height: 1.1rem; transition: transform 0.15s; }
+.ms-family[open] .ms-family-chevron { transform: rotate(180deg); }
+.ms-family-body { padding: 1rem; }
