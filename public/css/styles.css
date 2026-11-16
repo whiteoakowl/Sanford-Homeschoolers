@@ -16880,7 +16880,7 @@ dialog form:has(.permission-section) > h3,
 }
 .fs-overview-grid:has(.fs-student-card) { grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 1.25rem; }
 @media print {
-  .dip { width: 10.2in; height: 7.6in; max-width: none; aspect-ratio: auto; border-width: 0.03in; margin: 0 auto; break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .dip { width: 10.2in; height: 7.6in; max-width: none; aspect-ratio: auto; border-width: 0.03in; margin: 0 auto; break-inside: avoid; page-break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
 /* Diploma builder (views/partials/diploma-student-builder.ejs) */
 .dip-builder { display: flex; flex-direction: column; gap: 1.25rem; max-width: 1100px; }
@@ -17404,7 +17404,22 @@ dialog form:has(.permission-section) > h3,
 .lpa-bubble-pending { background: var(--orange-bg); color: var(--orange); }
 .lpa-bubble-approved { background: var(--green-bg); color: var(--green); }
 .lpa-bubble-rejected { background: var(--red-bg); color: var(--red); }
+.lpa-teacher-inline,
+.lpa-view-short { display: none; }
+/* A real request: "On mobile submission log should still be one row.
+   Shrink to fit." - the teacher moves under the class name, and the
+   bubbles and button shrink, so each class stays one row. */
 @media (max-width: 640px) {
-  .lpa-col,
-  .lpa-action { width: auto; text-align: left; }
+  .lpa-table { font-size: 0.8rem; }
+  .lpa-table th,
+  .lpa-table td { padding: 0.45rem 0.3rem; }
+  .lpa-teacher-col { display: none; }
+  .lpa-teacher-inline { display: block; color: var(--muted-dark); font-size: 0.72rem; }
+  .lpa-col { width: auto; }
+  .lpa-action { width: auto; }
+  .lpa-bubble { min-width: 0; padding: 0.15rem 0.4rem; font-size: 0.66rem; }
+  .lpa-bubble-none { width: 1.1rem; height: 1.1rem; }
+  .lpa-view-full { display: none; }
+  .lpa-view-short { display: inline; }
+  .lpa-view-btn { padding: 0.3rem 0.55rem; font-size: 0.75rem; min-height: 0; }
 }

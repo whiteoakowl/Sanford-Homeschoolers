@@ -25,7 +25,7 @@ test.before(() => app.ready);
 test.after(() => fs.rmSync(testDbPath, { force: true }));
 
 function rowFor(html, className) {
-  const m = new RegExp(`<tr>\\s*<td class="table-stack-heading"><a [^>]*>${className}</a></td>([\\s\\S]*?)</tr>`).exec(html);
+  const m = new RegExp(`<tr>\\s*<td class="table-stack-heading"><a [^>]*>${className}</a>([\\s\\S]*?)</tr>`).exec(html);
   assert.ok(m, `row for ${className}`);
   return m[1];
 }
@@ -62,7 +62,8 @@ test('By Class view: semester/day picker, hour sections, teacher, lesson and sub
   assert.match(artRow, /Tia Teacher/);
   assert.match(artRow, /data-label="Lesson Plan" class="lpa-col"><span class="lpa-bubble lpa-bubble-pending">Submitted<\/span>/);
   assert.match(artRow, /data-label="Substitute Plan" class="lpa-col"><span class="lpa-bubble lpa-bubble-pending">Submitted<\/span>/);
-  assert.match(artRow, new RegExp(`href="/admin/lesson-plans/approval/${a1}">View Submission</a>`));
+  assert.match(artRow, new RegExp(`href="/admin/lesson-plans/approval/${a1}"[^>]*><span class="lpa-view-full">View Submission</span>`));
+  assert.match(artRow, /<span class="lpa-teacher-inline">Tia Teacher<\/span>/, 'teacher under the class name on phones');
 
   assert.match(rowFor(page.text, 'Grid Math'), /lpa-bubble-approved">Approved<\/span>[\s\S]*lpa-bubble-none/);
   const musicRow = rowFor(page.text, 'Grid Music');

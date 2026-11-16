@@ -49,17 +49,17 @@
           <section class="lpa-hour">
             <h2 class="lpa-hour-title"><%= h.label %><% if (h.time) { %> <span class="hint"><%= h.time %></span><% } %></h2>
             <div class="roster-scroll">
-              <table class="roster-table condensed-table lpa-table table-stack-mobile">
-                <thead><tr><th>Class</th><th>Teacher</th><th class="lpa-col">Lesson Plan</th><th class="lpa-col">Substitute Plan</th><th></th></tr></thead>
+              <table class="roster-table condensed-table lpa-table">
+                <thead><tr><th>Class</th><th class="lpa-teacher-col">Teacher</th><th class="lpa-col">Lesson Plan</th><th class="lpa-col">Substitute Plan</th><th></th></tr></thead>
                 <tbody>
                   <% h.classes.forEach(function(c) { var a = c.approval || {}; %>
                     <tr>
-                      <td class="table-stack-heading"><a href="/admin/class-schedule/classes/<%= c.id %>/manage"><%= c.class_name %></a></td>
-                      <td data-label="Teacher"><%= c.teacherNames || '—' %></td>
+                      <td class="table-stack-heading"><a href="/admin/class-schedule/classes/<%= c.id %>/manage"><%= c.class_name %></a><span class="lpa-teacher-inline"><%= c.teacherNames || '—' %></span></td>
+                      <td data-label="Teacher" class="lpa-teacher-col"><%= c.teacherNames || '—' %></td>
                       <td data-label="Lesson Plan" class="lpa-col"><%- bubble(a.lessonStatus) %></td>
                       <td data-label="Substitute Plan" class="lpa-col"><%- bubble(a.subStatus) %></td>
                       <td class="lpa-action">
-                        <% if (a.viewAssignmentId) { %><a class="roster-action-btn" href="/admin/lesson-plans/approval/<%= a.viewAssignmentId %>">View Submission</a><% } %>
+                        <% if (a.viewAssignmentId) { %><a class="roster-action-btn lpa-view-btn" href="/admin/lesson-plans/approval/<%= a.viewAssignmentId %>" aria-label="View Submission for <%= c.class_name %>"><span class="lpa-view-full">View Submission</span><span class="lpa-view-short">View</span></a><% } %>
                       </td>
                     </tr>
                   <% }); %>

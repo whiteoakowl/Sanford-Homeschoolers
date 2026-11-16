@@ -152,7 +152,7 @@ function assertStudentTable(html, f) {
   assert.match(html, /Aug\. 24, 2026 – Nov\. 16, 2026/, 'date range from the class\'s semester+day grid');
   assert.match(html, /Mon 10:00 AM – 10:45 AM/);
   assert.match(html, new RegExp(`Room 3 / Lara Snyder ${f.n}`));
-  assert.match(html, new RegExp(`<a class="member-schedule-line member-schedule-email" href="mailto:lara${f.n}@example.com">lara${f.n}@example.com</a>`));
+  assert.match(html, new RegExp(`<a class="member-schedule-line member-schedule-email" href="mailto:lara${f.n}@example.com"( title="[^"]*")?>lara${f.n}@example.com</a>`));
   assert.match(html, /<span class="member-schedule-line member-schedule-phone">919-555-0142<\/span>/);
   // A real request: "Take the price off the class schedules."
   assert.doesNotMatch(html, /member-schedule-price|>Price</);
