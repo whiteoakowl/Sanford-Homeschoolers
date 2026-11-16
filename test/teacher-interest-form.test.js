@@ -73,3 +73,22 @@ test('admin edits the form one option at a time, a parent submits it, and the lo
   assert.match(log.text, /Lego robotics for 4th-6th/);
   assert.match(log.text, /Nature journaling/);
 });
+
+// A real request: "Add all of the new requests to the pending request on
+// the co-op admin portal homepage."
+test('the Co-op Admin homepage Pending Requests card counts the new request types', async () => {
+  const m = (await db.prepare("INSERT INTO members (name, barcode, member_type, active) VALUES ('Pending Person', 'PP-1', 'parent', 1) RETURNING id").get()).id;
+  await db.prepare('INSERT INTO schedule_change_requests (member_id) VALUES (?)').run(m);
+  await db.prepare('INSERT INTO coop_withdrawals (member_id) VALUES (?)').run(m);
+  await db.prepare("INSERT INTO teacher_interest_submissions (name) VALUES ('Unseen One')").run();
+  const admin = request.agent(app);
+  await admin.post('/login').type('form').send({ email: 'mainadmin@coop.local', password: 'changeme123' });
+  const home = await admin.get('/admin');
+  for (const [href, label] of [['/admin/schedule-changes', 'Schedule Change Requests'], ['/admin/coop-withdraw', 'Co-op Withdraw'], ['/admin/teachers/interest-form', 'Teacher Interest Forms']]) {
+    assert.match(home.text, new RegExp(`<a class="pr-card-item" href="${href}">[\\s\\S]*?<span class="pr-card-count"[^>]*>\\d+</span>[\\s\\S]*?${label}</span>`));
+  }
+  await admin.get('/admin/teachers/interest-form');
+  const after = await admin.get('/admin');
+  const item = /<a class="pr-card-item" href="\/admin\/teachers\/interest-form">((?:(?!<\/a>)[\s\S])*)<\/a>/.exec(after.text)[1];
+  assert.doesNotMatch(item, /pr-card-count/, 'opening the log clears its count');
+});

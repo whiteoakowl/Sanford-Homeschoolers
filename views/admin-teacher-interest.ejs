@@ -25,7 +25,7 @@
         <% submissions.forEach(function(s) { %>
           <details class="ti-submission">
             <summary>
-              <span class="ti-submission-name"><svg class="icon"><use href="#icon-user"/></svg> <%= s.name %></span>
+              <span class="ti-submission-name"><svg class="icon"><use href="#icon-user"/></svg> <%= s.name %><% if (s.isNew) { %> <span class="badge-pill badge-pill-orange">New</span><% } %></span>
               <span class="ti-submission-when"><svg class="icon"><use href="#icon-clock"/></svg> <%= s.dateLabel %> · <%= s.timeLabel %></span>
               <svg class="icon ti-submission-chevron"><use href="#icon-chevron-down"/></svg>
             </summary>

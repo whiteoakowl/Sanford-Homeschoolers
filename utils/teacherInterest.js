@@ -108,14 +108,24 @@ async function listSubmissions() {
   const rows = await db.prepare('SELECT * FROM teacher_interest_submissions ORDER BY created_at DESC, id DESC').all();
   return rows.map((r) => {
     const stamp = easternStamp(r.created_at);
-    const out = { id: r.id, name: r.name, idea1: r.idea1, idea2: r.idea2, idea3: r.idea3, dateLabel: stamp.dateLabel, timeLabel: stamp.timeLabel, createdAt: r.created_at };
+    const out = { id: r.id, isNew: !r.seen_at, name: r.name, idea1: r.idea1, idea2: r.idea2, idea3: r.idea3, dateLabel: stamp.dateLabel, timeLabel: stamp.timeLabel, createdAt: r.created_at };
     for (const l of OPTION_LISTS) out[l.key] = parseList(r[l.column]);
     return out;
   });
+}
+
+// Pending Requests count on the Co-op Admin homepage: submissions no
+// admin has opened the log for yet.
+async function unseenCount() {
+  return Number((await db.prepare('SELECT COUNT(*) AS n FROM teacher_interest_submissions WHERE seen_at IS NULL').get()).n);
+}
+
+async function markAllSeen() {
+  await db.prepare('UPDATE teacher_interest_submissions SET seen_at = now_text() WHERE seen_at IS NULL').run();
 }
 
 async function deleteSubmission(id) {
   await db.prepare('DELETE FROM teacher_interest_submissions WHERE id = ?').run(id);
 }
 
-module.exports = { OPTION_LISTS, getSettings, addOption, removeOption, saveTitle, submit, listSubmissions, deleteSubmission };
+module.exports = { unseenCount, markAllSeen, OPTION_LISTS, getSettings, addOption, removeOption, saveTitle, submit, listSubmissions, deleteSubmission };

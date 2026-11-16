@@ -328,8 +328,20 @@ router.get('/', requireAdmin, async (req, res) => {
     countOf("SELECT COUNT(*) AS n FROM reimbursement_requests WHERE status = 'submitted'"),
     countOf('SELECT COUNT(*) AS n FROM name_tag_requests WHERE archived = 0'),
   ]);
+  // A real request: "Add all of the new requests to the pending request
+  // on the co-op admin portal homepage" - Schedule Change Requests and
+  // Co-op Withdraw waiting on a decision, and Teacher Interest Forms no
+  // admin has opened yet.
+  const [scheduleChangeCount, coopWithdrawCount, teacherInterestCount] = await Promise.all([
+    countOf("SELECT COUNT(*) AS n FROM schedule_change_requests WHERE status = 'pending'"),
+    countOf("SELECT COUNT(*) AS n FROM coop_withdrawals WHERE status = 'pending'"),
+    countOf('SELECT COUNT(*) AS n FROM teacher_interest_submissions WHERE seen_at IS NULL'),
+  ]);
 
   res.render('admin-dashboard', {
+    scheduleChangeCount,
+    coopWithdrawCount,
+    teacherInterestCount,
     lessonApprovalsCount,
     reimbursementsCount,
     nameTagRequestsCount,

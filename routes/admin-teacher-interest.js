@@ -8,9 +8,11 @@ const ti = require('../utils/teacherInterest');
 const { toCsvRow, sendCsv } = require('../utils/spreadsheet');
 
 router.get('/teachers/interest-form', requireAdmin, async (req, res) => {
+  const submissions = await ti.listSubmissions();
+  await ti.markAllSeen();
   res.render('admin-teacher-interest', {
     title: 'Teacher Interest Form',
-    submissions: await ti.listSubmissions(),
+    submissions,
     lists: ti.OPTION_LISTS,
     notice: req.query.notice || null,
   });
