@@ -496,6 +496,7 @@ app.use('/kiosk/class-checkin', kioskClassCheckinRouter);
 app.use('/', require('./middleware/csrfProtection'));
 app.use('/', portalAuthRouter);
 app.use('/parent/support', parentSupportRouter);
+app.use('/parent/teacher-interest', require('./routes/parent-teacher-interest'));
 app.use('/parent', parentPortalRouter);
 app.use('/parent', parentFamilySchoolRouter);
 // Mounted at the bare root, not under /parent or /student - see
@@ -610,6 +611,7 @@ app.use('/admin', adminRostersRouter);
 app.use('/admin', adminLogsRouter);
 app.use('/admin', adminVolunteersRouter);
 app.use('/admin', adminSubstitutesRouter);
+app.use('/admin', require('./routes/admin-teacher-interest'));
 app.use('/admin', adminTeachersRouter);
 app.use('/admin', adminSetupRouter);
 app.use('/admin', adminTrainingRouter);

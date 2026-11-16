@@ -17305,3 +17305,37 @@ dialog form:has(.permission-section) > h3,
   .transcript-print-page .family-school-print-header { position: static; }
   .transcript-print-page .admin-main:has(.family-school-print-header) { padding-top: 0; }
 }
+
+/* Teacher Interest Form (views/parent-teacher-interest.ejs, views/admin-
+   teacher-interest*.ejs). */
+.teacher-interest-wrap { max-width: 44rem; }
+.teacher-interest-group { border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.9rem; margin: 0; }
+.teacher-interest-group legend { font-weight: 700; padding: 0 0.3rem; }
+.teacher-interest-options { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; }
+.ti-submissions { display: flex; flex-direction: column; gap: 0.6rem; }
+.ti-submission { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.ti-submission > summary { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; cursor: pointer; background: var(--brand-soft); }
+.ti-submission > summary::-webkit-details-marker { display: none; }
+.ti-submission-name { display: inline-flex; align-items: center; gap: 0.45rem; font-weight: 700; }
+.ti-submission-when { margin-left: auto; display: inline-flex; align-items: center; gap: 0.35rem; color: var(--muted-dark); font-size: 0.92rem; white-space: nowrap; }
+.ti-submission-name .icon,
+.ti-submission-when .icon,
+.ti-submission-chevron { width: 1rem; height: 1rem; }
+.ti-submission[open] .ti-submission-chevron { transform: rotate(180deg); }
+.ti-submission-body { padding: 0.9rem 1rem; }
+.ti-submission-fields { display: grid; grid-template-columns: max-content 1fr; gap: 0.45rem 1rem; margin: 0 0 0.8rem; }
+.ti-submission-fields dt { font-weight: 700; }
+.ti-submission-fields dd { margin: 0; }
+.ti-idea { white-space: pre-wrap; }
+.ti-chip { display: inline-block; margin: 0 0.3rem 0.3rem 0; padding: 0.1rem 0.55rem; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark); font-size: 0.85rem; }
+.ti-edit-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+.ti-option-list { list-style: none; margin: 0 0 0.6rem; padding: 0; }
+.ti-option-list li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
+.ti-option-list form { margin: 0; }
+.ti-add-option { display: flex; gap: 0.4rem; }
+.ti-add-option input { flex: 1; min-width: 0; }
+.ti-add-option button { flex: none; width: auto; white-space: nowrap; padding-left: 0.9rem; padding-right: 0.9rem; }
+@media (max-width: 640px) {
+  .ti-submission-fields { grid-template-columns: 1fr; gap: 0.15rem; }
+  .ti-submission-fields dd { margin-bottom: 0.4rem; }
+}
