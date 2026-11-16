@@ -19,7 +19,8 @@ async function memberClassFacets() {
          UNION
          SELECT member_id, class_id FROM class_staff
        ) x
-       JOIN classes c ON c.id = x.class_id`
+       JOIN classes c ON c.id = x.class_id
+       WHERE NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)`
     )
     .all();
   const byMember = new Map();

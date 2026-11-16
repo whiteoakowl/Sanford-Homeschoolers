@@ -186,6 +186,10 @@ async function leaveClassAsStaff({ classId, member, accountId }) {
 async function registerForClass({ classId, studentId, accountId, portalRoles, registrantType }) {
   const cls = await db.prepare('SELECT * FROM classes WHERE id = ?').get(classId);
   if (!cls || !cls.registration_open) return { ok: false, error: 'Registration is not open for that class.' };
+  // An archived semester's classes take no new registrations.
+  if (cls.semester_id != null && (await db.prepare('SELECT 1 FROM semesters WHERE id = ? AND archived_at IS NOT NULL').get(cls.semester_id))) {
+    return { ok: false, error: 'Registration is not open for that class.' };
+  }
   // A real request: "Check box to lock grid to be viewable to members...
   // if these boxes aren't checked then members... can't register."
   const grid = await primaryClassScheduleForClass(cls);
@@ -473,7 +477,8 @@ async function allClassRegistrationActions() {
        FROM class_registrations cr
        JOIN classes c ON c.id = cr.class_id
        JOIN members m ON m.id = cr.student_id
-       LEFT JOIN families f ON f.id = m.family_id`
+       LEFT JOIN families f ON f.id = m.family_id
+       WHERE NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)`
     )
     .all();
 
@@ -540,7 +545,10 @@ function easternStamp(sqlTimestamp) {
   return { date: EASTERN_ISO.format(d), dateLabel: `${parts.month} ${parts.day}, ${parts.year}`, timeLabel: `${parts.hour}:${parts.minute} ${parts.dayPeriod}` };
 }
 
-async function classRegistrationLogRows({ dateFilter = '', search = '' } = {}) {
+// opts.semesterId: just that semester's registrations, archived or not
+// (the archived semester's own View page); otherwise archived semesters'
+// registrations are left out.
+async function classRegistrationLogRows({ dateFilter = '', search = '' } = {}, opts = {}) {
   const rows = await db
     .prepare(
       `SELECT cr.id, cr.class_id AS "classId", cr.student_id AS "studentId", cr.status, cr.created_at AS "createdAt",
@@ -550,6 +558,7 @@ async function classRegistrationLogRows({ dateFilter = '', search = '' } = {}) {
        JOIN members m ON m.id = cr.student_id
        LEFT JOIN families f ON f.id = m.family_id
        JOIN classes c ON c.id = cr.class_id
+       WHERE ${opts.semesterId ? 'c.semester_id = ' + Number(opts.semesterId) : `NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)`}
        ORDER BY cr.created_at DESC, cr.id DESC`
     )
     .all();

@@ -82,9 +82,9 @@ router.get('/', async (req, res) => {
   let viewingAll = false;
   let baseHref = null;
   if (activeTab === 'new' || activeTab === 'rooms') {
-    const allCategories = await forums.listCategories();
+    const allCategories = (await forums.listCategories()).filter((c) => !c.classArchived);
     categories = activeTab === 'rooms' ? allCategories.filter((c) => c.is_chat_room) : allCategories.filter((c) => !c.is_chat_room);
-    classes = await db.prepare('SELECT id, class_name FROM classes ORDER BY LOWER(class_name)').all();
+    classes = await db.prepare('SELECT id, class_name FROM classes c WHERE NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL) ORDER BY LOWER(class_name)').all();
   } else {
     const allArchived = await forums.archivedThreads();
     const pageSize = parsePageSize(req.query.pageSize, DEFAULT_PAGE_SIZE);

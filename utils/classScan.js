@@ -10,12 +10,13 @@
 // Every function returns a { ok, message, ... } JSON-ready result.
 const db = require('../db');
 const { todayISO } = require('./dates');
-const { ensureDayRoster } = require('./classSchedule');
+const { ensureDayRoster, isClassArchived } = require('./classSchedule');
 const { findMemberByBarcodeOrName } = require('./memberLookup');
 
 async function resolveClassScan(classId, barcode) {
   const cls = await db.prepare('SELECT * FROM classes WHERE id = ?').get(classId);
   if (!cls || !cls.roster_id) return { error: { ok: false, message: 'Class not found.' } };
+  if (await isClassArchived(classId)) return { error: { ok: false, message: `${cls.class_name} is in an archived semester - it's view-only.` } };
 
   const { member, ambiguous } = await findMemberByBarcodeOrName(barcode);
   if (ambiguous) return { error: { ok: false, message: 'More than one member has that name - please scan a barcode instead.' } };

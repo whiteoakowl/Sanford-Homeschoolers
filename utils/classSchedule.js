@@ -326,12 +326,40 @@ async function getClass(id) {
 // there's nothing even less specific than that to also include.
 async function classesForDaySemester(day, semesterId) {
   if (semesterId === undefined) {
-    return db.prepare('SELECT * FROM classes WHERE day = ? ORDER BY hour_position, LOWER(class_name)').all(day);
+    return db.prepare(`SELECT * FROM classes c WHERE day = ? AND ${NOT_IN_ARCHIVED_SEMESTER_SQL} ORDER BY hour_position, LOWER(class_name)`).all(day);
   }
   if (semesterId === null) {
     return db.prepare('SELECT * FROM classes WHERE day = ? AND semester_id IS NULL ORDER BY hour_position, LOWER(class_name)').all(day);
   }
   return db.prepare('SELECT * FROM classes WHERE day = ? AND (semester_id = ? OR semester_id IS NULL) ORDER BY hour_position, LOWER(class_name)').all(day, semesterId);
+}
+
+// A real request: archiving a semester means its classes, rosters, class
+// chats and registrations "will not show up on ANY portals" (Settings >
+// Semesters, semesters.archived_at). Drop into a WHERE clause for any
+// query aliasing classes as `c` - true for a class with no semester, or
+// one whose semester isn't archived.
+const NOT_IN_ARCHIVED_SEMESTER_SQL = 'NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)';
+
+async function isSemesterArchived(semesterId) {
+  if (semesterId == null) return false;
+  const row = await db.prepare('SELECT archived_at FROM semesters WHERE id = ?').get(semesterId);
+  return !!(row && row.archived_at);
+}
+
+// The class's own semester is archived - its pages are view-only.
+async function isClassArchived(classId) {
+  const row = await db
+    .prepare('SELECT s.archived_at FROM classes c JOIN semesters s ON s.id = c.semester_id WHERE c.id = ?')
+    .get(classId);
+  return !!(row && row.archived_at);
+}
+
+async function setSemesterArchived(semesterId, archived) {
+  await db.prepare(`UPDATE semesters SET archived_at = ${archived ? 'now_text()' : 'NULL'} WHERE id = ?`).run(semesterId);
+  // The cached member schedules drop (or regain) this semester's classes.
+  const days = await db.prepare('SELECT DISTINCT day FROM classes WHERE semester_id = ?').all(semesterId);
+  for (const { day } of days) await syncMemberSchedulesForDay(day);
 }
 
 // Every class on a day, grouped under its hour slot - the shape the
@@ -1034,8 +1062,11 @@ async function saveClassGlobalSettings(fields) {
 // class only ever belongs to one semester at a time (a dropdown, not a
 // multi-select). Task #181's orientation rebuild groups members by this
 // same semester.
-async function listSemesters() {
-  return db.prepare('SELECT * FROM semesters ORDER BY id DESC').all();
+// Archived semesters are left out of every picker unless asked for
+// (Settings > Semesters lists them, to unarchive or view).
+async function listSemesters(opts = {}) {
+  if (opts.includeArchived) return db.prepare('SELECT * FROM semesters ORDER BY id DESC').all();
+  return db.prepare('SELECT * FROM semesters WHERE archived_at IS NULL ORDER BY id DESC').all();
 }
 
 async function createSemester(title) {
@@ -1206,7 +1237,8 @@ async function listScheduleCombos() {
     .prepare(
       `SELECT cs.id AS id, cs.day_of_week AS day, cs.semester_id AS semester_id, cs.start_date AS start_date, cs.end_date AS end_date, cs.visible_to_members AS visible_to_members, cs.visible_to_public AS visible_to_public, s.title AS semester_title
        FROM class_schedules cs
-       LEFT JOIN semesters s ON s.id = cs.semester_id`
+       LEFT JOIN semesters s ON s.id = cs.semester_id
+       WHERE s.archived_at IS NULL`
     )
     .all();
   const mapped = rows.map((r) => ({
@@ -1825,7 +1857,9 @@ const HOUR_LABEL_SQL = `COALESCE(
   (SELECT h.label FROM class_schedule_hours h WHERE h.day = c.day AND h.position = c.hour_position AND h.semester_id = c.semester_id),
   (SELECT h.label FROM class_schedule_hours h WHERE h.day = c.day AND h.position = c.hour_position AND h.semester_id IS NULL))`;
 
-async function allClassesList(day, semesterId) {
+// opts.includeArchived: also list classes in an archived semester (only
+// the archived semester's own read-only View page asks for that).
+async function allClassesList(day, semesterId, opts = {}) {
   const dayParam = day || null;
   const semesterParam = semesterId !== undefined ? semesterId : null;
   const rows = await db
@@ -1835,6 +1869,7 @@ async function allClassesList(day, semesterId) {
        FROM classes c
        WHERE (?::text IS NULL OR c.day = ?::text)
          AND (?::integer IS NULL OR c.semester_id = ?::integer)
+         ${opts.includeArchived ? '' : `AND ${NOT_IN_ARCHIVED_SEMESTER_SQL}`}
        ORDER BY LOWER(c.class_name)`
     )
     .all(dayParam, dayParam, semesterParam, semesterParam);
@@ -2115,7 +2150,7 @@ function effectiveClassRange(cls, hourByPosition) {
 }
 
 async function ownPositionsAndFamilyWindowsForDay(day) {
-  const classes = await db.prepare('SELECT * FROM classes WHERE day = ?').all(day);
+  const classes = await db.prepare(`SELECT c.* FROM classes c WHERE c.day = ? AND ${NOT_IN_ARCHIVED_SEMESTER_SQL}`).all(day);
   const hours = await hoursForDay(day);
   const hoursOfClass = await hourMapsForClasses(day, classes);
   const positionRanges = derivedHourTimeRanges(classes, hours);
@@ -2621,7 +2656,7 @@ async function timeRangeForClass(cls) {
 // hourPosition-keyed map, not yet the fixed 4-row array
 // getMemberSchedule's own shape needs.
 async function liveMemberScheduleRowsForDay(day) {
-  const classes = await db.prepare('SELECT * FROM classes WHERE day = ?').all(day);
+  const classes = await db.prepare(`SELECT c.* FROM classes c WHERE c.day = ? AND ${NOT_IN_ARCHIVED_SEMESTER_SQL}`).all(day);
   const hours = await hoursForDay(day);
   const hourByPosition = {};
   hours.forEach((h) => { hourByPosition[h.position] = h; });
@@ -2709,7 +2744,7 @@ async function liveMemberScheduleRowsForDay(day) {
 // not to any specific class, so it never overwrites a real one.
 //
 async function syncMemberSchedulesForDay(day) {
-  const classes = await db.prepare('SELECT * FROM classes WHERE day = ?').all(day);
+  const classes = await db.prepare(`SELECT c.* FROM classes c WHERE c.day = ? AND ${NOT_IN_ARCHIVED_SEMESTER_SQL}`).all(day);
   const hours = await hoursForDay(day);
   const hourByPosition = {};
   hours.forEach((h) => { hourByPosition[h.position] = h; });
@@ -2771,6 +2806,10 @@ async function membersForSectionRaw(listId, sectionId) {
 }
 
 module.exports = {
+  NOT_IN_ARCHIVED_SEMESTER_SQL,
+  isSemesterArchived,
+  isClassArchived,
+  setSemesterArchived,
   HOUR_POSITIONS,
   loadHourColumnCount,
   primaryClassScheduleForClass,

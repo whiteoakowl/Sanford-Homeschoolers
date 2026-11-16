@@ -16,15 +16,35 @@
         falling back to Settings > Kiosk's active semester. %>
     <p class="subtitle no-print"><a href="/admin/schedule?tab=<%= cls.day %>&semesterId=<%= cls.semester_id == null ? 'none' : cls.semester_id %>">&larr; <%= dayLabel %> Class Schedule</a></p>
 
+    <% var isArchivedClass = typeof archivedSemester !== 'undefined' && !!archivedSemester; %>
     <div class="roster-toolbar">
       <div><h1><%= cls.class_name %></h1></div>
       <div class="roster-btn-row no-print">
+        <% if (isArchivedClass) { %>
+          <%# A real request: "Add a copy class button on an archived class
+              so that you can still copy the class information into a new
+              active class for an active semester. It will require
+              choosing the new active semester before saving." Same copy
+              as Duplicate Class (POST /duplicate - the archived class's
+              view-only guard lets it through); the picker only lists
+              active semesters and starts blank. %>
+          <button type="button" class="roster-action-btn" onclick="document.getElementById('duplicate-class-dialog').showModal()"><svg class="icon"><use href="#icon-copy"/></svg> Copy Class</button>
+        <% } else { %>
         <form method="POST" action="/admin/class-schedule/classes/<%= cls.id %>/delete" data-confirm="Delete &quot;<%= cls.class_name %>&quot;? This cannot be undone.">
           <button type="submit" class="roster-action-btn roster-action-btn-danger">Delete Class</button>
         </form>
+        <% } %>
       </div>
     </div>
+    <% if (isArchivedClass) { %><%- include('partials/duplicate-class-dialog', { cls: cls, combos: combos, archived: true }) %><% } %>
 
+    <%# Settings > Semesters: this class's semester is archived - view-only. %>
+    <% if (typeof archivedSemester !== 'undefined' && archivedSemester) { %>
+      <div class="alert alert-info archived-semester-banner no-print">
+        <svg class="icon"><use href="#icon-archive"/></svg>
+        <div><strong>View only.</strong> This class is in the archived semester <a href="/admin/schedule/semesters/<%= archivedSemester.id %>/archive"><%= archivedSemester.title %></a>, so it can't be changed and doesn't show on any portal. Unarchive the semester under Settings &gt; Semesters to edit it.</div>
+      </div>
+    <% } %>
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
 
@@ -230,32 +250,7 @@
           </form>
         </div>
 
-        <dialog id="duplicate-class-dialog" class="member-picker-dialog">
-          <form method="POST" action="/admin/class-schedule/classes/<%= cls.id %>/duplicate">
-            <h3>Duplicate Class</h3>
-            <%# A real request: "it asks keep the same teachers, separately
-                ask to keep the same assistants. Also ask to keep the
-                description. Ask to keep finance settings" - split the old
-                single "copy staff" checkbox into 4 independent ones; none
-                are copied unless checked, same as the original checkbox's
-                own default. %>
-            <label class="checkbox-option"><input type="checkbox" name="copyTeachers" value="1" /> Keep the same teachers</label>
-            <label class="checkbox-option"><input type="checkbox" name="copyAssistants" value="1" /> Keep the same assistants</label>
-            <label class="checkbox-option"><input type="checkbox" name="copyDescription" value="1" /> Keep the same description</label>
-            <label class="checkbox-option"><input type="checkbox" name="copyFinance" value="1" /> Keep the same finance settings (price, charged per, account category)</label>
-            <label>Add the duplicate to
-              <select name="targetComboId" required>
-                <% combos.forEach(function(combo) { %>
-                  <option value="<%= combo.id %>"><%= combo.label %></option>
-                <% }); %>
-              </select>
-            </label>
-            <div class="notes-dialog-actions">
-              <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
-              <button type="submit" class="primary-btn">Duplicate</button>
-            </div>
-          </form>
-        </dialog>
+        <% if (!isArchivedClass) { %><%- include('partials/duplicate-class-dialog', { cls: cls, combos: combos, archived: false }) %><% } %>
     <% } else if (activeTab === 'staffRoster') { %>
       <div class="class-manage-roster-col">
         <%# A real request: "# of students, # of teachers, # of class

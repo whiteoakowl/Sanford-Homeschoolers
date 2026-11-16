@@ -13,6 +13,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../db');
+const { isClassArchived } = require('../utils/classSchedule');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount, familyForAccount } = require('../utils/portalAuth');
@@ -454,7 +455,8 @@ router.get('/classes/needing-staff', requirePortalPermission('view_parent_classe
 router.get('/classes/:id/fragment', requirePortalPermission('view_parent_classes'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const cls = await getClass(classId);
-  if (!cls) return res.status(404).send('Not found');
+  // An archived semester's classes don't show on any portal.
+  if (!cls || (await isClassArchived(cls.id))) return res.status(404).send('Not found');
 
   const children = await childrenForAccount(req.portalAccount);
   const childIds = children.map((c) => c.id);

@@ -1,5 +1,24 @@
 const express = require('express');
 const router = express.Router();
+
+// An archived semester's class roster is view-only (Settings > Semesters):
+// marking attendance or adding/removing members on it is refused.
+router.post(/^\/rosters\/class-(\d+)\//, async (req, res, next) => {
+  const classId = parseInt(req.params[0], 10);
+  if (!(await isClassArchived(classId))) return next();
+  const message = 'This class is in an archived semester, so its roster is view-only.';
+  if (req.get('X-Requested-With') === 'fetch') return res.status(409).json({ ok: false, error: message });
+  res.redirect(`/admin/rosters?tab=class-${classId}&error=` + encodeURIComponent(message));
+});
+// Same for a day's Parent/Student roster opened for an archived semester
+// (the archived semester's View page links to them with ?semesterId=).
+router.post(/^\/rosters\/[a-z]+-(parent|student)\//, async (req, res, next) => {
+  const semesterId = parseInt(req.query.semesterId, 10);
+  if (Number.isNaN(semesterId) || !(await isSemesterArchived(semesterId))) return next();
+  const message = 'This roster is in an archived semester, so it is view-only.';
+  if (req.get('X-Requested-With') === 'fetch') return res.status(409).json({ ok: false, error: message });
+  res.redirect(req.get('Referer') || `/admin/schedule/semesters/${semesterId}/archive`);
+});
 const db = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
 const { isValidISODate, formatDateLabel, formatDateLong, todayISO, weekdayOf } = require('../utils/dates');
@@ -28,6 +47,7 @@ const { rosterDates, buildRosterGridData } = require('../utils/rosterGrid');
 const { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate, playgroundRosterPage } = require('../utils/playground');
 const { renderViewToPdf } = require('../utils/pdfRender');
 const { classScanCheckIn, classScanCheckOut } = require('../utils/classScan');
+const { isClassArchived, isSemesterArchived } = require('../utils/classSchedule');
 const { lessonPlanSummary } = require('../utils/lessonPlanSummary');
 const { substitutePlansForClass } = require('../utils/substitutePlans');
 
@@ -284,9 +304,11 @@ router.get('/rosters', requireAdmin, async (req, res) => {
   let role = null;
   let classSemesterId;
 
+  let archivedSemester = null;
   if (classId) {
     const cls = await classRosterInfo(classId);
     if (!cls) return res.redirect('/admin/rosters?tab=classes');
+    if (await isClassArchived(classId)) archivedSemester = await db.prepare('SELECT id, title FROM semesters WHERE id = ?').get(cls.semester_id);
     day = cls.day;
     tabLabel = `${cls.class_name} (${cls.hourLabel})`;
     classSemesterId = cls.semester_id;
@@ -320,6 +342,9 @@ router.get('/rosters', requireAdmin, async (req, res) => {
   const combos = classId ? null : await listScheduleCombos();
   const resolvedSemesterId = classId ? classSemesterId : await resolveSemesterId(comboSemesterId(req));
   const selectedSemesterId = classId ? null : qsSemester(resolvedSemesterId);
+  if (!classId && resolvedSemesterId && (await isSemesterArchived(resolvedSemesterId))) {
+    archivedSemester = await db.prepare('SELECT id, title FROM semesters WHERE id = ?').get(resolvedSemesterId);
+  }
 
   const rosterId = await rosterIdForTab(tab, resolvedSemesterId);
   const roster = await db.prepare('SELECT * FROM rosters WHERE id = ?').get(rosterId);
@@ -338,6 +363,7 @@ router.get('/rosters', requireAdmin, async (req, res) => {
 
   res.render('admin-rosters', {
     title: 'Attendance',
+    archivedSemester,
     tab,
     topTab: classId ? 'classes' : day,
     view: 'grid',

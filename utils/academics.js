@@ -137,7 +137,7 @@ async function lessonsForApprovalQueue(status) {
        LEFT JOIN member_accounts ma ON ma.id = ca.submitted_by_account_id
        LEFT JOIN members m ON m.id = ma.member_id
        LEFT JOIN classes cl ON cl.id = ca.class_id
-       WHERE ${statusClause} AND (ca.submitted_at IS NOT NULL OR ${HAS_SUB_PLANS})
+       WHERE NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = cl.semester_id AND arch.archived_at IS NOT NULL) AND ${statusClause} AND (ca.submitted_at IS NOT NULL OR ${HAS_SUB_PLANS})
        ORDER BY ${status === 'pending' ? 'COALESCE(ca.submitted_at, (SELECT MAX(sp.submitted_at) FROM class_substitute_plans sp WHERE sp.submitted_with_assignment_id = ca.id)) ASC' : 'COALESCE(ca.reviewed_at, ca.submitted_at) DESC'}
        LIMIT 200`
     )
@@ -319,7 +319,7 @@ async function transcriptForStudent(studentId) {
       `SELECT c.class_name, c.day, c.age_group,
               (SELECT string_agg(m.name, ', ') FROM class_staff cs JOIN members m ON m.id = cs.member_id WHERE cs.class_id = c.id AND cs.role = 'teacher') AS teacher_names
        FROM class_enrollments ce JOIN classes c ON c.id = ce.class_id
-       WHERE ce.student_id = ?
+       WHERE ce.student_id = ? AND NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)
        ORDER BY LOWER(c.class_name)`
     )
     .all(studentId);

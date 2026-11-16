@@ -17211,3 +17211,13 @@ dialog form:has(.permission-section) > h3,
   font-size: var(--control-font-size-compact);
   line-height: 1.3;
 }
+/* Settings > Semesters archive controls and the archived semester view. */
+.semester-actions-col { white-space: nowrap; text-align: right; }
+.semester-actions-col form, .semester-actions-col .btn-secondary { display: inline-flex; vertical-align: middle; margin-left: 0.3rem; }
+.archived-semesters h2 { display: flex; align-items: center; gap: 0.45rem; }
+.archived-semesters h2 .icon { width: 1.2rem; height: 1.2rem; }
+.archived-semester-banner { display: flex; gap: 0.7rem; align-items: flex-start; }
+.archived-semester-banner > .icon { width: 1.4rem; height: 1.4rem; flex-shrink: 0; margin-top: 0.1rem; }
+.archived-semester-banner form { display: inline-block; margin-left: 0.5rem; }
+.archived-semester-links { margin: 0; padding-left: 1.2rem; }
+.archived-semester-links li { margin-bottom: 0.3rem; }

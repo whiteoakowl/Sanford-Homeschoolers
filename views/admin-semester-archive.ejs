@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body class="admin-page">
+  <%- include('partials/admin-nav') %>
+  <%# A real request: "Be able to simply view anything from an archived
+      semester." Everything here is view-only - the class pages it opens
+      refuse changes while the semester is archived (routes/admin-class-
+      schedule.js). Unarchive (Settings > Semesters) makes it editable and
+      visible on every portal again. %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p class="subtitle no-print"><a href="/admin/settings?tab=semesters">&larr; Semesters</a></p>
+    <h1><%= semester.title %></h1>
+    <div class="alert alert-info archived-semester-banner">
+      <svg class="icon"><use href="#icon-archive"/></svg>
+      <div>
+        <strong>Archived semester - view only.</strong>
+        <%= archivedAtLabel ? 'Archived ' + archivedAtLabel + '. ' : '' %>Its classes, rosters, class chats and registrations don't show on any portal.
+        <form method="POST" action="/admin/schedule/semesters/<%= semester.id %>/unarchive" class="inline-block-form" data-confirm="Unarchive &quot;<%= semester.title %>&quot;? Its classes, rosters, class chats and registrations will show on every portal again.">
+          <input type="hidden" name="back" value="/admin/schedule/semesters/<%= semester.id %>/archive" />
+          <button type="submit" class="btn-secondary">Unarchive</button>
+        </form>
+      </div>
+    </div>
+
+    <section class="manage-section">
+      <h2>Classes (<%= classes.length %>)</h2>
+      <% if (classes.length === 0) { %><p class="roster-empty">No classes in this semester.</p><% } %>
+      <% days.forEach(function(d) { %>
+        <h3 class="class-schedule-hour-label"><%= dayLabels[d] %></h3>
+        <div class="class-roster-list">
+          <% classes.filter(function(c) { return c.day === d; }).forEach(function(c) { %>
+            <a class="class-roster-row-btn" href="/admin/class-schedule/classes/<%= c.id %>/manage">
+              <span class="class-roster-row-name"><%= c.class_name %></span>
+              <span class="class-roster-row-meta">
+                <span><%= c.timeLabel || c.hourLabel %></span>
+                <% if (c.room) { %><span><%= c.room %></span><% } %>
+                <span><%= c.studentCount %> student<%= Number(c.studentCount) === 1 ? '' : 's' %></span>
+                <% if (c.teacherNames.length) { %><span><%= c.teacherNames.join(', ') %></span><% } %>
+              </span>
+            </a>
+          <% }); %>
+        </div>
+      <% }); %>
+      <p class="hint">Open a class to see its details, staff &amp; roster, lessons, attendance, grades and chat.</p>
+    </section>
+
+    <section class="manage-section">
+      <h2>Day Rosters</h2>
+      <% if (rosters.length === 0) { %>
+        <p class="roster-empty">No Parent/Student day rosters for this semester.</p>
+      <% } else { %>
+        <ul class="archived-semester-links">
+          <% rosters.forEach(function(r) { %><li><a href="<%= r.href %>"><%= r.name %></a></li><% }); %>
+        </ul>
+      <% } %>
+    </section>
+
+    <section class="manage-section">
+      <h2>Class Chats</h2>
+      <% if (chats.length === 0) { %>
+        <p class="roster-empty">No class chats for this semester.</p>
+      <% } else { %>
+        <ul class="archived-semester-links">
+          <% chats.forEach(function(c) { %><li><a href="/admin/class-schedule/classes/<%= c.id %>/manage?tab=chat"><%= c.class_name %></a> <span class="hint">(<%= c.messageCount %> message<%= Number(c.messageCount) === 1 ? '' : 's' %>)</span></li><% }); %>
+        </ul>
+      <% } %>
+    </section>
+
+    <section class="manage-section">
+      <h2>Registrations (<%= registrations.length %>)</h2>
+      <% if (registrations.length === 0) { %>
+        <p class="roster-empty">No registrations for this semester.</p>
+      <% } else { %>
+        <div class="roster-scroll">
+          <table class="roster-table members-table condensed-table table-stack-mobile">
+            <thead><tr><th>Student</th><th>Family</th><th>Class</th><th>Status</th><th>Registered On</th></tr></thead>
+            <tbody>
+              <% registrations.forEach(function(r) { %>
+                <tr>
+                  <td class="table-stack-heading"><%= r.memberName %></td>
+                  <td data-label="Family"><%= r.familyName || '—' %></td>
+                  <td data-label="Class"><%= r.className %> <span class="hint"><%= r.classDayLabel %></span></td>
+                  <td data-label="Status"><span class="crl-status crl-status-<%= r.status %>"><%= r.statusLabel %></span></td>
+                  <td data-label="Registered On"><%= r.registeredOnLabel %> <span class="hint"><%= r.registeredAtLabel %></span></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

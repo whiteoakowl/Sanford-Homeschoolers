@@ -192,6 +192,12 @@
       </div>
     <% } else { %>
     <% if (classId) { %><p class="subtitle no-print"><a href="/admin/rosters?tab=classes">&larr; All Class Rosters</a></p><% } %>
+    <% if (typeof archivedSemester !== 'undefined' && archivedSemester) { %>
+      <div class="alert alert-info archived-semester-banner no-print">
+        <svg class="icon"><use href="#icon-archive"/></svg>
+        <div><strong>View only.</strong> This <%= classId ? 'class' : 'roster' %> is in the archived semester <a href="/admin/schedule/semesters/<%= archivedSemester.id %>/archive"><%= archivedSemester.title %></a>, so it can't be changed and doesn't show on any portal. Unarchive the semester under Settings &gt; Semesters to edit it.</div>
+      </div>
+    <% } %>
     <%# A real request: "Co-op admin portal, attendance, class rosters.
         When you click on each class it should show check in and out
         buttons, as well as view lesson plan, view sub plan buttons." Same

@@ -31,6 +31,7 @@ const { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate } = re
 const pinLimiter = require('../utils/classCheckinPinRateLimit');
 const { isValidClassQrKey, isValidPlaygroundQrKey } = require('../utils/classQrKey');
 const { createRateLimiter } = require('../utils/rateLimit');
+const { isClassArchived } = require('../utils/classSchedule');
 const { lessonPlanSummary } = require('../utils/lessonPlanSummary');
 const { substitutePlansForClass } = require('../utils/substitutePlans');
 
@@ -101,6 +102,8 @@ async function requirePlaygroundAccess(req, res, next) {
 // tab and this router's own class list use, so a class looks identical
 // wherever it's shown - see allClassesList in utils/classSchedule.js.
 async function findClassWithLabels(id) {
+  // An archived semester's classes don't open from the kiosk/QR code.
+  if (await isClassArchived(id)) return null;
   const raw = await db.prepare('SELECT day FROM classes WHERE id = ?').get(id);
   if (!raw) return null;
   return (await allClassesList(raw.day, await getActiveKioskSemesterId())).find((c) => c.id === id) || null;
@@ -281,7 +284,7 @@ router.get('/classes/:id/scan', requireClassAccess, async (req, res) => {
 async function resolveScan(req, res) {
   const classId = parseInt(req.params.id, 10);
   const cls = await db.prepare('SELECT * FROM classes WHERE id = ?').get(classId);
-  if (!cls || !cls.roster_id) {
+  if (!cls || !cls.roster_id || (await isClassArchived(classId))) {
     res.json({ ok: false, message: 'Class not found.' });
     return null;
   }

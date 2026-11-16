@@ -12,7 +12,7 @@ const { sendCsv, buildTemplateWorkbook, readRowsFromFile } = require('../utils/s
 const { schedulesForMembers, scheduleMembers, memberScheduleTables } = require('../utils/schedule');
 const { sendMemberSchedules, sortFamilyForPrint } = require('../utils/memberScheduleOutput');
 const { byLastName, allFamilies } = require('../utils/members');
-const { allClassRegistrationActions, buildClassRegistrationLogExportCsvLines } = require('../utils/classRegistration');
+const { allClassRegistrationActions, buildClassRegistrationLogExportCsvLines, classRegistrationLogRows } = require('../utils/classRegistration');
 const { classRegistrationLogLocals } = require('../utils/classRegistrationLogPage');
 const { renderViewToPdf } = require('../utils/pdfRender');
 const {
@@ -43,6 +43,8 @@ const {
   classGlobalSettings,
   saveClassGlobalSettings,
   listScheduleCombos,
+  setSemesterArchived,
+  allClassesList,
 } = require('../utils/classSchedule');
 const { comboSemesterId, qsSemester, findComboId } = require('../utils/scheduleComboLinks');
 const { assignMissingSemesterData } = require('../utils/semesterAssignment');
@@ -474,7 +476,7 @@ router.post('/schedule/semesters/:id/update', requireFullAdmin, async (req, res)
   const semesterId = parseInt(req.params.id, 10);
   try {
     await renameSemester(semesterId, req.body.title);
-    const semester = (await listSemesters()).find((s) => s.id === semesterId);
+    const semester = (await listSemesters({ includeArchived: true })).find((s) => s.id === semesterId);
     const existing = (await listClassSchedules()).filter((cs) => cs.semester_id === semesterId);
     const days = checkedClassDays(req);
     for (const day of days) {
@@ -496,6 +498,68 @@ router.post('/schedule/semesters/:id/delete', requireFullAdmin, async (req, res)
   const sep = back.includes('?') ? '&' : '?';
   await deleteSemester(req.params.id);
   res.redirect(back + sep + 'notice=' + encodeURIComponent('Semester removed.'));
+});
+
+// A real request: "Settings gear. Semesters. Add an archive icon to each
+// semester... All classes, rosters, class chats, and registration will be
+// archived for this semester and will not show up on ANY portals. Be able
+// to unarchive a semester. Be able to simply view anything from an
+// archived semester." Archiving only sets semesters.archived_at - nothing
+// is moved or deleted - so Unarchive brings everything back exactly as it
+// was. utils/classSchedule.js's NOT_IN_ARCHIVED_SEMESTER_SQL is the filter.
+router.post('/schedule/semesters/:id/archive', requireFullAdmin, async (req, res) => {
+  const back = semesterSettingsBack(req);
+  const sep = back.includes('?') ? '&' : '?';
+  const semesterId = parseInt(req.params.id, 10);
+  const semester = (await listSemesters({ includeArchived: true })).find((s) => s.id === semesterId);
+  if (!semester) return res.redirect(back + sep + 'error=' + encodeURIComponent('That semester no longer exists.'));
+  await setSemesterArchived(semesterId, true);
+  const activeKiosk = await getActiveKioskSemesterId();
+  const kioskNote = activeKiosk === semesterId ? ' It was the Kiosk\'s active semester - choose another under Settings > Kiosk.' : '';
+  res.redirect(back + sep + 'notice=' + encodeURIComponent(`Archived "${semester.title}". Its classes, rosters, class chats and registrations are hidden from every portal.${kioskNote}`));
+});
+
+router.post('/schedule/semesters/:id/unarchive', requireFullAdmin, async (req, res) => {
+  const back = semesterSettingsBack(req);
+  const sep = back.includes('?') ? '&' : '?';
+  const semesterId = parseInt(req.params.id, 10);
+  const semester = (await listSemesters({ includeArchived: true })).find((s) => s.id === semesterId);
+  if (!semester) return res.redirect(back + sep + 'error=' + encodeURIComponent('That semester no longer exists.'));
+  await setSemesterArchived(semesterId, false);
+  res.redirect(back + sep + 'notice=' + encodeURIComponent(`Unarchived "${semester.title}". Everything in it shows again.`));
+});
+
+// View an archived semester: its classes by day (each opening its full
+// class page, view-only), its day rosters, its class chats and every
+// registration - nothing editable here.
+router.get('/schedule/semesters/:id/archive', requireFullAdmin, async (req, res) => {
+  const semesterId = parseInt(req.params.id, 10);
+  const semester = (await listSemesters({ includeArchived: true })).find((s) => s.id === semesterId);
+  if (!semester) return res.status(404).render('404', { title: 'Not Found' });
+  const classes = await allClassesList(null, semesterId, { includeArchived: true });
+  const days = CLASS_DAYS.filter((d) => classes.some((c) => c.day === d));
+  const rosters = await db
+    .prepare("SELECT id, name, schedule_day FROM rosters WHERE semester_id = ? AND category = 'Class Schedule' ORDER BY schedule_day, name")
+    .all(semesterId);
+  rosters.forEach((r) => {
+    r.href = `/admin/rosters?tab=${r.schedule_day}-${/Parent/.test(r.name) ? 'parent' : 'student'}&semesterId=${semesterId}`;
+  });
+  // Each class's own Chat tab (class_chat_messages) that has messages.
+  const chats = await db
+    .prepare('SELECT c.id, c.class_name, COUNT(m.id) AS "messageCount" FROM classes c JOIN class_chat_messages m ON m.class_id = c.id WHERE c.semester_id = ? GROUP BY c.id, c.class_name ORDER BY LOWER(c.class_name)')
+    .all(semesterId);
+  const registrations = await classRegistrationLogRows({}, { semesterId });
+  res.render('admin-semester-archive', {
+    title: `${semester.title} (Archived)`,
+    semester,
+    archivedAtLabel: semester.archived_at ? formatTimestamp(semester.archived_at) : null,
+    classes,
+    days,
+    dayLabels: CLASS_DAY_LABELS,
+    rosters,
+    chats,
+    registrations,
+  });
 });
 
 // A real request: "create a fall 2026 semester and connect all classes,

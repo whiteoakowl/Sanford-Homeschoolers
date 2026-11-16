@@ -571,7 +571,7 @@ async function classFeeRows(classIds, semesterId) {
 // 'teacher'; a co-taught class appears under each teacher). A fee class
 // with no teacher yet is grouped under "No teacher assigned".
 async function classFeesByTeacher(semesterId) {
-  const allIds = (await db.prepare('SELECT id FROM classes').all()).map((r) => r.id);
+  const allIds = (await db.prepare('SELECT id FROM classes c WHERE NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)').all()).map((r) => r.id);
   const rows = (await classFeeRows(allIds, semesterId)).filter((r) => (r.priceCents > 0 && r.chargeCount > 0) || r.availableCents > 0);
   if (!rows.length) return [];
   const staff = await db

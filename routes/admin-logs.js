@@ -158,10 +158,11 @@ async function allClassRegistrations(dateFilter) {
              FROM class_registrations cr
              JOIN members m ON m.id = cr.student_id
              LEFT JOIN families f ON f.id = m.family_id
-             JOIN classes c ON c.id = cr.class_id`;
+             JOIN classes c ON c.id = cr.class_id
+             WHERE NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)`;
   const params = [];
   if (dateFilter) {
-    sql += ` WHERE substr(cr.created_at, 1, 10) = ?`;
+    sql += ` AND substr(cr.created_at, 1, 10) = ?`;
     params.push(dateFilter);
   }
   sql += ' ORDER BY cr.created_at DESC';

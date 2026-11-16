@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
-const { todayISO, formatDateLabel, formatShortDateLabel, weekdayOf, isValidISODate } = require('../utils/dates');
+const { todayISO, formatDateLabel, formatShortDateLabel, weekdayOf, isValidISODate, formatTimestamp } = require('../utils/dates');
 const { buildTemplateWorkbook } = require('../utils/spreadsheet');
 const { todaysSessionDays, absenceFormSubmissionsForRoster } = require('../utils/alerts');
 const {
@@ -391,7 +391,7 @@ async function renderSettings(req, res, error, success, activeTab) {
     // settings" - moved here from Classes > Settings > Kiosk (routes/
     // admin-schedule.js used to own this). Only fetched for the tab that
     // actually needs it, same as every other tab-scoped query here.
-    semesters: tab === 'kiosk' || tab === 'semesters' ? await listSemesters() : null,
+    semesters: tab === 'semesters' ? (await listSemesters({ includeArchived: true })).map((s) => ({ ...s, archivedAtLabel: s.archived_at ? formatTimestamp(s.archived_at) : null })) : tab === 'kiosk' ? await listSemesters() : null,
     activeKioskSemesterId: tab === 'kiosk' ? await getActiveKioskSemesterId() : null,
     // A real request: "Add a semester settings should be under the gear
     // settings icon at the top." Moved here from Classes > Settings >

@@ -1,5 +1,30 @@
 const express = require('express');
 const router = express.Router();
+
+// A real request: "Be able to simply view anything from an archived
+// semester." A class in an archived semester (Settings > Semesters) is
+// view-only: any change to it - its details, staff, roster, lessons,
+// content, chat, substitute plans - is refused here, before the route
+// runs. Duplicating it (into an active semester) is still allowed.
+const ARCHIVED_CLASS_MESSAGE = 'This class is in an archived semester, so it is view-only. Unarchive the semester (Settings > Semesters) to make changes.';
+async function classIdForArchiveCheck(kind, id) {
+  if (kind === 'classes') return id;
+  if (kind === 'assignments') {
+    const row = await db.prepare('SELECT class_id FROM class_assignments WHERE id = ?').get(id);
+    return row ? row.class_id : null;
+  }
+  const row = await db.prepare('SELECT ca.class_id FROM lesson_content_items i JOIN class_assignments ca ON ca.id = i.assignment_id WHERE i.id = ?').get(id);
+  return row ? row.class_id : null;
+}
+router.post(/^\/class-schedule\/(classes|assignments|content)\/(\d+)(\/.*)?$/, async (req, res, next) => {
+  const [kind, id, rest] = [req.params[0], parseInt(req.params[1], 10), req.params[2] || ''];
+  if (kind === 'classes' && rest === '/duplicate') return next();
+  const classId = await classIdForArchiveCheck(kind, id);
+  if (!classId || !(await isClassArchived(classId))) return next();
+  const wantsJson = (req.headers.accept && req.headers.accept.includes('application/json')) || req.get('X-Requested-With') === 'fetch';
+  if (wantsJson) return res.status(409).json({ ok: false, error: ARCHIVED_CLASS_MESSAGE });
+  res.redirect(`/admin/class-schedule/classes/${classId}/manage?error=` + encodeURIComponent(ARCHIVED_CLASS_MESSAGE));
+});
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -51,6 +76,7 @@ const { buildRosterGridData, rosterDates } = require('../utils/rosterGrid');
 const {
   CLASS_DAY_LABELS_FULL,
   ensureDayRoster,
+  isClassArchived,
   HOUR_POSITIONS,
   COLOR_PALETTE,
   GRADE_LEVELS,
@@ -557,9 +583,14 @@ router.get('/class-schedule/classes/:id/manage', requireFullAdmin, async (req, r
     }
   }
 
+  const archivedSemester = (await isClassArchived(cls.id))
+    ? await db.prepare('SELECT id, title FROM semesters WHERE id = ?').get(cls.semester_id)
+    : null;
+
   res.render('admin-class-schedule-manage', {
     title: `Manage - ${cls.class_name}`,
     attendanceGrid,
+    archivedSemester,
     cls,
     activeTab,
     openLessonId: req.query.open ? parseInt(req.query.open, 10) : null,
@@ -574,7 +605,7 @@ router.get('/class-schedule/classes/:id/manage', requireFullAdmin, async (req, r
     availableStudents: (await activeStudents()).filter((s) => !enrolledIds.includes(s.id)),
     enrolledStudents: await enrichRosterStudents(cls.students),
     availableStaff: (await activeMembersForStaff()).filter((p) => !staffIds.includes(p.id)),
-    semesters: await listSemesters(),
+    semesters: await listSemesters({ includeArchived: true }),
     accountingCategories: await listAccountingCategories(),
     classImageUrl: classImageUrl(cls.image_key),
     assignments,
@@ -1256,7 +1287,8 @@ router.post('/class-schedule/classes/:id/duplicate', requireFullAdmin, async (re
     await syncDayMemberRosters(target.day);
   }
 
-  res.redirect(`/admin/class-schedule/classes/${newId}/manage?notice=` + encodeURIComponent(`Duplicated as "${cls.class_name}" on ${target.label}.`));
+  const verb = (await isClassArchived(id)) ? 'Copied' : 'Duplicated';
+  res.redirect(`/admin/class-schedule/classes/${newId}/manage?notice=` + encodeURIComponent(`${verb} as "${cls.class_name}" on ${target.label}.`));
 });
 
 
@@ -1329,6 +1361,7 @@ router.post('/class-registrations/:id/cancel', requireFullAdmin, async (req, res
     .get(parseInt(req.params.id, 10));
   if (!registration) return back('error', 'That registration no longer exists.');
   if (registration.status !== 'confirmed' && registration.status !== 'waitlisted') return back('error', 'That registration is already cancelled.');
+  if (await isClassArchived(registration.class_id)) return back('error', ARCHIVED_CLASS_MESSAGE);
   const cls = await getClass(registration.class_id);
   try {
     if (cls) await setEnrollment(cls.id, cls.students.map((s) => s.id).filter((sid) => sid !== registration.student_id));
@@ -1776,7 +1809,7 @@ router.post('/class-schedule/:day/import', requireFullAdmin, requireClassDay, up
 async function printSemester(req) {
   const requested = comboSemesterId(req);
   const semesterId = requested !== undefined ? requested : await getActiveKioskSemesterId();
-  const semester = semesterId ? (await listSemesters()).find((s) => s.id === semesterId) : null;
+  const semester = semesterId ? (await listSemesters({ includeArchived: true })).find((s) => s.id === semesterId) : null;
   const title = semester ? semester.title : semesterId === null ? 'No Semester' : '';
   const slug = title ? `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}-` : '';
   return { semesterId: semesterId === undefined ? undefined : semesterId, title, slug };

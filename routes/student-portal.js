@@ -14,6 +14,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../db');
+const { isClassArchived } = require('../utils/classSchedule');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount } = require('../utils/portalAuth');
@@ -365,7 +366,8 @@ router.get('/classes/download.pdf', requirePortalPermission('view_student_classe
 // enrolled classes only).
 router.get('/classes/:id/fragment', requirePortalPermission('view_student_classes'), async (req, res) => {
   const cls = await getClass(parseInt(req.params.id, 10));
-  if (!cls) return res.status(404).send('Not found');
+  // An archived semester's classes don't show on any portal.
+  if (!cls || (await isClassArchived(cls.id))) return res.status(404).send('Not found');
   const staff = cls.staff || [];
   const enrolledCount = Number((await db.prepare('SELECT COUNT(*) AS c FROM class_enrollments WHERE class_id = ?').get(cls.id)).c);
   res.render('student-class-fragment', {
