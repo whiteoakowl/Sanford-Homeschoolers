@@ -17388,3 +17388,23 @@ dialog form:has(.permission-section) > h3,
 }
 .cw-actions > .roster-action-btn,
 .cw-actions > form > button { flex: none; width: auto; }
+
+/* Lesson Plan Approval > By Class (views/admin-lesson-plan-approval.ejs):
+   a semester/day picker, then one table per hour with a status bubble per
+   class for its lesson plan and its substitute plan. */
+.lpa-picker { display: flex; align-items: center; gap: 0.6rem; margin: 1rem 0; }
+.lpa-picker select { width: auto; min-width: 14rem; }
+.lpa-hour { margin: 0 0 1.4rem; }
+.lpa-hour-title { font-size: 1.15rem; margin: 0 0 0.45rem; padding: 0.35rem 0.8rem; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark); width: fit-content; }
+.lpa-hour-title .hint { font-weight: 400; margin-left: 0.4rem; }
+.lpa-col { text-align: center; width: 9.5rem; }
+.lpa-action { text-align: right; width: 11rem; white-space: nowrap; }
+.lpa-bubble { display: inline-block; min-width: 6.5rem; padding: 0.22rem 0.7rem; border-radius: 999px; font-size: 0.82rem; font-weight: 700; text-align: center; }
+.lpa-bubble-none { min-width: 1.4rem; height: 1.4rem; padding: 0; border: 2px solid var(--border); background: var(--surface); vertical-align: middle; }
+.lpa-bubble-pending { background: var(--orange-bg); color: var(--orange); }
+.lpa-bubble-approved { background: var(--green-bg); color: var(--green); }
+.lpa-bubble-rejected { background: var(--red-bg); color: var(--red); }
+@media (max-width: 640px) {
+  .lpa-col,
+  .lpa-action { width: auto; text-align: left; }
+}

@@ -179,7 +179,7 @@ test('teacher substitute plans go for approval with the lesson and are approved 
   assert.doesNotMatch((await kiosk.get(`/kiosk/class-checkin/classes/${classId}/substitute-plan`)).text, /Sub Plan A/, 'not shown to substitutes until approved');
 
   const admin = await loginAsAdmin();
-  const queue = await request(app).get('/admin/lesson-plans/approval').set('Cookie', admin);
+  const queue = await request(app).get('/admin/lesson-plans/approval?status=pending').set('Cookie', admin);
   assert.match(queue.text, /\+ 1 substitute plan/);
   const review = await request(app).get(`/admin/lesson-plans/approval/${lesson.id}`).set('Cookie', admin);
   assert.match(review.text, /Substitute Plans Sent With This Lesson \(1\)/);
@@ -196,7 +196,7 @@ test('teacher substitute plans go for approval with the lesson and are approved 
   await request(app).post(`/teacher/classes/${classId}/substitute-plan?_csrf=${csrf}`).set('Cookie', teacher).field('title', 'Sub Plan B');
   const late = await request(app).post(`/teacher/classes/${classId}/lesson-plan/submit`).set('Cookie', teacher).type('form').send({ _csrf: csrf });
   assert.match(decodeURIComponent(late.headers.location), /Submitted 1 substitute plan/);
-  const pendingQueue = await request(app).get('/admin/lesson-plans/approval').set('Cookie', admin);
+  const pendingQueue = await request(app).get('/admin/lesson-plans/approval?status=pending').set('Cookie', admin);
   assert.match(pendingQueue.text, new RegExp(`/admin/lesson-plans/approval/${lesson.id}"`));
   const reject = await request(app).post(`/admin/lesson-plans/approval/${lesson.id}/reject`).set('Cookie', admin).type('form').send({ message: 'Add a worksheet please.', _csrf: adminCsrf });
   assert.match(decodeURIComponent(reject.headers.location), /Rejected 1 substitute plan/);

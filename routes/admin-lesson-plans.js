@@ -22,11 +22,13 @@ const {
   reviewAssignment,
   approvalEventsForAssignment,
   APPROVAL_QUEUE_FILTERS,
+  lessonApprovalStatusByClass,
 } = require('../utils/academics');
-const { formatDateLabel, formatFriendlyTimestamp } = require('../utils/dates');
+const { formatDateLabel, formatFriendlyTimestamp, formatClockTime } = require('../utils/dates');
 const notifications = require('../utils/notifications');
 const { logError } = require('../utils/logger');
-const { allClassesList } = require('../utils/classSchedule');
+const { allClassesList, listScheduleCombos, hoursForDay } = require('../utils/classSchedule');
+const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
 const { mountLessonPlanContentRoutes } = require('./lessonPlanContentRoutes');
 const {
   listLessonPlans,
@@ -65,17 +67,51 @@ router.post('/lesson-plans', async (req, res) => {
 // before /lesson-plans/:id so "approval" is never parsed as a template
 // id. ---
 
+// A real request: "Lesson plan approval page. Should list all of the
+// classes by semester/day. Drop down menu to switch semester/day. Hour
+// sections, class name, teacher name, lesson plan column, substitute plan
+// column. Bubbles under each column and each row and it says approved,
+// rejected, submitted or nothing. Button at the end of each row that says
+// view submission if something has been submitted." That class grid is
+// the page's default view (?combo= a semester/day from listScheduleCombos,
+// else the Kiosk's active semester's first day); ?status= still opens the
+// earlier Pending/Approved/Rejected/All submission lists.
 router.get('/lesson-plans/approval', async (req, res) => {
-  // 'declined' is the old spelling of 'rejected' (bookmarked links).
-  const requested = req.query.status === 'declined' ? 'rejected' : req.query.status;
-  const status = APPROVAL_QUEUE_FILTERS.includes(requested) ? requested : 'pending';
-  res.render('admin-lesson-plan-approval', {
-    title: 'Lesson Plan Approval',
-    status,
-    lessons: await lessonsForApprovalQueue(status),
-    notice: req.query.notice || null,
-    error: req.query.error || null,
-  });
+  const notice = req.query.notice || null;
+  const error = req.query.error || null;
+  if (req.query.status) {
+    // 'declined' is the old spelling of 'rejected' (bookmarked links).
+    const requested = req.query.status === 'declined' ? 'rejected' : req.query.status;
+    const status = APPROVAL_QUEUE_FILTERS.includes(requested) ? requested : 'pending';
+    return res.render('admin-lesson-plan-approval', { title: 'Lesson Plan Approval', view: 'list', status, lessons: await lessonsForApprovalQueue(status), notice, error });
+  }
+  const combos = await listScheduleCombos();
+  const activeSemesterId = await getActiveKioskSemesterId();
+  let combo = combos.find((c) => String(c.id) === String(req.query.combo));
+  if (!combo) combo = combos.find((c) => c.semesterId === (activeSemesterId ?? null)) || combos[0] || null;
+  let hours = [];
+  if (combo) {
+    const classes = await allClassesList(combo.day, combo.semesterId);
+    const statusByClass = await lessonApprovalStatusByClass(classes.map((c) => c.id));
+    const hourRows = await hoursForDay(combo.day, combo.semesterId);
+    const positions = [...new Set([...hourRows.map((h) => h.position), ...classes.map((c) => c.hour_position)])].sort((a, b) => a - b);
+    hours = positions
+      .map((pos) => {
+        const h = hourRows.find((x) => x.position === pos);
+        const time = h && h.start_time ? `${formatClockTime(h.start_time)}${h.end_time ? ' - ' + formatClockTime(h.end_time) : ''}` : '';
+        return {
+          position: pos,
+          label: `Hour ${pos}${h && h.label && h.label !== `Hour ${pos}` ? ' · ' + h.label : ''}`,
+          time,
+          classes: classes
+            .filter((c) => c.hour_position === pos)
+            .sort((a, b) => a.class_name.localeCompare(b.class_name))
+            .map((c) => ({ ...c, approval: statusByClass[c.id] })),
+        };
+      })
+      .filter((h) => h.classes.length > 0);
+  }
+  res.render('admin-lesson-plan-approval', { title: 'Lesson Plan Approval', view: 'classes', combos, combo, hours, notice, error });
 });
 
 // Read-only preview of the full submitted lesson (details + every

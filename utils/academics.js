@@ -150,6 +150,55 @@ async function lessonsForApprovalQueue(status) {
   }));
 }
 
+// Lesson Plan Approval's class grid - a real request: "Should list all
+// of the classes by semester/day... Hour sections, class name, teacher
+// name, lesson plan column, substitute plan column. Bubbles under each
+// column and each row and it says approved, rejected, submitted or
+// nothing. Button at the end of each row that says view submission if
+// something has been submitted." Per class, one status each for its
+// lesson plans and its substitute plans: 'pending' (Submitted) if
+// anything is waiting, else the most recently decided one's
+// 'approved'/'rejected', else null; plus which submitted lesson View
+// Submission opens (the waiting one, else the most recent).
+async function lessonApprovalStatusByClass(classIds) {
+  const out = {};
+  if (!classIds.length) return out;
+  const ph = classIds.map(() => '?').join(',');
+  const lessons = await db
+    .prepare(
+      `SELECT id, class_id, title, approval_status, submitted_at, reviewed_at FROM class_assignments
+       WHERE class_id IN (${ph}) AND submitted_at IS NOT NULL AND approval_status IN ('pending', 'approved', 'rejected', 'declined')
+       ORDER BY COALESCE(reviewed_at, submitted_at) DESC, id DESC`
+    )
+    .all(...classIds);
+  const subs = await db
+    .prepare(
+      `SELECT id, class_id, approval_status, submitted_with_assignment_id, submitted_at, reviewed_at FROM class_substitute_plans
+       WHERE class_id IN (${ph}) AND approval_status IN ('pending', 'approved', 'rejected', 'declined') AND submitted_with_assignment_id IS NOT NULL
+       ORDER BY COALESCE(reviewed_at, submitted_at) DESC, id DESC`
+    )
+    .all(...classIds);
+  const norm = (st) => (st === 'declined' ? 'rejected' : st);
+  const summarize = (rows) => {
+    if (!rows.length) return null;
+    const waiting = rows.find((r) => r.approval_status === 'pending');
+    return waiting ? { status: 'pending', row: waiting } : { status: norm(rows[0].approval_status), row: rows[0] };
+  };
+  for (const id of classIds) {
+    const l = summarize(lessons.filter((r) => r.class_id === id));
+    const sp = summarize(subs.filter((r) => r.class_id === id));
+    const viewId = (l && l.status === 'pending' && l.row.id) || (sp && sp.status === 'pending' && sp.row.submitted_with_assignment_id) || (l && l.row.id) || (sp && sp.row.submitted_with_assignment_id) || null;
+    out[id] = {
+      lessonStatus: l ? l.status : null,
+      lessonTitle: l ? l.row.title : null,
+      lessonCount: lessons.filter((r) => r.class_id === id).length,
+      subStatus: sp ? sp.status : null,
+      viewAssignmentId: viewId,
+    };
+  }
+  return out;
+}
+
 async function pendingApprovalCount() {
   const { c } = await db.prepare(`SELECT COUNT(*) AS c FROM class_assignments ca WHERE ca.approval_status = 'pending' OR ${HAS_PENDING_SUB_PLANS}`).get();
   return Number(c);
@@ -1134,6 +1183,7 @@ async function completionStatsForAssignments(classId) {
 }
 
 module.exports = {
+  lessonApprovalStatusByClass,
   TRANSCRIPT_COURSE_LEVELS,
   TRANSCRIPT_GRADE_LEVELS,
   transcriptDetailsFor,

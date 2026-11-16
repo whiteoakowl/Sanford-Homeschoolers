@@ -167,7 +167,7 @@ test('submit -> pending on the approval page; approve -> visible to enrolled stu
   assert.doesNotMatch(pendingStudent.text, /Happy Lesson/);
 
   const admin = await loginAsAdmin();
-  const queue = await request(app).get('/admin/lesson-plans/approval').set('Cookie', admin.cookie);
+  const queue = await request(app).get('/admin/lesson-plans/approval?status=pending').set('Cookie', admin.cookie);
   assert.equal(queue.status, 200);
   assert.match(queue.text, /Happy Lesson/);
   assert.match(queue.text, /Approval Happy Class/);
@@ -280,7 +280,7 @@ test('reject requires a message; rejected lesson is hidden from students, messag
   const resubmit = await submit(teacher, lesson.id);
   assert.equal(resubmit.status, 302);
   assert.equal(await statusOf(lesson.id), 'pending');
-  const queue = await request(app).get('/admin/lesson-plans/approval').set('Cookie', admin.cookie);
+  const queue = await request(app).get('/admin/lesson-plans/approval?status=pending').set('Cookie', admin.cookie);
   assert.match(queue.text, /Rejected Lesson v2/);
   // Submitting an already-pending lesson is a no-op.
   const again = await submit(teacher, lesson.id);
@@ -316,7 +316,7 @@ test('teachers can only submit their own classes; non-admins cannot approve or o
 
   await submit(owner, lesson.id);
   for (const actor of [owner, family.student, family.parent]) {
-    const page = await request(app).get('/admin/lesson-plans/approval').set('Cookie', actor.cookie);
+    const page = await request(app).get('/admin/lesson-plans/approval?status=pending').set('Cookie', actor.cookie);
     assert.notEqual(page.status, 200);
     const csrf = actor.csrfToken || extractCsrf((await request(app).get(actor.home).set('Cookie', actor.cookie)).text);
     await request(app).post(`/admin/lesson-plans/approval/${lesson.id}/approve`).set('Cookie', actor.cookie).type('form').send({ _csrf: csrf });
