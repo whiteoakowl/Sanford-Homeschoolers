@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%# Co-op Admin > Classes > Schedule Change Requests (routes/admin-
+    schedule-change.js): a family list log, pending first. Open a family's
+    request to see its cancels and additions; tick Decline beside any
+    addition to turn it down, then Approve Switch (or Decline All). %>
+<% var statusLabel = { pending: 'Pending', approved: 'Approved', partial: 'Partly approved', declined: 'Declined' }; %>
+<body class="admin-page">
+  <%- include('partials/admin-nav') %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <h1>Schedule Change Requests</h1>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <% if (requests.length === 0) { %>
+      <p class="roster-empty">No schedule change requests yet.</p>
+    <% } else { %>
+      <div class="cw-list">
+        <% requests.forEach(function(r) { var open = openId === r.id; var drops = r.items.filter(function(i) { return i.action === 'drop'; }); var adds = r.items.filter(function(i) { return i.action === 'add'; }); %>
+          <a class="cw-row<%= open ? ' cw-row-open' : '' %>" href="/admin/schedule-changes<%= open ? '' : '?id=' + r.id %>">
+            <span class="cw-family"><svg class="icon"><use href="#icon-users"/></svg> <%= r.familyLabel %></span>
+            <span class="sc-counts"><%= drops.length %> cancel<%= drops.length === 1 ? '' : 's' %> &middot; <%= adds.length %> add<%= adds.length === 1 ? '' : 's' %></span>
+            <span class="cw-when"><svg class="icon"><use href="#icon-clock"/></svg> <%= r.requestedLabel %></span>
+            <span class="cw-status cw-status-<%= r.status === 'pending' ? 'pending' : r.status === 'declined' ? 'rejected' : 'confirmed' %>"><%= statusLabel[r.status] || r.status %></span>
+            <svg class="icon cw-chevron"><use href="#icon-chevron-down"/></svg>
+          </a>
+          <% if (open) { %>
+            <div class="cw-detail">
+              <p><strong>Requested by:</strong> <%= r.member_name || '—' %> &middot; <%= r.requestedLabel %></p>
+              <% if (r.note) { %><p><strong>Note:</strong> <%= r.note %></p><% } %>
+              <% if (r.status !== 'pending') { %><p class="hint"><%= statusLabel[r.status] %><%= r.decided_by ? ' by ' + r.decided_by : '' %><%= r.decidedLabel ? ' · ' + r.decidedLabel : '' %></p><% } %>
+              <form method="POST" action="/admin/schedule-changes/<%= r.id %>/approve" id="sc-approve-<%= r.id %>" data-confirm="Approve this schedule change? Cancelled classes are removed, the additions you didn't decline are added (with their class charges), and a name tag reprint is requested." data-confirm-icon="icon-check-circle" data-confirm-safe="1" data-confirm-yes-label="Yes, Approve">
+                <div class="sc-columns">
+                  <div>
+                    <h3 class="sc-sub">Cancel</h3>
+                    <% if (!drops.length) { %><p class="hint">Nothing to cancel.</p><% } %>
+                    <ul class="sc-list">
+                      <% drops.forEach(function(i) { %>
+                        <li><span class="sc-class"><strong><%= i.student_name %></strong> <%= i.classLabel %></span><% if (i.result) { %><span class="hint"><%= i.result %></span><% } %></li>
+                      <% }); %>
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 class="sc-sub">Add</h3>
+                    <% if (!adds.length) { %><p class="hint">Nothing to add.</p><% } %>
+                    <ul class="sc-list">
+                      <% adds.forEach(function(i) { %>
+                        <li>
+                          <span class="sc-class"><strong><%= i.student_name %></strong> <%= i.classLabel %></span>
+                          <% if (r.status === 'pending') { %>
+                            <label class="sc-cancel"><input type="checkbox" name="decline" value="<%= i.id %>" /> Decline</label>
+                          <% } else { %>
+                            <span class="hint"><%= i.result || '' %></span>
+                          <% } %>
+                        </li>
+                      <% }); %>
+                    </ul>
+                  </div>
+                </div>
+              </form>
+              <% if (r.status === 'pending') { %>
+                <div class="roster-btn-row cw-actions">
+                  <button type="submit" form="sc-approve-<%= r.id %>" class="roster-action-btn">Approve Switch</button>
+                  <form method="POST" action="/admin/schedule-changes/<%= r.id %>/decline" data-confirm="Decline this whole request? Nothing will change for the <%= r.familyLabel %>." data-confirm-icon="icon-x-circle" data-confirm-yes-label="Yes, Decline">
+                    <button type="submit" class="btn-secondary">Decline All</button>
+                  </form>
+                </div>
+              <% } %>
+            </div>
+          <% } %>
+        <% }); %>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

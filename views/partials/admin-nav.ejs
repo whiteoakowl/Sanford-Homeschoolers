@@ -103,6 +103,9 @@
           { href: '/admin/schedule?tab=members', label: 'Member Schedules' },
           // A real request: "On admin side shows up under classes subpage
           // called co-op Withdraw" (routes/admin-coop-withdraw.js).
+          // A real request: "Make a schedule change request form. Should
+          // be listed under co-op classes. As a family list log."
+          { href: '/admin/schedule-changes', label: 'Schedule Change Requests', badge: typeof pendingScheduleChangeCount !== 'undefined' ? pendingScheduleChangeCount : 0 },
           { href: '/admin/coop-withdraw', label: 'Co-op Withdraw', badge: typeof pendingCoopWithdrawCount !== 'undefined' ? pendingCoopWithdrawCount : 0 },
           { href: '/admin/schedule?tab=settings', label: 'Settings' },
         ] : []),

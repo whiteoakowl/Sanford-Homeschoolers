@@ -603,6 +603,7 @@ app.use('/admin', async (req, res, next) => {
   if (req.method === 'GET' && res.locals.isFullAdmin) {
     res.locals.pendingLessonApprovalCount = await pendingLessonApprovalCount();
     res.locals.pendingCoopWithdrawCount = await require('./utils/coopWithdrawal').pendingCount();
+    res.locals.pendingScheduleChangeCount = await require('./utils/scheduleChange').pendingCount();
   }
   next();
 });
@@ -614,6 +615,7 @@ app.use('/admin', adminVolunteersRouter);
 app.use('/admin', adminSubstitutesRouter);
 app.use('/admin', require('./routes/admin-teacher-interest'));
 app.use('/admin', require('./routes/admin-coop-withdraw'));
+app.use('/admin', require('./routes/admin-schedule-change'));
 app.use('/admin', adminTeachersRouter);
 app.use('/admin', adminSetupRouter);
 app.use('/admin', adminTrainingRouter);

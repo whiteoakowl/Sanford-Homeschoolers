@@ -447,6 +447,32 @@ async function adminRemoveStudentFromClass(classId, studentId, adminAccountId) {
   }
 }
 
+// Co-op Admin adding a student to a class (an approved Schedule Change
+// Request - utils/scheduleChange.js). Same registration row, charge and
+// waitlist rules as a parent's own registerForClass (the class's price/
+// invoice settings, waitlisted when full), without the registration-
+// window/eligibility gates - an admin approving it is the decision.
+async function adminAddStudentToClass(classId, studentId, adminAccountId) {
+  const cls = await db.prepare('SELECT * FROM classes WHERE id = ?').get(classId);
+  const student = await db.prepare('SELECT * FROM members WHERE id = ?').get(studentId);
+  if (!cls || !student) return { ok: false, error: 'Class or student not found.' };
+  if (await db.prepare('SELECT 1 FROM class_enrollments WHERE class_id = ? AND student_id = ?').get(classId, studentId)) {
+    return { ok: true, status: 'confirmed', already: true };
+  }
+  const enrolledCount = Number((await db.prepare('SELECT COUNT(*) AS c FROM class_enrollments WHERE class_id = ?').get(classId)).c);
+  const status = cls.capacity != null && enrolledCount >= cls.capacity ? 'waitlisted' : 'confirmed';
+  await db.withTransaction(async (tx) => {
+    const chargeId = status === 'confirmed' ? await chargeForConfirmedRegistration(tx, cls, student, adminAccountId) : null;
+    const waitlistPosition =
+      status === 'waitlisted' ? Number((await tx.prepare("SELECT COUNT(*) AS c FROM class_registrations WHERE class_id = ? AND status = 'waitlisted'").get(classId)).c) + 1 : null;
+    await tx
+      .prepare('INSERT INTO class_registrations (class_id, student_id, registered_by_account_id, status, waitlist_position, charge_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(classId, studentId, adminAccountId || null, status, waitlistPosition, chargeId);
+    if (status === 'confirmed') await tx.prepare('INSERT INTO class_enrollments (class_id, student_id) VALUES (?, ?) ON CONFLICT DO NOTHING').run(classId, studentId);
+  });
+  return { ok: true, status };
+}
+
 // A real request: "add a subapage called class registration log[,] setup
 // the same way as I described the new event log[:] record every time a
 // member registers for a class or cancels[,] organized by date and then
@@ -635,6 +661,7 @@ module.exports = {
   registerForClass,
   unregisterFromClass,
   adminRemoveStudentFromClass,
+  adminAddStudentToClass,
   joinClassAsStaff,
   leaveClassAsStaff,
   staffCountsForClass,

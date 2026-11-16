@@ -17362,3 +17362,29 @@ dialog form:has(.permission-section) > h3,
 .cw-actions form { margin: 0; }
 .cw-schedule-title { font-size: 1.15rem; margin: 1rem 0 0.4rem; }
 .cw-removed { margin: 0.5rem 0; }
+
+/* Schedule Change Request (views/parent-schedule-change.ejs, views/admin-
+   schedule-change.ejs - the admin log reuses the .cw-* family rows). */
+.sc-sub { font-size: 1rem; margin: 0.8rem 0 0.35rem; }
+.sc-list { list-style: none; margin: 0; padding: 0; }
+.sc-list li { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; padding: 0.45rem 0; border-bottom: 1px solid var(--border); }
+.sc-class { display: flex; flex-wrap: wrap; gap: 0.2rem 0.5rem; align-items: baseline; }
+.sc-add { display: flex; align-items: center; gap: 0.5rem; flex: 1; cursor: pointer; }
+.sc-cancel { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; color: var(--red); font-weight: 600; }
+.sc-spots { white-space: nowrap; color: var(--green); font-size: 0.85rem; font-weight: 600; }
+.sc-note { display: block; margin: 1rem 0; }
+.sc-note textarea { width: 100%; }
+.sc-history-title { margin-top: 2rem; }
+.sc-history p { margin: 0 0 0.4rem; }
+.sc-item-list { margin: 0; padding-left: 1.2rem; }
+.sc-status-pending { color: var(--orange); font-weight: 700; }
+.sc-status-approved,
+.sc-status-partial { color: var(--green); font-weight: 700; }
+.sc-status-declined { color: var(--muted-dark); font-weight: 700; }
+.sc-counts { font-size: 0.9rem; }
+.sc-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+@media (max-width: 640px) {
+  .sc-columns { grid-template-columns: 1fr; gap: 0.4rem; }
+}
+.cw-actions > .roster-action-btn,
+.cw-actions > form > button { flex: none; width: auto; }

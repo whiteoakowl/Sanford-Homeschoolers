@@ -10,6 +10,7 @@ const { diplomaFieldsFromBody } = require('../utils/diplomaDesign');
 const { awardFromQuery, awardQuery } = require('../utils/gradeAwards');
 const router = express.Router();
 const coopWithdrawal = require('../utils/coopWithdrawal');
+const scheduleChange = require('../utils/scheduleChange');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -800,6 +801,35 @@ router.post('/classes/withdraw', requirePortalPermission('view_parent_classroom_
   if (!member) return res.redirect('/parent/classes/dashboard');
   await coopWithdrawal.requestWithdrawal({ member, accountId: req.portalAccount.id, note: req.body.note });
   res.redirect('/parent/classes/dashboard?notice=' + encodeURIComponent('Your request to withdraw from co-op classes was sent to the co-op admins.'));
+});
+
+// Schedule Change Request (utils/scheduleChange.js) - each child's
+// current classes with Cancel boxes, then classes with room to add, and a
+// note; a Co-op Admin approves it on Classes > Schedule Change Requests.
+router.get('/classes/schedule-change', requirePortalPermission('view_parent_classes'), async (req, res) => {
+  const children = await childrenForAccount(req.portalAccount);
+  const member = await memberForAccount(req.portalAccount.id);
+  const kids = [];
+  for (const child of children) {
+    kids.push({ child, current: await classesForChild(child.id), available: await scheduleChange.availableClassesFor(child.id) });
+  }
+  res.render('parent-schedule-change', {
+    title: 'Schedule Change Request',
+    kids,
+    dayLabels: CLASS_DAY_LABELS_FULL,
+    history: member ? await scheduleChange.requestsForFamily(member.family_id, member.id) : [],
+    notice: req.query.notice || null,
+    error: req.query.error || null,
+  });
+});
+
+router.post('/classes/schedule-change', requirePortalPermission('view_parent_classes'), async (req, res) => {
+  const children = await childrenForAccount(req.portalAccount);
+  const member = await memberForAccount(req.portalAccount.id);
+  if (!member) return res.redirect('/parent/classes/schedule-change');
+  const result = await scheduleChange.submitRequest({ member, accountId: req.portalAccount.id, children, body: req.body });
+  if (!result.ok) return res.redirect('/parent/classes/schedule-change?error=' + encodeURIComponent(result.error));
+  res.redirect('/parent/classes/schedule-change?notice=' + encodeURIComponent('Your schedule change request was sent to the co-op admins.'));
 });
 
 // A real request: "Remove assignment tab from classroom dashboard" -
