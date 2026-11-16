@@ -320,7 +320,16 @@ router.get('/', requireAdmin, async (req, res) => {
   // requests." Same queues the Lesson Plan Approval page (pending),
   // Teachers > Reimbursements (still Submitted) and Design > Name Tag
   // Requests (not archived) list.
-  const countOf = async (sql) => Number(((await db.prepare(sql).get()) || {}).n || 0);
+  // A count that fails (e.g. a table the database doesn't have yet) shows
+  // 0 rather than breaking the whole homepage.
+  const countOf = async (sql) => {
+    try {
+      return Number(((await db.prepare(sql).get()) || {}).n || 0);
+    } catch (err) {
+      console.error('Pending request count failed:', err.message);
+      return 0;
+    }
+  };
   const [lessonApprovalsCount, reimbursementsCount, nameTagRequestsCount] = await Promise.all([
     // Lessons waiting, plus lessons with substitute plans sent along with
     // them waiting (utils/academics.js's lessonsForApprovalQueue).

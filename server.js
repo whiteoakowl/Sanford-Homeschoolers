@@ -601,9 +601,11 @@ app.use('/', trainingRouter);
 // subpage badge (views/partials/admin-nav.ejs) - GET page renders only.
 app.use('/admin', async (req, res, next) => {
   if (req.method === 'GET' && res.locals.isFullAdmin) {
-    res.locals.pendingLessonApprovalCount = await pendingLessonApprovalCount();
-    res.locals.pendingCoopWithdrawCount = await require('./utils/coopWithdrawal').pendingCount();
-    res.locals.pendingScheduleChangeCount = await require('./utils/scheduleChange').pendingCount();
+    // A nav badge count must never take the whole page down with it.
+    const safeCount = (fn) => fn().catch((err) => { console.error('Admin nav badge count failed:', err.message); return 0; });
+    res.locals.pendingLessonApprovalCount = await safeCount(pendingLessonApprovalCount);
+    res.locals.pendingCoopWithdrawCount = await safeCount(require('./utils/coopWithdrawal').pendingCount);
+    res.locals.pendingScheduleChangeCount = await safeCount(require('./utils/scheduleChange').pendingCount);
   }
   next();
 });
