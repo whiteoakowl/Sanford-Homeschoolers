@@ -28,7 +28,7 @@
         student, not just one's own children) - see views/partials/
         transcript-student-builder.ejs. %>
     <% transcripts.forEach(function(rec) { %>
-      <%- include('partials/transcript-student-builder', { rec, semesters, yearOptions, currentSchoolYearValue, gradeLetters, basePath: '/parent/academics' }) %>
+      <%- include('partials/transcript-student-builder', { rec, semesters, yearOptions, currentSchoolYearValue, gradeLetters, courseLevels, gradeLevels, basePath: '/parent/academics' }) %>
     <% }); %>
   </main>
   <script src="/js/transcript-add-class.js"></script>

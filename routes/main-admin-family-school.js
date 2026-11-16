@@ -32,6 +32,10 @@ const { listSemesters } = require('../utils/classSchedule');
 const { todayISO } = require('../utils/dates');
 const {
   transcriptBuilderForStudent,
+  transcriptDetailsFor,
+  saveTranscriptDetails,
+  TRANSCRIPT_COURSE_LEVELS,
+  TRANSCRIPT_GRADE_LEVELS,
   transcriptBuilderDataForStudent,
   createTranscriptEntry,
   getTranscriptEntry,
@@ -84,6 +88,7 @@ router.get('/family-school', requirePortalPermission('view_family_school_main_ad
     rec = {
       child: selectedStudent,
       builder,
+      details: await transcriptDetailsFor(selectedStudent),
       familyClasses: (await familySchoolClassesForStudent(selectedStudent.id)).map((c) => c.class_name),
       coopClassesBySemester,
     };
@@ -97,6 +102,8 @@ router.get('/family-school', requirePortalPermission('view_family_school_main_ad
     yearOptions,
     currentSchoolYearValue: currentSchoolYear(),
     gradeLetters: TRANSCRIPT_GRADE_LETTERS,
+    courseLevels: TRANSCRIPT_COURSE_LEVELS,
+    gradeLevels: TRANSCRIPT_GRADE_LEVELS,
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
@@ -119,9 +126,18 @@ router.post('/family-school/transcripts', requirePortalPermission('view_family_s
     className,
     creditHours: Number.isFinite(creditHours) && creditHours > 0 ? creditHours : 1,
     gradeLetter,
+    courseLevel: req.body.courseLevel,
     createdByAccountId: req.portalAccount.id,
   });
   res.redirect(`/main-admin/family-school?studentId=${studentId}&notice=` + encodeURIComponent('Class added to transcript.'));
+});
+
+router.post('/family-school/transcripts/:studentId/details', requirePortalPermission('view_family_school_main_admin'), async (req, res) => {
+  const studentId = parseInt(req.params.studentId, 10);
+  const student = await requireStudent(studentId);
+  if (!student) return res.status(404).send('Not found');
+  await saveTranscriptDetails(student, req.body);
+  res.redirect(`/main-admin/family-school?studentId=${studentId}&notice=` + encodeURIComponent('Transcript details saved.'));
 });
 
 router.post('/family-school/transcripts/:id/edit', requirePortalPermission('view_family_school_main_admin'), async (req, res) => {
@@ -134,7 +150,7 @@ router.post('/family-school/transcripts/:id/edit', requirePortalPermission('view
   }
   const creditHours = parseFloat(req.body.creditHours);
   const gradeLetter = TRANSCRIPT_GRADE_LETTERS.includes(req.body.gradeLetter) ? req.body.gradeLetter : null;
-  await updateTranscriptEntry(entry.id, { schoolYear, className, creditHours: Number.isFinite(creditHours) && creditHours > 0 ? creditHours : 1, gradeLetter });
+  await updateTranscriptEntry(entry.id, { schoolYear, className, creditHours: Number.isFinite(creditHours) && creditHours > 0 ? creditHours : 1, gradeLetter, courseLevel: req.body.courseLevel });
   res.redirect(`/main-admin/family-school?studentId=${entry.student_id}&notice=` + encodeURIComponent('Transcript entry updated.'));
 });
 
@@ -154,6 +170,8 @@ router.get('/family-school/transcripts/:studentId/print', requirePortalPermissio
     title: 'Transcript',
     member: student,
     builder: await transcriptBuilderForStudent(studentId),
+    details: await transcriptDetailsFor(student),
+    courseLevels: TRANSCRIPT_COURSE_LEVELS,
     familySettings: await getFamilySchoolSettings(student.family_id),
     portalTitle: 'Main Admin',
     backHref: `/main-admin/family-school?studentId=${studentId}`,
@@ -168,6 +186,8 @@ router.get('/family-school/transcripts/:studentId/download.pdf', requirePortalPe
     title: 'Transcript',
     member: student,
     builder: await transcriptBuilderForStudent(studentId),
+    details: await transcriptDetailsFor(student),
+    courseLevels: TRANSCRIPT_COURSE_LEVELS,
     familySettings: await familySettingsForPdf(await getFamilySchoolSettings(student.family_id)),
     portalTitle: 'Main Admin',
     backHref: `/main-admin/family-school?studentId=${studentId}`,

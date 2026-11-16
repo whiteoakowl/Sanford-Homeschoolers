@@ -411,14 +411,27 @@ const TRANSCRIPT_GRADE_POINTS = {
   'C+': 2.3, C: 2.0, 'C-': 1.7,
   'D+': 1.3, D: 1.0, 'D-': 0.7,
   F: 0.0,
+  // S = Satisfactory (the transcript's own grading scale): earns its
+  // credits but isn't part of the GPA.
+  S: null,
 };
 const TRANSCRIPT_GRADE_LETTERS = Object.keys(TRANSCRIPT_GRADE_POINTS);
+// Honors (*) / College Course (**) - a transcript class's course_level.
+const TRANSCRIPT_COURSE_LEVELS = [
+  ['', 'Regular'],
+  ['honors', 'Honors'],
+  ['college', 'College Course'],
+];
+const TRANSCRIPT_GRADE_LEVELS = ['6th', '7th', '8th', '9th', '10th', '11th', '12th'];
 
+// totalCredits: the credits behind the GPA; creditsEarned: every graded
+// class except an F (an S counts too).
 function gpaOf(entries) {
   const graded = entries.filter((e) => e.grade_letter && TRANSCRIPT_GRADE_POINTS[e.grade_letter] != null);
   const totalCredits = graded.reduce((sum, e) => sum + Number(e.credit_hours), 0);
   const gpa = totalCredits > 0 ? graded.reduce((sum, e) => sum + Number(e.credit_hours) * TRANSCRIPT_GRADE_POINTS[e.grade_letter], 0) / totalCredits : null;
-  return { gpa, totalCredits };
+  const creditsEarned = entries.filter((e) => e.grade_letter && e.grade_letter !== 'F').reduce((sum, e) => sum + Number(e.credit_hours), 0);
+  return { gpa, totalCredits, creditsEarned };
 }
 
 // One group per distinct school_year (in the order entries were first
@@ -428,25 +441,107 @@ function gpaOf(entries) {
 // every entry regardless of year ("for the entire 4 years" - not
 // hardcoded to exactly 4; however many school years this student
 // actually has entries for).
+// Each year also carries its Grade Level and the cumulative GPA through
+// the end of that year (the transcript's own per-year footer).
 async function transcriptBuilderForStudent(studentId) {
   const rows = await db.prepare('SELECT * FROM parent_transcript_entries WHERE student_id = ? ORDER BY id').all(studentId);
+  const levels = await db.prepare('SELECT school_year, grade_level FROM transcript_year_levels WHERE student_id = ?').all(studentId);
+  const levelOf = new Map(levels.map((l) => [l.school_year, l.grade_level]));
   const bySchoolYear = new Map();
   for (const r of rows) {
     if (!bySchoolYear.has(r.school_year)) bySchoolYear.set(r.school_year, []);
     bySchoolYear.get(r.school_year).push(r);
   }
-  const schoolYears = Array.from(bySchoolYear.entries()).map(([schoolYear, entries]) => ({ schoolYear, entries, ...gpaOf(entries) }));
-  const { gpa: cumulativeGpa, totalCredits: cumulativeCredits } = gpaOf(rows);
-  return { schoolYears, cumulativeGpa, cumulativeCredits };
+  const soFar = [];
+  const schoolYears = Array.from(bySchoolYear.entries()).map(([schoolYear, entries]) => {
+    soFar.push(...entries);
+    return { schoolYear, gradeLevel: levelOf.get(schoolYear) || '', entries, ...gpaOf(entries), cumulativeGpaToDate: gpaOf(soFar).gpa };
+  });
+  const { gpa: cumulativeGpa, totalCredits: cumulativeCredits, creditsEarned: cumulativeCreditsEarned } = gpaOf(rows);
+  return { schoolYears, cumulativeGpa, cumulativeCredits, cumulativeCreditsEarned };
 }
 
-async function createTranscriptEntry({ studentId, schoolYear, className, creditHours, gradeLetter, createdByAccountId }) {
+// Everything on the printed transcript besides the classes. Saved
+// values win; blank student contact fields fall back to the student's
+// own member record, then the family's primary parent; the School
+// Information box comes from Family School Management's settings (its
+// school name, plus the address/phone/email saved here), falling back
+// to the primary parent's contact details.
+async function transcriptDetailsFor(student) {
+  const saved = (await db.prepare('SELECT * FROM transcript_details WHERE student_id = ?').get(student.id)) || {};
+  const member = (await db.prepare('SELECT * FROM members WHERE id = ?').get(student.id)) || student;
+  const parent = member.family_id
+    ? await db.prepare("SELECT * FROM members WHERE family_id = ? AND member_type IN ('parent', 'admin') ORDER BY is_primary_parent DESC, id LIMIT 1").get(member.family_id)
+    : null;
+  const school = member.family_id ? (await db.prepare('SELECT * FROM family_school_settings WHERE family_id = ?').get(member.family_id)) || {} : {};
+  const family = member.family_id ? await db.prepare('SELECT name FROM families WHERE id = ?').get(member.family_id) : null;
+  const pick = (...vals) => vals.find((v) => v != null && String(v).trim() !== '') || '';
+  return {
+    saved,
+    studentAddress: pick(saved.student_address, member.address, parent && parent.address),
+    studentPhone: pick(saved.student_phone, member.phone, parent && parent.phone),
+    studentEmail: pick(saved.student_email, member.email, parent && parent.email),
+    birthday: pick(saved.birthday, member.birthday),
+    graduationDate: pick(saved.graduation_date),
+    attendance: pick(saved.attendance),
+    testScores: pick(saved.test_scores),
+    activities: pick(saved.activities),
+    diplomaName: pick(saved.diploma_name, 'High School Diploma'),
+    schoolName: pick(school.school_name, family ? `${family.name} Homeschool` : ''),
+    schoolAddress: pick(school.school_address, parent && parent.address),
+    schoolPhone: pick(school.school_phone, parent && parent.phone),
+    schoolEmail: pick(school.school_email, parent && parent.email),
+    savedSchool: school,
+  };
+}
+
+// Saves the Transcript Details form: the student's own fields, each
+// school year's Grade Level (body.gradeLevel[<school year>]), and the
+// family's School Information (address/phone/email on its Family School
+// Management settings).
+async function saveTranscriptDetails(student, body) {
+  const t = (v) => (v == null ? null : String(v).trim() || null);
+  await db
+    .prepare(
+      `INSERT INTO transcript_details (student_id, student_address, student_phone, student_email, birthday, graduation_date, attendance, test_scores, activities, diploma_name, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now_text())
+       ON CONFLICT (student_id) DO UPDATE SET student_address = excluded.student_address, student_phone = excluded.student_phone, student_email = excluded.student_email,
+         birthday = excluded.birthday, graduation_date = excluded.graduation_date, attendance = excluded.attendance, test_scores = excluded.test_scores,
+         activities = excluded.activities, diploma_name = excluded.diploma_name, updated_at = now_text()`
+    )
+    .run(student.id, t(body.studentAddress), t(body.studentPhone), t(body.studentEmail), t(body.birthday), t(body.graduationDate), t(body.attendance), t(body.testScores), t(body.activities), t(body.diplomaName));
+  const levels = body.gradeLevel && typeof body.gradeLevel === 'object' ? body.gradeLevel : {};
+  for (const [schoolYear, level] of Object.entries(levels)) {
+    const value = TRANSCRIPT_GRADE_LEVELS.includes(level) ? level : null;
+    await db
+      .prepare('INSERT INTO transcript_year_levels (student_id, school_year, grade_level) VALUES (?, ?, ?) ON CONFLICT (student_id, school_year) DO UPDATE SET grade_level = excluded.grade_level')
+      .run(student.id, String(schoolYear), value);
+  }
+  if (student.family_id) {
+    const existing = await db.prepare('SELECT family_id FROM family_school_settings WHERE family_id = ?').get(student.family_id);
+    if (existing) {
+      await db
+        .prepare('UPDATE family_school_settings SET school_name = COALESCE(?, school_name), school_address = ?, school_phone = ?, school_email = ?, updated_at = now_text() WHERE family_id = ?')
+        .run(t(body.schoolName), t(body.schoolAddress), t(body.schoolPhone), t(body.schoolEmail), student.family_id);
+    } else {
+      await db
+        .prepare('INSERT INTO family_school_settings (family_id, school_name, school_address, school_phone, school_email) VALUES (?, ?, ?, ?, ?)')
+        .run(student.family_id, t(body.schoolName), t(body.schoolAddress), t(body.schoolPhone), t(body.schoolEmail));
+    }
+  }
+}
+
+function transcriptCourseLevel(value) {
+  return TRANSCRIPT_COURSE_LEVELS.some(([v]) => v && v === value) ? value : null;
+}
+
+async function createTranscriptEntry({ studentId, schoolYear, className, creditHours, gradeLetter, courseLevel, createdByAccountId }) {
   const info = await db
     .prepare(
-      `INSERT INTO parent_transcript_entries (student_id, school_year, class_name, credit_hours, grade_letter, created_by_account_id)
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO parent_transcript_entries (student_id, school_year, class_name, credit_hours, grade_letter, course_level, created_by_account_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(studentId, schoolYear, className, creditHours, gradeLetter || null, createdByAccountId);
+    .run(studentId, schoolYear, className, creditHours, gradeLetter || null, transcriptCourseLevel(courseLevel), createdByAccountId);
   return info.lastInsertRowid;
 }
 
@@ -454,10 +549,10 @@ async function getTranscriptEntry(id) {
   return db.prepare('SELECT * FROM parent_transcript_entries WHERE id = ?').get(id);
 }
 
-async function updateTranscriptEntry(id, { schoolYear, className, creditHours, gradeLetter }) {
+async function updateTranscriptEntry(id, { schoolYear, className, creditHours, gradeLetter, courseLevel }) {
   await db
-    .prepare('UPDATE parent_transcript_entries SET school_year = ?, class_name = ?, credit_hours = ?, grade_letter = ?, updated_at = now_text() WHERE id = ?')
-    .run(schoolYear, className, creditHours, gradeLetter || null, id);
+    .prepare('UPDATE parent_transcript_entries SET school_year = ?, class_name = ?, credit_hours = ?, grade_letter = ?, course_level = ?, updated_at = now_text() WHERE id = ?')
+    .run(schoolYear, className, creditHours, gradeLetter || null, transcriptCourseLevel(courseLevel), id);
 }
 
 async function deleteTranscriptEntry(id) {
@@ -1039,6 +1134,10 @@ async function completionStatsForAssignments(classId) {
 }
 
 module.exports = {
+  TRANSCRIPT_COURSE_LEVELS,
+  TRANSCRIPT_GRADE_LEVELS,
+  transcriptDetailsFor,
+  saveTranscriptDetails,
   assignmentsForClass,
   getAssignment,
   createAssignment,

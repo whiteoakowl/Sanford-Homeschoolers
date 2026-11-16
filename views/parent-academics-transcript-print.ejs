@@ -13,41 +13,156 @@
       job and this <base> tag is simply absent. %>
   <% if (typeof pdfBaseUrl !== 'undefined' && pdfBaseUrl) { %><base href="<%= pdfBaseUrl %>/"><% } %>
   <%- include('partials/head', { title }) %>
+  <style>@page { size: letter; margin: 0.4in; }</style>
 </head>
-<body>
+<%# A real request: "Transcripts should print like this" - a picture of an
+    Official High School Transcript: Student Information and School
+    Information boxes, an Academic Record with one box per school year
+    (School Year, Grade Level, Course Title/Credits/Grade, then Cumulative
+    GPA/Credits/GPA), and along the bottom Academic Summary, Grading Scale
+    and Test Scores (plus activities), then the certification statement
+    with Signature, Title and Date lines. One letter page, shrunk to fit
+    (print-shrink-to-fit.js) when a transcript has many classes. Shared by
+    Parent Portal and Main Admin (routes/parent-portal.js, routes/main-
+    admin-family-school.js). Locals: member, builder, details,
+    familySettings, backHref, portalTitle. %>
+<%
+  var d = details;
+  var fmtDate = function (iso) {
+    if (!iso) return '';
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    return m ? m[2] + '/' + m[3] + '/' + m[1] : iso;
+  };
+  var gpa = function (v) { return v != null ? v.toFixed(2) : '—'; };
+  var credits = function (v) { return Number(v || 0).toString(); };
+  var mark = function (e) { return e.course_level === 'honors' ? '*' : e.course_level === 'college' ? '**' : ''; };
+  var lines = function (t) { return String(t || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean); };
+  var MIN_ROWS = 7;
+%>
+<body class="class-roster-print-page transcript-print-page">
   <%- include('partials/portal-nav', { portalTitle: typeof portalTitle !== 'undefined' && portalTitle ? portalTitle : 'Family School Management' }) %>
 
   <main id="main-content" tabindex="-1" class="admin-main">
-    <p class="no-print"><a href="<%= typeof backHref !== 'undefined' && backHref ? backHref : '/parent/academics' %>">&larr; Transcripts</a></p>
-    <button type="button" class="roster-action-btn print-action-btn no-print" onclick="window.print()">Print</button>
+    <div class="print-preview-header no-print">
+      <p><a href="<%= typeof backHref !== 'undefined' && backHref ? backHref : '/parent/academics' %>">&larr; Transcripts</a></p>
+      <button type="button" class="roster-action-btn print-action-btn" onclick="window.print()">Print</button>
+    </div>
 
-    <%- include('partials/family-school-print-header', { familySettings, subtitle: 'Official Transcript' }) %>
+    <div class="print-page">
+      <div class="class-roster-print-fit" data-shrink-to-fit>
+        <div class="transcript-sheet">
+          <%# The family's own school name/logo/colors header (Family School
+              Management settings - an earlier real request), above the
+              transcript itself. Shown only when printing / in the PDF. %>
+          <%- include('partials/family-school-print-header', { familySettings, subtitle: 'Official Transcript' }) %>
+          <h1 class="transcript-title">Official High School Transcript</h1>
 
-    <section class="portal-dashboard-card portal-dashboard-card-wide">
-      <h2><%= member.name %></h2>
+          <div class="transcript-info-row">
+            <section class="transcript-box">
+              <h2 class="transcript-box-title">Student Information</h2>
+              <div class="transcript-box-body">
+                <p><strong>Student Name:</strong> <%= member.name %></p>
+                <% if (d.studentAddress) { %><p><strong>Address:</strong> <%= d.studentAddress %></p><% } %>
+                <p class="transcript-two">
+                  <span><% if (d.studentPhone) { %><strong>Phone:</strong> <%= d.studentPhone %><% } %></span>
+                  <span><% if (d.birthday) { %><strong>DOB:</strong> <%= fmtDate(d.birthday) %><% } %></span>
+                </p>
+                <% if (d.studentEmail) { %><p><strong>Email:</strong> <%= d.studentEmail %></p><% } %>
+                <% if (d.graduationDate) { %><p><strong>Graduation Date:</strong> <%= fmtDate(d.graduationDate) %></p><% } %>
+              </div>
+            </section>
+            <section class="transcript-box">
+              <h2 class="transcript-box-title">School Information</h2>
+              <div class="transcript-box-body">
+                <p><strong>School Name:</strong> <%= d.schoolName %></p>
+                <% if (d.schoolAddress) { %><p><strong>Address:</strong> <%= d.schoolAddress %></p><% } %>
+                <% if (d.schoolPhone) { %><p><strong>Phone:</strong> <%= d.schoolPhone %></p><% } %>
+                <% if (d.schoolEmail) { %><p><strong>Email:</strong> <%= d.schoolEmail %></p><% } %>
+              </div>
+            </section>
+          </div>
 
-      <% if (builder.schoolYears.length === 0) { %>
-        <p class="hint">No classes on this transcript yet.</p>
-      <% } else { %>
-        <% builder.schoolYears.forEach(function(yr) { %>
-          <h3><%= yr.schoolYear %></h3>
-          <table class="roster-table condensed-table">
-            <thead><tr><th>Class</th><th>Credits</th><th>Grade</th></tr></thead>
-            <tbody>
-              <% yr.entries.forEach(function(e) { %>
-                <tr>
-                  <td><%= e.class_name %></td>
-                  <td><%= e.credit_hours %></td>
-                  <td><%= e.grade_letter || '—' %></td>
-                </tr>
-              <% }); %>
-            </tbody>
-          </table>
-          <p><%= yr.schoolYear %> GPA: <%= yr.gpa != null ? yr.gpa.toFixed(2) : 'N/A' %><% if (yr.gpa != null) { %> (<%= yr.totalCredits %> credits)<% } %></p>
-        <% }); %>
-        <p><strong>Cumulative GPA: <%= builder.cumulativeGpa != null ? builder.cumulativeGpa.toFixed(2) : 'N/A' %></strong><% if (builder.cumulativeGpa != null) { %> (<%= builder.cumulativeCredits %> total credits)<% } %></p>
-      <% } %>
-    </section>
+          <h2 class="transcript-band">Academic Record</h2>
+          <% if (builder.schoolYears.length === 0) { %>
+            <p class="hint transcript-empty">No classes on this transcript yet.</p>
+          <% } %>
+          <div class="transcript-years">
+            <% builder.schoolYears.forEach(function(yr) { %>
+              <section class="transcript-box transcript-year">
+                <div class="transcript-year-head">
+                  <span>School Year: <%= yr.schoolYear %></span>
+                  <span><% if (yr.gradeLevel) { %>Grade Level: <%= yr.gradeLevel %><% } %></span>
+                </div>
+                <table class="transcript-table">
+                  <thead><tr><th>Course Title</th><th>Credits</th><th>Grade</th></tr></thead>
+                  <tbody>
+                    <% yr.entries.forEach(function(e) { %>
+                      <tr><td><%= e.class_name %><%= mark(e) %></td><td><%= credits(e.credit_hours) %></td><td><%= e.grade_letter || '' %></td></tr>
+                    <% }); %>
+                    <% for (var i = yr.entries.length; i < MIN_ROWS; i++) { %><tr class="transcript-blank"><td>&nbsp;</td><td></td><td></td></tr><% } %>
+                  </tbody>
+                </table>
+                <div class="transcript-year-foot">
+                  <span>Cumulative GPA: <%= gpa(yr.cumulativeGpaToDate) %></span>
+                  <span>Credits: <%= credits(yr.creditsEarned) %></span>
+                  <span>GPA: <%= gpa(yr.gpa) %></span>
+                </div>
+              </section>
+            <% }); %>
+          </div>
+
+          <div class="transcript-bottom-row">
+            <section class="transcript-box">
+              <h2 class="transcript-box-title">Academic Summary</h2>
+              <table class="transcript-summary">
+                <tr><td>Cumulative GPA</td><td><%= gpa(builder.cumulativeGpa) %></td></tr>
+                <tr><td>Total Credits Earned</td><td><%= credits(builder.cumulativeCreditsEarned) %></td></tr>
+                <tr><td>Attendance</td><td><%= d.attendance || '' %></td></tr>
+                <tr><td>Graduation Date</td><td><%= fmtDate(d.graduationDate) %></td></tr>
+              </table>
+            </section>
+            <section class="transcript-box">
+              <h2 class="transcript-box-title">Grading Scale</h2>
+              <div class="transcript-scale">
+                <ul>
+                  <li>A (90-100) = 4.0</li>
+                  <li>B (80-89) = 3.0</li>
+                  <li>C (70-79) = 2.0</li>
+                  <li>D (60-69) = 1.0</li>
+                  <li>F (below 60) = 0.0</li>
+                </ul>
+                <ul>
+                  <li>S = Satisfactory</li>
+                  <li>* = Honors</li>
+                  <li>** = College Course</li>
+                </ul>
+              </div>
+            </section>
+            <section class="transcript-box">
+              <h2 class="transcript-box-title">Test Scores</h2>
+              <ul class="transcript-list">
+                <% lines(d.testScores).forEach(function(l) { %><li><%= l %></li><% }); %>
+              </ul>
+              <% if (lines(d.activities).length) { %>
+                <p class="transcript-sub">Activities</p>
+                <ul class="transcript-list">
+                  <% lines(d.activities).forEach(function(l) { %><li><%= l %></li><% }); %>
+                </ul>
+              <% } %>
+            </section>
+          </div>
+
+          <p class="transcript-certify">I hereby certify and affirm that this is the official transcript of <%= member.name %> in the academic studies of <%= d.diplomaName %>.</p>
+          <div class="transcript-sign-row">
+            <div><span class="transcript-line"></span>Signature</div>
+            <div><span class="transcript-line"></span>Title</div>
+            <div><span class="transcript-line"></span>Date</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
+  <script src="/js/print-shrink-to-fit.js"></script>
+  <script src="/js/print-auto.js"></script>
 </body>
 </html>

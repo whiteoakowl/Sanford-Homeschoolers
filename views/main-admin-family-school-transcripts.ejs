@@ -28,7 +28,7 @@
     <% } else if (!rec) { %>
       <p class="roster-empty">Choose a student above to view or build their transcript.</p>
     <% } else { %>
-      <%- include('partials/transcript-student-builder', { rec, semesters, yearOptions, currentSchoolYearValue, gradeLetters, basePath: '/main-admin/family-school' }) %>
+      <%- include('partials/transcript-student-builder', { rec, semesters, yearOptions, currentSchoolYearValue, gradeLetters, courseLevels, gradeLevels, basePath: '/main-admin/family-school' }) %>
     <% } %>
   </main>
   <script src="/js/transcript-add-class.js"></script>
