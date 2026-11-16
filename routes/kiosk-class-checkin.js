@@ -34,6 +34,7 @@ const { createRateLimiter } = require('../utils/rateLimit');
 const { isClassArchived } = require('../utils/classSchedule');
 const { lessonPlanSummary } = require('../utils/lessonPlanSummary');
 const { substitutePlansForClass } = require('../utils/substitutePlans');
+const { orientationScanCheckIn, defaultSemesterId } = require('../utils/orientation');
 
 // Separate from the main portal's own checkinLimiter (routes/kiosk.js) -
 // same generous per-kiosk-device threshold, tuned the same way, just its
@@ -137,6 +138,51 @@ router.post('/unlock', async (req, res) => {
 router.post('/lock', (req, res) => {
   if (req.session) delete req.session.classCheckinUnlocked;
   res.redirect('/kiosk');
+});
+
+// A real request: "Add a tab on the orange menu bar on the kiosk screen
+// called orientation kiosk. When you click this button it asks for the
+// code that is set for class check in and out. On this screen it looks
+// like the normal kiosk screen but the large buttons are Tour check in.
+// Open house check in. Teacher check in. Volunteer check in. These are
+// linked to the items under the orientation tab that are tracked per
+// member." Same PIN as Class Check In & Out (requireUnlocked); each
+// button opens the orientation scan screen and checks that item on
+// Orientation Tracking for the scanned member's family. Volunteer Check
+// In marks Parent Orientation (the parent/volunteer obligation) - there's
+// no separate volunteer item. The semester is Orientation Tracking's own
+// default (the newest).
+const ORIENTATION_KIOSK_ITEMS = {
+  tour: { field: 'tour', label: 'Tour Check In', icon: 'map-pin', color: 'green' },
+  'open-house': { field: 'openHouse', label: 'Open House Check In', icon: 'home', color: 'green' },
+  teacher: { field: 'teacherTraining', label: 'Teacher Check In', icon: 'graduation-cap', color: 'purple' },
+  volunteer: { field: 'video', label: 'Volunteer Check In', icon: 'users', color: 'purple' },
+};
+
+router.get('/orientation', requireUnlocked, (req, res) => {
+  res.render('kiosk-orientation', { title: 'Orientation Kiosk', items: ORIENTATION_KIOSK_ITEMS });
+});
+
+router.get('/orientation/:kind/scan', requireUnlocked, async (req, res) => {
+  const item = ORIENTATION_KIOSK_ITEMS[req.params.kind];
+  if (!item) return res.status(404).send('Not found');
+  res.render('admin-orientation-checkin-scan', {
+    title: item.label,
+    heading: item.label,
+    kioskShell: true,
+    semesterId: await defaultSemesterId(),
+    scanPostUrl: `/kiosk/class-checkin/orientation/${req.params.kind}/scan`,
+    completeUrl: '/kiosk/class-checkin/orientation',
+  });
+});
+
+router.post('/orientation/:kind/scan', requireUnlocked, async (req, res) => {
+  const item = ORIENTATION_KIOSK_ITEMS[req.params.kind];
+  if (!item) return res.status(404).json({ ok: false, message: 'Not found' });
+  if (classScanLimiter.isLimited(req.ip)) return res.status(429).json({ ok: false, message: 'Too many scans - please wait a moment.' });
+  classScanLimiter.recordAttempt(req.ip);
+  const semesterId = req.body.semesterId ? parseInt(req.body.semesterId, 10) : null;
+  res.json(await orientationScanCheckIn({ barcode: req.body.barcode, semesterId, field: item.field }));
 });
 
 // Day picker - a card per day of the week, the top level of the unlocked

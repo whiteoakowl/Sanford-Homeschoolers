@@ -35,6 +35,10 @@
     <a class="landing-top-menu-link" href="/absence?kiosk=1"><svg class="icon"><use href="#icon-clipboard-list"/></svg> Absence/Late Form</a>
     <a class="landing-top-menu-link" href="/kiosk/find-parent"><svg class="icon"><use href="#icon-search"/></svg> Find a Parent</a>
     <a class="landing-top-menu-link" href="/kiosk/class-checkin"><svg class="icon"><use href="#icon-graduation-cap"/></svg> Class Check In &amp; Out</a>
+    <%# A real request: "Add a tab on the orange menu bar on the kiosk
+        screen called orientation kiosk" - same PIN as Class Check In &
+        Out, then the Orientation Kiosk screen (views/kiosk-orientation.ejs). %>
+    <a class="landing-top-menu-link" href="/kiosk/class-checkin?next=%2Fkiosk%2Fclass-checkin%2Forientation"><svg class="icon"><use href="#icon-check-circle"/></svg> Orientation Kiosk</a>
     <a class="landing-top-menu-link" href="/admin"><svg class="icon"><use href="#icon-lock"/></svg> Admin</a>
   </nav>
   <%# A real request: "we need to make the kiosk page have an actual
@@ -93,6 +97,7 @@
     <a class="landing-action-bar-btn" href="/absence?kiosk=1"><svg class="icon"><use href="#icon-clipboard-list"/></svg><span>Absence/Late Form</span></a>
     <a class="landing-action-bar-btn" href="/kiosk/find-parent"><svg class="icon"><use href="#icon-search"/></svg><span>Find a Parent</span></a>
     <a class="landing-action-bar-btn" href="/kiosk/class-checkin"><svg class="icon"><use href="#icon-graduation-cap"/></svg><span>Class Check In &amp; Out</span></a>
+    <a class="landing-action-bar-btn" href="/kiosk/class-checkin?next=%2Fkiosk%2Fclass-checkin%2Forientation"><svg class="icon"><use href="#icon-check-circle"/></svg><span>Orientation Kiosk</span></a>
     <a class="landing-action-bar-btn" href="/admin"><svg class="icon"><use href="#icon-lock"/></svg><span>Admin</span></a>
   </footer>
   <main id="main-content" tabindex="-1" class="landing-wrap">

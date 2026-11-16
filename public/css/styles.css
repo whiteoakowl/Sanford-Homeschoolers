@@ -17247,3 +17247,8 @@ dialog form:has(.permission-section) > h3,
 .ms-family-chevron { width: 1.1rem; height: 1.1rem; transition: transform 0.15s; }
 .ms-family[open] .ms-family-chevron { transform: rotate(180deg); }
 .ms-family-body { padding: 1rem; }
+
+/* Orientation Kiosk (views/kiosk-orientation.ejs): Home and Done links
+   across the top of the kiosk-style screen. */
+.kiosk-orientation-top form { margin: 0; }
+.kiosk-home.kiosk-orientation-done { left: auto; right: 1rem; cursor: pointer; font-family: inherit; font-weight: 600; font-size: 0.85rem; }

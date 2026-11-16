@@ -283,7 +283,26 @@ async function applyTrainingCompletion(trainingId, memberId) {
   }
 }
 
+// One check-in scan for an orientation item (Tour/Open House Check-In
+// pages and the kiosk's Orientation Kiosk). Whoever is scanned, the check
+// lands on their family's Primary Parent row - the same family-obligation
+// lookup a passed Training uses (orientationObligationMemberId).
+async function orientationScanCheckIn({ barcode, semesterId, field }) {
+  const { findMemberByBarcodeOrName } = require('./memberLookup');
+  const { member, ambiguous } = await findMemberByBarcodeOrName(barcode);
+  if (ambiguous) return { ok: false, message: 'More than one member has that name - please scan a barcode instead.' };
+  if (!member) return { ok: false, message: 'Not recognized.' };
+  const targetMemberId = await orientationObligationMemberId(member.id);
+  const rows = await orientationRows(semesterId);
+  const familyRow = rows.find((r) => r.memberId === targetMemberId);
+  if (!familyRow) return { ok: false, message: `${member.name} is not registered for classes this semester.` };
+  if (familyRow[field]) return { ok: true, alreadyChecked: true, message: `${member.name} is already checked in.` };
+  await setOrientationField(targetMemberId, semesterId, field, true);
+  return { ok: true, message: `Welcome, ${member.name}!` };
+}
+
 module.exports = {
+  orientationScanCheckIn,
   FIELDS,
   LINKABLE_FIELDS,
   orientationRows,

@@ -15,8 +15,7 @@ const express = require('express');
 const router = express.Router();
 const requireFullAdmin = require('../middleware/requireFullAdmin');
 const db = require('../db');
-const { FIELDS, LINKABLE_FIELDS, orientationRows, setOrientationField, defaultSemesterId, setOrientationLink, orientationTrainingLinks, orientationObligationMemberId } = require('../utils/orientation');
-const { findMemberByBarcodeOrName } = require('../utils/memberLookup');
+const { FIELDS, LINKABLE_FIELDS, orientationRows, setOrientationField, defaultSemesterId, setOrientationLink, orientationTrainingLinks, orientationScanCheckIn } = require('../utils/orientation');
 const { toCsvRow, sendCsv } = require('../utils/spreadsheet');
 const { renderViewToPdf } = require('../utils/pdfRender');
 
@@ -188,19 +187,7 @@ function renderScanPage(heading, basePath) {
 function handleScan(field) {
   return async (req, res) => {
     const semesterId = req.body.semesterId ? parseInt(req.body.semesterId, 10) : null;
-    const { member, ambiguous } = await findMemberByBarcodeOrName(req.body.barcode);
-    if (ambiguous) return res.json({ ok: false, message: 'More than one member has that name - please scan a barcode instead.' });
-    if (!member) return res.json({ ok: false, message: 'Not recognized.' });
-
-    const targetMemberId = await orientationObligationMemberId(member.id);
-    const rows = await orientationRows(semesterId);
-    const familyRow = rows.find((r) => r.memberId === targetMemberId);
-    if (!familyRow) return res.json({ ok: false, message: `${member.name} is not registered for classes this semester.` });
-
-    if (familyRow[field]) return res.json({ ok: true, alreadyChecked: true, message: `${member.name} is already checked in.` });
-
-    await setOrientationField(targetMemberId, semesterId, field, true);
-    res.json({ ok: true, message: `Welcome, ${member.name}!` });
+    res.json(await orientationScanCheckIn({ barcode: req.body.barcode, semesterId, field }));
   };
 }
 

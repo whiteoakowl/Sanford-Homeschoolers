@@ -7,8 +7,9 @@
   <main id="main-content" tabindex="-1" class="form-wrap form-wrap-narrow login-wrap">
     <a href="/kiosk" class="kiosk-home">&larr; Home</a>
     <img class="login-logo" src="/img/logo.png" alt="Sanford Homeschoolers" />
-    <h1>Class Check-In</h1>
-    <p class="subtitle">Enter the shared staff PIN to check students into a specific class.</p>
+    <% var forOrientation = next && next.indexOf('/kiosk/class-checkin/orientation') === 0; %>
+    <h1><%= forOrientation ? 'Orientation Kiosk' : 'Class Check-In' %></h1>
+    <p class="subtitle"><%= forOrientation ? 'Enter the Class Check In & Out PIN to open the Orientation Kiosk.' : 'Enter the shared staff PIN to check students into a specific class.' %></p>
 
     <% if (error) { %>
       <div class="alert alert-error"><%= error %></div>
