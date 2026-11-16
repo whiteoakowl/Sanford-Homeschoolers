@@ -151,7 +151,10 @@ function assertStudentTable(html, f) {
   assert.match(html, new RegExp(`class="member-schedule-class-title"[^>]*>PE &amp; Health ${f.n}<`));
   assert.match(html, /Aug\. 24, 2026 – Nov\. 16, 2026/, 'date range from the class\'s semester+day grid');
   assert.match(html, /Mon 10:00 AM – 10:45 AM/);
-  assert.match(html, new RegExp(`Room 3 / Lara Snyder ${f.n}`));
+  // Room and teacher on their own lines (a real request: one single row
+  // for each item, so a phone's narrow column doesn't cut them off).
+  assert.match(html, /<span class="member-schedule-line member-schedule-room"[^>]*>Room 3<\/span>/);
+  assert.match(html, new RegExp(`<span class="member-schedule-line member-schedule-teacher"[^>]*>Lara Snyder ${f.n}</span>`));
   assert.match(html, new RegExp(`<a class="member-schedule-line member-schedule-email" href="mailto:lara${f.n}@example.com"( title="[^"]*")?>lara${f.n}@example.com</a>`));
   assert.match(html, /<span class="member-schedule-line member-schedule-phone">919-555-0142<\/span>/);
   // A real request: "Take the price off the class schedules."

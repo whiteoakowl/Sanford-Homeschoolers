@@ -17423,3 +17423,18 @@ dialog form:has(.permission-section) > h3,
   .lpa-view-short { display: inline; }
   .lpa-view-btn { padding: 0.3rem 0.55rem; font-size: 0.75rem; min-height: 0; }
 }
+
+/* Member schedules: a semester title above each semester's day groups (a
+   real request: "class should be separated by semester"), and on phones
+   every line in the Location/Instructor column stays one line ("Shrink
+   to fit the 2nd column... one single row for each item"). */
+.member-schedule-semester-title { display: flex; align-items: center; gap: 0.45rem; margin: 0.9rem 0 0.2rem; font-weight: 800; font-size: 1rem; color: var(--purple); text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 2px solid var(--purple-soft); padding-bottom: 0.2rem; }
+.member-schedule-semester-title .icon { width: 1rem; height: 1rem; }
+.member-schedule-subheading + .member-schedule-semester-title { margin-top: 0.3rem; }
+@media (max-width: 640px) {
+  .member-schedule-table td.member-schedule-location { min-width: 0; font-size: 0.74rem; }
+  .member-schedule-table .member-schedule-location .member-schedule-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: inherit; }
+}
+@media print {
+  .member-schedule-semester-title { border-bottom-color: var(--ink); color: var(--ink); }
+}
