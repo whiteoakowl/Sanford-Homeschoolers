@@ -9,6 +9,7 @@ const express = require('express');
 const { diplomaFieldsFromBody } = require('../utils/diplomaDesign');
 const { awardFromQuery, awardQuery } = require('../utils/gradeAwards');
 const router = express.Router();
+const coopWithdrawal = require('../utils/coopWithdrawal');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -774,8 +775,11 @@ router.get('/classes/dashboard', requirePortalPermission('view_parent_classroom_
   const days = Object.keys(byDay).sort((a, b) => CLASS_DAY_ORDER[a] - CLASS_DAY_ORDER[b]);
   days.forEach((d) => byDay[d].sort(byHourPosition));
 
+  const withdrawMember = await memberForAccount(req.portalAccount.id);
   res.render('parent-class-dashboard', {
     title: 'Class Dashboard',
+    pendingWithdrawal: withdrawMember ? await coopWithdrawal.pendingForFamily(withdrawMember.family_id) : null,
+    withdrawNotice: req.query.notice || null,
     children,
     parents,
     selectedChild,
@@ -785,6 +789,17 @@ router.get('/classes/dashboard', requirePortalPermission('view_parent_classroom_
     dayLabels: CLASS_DAY_LABELS_FULL,
     byDay,
   });
+});
+
+// A real request: "Parent portal, classroom dashboard. At the top add a
+// button that says Withdraw from co-op classes... Option to add a note to
+// admins." Only a request - Co-op Admin confirms or rejects it on
+// Classes > Co-op Withdraw (utils/coopWithdrawal.js).
+router.post('/classes/withdraw', requirePortalPermission('view_parent_classroom_dashboard'), async (req, res) => {
+  const member = await memberForAccount(req.portalAccount.id);
+  if (!member) return res.redirect('/parent/classes/dashboard');
+  await coopWithdrawal.requestWithdrawal({ member, accountId: req.portalAccount.id, note: req.body.note });
+  res.redirect('/parent/classes/dashboard?notice=' + encodeURIComponent('Your request to withdraw from co-op classes was sent to the co-op admins.'));
 });
 
 // A real request: "Remove assignment tab from classroom dashboard" -

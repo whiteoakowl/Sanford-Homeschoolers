@@ -7,7 +7,37 @@
   <%- include('partials/portal-nav', { portalTitle: 'Parent Portal' }) %>
 
   <main id="main-content" tabindex="-1" class="admin-main">
-    <h1>Classroom Dashboard</h1>
+    <div class="roster-toolbar">
+      <div><h1>Classroom Dashboard</h1></div>
+      <%# A real request: "At the top add a button that says Withdraw from
+          co-op classes. A popup occurs and asks are you sure you want to
+          delete your enrollment to co-op and cancel all of your students
+          classes? Option to add a note to admins. Confirm and cancel
+          buttons." Only a request - admins confirm it (routes/admin-
+          coop-withdraw.js). %>
+      <% if (!pendingWithdrawal) { %>
+        <div class="roster-btn-row no-print">
+          <button type="button" class="roster-action-btn roster-action-btn-danger" onclick="document.getElementById('coop-withdraw-dialog').showModal()"><svg class="icon"><use href="#icon-log-out"/></svg> Withdraw from Co-op Classes</button>
+        </div>
+      <% } %>
+    </div>
+    <% if (withdrawNotice) { %><div class="alert alert-success"><%= withdrawNotice %></div><% } %>
+    <% if (pendingWithdrawal) { %>
+      <div class="alert alert-info">Your request to withdraw from co-op classes is waiting for a co-op admin to review it. Your family's classes stay as they are until then.</div>
+    <% } %>
+    <dialog id="coop-withdraw-dialog" class="member-picker-dialog">
+      <form method="POST" action="/parent/classes/withdraw">
+        <h3>Withdraw from Co-op Classes</h3>
+        <p>Are you sure you want to delete your enrollment to co-op and cancel all of your students' classes?</p>
+        <label>Note to admins <span class="hint">(optional)</span>
+          <textarea name="note" rows="3" placeholder="Anything you'd like the admins to know"></textarea>
+        </label>
+        <div class="notes-dialog-actions">
+          <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+          <button type="submit" class="roster-action-btn roster-action-btn-danger">Confirm</button>
+        </div>
+      </form>
+    </dialog>
     <div id="classroom-dashboard-status" class="alert alert-error no-print" hidden></div>
 
     <% if (children.length === 0 && parents.length === 0) { %>

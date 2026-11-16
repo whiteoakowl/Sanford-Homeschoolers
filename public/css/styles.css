@@ -17339,3 +17339,26 @@ dialog form:has(.permission-section) > h3,
   .ti-submission-fields { grid-template-columns: 1fr; gap: 0.15rem; }
   .ti-submission-fields dd { margin-bottom: 0.4rem; }
 }
+
+/* Co-op Withdraw (views/admin-coop-withdraw.ejs): one row per family's
+   request; the open one shows its note, actions and schedule. */
+.cw-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.cw-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.8rem 1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--brand-soft); color: var(--ink); text-decoration: none; }
+.cw-row:hover { border-color: var(--brand); }
+.cw-row-open { background: var(--brand-dark); color: var(--surface); border-radius: 12px 12px 0 0; }
+.cw-family { display: inline-flex; align-items: center; gap: 0.45rem; font-weight: 700; font-size: 1.05rem; }
+.cw-when { margin-left: auto; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; white-space: nowrap; }
+.cw-family .icon,
+.cw-when .icon,
+.cw-chevron { width: 1rem; height: 1rem; }
+.cw-row-open .cw-chevron { transform: rotate(180deg); }
+.cw-status { padding: 0.12rem 0.6rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: var(--surface); }
+.cw-status-pending { color: var(--orange); }
+.cw-status-confirmed { color: var(--green); }
+.cw-status-rejected { color: var(--muted-dark); }
+.cw-detail { margin-top: -0.6rem; padding: 1rem; border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; background: var(--surface); }
+.cw-detail p { margin: 0 0 0.4rem; }
+.cw-actions { margin: 0.8rem 0; justify-content: flex-start; }
+.cw-actions form { margin: 0; }
+.cw-schedule-title { font-size: 1.15rem; margin: 1rem 0 0.4rem; }
+.cw-removed { margin: 0.5rem 0; }
