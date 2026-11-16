@@ -1517,6 +1517,10 @@ router.get('/class-schedule/classes/:id/roster/export.csv', requireFullAdmin, as
   sendCsv(res, `${cls.class_name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-roster.csv`, lines);
 });
 
+// A real request: "When you click on a class it should have a print
+// roster button at the top. Pop up asks if you want to include
+// medical/allergy information with a check box" - ?medical=1 adds the
+// Medical/Allergy Notes column; without it the roster leaves it off.
 router.get('/class-schedule/classes/:id/roster/print', requireFullAdmin, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const cls = await getClass(id);
@@ -1525,6 +1529,7 @@ router.get('/class-schedule/classes/:id/roster/print', requireFullAdmin, async (
     title: `${cls.class_name} Roster`,
     cls: { ...cls, students: cls.students.map((s) => ({ ...s, age: ageFromBirthday(s.birthday) })) },
     dayLabel: CLASS_DAY_LABELS_FULL[cls.day],
+    includeMedical: req.query.medical === '1',
   });
 });
 
@@ -1539,6 +1544,7 @@ router.get('/class-schedule/classes/:id/roster/download.pdf', requireFullAdmin, 
     title: `${cls.class_name} Roster`,
     cls: { ...cls, students: cls.students.map((s) => ({ ...s, age: ageFromBirthday(s.birthday) })) },
     dayLabel: CLASS_DAY_LABELS_FULL[cls.day],
+    includeMedical: req.query.medical === '1',
     // partials/admin-nav reads isFullAdmin straight off res.locals on a
     // normal res.render() - req.app.render() (what renderViewToPdf uses
     // under the hood) never sees res.locals at all, so it has to be

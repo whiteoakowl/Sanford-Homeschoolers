@@ -20,6 +20,10 @@
     <div class="roster-toolbar">
       <div><h1><%= cls.class_name %></h1></div>
       <div class="roster-btn-row no-print">
+        <%# A real request: "it should have a print roster button at the
+            top. Pop up asks if you want to include medical/allergy
+            information with a check box." %>
+        <button type="button" class="roster-action-btn" onclick="document.getElementById('print-roster-dialog').showModal()"><svg class="icon"><use href="#icon-printer"/></svg> Print Roster</button>
         <% if (isArchivedClass) { %>
           <%# A real request: "Add a copy class button on an archived class
               so that you can still copy the class information into a new
@@ -36,6 +40,16 @@
         <% } %>
       </div>
     </div>
+    <dialog id="print-roster-dialog" class="member-picker-dialog">
+      <form method="GET" action="/admin/class-schedule/classes/<%= cls.id %>/roster/print" target="_blank" onsubmit="this.closest('dialog').close()">
+        <h3>Print Roster</h3>
+        <label class="checkbox-option"><input type="checkbox" name="medical" value="1" /> Include medical/allergy information</label>
+        <div class="notes-dialog-actions">
+          <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+          <button type="submit" class="primary-btn">Print</button>
+        </div>
+      </form>
+    </dialog>
     <% if (isArchivedClass) { %><%- include('partials/duplicate-class-dialog', { cls: cls, combos: combos, archived: true }) %><% } %>
 
     <%# Settings > Semesters: this class's semester is archived - view-only. %>
