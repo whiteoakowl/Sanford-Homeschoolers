@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%# Orientation Tracking's Print / Download PDF (routes/admin-orientation.js) -
+      same print-page frame as views/class-schedule-roster-print.ejs. %>
+  <% if (typeof pdfBaseUrl !== 'undefined' && pdfBaseUrl) { %><base href="<%= pdfBaseUrl %>/"><% } %>
+  <%- include('partials/head', { title }) %>
+  <style>@page { size: letter landscape; margin: 0.4in; }</style>
+</head>
+<body class="admin-page class-roster-print-page">
+  <%- include('partials/admin-nav') %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <div class="print-preview-header no-print">
+      <h1>Orientation Tracking</h1>
+      <button type="button" class="roster-action-btn print-action-btn" onclick="window.print()">Print</button>
+    </div>
+    <div class="print-page">
+      <div class="print-header">
+        <img src="/img/logo.png" alt="" />
+        <div>
+          <p class="print-header-title">Sanford Homeschoolers</p>
+          <p class="print-header-sub">Orientation Tracking &mdash; <%= semesterTitle %></p>
+        </div>
+      </div>
+      <div class="class-roster-print-fit" data-shrink-to-fit>
+        <div>
+          <table class="roster-table orientation-print-table">
+            <thead>
+              <tr>
+                <th>Member</th><th>Day</th>
+                <% columns.forEach(function(c) { %><th class="orientation-col-center"><%= c.label %></th><% }); %>
+                <th class="orientation-col-center">% Complete</th><th>Date Completed</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (rows.length === 0) { %>
+                <tr><td colspan="<%= 4 + columns.length %>" class="roster-empty">No one is registered for classes this semester yet.</td></tr>
+              <% } %>
+              <% rows.forEach(function(r) { %>
+                <tr>
+                  <td>
+                    <strong><%= r.memberName %></strong>
+                    <% if (r.children.length) { %><div class="hint"><%= r.children.map(function(c) { return c.name; }).join(', ') %></div><% } %>
+                  </td>
+                  <td><%= r.dayLabel %></td>
+                  <% columns.forEach(function(c) { %><td class="orientation-col-center"><%= r[c.field] ? '✓' : '—' %></td><% }); %>
+                  <td class="orientation-col-center"><%= r.percentComplete %>%</td>
+                  <td><%= r.dateCompleted || '—' %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script src="/js/print-shrink-to-fit.js"></script>
+  <script src="/js/print-auto.js"></script>
+</body>
+</html>

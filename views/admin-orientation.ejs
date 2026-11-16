@@ -10,6 +10,12 @@
       <div><h1>Orientation Tracking</h1></div>
       <div class="roster-btn-row no-print">
         <a class="btn-secondary" href="/admin/orientation/settings">Orientation Settings</a>
+        <% var outQuery = semesterId != null ? '?semesterId=' + semesterId : '?semesterId=none'; %>
+        <div class="roster-btn-row" data-fixed-columns="3">
+        <a class="icon-btn" href="/admin/orientation/export.csv<%= outQuery %>" aria-label="Export CSV" title="Export CSV"><svg class="icon"><use href="#icon-download"/></svg></a>
+        <a class="icon-btn" href="/admin/orientation/print<%= outQuery %>" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
+        <a class="icon-btn" href="/admin/orientation/download.pdf<%= outQuery %>" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
+        </div>
       </div>
     </div>
     <%# A real request: "Orientation gets a dropdown to pick which

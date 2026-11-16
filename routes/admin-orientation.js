@@ -17,6 +17,17 @@ const requireFullAdmin = require('../middleware/requireFullAdmin');
 const db = require('../db');
 const { FIELDS, LINKABLE_FIELDS, orientationRows, setOrientationField, defaultSemesterId, setOrientationLink, orientationTrainingLinks, orientationObligationMemberId } = require('../utils/orientation');
 const { findMemberByBarcodeOrName } = require('../utils/memberLookup');
+const { toCsvRow, sendCsv } = require('../utils/spreadsheet');
+const { renderViewToPdf } = require('../utils/pdfRender');
+
+// Orientation Tracking's own columns, in page order (labels only - the
+// field keys are utils/orientation.js's FIELDS).
+const ORIENTATION_COLUMNS = [
+  { field: 'video', label: 'Parent Orientation' },
+  { field: 'teacherTraining', label: 'Teacher Orientation' },
+  { field: 'tour', label: 'Tour' },
+  { field: 'openHouse', label: 'Open House' },
+];
 
 // Shared by every page in this router - `?semesterId=` if given, else the
 // most recently created semester, else null (the fallback "every class
@@ -42,6 +53,44 @@ router.get('/orientation', requireFullAdmin, async (req, res) => {
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
+});
+
+// A real request: "Orientation tracking page. Add an export, print and pdf
+// icons to this page" - all three cover the semester being viewed.
+async function orientationOutput(req) {
+  const semesterId = await resolveSemesterId(req);
+  const semester = semesterId != null ? await db.prepare('SELECT title FROM semesters WHERE id = ?').get(semesterId) : null;
+  return { semesterId, semesterTitle: semester ? semester.title : 'All Semesters', rows: await orientationRows(semesterId), columns: ORIENTATION_COLUMNS };
+}
+
+router.get('/orientation/export.csv', requireFullAdmin, async (req, res) => {
+  const { rows, columns, semesterTitle } = await orientationOutput(req);
+  const lines = [toCsvRow(['Member', 'Day', ...columns.map((c) => c.label), '% Complete', 'Date Completed', 'Children'])];
+  rows.forEach((r) =>
+    lines.push(
+      toCsvRow([
+        r.memberName,
+        r.dayLabel,
+        ...columns.map((c) => (r[c.field] ? 'Yes' : 'No')),
+        `${r.percentComplete}%`,
+        r.dateCompleted || '',
+        r.children.map((c) => `${c.name} (${c.dayLabel})`).join('; '),
+      ])
+    )
+  );
+  sendCsv(res, `orientation-${semesterTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.csv`, lines);
+});
+
+router.get('/orientation/print', requireFullAdmin, async (req, res) => {
+  res.render('admin-orientation-print', { title: 'Orientation Tracking', ...(await orientationOutput(req)) });
+});
+
+router.get('/orientation/download.pdf', requireFullAdmin, async (req, res) => {
+  const data = await orientationOutput(req);
+  const pdf = await renderViewToPdf(req, 'admin-orientation-print', { title: 'Orientation Tracking', ...data, isFullAdmin: res.locals.isFullAdmin });
+  res.set('Content-Type', 'application/pdf');
+  res.set('Content-Disposition', `attachment; filename="orientation-${data.semesterTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf"`);
+  res.send(pdf);
 });
 
 // One circle's own toggle - fetch-on-click, same pattern public/js/
