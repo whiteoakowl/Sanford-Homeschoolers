@@ -14,6 +14,26 @@
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
+    <%# Online Payments (Stripe) - a real request: "Build the connection".
+        Keys live in the hosting environment, never here; this shows
+        whether they're set and turns Pay Online on or off. %>
+    <div class="manage-section">
+      <div class="grid-box-header"><h2>Online Payments (Stripe)</h2></div>
+      <% if (!stripeConfigured) { %>
+        <p>Stripe isn't connected yet. Add <code>STRIPE_SECRET_KEY</code> and <code>STRIPE_WEBHOOK_SECRET</code> to the site's environment variables (Netlify &gt; Site configuration &gt; Environment variables), then redeploy.</p>
+      <% } else { %>
+        <p><strong>Connected</strong> &middot; <%= stripeMode === 'live' ? 'Live mode - real cards are charged.' : 'Test mode - use Stripe test cards; no real money moves.' %></p>
+        <% if (!stripeWebhookSet) { %><div class="alert alert-error">STRIPE_WEBHOOK_SECRET is missing - payments can't be confirmed automatically until it's added.</div><% } %>
+        <p class="hint">Webhook address for Stripe: <code><%= webhookUrl %></code> (event: <code>checkout.session.completed</code>)</p>
+        <p class="hint">Card processing fee added for families: <%= cardFee.percent %>% + <%= (cardFee.fixedCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) %></p>
+        <form method="POST" action="/main-admin/accounting/settings/online-payments" class="roster-btn-row">
+          <input type="hidden" name="enabled" value="<%= onlineEnabled ? '0' : '1' %>" />
+          <span class="badge-pill badge-pill-<%= onlineEnabled ? 'green' : 'gray' %>"><%= onlineEnabled ? 'Pay Online is on' : 'Pay Online is off' %></span>
+          <button type="submit" class="roster-action-btn roster-action-btn-fit"><%= onlineEnabled ? 'Turn Off' : 'Turn On' %></button>
+        </form>
+      <% } %>
+    </div>
+
     <div class="manage-section">
       <div class="grid-box-header"><h2>Payment Methods</h2></div>
       <p class="hint">One per line. These are the choices Record Payment offers when an admin logs how a payment actually came in.</p>

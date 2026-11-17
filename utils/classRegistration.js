@@ -22,7 +22,7 @@ const db = require('../db');
 const { sectionIdsForMember, classSectionIds, memberSatisfiesRestriction } = require('./sections');
 const { ageGroupList, classGlobalSettings, classScheduleIdsForClass, primaryClassScheduleForClass, CLASS_DAY_LABELS_FULL } = require('./classSchedule');
 const { ageAsOfDate, todayISO, formatDateLabel } = require('./dates');
-const { createCharge, amountPaidForCharge, cancelCharge, recordPayment } = require('./payments');
+const { createCharge, amountPaidForCharge, cancelCharge } = require('./payments');
 const { lastNameOf } = require('./members');
 const { toCsvRow } = require('./spreadsheet');
 const { primaryParentForBilling } = require('./members');
@@ -304,7 +304,10 @@ async function settleChargeOnCancel(chargeId, accountId, autoCredit) {
   if (paid <= 0) {
     await cancelCharge(chargeId);
   } else if (autoCredit) {
-    await recordPayment(chargeId, -paid, 'manual', accountId, 'Automatic credit adjustment: class registration removed.');
+    // A real request: "Admin must approve all refunds, even if the system
+    // automated a refund." Queued for approval (Main Admin > Accounting >
+    // Pending Refunds) instead of recorded on the spot.
+    await require('./refundRequests').requestRefund({ chargeId, amountCents: paid, reason: 'Automatic credit adjustment: class registration removed.', source: 'automatic', accountId });
   }
 }
 

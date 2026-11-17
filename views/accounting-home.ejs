@@ -68,6 +68,41 @@
         </form>
       </div>
 
+      <%# A real request: "Build the connection" (Stripe). Pay Now: pick
+          open charges and pay them by card on Stripe's own secure page,
+          plus the card processing fee ("Members will pay the card fees").
+          Only shown once online payments are set up and turned on. %>
+      <% if (paymentNotice === 'success') { %><div class="alert alert-success">Thank you! Your payment went through and your account is updated.</div><% } %>
+      <% if (paymentNotice === 'processing') { %><div class="alert alert-info">Thank you! Your payment is processing - your account will update in a few minutes.</div><% } %>
+      <% if (paymentNotice === 'cancelled') { %><div class="alert alert-info">Payment cancelled - nothing was charged.</div><% } %>
+      <% if (paymentError) { %><div class="alert alert-error"><%= paymentError %></div><% } %>
+      <% if (onlineEnabled && payableCharges.length) { %>
+        <section class="manage-section pay-now no-print">
+          <div class="grid-box-header"><h2><svg class="icon"><use href="#icon-coin"/></svg> Pay Online</h2></div>
+          <form method="POST" action="/accounting/pay" class="pay-now-form" data-fee-percent="<%= cardFee.percent %>" data-fee-fixed="<%= cardFee.fixedCents %>">
+            <ul class="pay-now-list">
+              <% payableCharges.forEach(function(c) { %>
+                <li>
+                  <label class="pay-now-item">
+                    <input type="checkbox" name="chargeIds" value="<%= c.id %>" data-cents="<%= c.owedCents %>" checked />
+                    <span class="pay-now-desc"><%= c.description %></span>
+                    <span class="pay-now-amount"><%= formatCents(c.owedCents) %></span>
+                  </label>
+                </li>
+              <% }); %>
+            </ul>
+            <div class="pay-now-totals">
+              <div><span>Selected</span><strong data-pay-subtotal></strong></div>
+              <div><span>Card processing fee</span><strong data-pay-fee></strong></div>
+              <div class="pay-now-total"><span>Total</span><strong data-pay-total></strong></div>
+            </div>
+            <p class="hint">You'll pay on Stripe's secure checkout page. A card processing fee (<%= cardFee.percent %>% + <%= (cardFee.fixedCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) %>) is added so the co-op receives the full amount.</p>
+            <button type="submit" class="primary-btn pay-now-btn" data-pay-button>Pay Now</button>
+          </form>
+        </section>
+        <script src="/js/pay-now.js"></script>
+      <% } %>
+
       <div class="manage-section">
         <div class="grid-box-header"><h2>Invoices</h2></div>
         <% if (invoices.length === 0) { %>

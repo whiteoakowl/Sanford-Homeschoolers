@@ -50,6 +50,15 @@ function sendPdf(res, filename, pdfBuffer) {
 }
 
 router.use(requirePortalAuth, requirePortal('main_admin'), requirePortalPermission('manage_finances'));
+const onlinePayments = require('../utils/onlinePayments');
+const refundRequests = require('../utils/refundRequests');
+const stripeApi = require('../utils/stripe');
+const { memberForAccount: memberForAdminAccount } = require('../utils/portalAuth');
+
+async function adminDisplayName(req) {
+  const m = await memberForAdminAccount(req.portalAccount.id);
+  return (m && m.name) || req.portalAccount.email;
+}
 
 function toCents(dollarsString) {
   const n = Number(dollarsString);
@@ -598,6 +607,11 @@ router.post('/payments', requirePortalPermission('view_accounting_payments'), as
   // Record Payment dialog's own POST /charges/:id/payments.
   const methodLabel = (req.body.method || '').trim();
   const note = [methodLabel, (req.body.note || '').trim()].filter(Boolean).join(' - ');
+  // A real request: "Admin must confirm [a refund] before it is
+  // officially finalized" - a refund entered here needs its confirm box.
+  if (isRefund && req.body.adjustmentType === 'refund' && req.body.confirmRefund !== '1') {
+    return res.redirect(`/main-admin/accounting/payments/new?memberId=${memberId}&direction=refund&error=` + encodeURIComponent('Check the box to confirm the refund.'));
+  }
   await payments.recordPayment(charge.id, amountCents, 'manual', req.portalAccount.id, note, isRefund ? req.body.adjustmentType : null);
   await auditLog.record(req.portalAccount.id, isRefund ? 'refund_recorded' : 'payment_recorded', 'payment_charge', charge.id, `${payments.formatCents(Math.abs(amountCents))}${note ? ' - ' + note : ''}`);
   // A real request: "After you click save it goes back to main admin
@@ -704,6 +718,12 @@ router.get('/settings', requirePortalPermission('view_accounting_settings'), asy
   res.render('admin-accounting-settings', {
     title: 'Accounting Settings',
     methods: await paymentMethods(),
+    stripeConfigured: stripeApi.isConfigured(),
+    stripeMode: stripeApi.mode(),
+    stripeWebhookSet: !!process.env.STRIPE_WEBHOOK_SECRET,
+    onlineEnabled: await onlinePayments.isEnabled(),
+    cardFee: stripeApi.feeConfig(),
+    webhookUrl: `${require('../utils/pdfRender').publicOrigin(req)}/stripe/webhook`,
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
@@ -717,6 +737,63 @@ router.post('/settings/payment-methods', requirePortalPermission('view_accountin
   if (!names.length) return res.redirect('/main-admin/accounting/settings?error=' + encodeURIComponent('At least one payment method is required.'));
   await setAppSetting('accounting_payment_methods', JSON.stringify(names));
   res.redirect('/main-admin/accounting/settings?notice=' + encodeURIComponent('Payment methods updated.'));
+});
+
+// Online payments switch (utils/onlinePayments.js) - only meaningful
+// once Stripe keys are set in the environment.
+router.post('/settings/online-payments', requirePortalPermission('view_accounting_settings'), async (req, res) => {
+  await onlinePayments.setEnabled(req.body.enabled === '1');
+  res.redirect('/main-admin/accounting/settings?notice=' + encodeURIComponent(req.body.enabled === '1' ? 'Online payments turned on.' : 'Online payments turned off.'));
+});
+
+// --- Pending Refunds - a real request: "Admin must approve all refunds,
+// even if the system automated a refund. Admin must confirm it before it
+// is officially finalized." (utils/refundRequests.js) ---
+router.get('/refunds', requirePortalPermission('view_accounting_adjustments'), async (req, res) => {
+  res.render('admin-accounting-refunds', {
+    title: 'Pending Refunds',
+    requests: await refundRequests.listRequests(),
+    formatCents: payments.formatCents,
+    notice: req.query.notice || null,
+    error: req.query.error || null,
+  });
+});
+
+router.post('/refunds/:id/approve', requirePortalPermission('view_accounting_adjustments'), async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  try {
+    const result = await refundRequests.approveRequest(id, { adminAccountId: req.portalAccount.id, decidedBy: await adminDisplayName(req), toCard: req.body.toCard === '1' });
+    if (result.error) return res.redirect('/main-admin/accounting/refunds?error=' + encodeURIComponent(result.error));
+    await auditLog.record(req.portalAccount.id, 'refund_approved', 'refund_request', id, req.body.toCard === '1' ? 'Refunded to card (Stripe)' : 'Recorded as refunded');
+    res.redirect('/main-admin/accounting/refunds?notice=' + encodeURIComponent('Refund approved.'));
+  } catch (err) {
+    res.redirect('/main-admin/accounting/refunds?error=' + encodeURIComponent(`Stripe could not refund the card: ${err.message}`));
+  }
+});
+
+router.post('/refunds/:id/decline', requirePortalPermission('view_accounting_adjustments'), async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  await refundRequests.declineRequest(id, await adminDisplayName(req));
+  await auditLog.record(req.portalAccount.id, 'refund_declined', 'refund_request', id, 'Declined');
+  res.redirect('/main-admin/accounting/refunds?notice=' + encodeURIComponent('Refund declined - nothing was changed.'));
+});
+
+// Refund to Card: an admin sending money from an online (Stripe) payment
+// back to the family's card. The admin confirms it in the form, which is
+// the approval; it's final once Stripe accepts it.
+router.post('/charges/:id/card-refund', async (req, res) => {
+  const charge = await payments.getCharge(req.params.id);
+  if (!charge) return res.status(404).render('404', { title: 'Not Found' });
+  const back = `/main-admin/accounting/members/${charge.member_id}`;
+  if (req.body.confirmRefund !== '1') return res.redirect(back + '?error=' + encodeURIComponent('Check the box to confirm the refund.'));
+  try {
+    const result = await onlinePayments.refundToCard({ chargeId: charge.id, amountCents: toCents(req.body.amount), adminAccountId: req.portalAccount.id, note: (req.body.note || '').trim() });
+    if (result.error) return res.redirect(back + '?error=' + encodeURIComponent(result.error));
+    await auditLog.record(req.portalAccount.id, 'refund_recorded', 'payment_charge', charge.id, `${payments.formatCents(toCents(req.body.amount))} refunded to card (Stripe)`);
+    res.redirect(back + '?notice=' + encodeURIComponent('Refunded to the card.'));
+  } catch (err) {
+    res.redirect(back + '?error=' + encodeURIComponent(`Stripe could not refund the card: ${err.message}`));
+  }
 });
 
 // --- A single member's own account (charges/payments) - unchanged
@@ -733,9 +810,17 @@ router.get('/members/:memberId', async (req, res) => {
   if (!member) return res.status(404).render('404', { title: 'Not Found' });
   const overview = await payments.accountOverviewForMember(member.id, req.query.year || 'current');
 
+  // Refund to Card (Stripe): what's still refundable per charge paid online.
+  const cardRefundable = {};
+  for (const c of overview.invoices || []) {
+    const src = await onlinePayments.refundableToCard(c.id);
+    const cents = src.reduce((sum, p) => sum + p.cents, 0);
+    if (cents > 0) cardRefundable[c.id] = cents;
+  }
   res.render('admin-accounting-member', {
     title: member.name,
     member,
+    cardRefundable,
     ...overview,
     autoprint: req.query.autoprint === '1',
     methods: await paymentMethods(),
@@ -808,6 +893,9 @@ router.post('/charges/:id/payments', async (req, res) => {
   // what amounts to a label on the same note field.
   const methodLabel = (req.body.method || '').trim();
   const note = [methodLabel, (req.body.note || '').trim()].filter(Boolean).join(' - ');
+  if (isRefund && req.body.adjustmentType === 'refund' && req.body.confirmRefund !== '1') {
+    return res.redirect(`/main-admin/accounting/members/${charge.member_id}?error=` + encodeURIComponent('Check the box to confirm the refund.'));
+  }
   await payments.recordPayment(charge.id, amountCents, 'manual', req.portalAccount.id, note, isRefund ? req.body.adjustmentType : null);
   await auditLog.record(req.portalAccount.id, isRefund ? 'refund_recorded' : 'payment_recorded', 'payment_charge', charge.id, `${payments.formatCents(Math.abs(amountCents))}${note ? ' - ' + note : ''}`);
   res.redirect(`/main-admin/accounting/members/${charge.member_id}?notice=` + encodeURIComponent(isRefund ? 'Refund recorded.' : 'Payment recorded.'));

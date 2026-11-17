@@ -13,7 +13,9 @@ const { requirePortalAuth, blockTeacherOnlyAccounts, requireAnyPortalPermission 
 const { memberForAccount } = require('../utils/portalAuth');
 const { primaryParentForBilling } = require('../utils/members');
 const payments = require('../utils/payments');
-const { renderViewToPdf } = require('../utils/pdfRender');
+const { renderViewToPdf, publicOrigin } = require('../utils/pdfRender');
+const onlinePayments = require('../utils/onlinePayments');
+const stripe = require('../utils/stripe');
 
 function sendPdf(res, filename, pdfBuffer) {
   res.set('Content-Type', 'application/pdf');
@@ -50,9 +52,17 @@ router.get('/', async (req, res) => {
   const self = await memberForAccount(req.portalAccount.id);
   const member = self ? await db.prepare('SELECT * FROM members WHERE id = ?').get(await primaryParentForBilling(self.id)) : null;
   const overview = member ? await payments.accountOverviewForMember(member.id, req.query.year || 'current') : null;
+  // Pay Now (utils/onlinePayments.js): the family's open charges, each
+  // for what's still owed, when online payments are on.
+  const onlineEnabled = member ? await onlinePayments.isEnabled() : false;
   res.render('accounting-home', {
     title: 'Accounting',
     locked: req.query.locked === '1',
+    onlineEnabled,
+    payableCharges: onlineEnabled ? await onlinePayments.payableCharges(member.id) : [],
+    cardFee: stripe.feeConfig(),
+    paymentNotice: req.query.payment === 'success' ? 'success' : req.query.payment === 'cancelled' ? 'cancelled' : req.query.payment === 'processing' ? 'processing' : null,
+    paymentError: req.query.payError || null,
     member,
     ...(overview || {}),
     invoicesTotalCents: overview ? sumCents(overview.invoices, 'amount_cents') : 0,
@@ -60,6 +70,42 @@ router.get('/', async (req, res) => {
     adjustmentsTotalCents: overview ? sumCents(overview.refundRows, 'amount_cents') + sumCents(overview.cancelledCharges, 'amount_cents') : 0,
     formatCents: payments.formatCents,
   });
+});
+
+// A real request: "Build the connection" (Stripe). Pay Now sends the
+// family to Stripe's own secure Checkout page for the charges they
+// picked plus the card fee; no card details ever touch this site.
+router.post('/pay', async (req, res) => {
+  const self = await memberForAccount(req.portalAccount.id);
+  const memberId = self ? await primaryParentForBilling(self.id) : null;
+  if (!memberId) return res.redirect('/accounting');
+  try {
+    const result = await onlinePayments.startCheckout({
+      memberId,
+      accountId: req.portalAccount.id,
+      chargeIds: req.body.chargeIds,
+      email: req.portalAccount.email,
+      baseUrl: publicOrigin(req),
+    });
+    if (result.error) return res.redirect('/accounting?payError=' + encodeURIComponent(result.error));
+    res.redirect(303, result.url);
+  } catch (err) {
+    console.error('Stripe checkout failed:', err.message);
+    res.redirect('/accounting?payError=' + encodeURIComponent('Online payment is not available right now. Please try again later.'));
+  }
+});
+
+// Stripe sends the family back here after paying. The webhook normally
+// records the payment first; this records it too if the webhook hasn't
+// arrived yet (each Checkout is only ever recorded once).
+router.get('/pay/return', async (req, res) => {
+  try {
+    const result = await onlinePayments.completeBySessionId(String(req.query.session_id || ''));
+    return res.redirect('/accounting?payment=' + (result.recorded || result.reason === 'already_recorded' ? 'success' : 'processing'));
+  } catch (err) {
+    console.error('Stripe return check failed:', err.message);
+    return res.redirect('/accounting?payment=processing');
+  }
 });
 
 // Dedicated print-preview route for the Print button above - same

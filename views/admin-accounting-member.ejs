@@ -89,6 +89,9 @@
                     <% if (c.status !== 'cancelled' && c.status !== 'paid') { %>
                       <button type="button" class="roster-action-btn roster-action-btn-fit" onclick="document.getElementById('payment-dialog-<%= c.id %>').showModal()">Record Payment</button>
                     <% } %>
+                    <% if (cardRefundable[c.id]) { %>
+                      <button type="button" class="roster-action-btn roster-action-btn-fit" onclick="document.getElementById('card-refund-dialog-<%= c.id %>').showModal()">Refund to Card</button>
+                    <% } %>
                     <% if (c.status !== 'cancelled') { %>
                       <form method="POST" action="/main-admin/accounting/charges/<%= c.id %>/cancel" class="inline-block-form" data-confirm="Cancel this charge?">
                         <button type="submit" class="roster-action-btn roster-action-btn-danger roster-action-btn-fit">Cancel</button>
@@ -216,6 +219,26 @@
       </form>
     </dialog>
 
+    <% invoices.forEach(function(c) { if (!cardRefundable[c.id]) return; %>
+      <dialog id="card-refund-dialog-<%= c.id %>" class="member-picker-dialog">
+        <form method="POST" action="/main-admin/accounting/charges/<%= c.id %>/card-refund">
+          <h3>Refund to Card &mdash; <%= c.description %></h3>
+          <p class="hint">Sends money back to the card this charge was paid with, through Stripe. Up to <%= formatCents(cardRefundable[c.id]) %>. The card processing fee isn't refunded.</p>
+          <label>Amount ($)
+            <input type="number" name="amount" min="0.01" step="0.01" max="<%= (cardRefundable[c.id] / 100).toFixed(2) %>" value="<%= (cardRefundable[c.id] / 100).toFixed(2) %>" required />
+          </label>
+          <label>Note
+            <input type="text" name="note" placeholder="Reason for the refund" />
+          </label>
+          <label class="checkbox-option"><input type="checkbox" name="confirmRefund" value="1" required /> I confirm this refund is approved and final</label>
+          <div class="notes-dialog-actions">
+            <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+            <button type="submit" class="primary-btn">Refund to Card</button>
+          </div>
+        </form>
+      </dialog>
+    <% }); %>
+
     <% invoices.forEach(function(c) { %>
       <%# Only rendered where its own trigger button still is - see the
           Record Payment button's matching condition above. %>
@@ -243,6 +266,10 @@
                 <option value="discount">Discount</option>
               </select>
             </label>
+            <%# A real request: "Admin must confirm [a refund] before it is
+                officially finalized." Required for a Refund (checked on
+                the server). %>
+            <label class="checkbox-option" data-toggle-field="refund" style="display: none;"><input type="checkbox" name="confirmRefund" value="1" /> I confirm this refund is approved and final</label>
             <label>Amount ($)
               <input type="number" name="amount" min="0.01" step="0.01" required />
             </label>

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%# Main Admin > Accounting > Pending Refunds (routes/admin-accounting.js,
+    utils/refundRequests.js) - a real request: "Admin must approve all
+    refunds, even if the system automated a refund. Admin must confirm it
+    before it is officially finalized." Pending first, then decided ones. %>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Main Admin' }) %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <h1>Pending Refunds</h1>
+    <p class="hint">Refunds the system creates on its own (for example, a paid class registration that was removed) wait here. Nothing is refunded until an admin approves it.</p>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+    <% if (!requests.length) { %>
+      <p class="roster-empty">No refunds waiting for approval.</p>
+    <% } else { %>
+      <div class="roster-scroll">
+        <table class="roster-table members-table condensed-table table-stack-mobile refund-table">
+          <thead><tr><th>Member</th><th>Charge</th><th>Amount</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <% requests.forEach(function(r) { %>
+              <tr>
+                <td class="table-stack-heading"><a href="/main-admin/accounting/members/<%= r.member_id %>"><%= r.member_name || '—' %></a></td>
+                <td data-label="Charge"><%= r.charge_description %><div class="hint"><%= r.requestedLabel %></div></td>
+                <td data-label="Amount"><strong><%= formatCents(r.amount_cents) %></strong></td>
+                <td data-label="Reason" class="refund-reason"><%= r.reason || '—' %></td>
+                <td data-label="Status">
+                  <span class="badge-pill badge-pill-<%= r.status === 'pending' ? 'orange' : r.status === 'approved' ? 'green' : 'gray' %>"><%= r.status === 'pending' ? 'Waiting' : r.status === 'approved' ? 'Approved' : 'Declined' %></span>
+                  <% if (r.status !== 'pending') { %><div class="hint"><%= r.result || '' %><%= r.decided_by ? ' · ' + r.decided_by : '' %><%= r.decidedLabel ? ' · ' + r.decidedLabel : '' %></div><% } %>
+                </td>
+                <td class="refund-actions">
+                  <% if (r.status === 'pending') { %>
+                    <form method="POST" action="/main-admin/accounting/refunds/<%= r.id %>/approve" class="inline-block-form" data-confirm="Approve this <%= formatCents(r.amount_cents) %> refund to <%= r.member_name %>? It will be final." data-confirm-icon="icon-check-circle" data-confirm-safe="1" data-confirm-yes-label="Yes, Approve">
+                      <% if (r.cardRefundableCents >= r.amount_cents) { %>
+                        <label class="checkbox-option refund-to-card"><input type="checkbox" name="toCard" value="1" checked /> Refund to card (Stripe)</label>
+                      <% } %>
+                      <button type="submit" class="roster-action-btn roster-action-btn-fit">Approve</button>
+                    </form>
+                    <form method="POST" action="/main-admin/accounting/refunds/<%= r.id %>/decline" class="inline-block-form" data-confirm="Decline this refund? Nothing will be refunded." data-confirm-icon="icon-x-circle" data-confirm-yes-label="Yes, Decline">
+                      <button type="submit" class="btn-secondary">Decline</button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

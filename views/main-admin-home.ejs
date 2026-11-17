@@ -53,6 +53,7 @@
       { icon: 'camera', color: 'orange', label: 'Photo Submissions', value: photoSubmissionsCount, href: '/main-admin/photos#pending-photos' },
       { icon: 'briefcase', color: 'teal', label: 'Business Directory Requests', value: directoryRequestsCount, href: '/main-admin/directory?tab=requests' },
       { icon: 'star', color: 'gold', label: 'Classifieds Requests', value: classifiedsRequestsCount, href: '/main-admin/classifieds?tab=requests' },
+      { icon: 'coin', color: 'green', label: 'Refund Approvals', value: typeof refundRequestsCount !== 'undefined' ? refundRequestsCount : 0, href: '/main-admin/accounting/refunds' },
     ];
     %>
     <section class="mah-card">

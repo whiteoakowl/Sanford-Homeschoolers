@@ -94,7 +94,16 @@ test('adminRemoveStudentFromClass automatically credits a paid charge when autoC
 
   await adminRemoveStudentFromClass(classId, studentId, null);
 
-  assert.equal(await amountPaidForCharge(chargeId), 0, 'the payment should be automatically credited back');
+  // A later real request: "Admin must approve all refunds, even if the
+  // system automated a refund." The credit waits for approval instead of
+  // being recorded on the spot - then an approval makes it final.
+  assert.equal(await amountPaidForCharge(chargeId), 1500, 'nothing is refunded until an admin approves it');
+  const pending = await db.prepare("SELECT * FROM refund_requests WHERE charge_id = ? AND status = 'pending'").get(chargeId);
+  assert.ok(pending, 'a pending refund request is created');
+  assert.equal(pending.amount_cents, 1500);
+  const { approveRequest } = require('../utils/refundRequests');
+  await approveRequest(pending.id, { adminAccountId: null, decidedBy: 'Test Admin', toCard: false });
+  assert.equal(await amountPaidForCharge(chargeId), 0, 'approved - the payment is credited back');
   const registration = await db.prepare('SELECT * FROM class_registrations WHERE id = ?').get(registrationId);
   assert.equal(registration.status, 'cancelled');
 });
@@ -112,7 +121,8 @@ test('the roster-removal route wires adminRemoveStudentFromClass in, using the g
     .send({ _csrf: admin.csrfToken });
   assert.equal(res.status, 302);
 
-  assert.equal(await amountPaidForCharge(chargeId), 0, 'removing via the admin roster route should apply the same auto-credit setting');
+  assert.equal(await amountPaidForCharge(chargeId), 1000, 'nothing is refunded until an admin approves it');
+  assert.ok(await db.prepare("SELECT 1 FROM refund_requests WHERE charge_id = ? AND status = 'pending'").get(chargeId), 'removing via the admin roster route queues the same auto-credit for approval');
   const enrollment = await db.prepare('SELECT 1 FROM class_enrollments WHERE class_id = ? AND student_id = ?').get(classId, studentId);
   assert.equal(enrollment, undefined, 'the roster removal itself should still happen via setEnrollment');
 });

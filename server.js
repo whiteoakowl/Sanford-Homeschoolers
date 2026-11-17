@@ -317,6 +317,29 @@ app.set('views', path.join(viewsRoot, 'views'));
 // All" already tips over that cap - confirmed live: 1000 memberIds fields
 // (1001 params with _csrf) 500'd instead of rendering. Raised well past
 // the requested 1000-card ceiling so a real co-op has headroom to grow.
+// Stripe's payment webhook (utils/onlinePayments.js) - before the body
+// parsers below, since its signature check needs the exact raw body, and
+// outside CSRF protection (Stripe signs it instead). Records a paid
+// Checkout once; anything else is acknowledged and ignored.
+app.post('/stripe/webhook', express.raw({ type: '*/*', limit: '1mb' }), async (req, res) => {
+  const stripeApi = require('./utils/stripe');
+  let event;
+  try {
+    event = stripeApi.verifyWebhook(req.body, req.get('Stripe-Signature'));
+  } catch (err) {
+    console.error('Stripe webhook rejected:', err.message);
+    return res.status(400).send('Invalid signature');
+  }
+  try {
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+      await require('./utils/onlinePayments').completeCheckoutSession(event.data.object);
+    }
+    res.json({ received: true });
+  } catch (err) {
+    console.error('Stripe webhook handling failed:', err.message);
+    res.status(500).send('Webhook handling failed');
+  }
+});
 app.use(express.urlencoded({ extended: true, parameterLimit: 20000 }));
 // The site editor autosaves the whole site document as one JSON body -
 // a multi-page site easily passes express.json()'s 100kb default. Scoped

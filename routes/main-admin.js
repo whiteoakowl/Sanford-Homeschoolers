@@ -118,9 +118,13 @@ router.get('/', async (req, res) => {
   const photoSubmissionsCount = photoSubmissions.length;
   const directoryRequestsCount = directoryRequests.length;
   const classifiedsRequestsCount = classifiedsRequests.length;
+  // A real request: "Admin must approve all refunds" - refunds waiting on
+  // Main Admin > Accounting > Pending Refunds (0 if that can't be read).
+  const refundRequestsCount = await require('../utils/refundRequests').pendingCount().catch(() => 0);
 
   res.render('main-admin-home', {
     title: 'Main Admin',
+    refundRequestsCount,
     pendingCount,
     activeCount,
     familyCount,

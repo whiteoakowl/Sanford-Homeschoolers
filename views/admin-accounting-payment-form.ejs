@@ -69,6 +69,9 @@
             <option value="discount">Discount</option>
           </select>
         </label>
+        <%# A real request: "Admin must confirm [a refund] before it is
+            officially finalized." Required for a Refund (server-checked). %>
+        <label class="checkbox-option" data-toggle-field="refund" style="<%= direction === 'refund' ? '' : 'display: none;' %>"><input type="checkbox" name="confirmRefund" value="1" /> I confirm this refund is approved and final</label>
 
         <label>Amount ($)
           <input type="number" name="amount" min="0.01" step="0.01" required />

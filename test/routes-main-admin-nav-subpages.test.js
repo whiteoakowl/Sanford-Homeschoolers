@@ -133,7 +133,7 @@ test('Mobile orange bar: every subpages-bearing item gets its own popup trigger 
     // Reports/Transactions/Receipts (a real request: "accounting, add a
     // subpage called reports... add a subpage called transactions...
     // add a subpage called receipts") grew this from 7 to 10 subpages.
-    { slug: 'accounting', tabCount: 10 },
+    { slug: 'accounting', tabCount: 11 }, // + Pending Refunds (refund approval)
     // Contact Admin Messages (the admin-facing inbox for the Parent/
     // Student/Teacher-facing Contact Admins page) was later removed per
     // a real request: "Members will not be able to read messages on the

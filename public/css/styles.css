@@ -17533,3 +17533,17 @@ h1 + .help-context-link { margin: -0.35rem 0 0.85rem; }
 .help-subnav { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 0.75rem; }
 .help-subnav a { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.8rem; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark); text-decoration: none; font-size: 0.9rem; min-height: 36px; }
 .help-subnav a:hover, .help-subnav a:focus-visible { background: var(--brand); color: var(--ink); }
+/* Pay Online (views/accounting-home.ejs) - Stripe Checkout. */
+.pay-now-list { list-style: none; margin: 0 0 0.8rem; padding: 0; }
+.pay-now-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.pay-now-desc { flex: 1; min-width: 0; }
+.pay-now-amount { font-weight: 700; white-space: nowrap; }
+.pay-now-totals { display: grid; gap: 0.25rem; max-width: 22rem; margin-left: auto; }
+.pay-now-totals div { display: flex; justify-content: space-between; gap: 1rem; }
+.pay-now-total { border-top: 2px solid var(--ink); padding-top: 0.3rem; font-size: 1.1rem; }
+.pay-now-btn { margin-top: 0.6rem; }
+.refund-actions { white-space: nowrap; }
+.refund-actions form { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0 0.3rem 0.3rem 0; }
+.refund-to-card { font-size: 0.85rem; }
+.refund-table .refund-reason { white-space: normal; min-width: 10rem; }
+.refund-table td { vertical-align: top; }
