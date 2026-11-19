@@ -9194,6 +9194,25 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
   .class-schedule-room-grid .class-card-pill-label,
   .class-schedule-room-grid .class-card .badge-pill { font-size: 0.52rem; padding: 0.1rem 0.3rem; }
   .class-schedule-room-grid .class-card-thumb { width: 26px; height: 26px; border-radius: 4px; }
+  /* A real request: "Shrink to fit 6 columns on the schedule grid for
+     mobile. Make sure you can still read the class name, grades and
+     teacher name" (and no hyphenating). The room name turns sideways in a
+     slim column so the hour columns get its width; class name, grade and
+     teacher lines wrap between whole words (public/js/shrink-title-to-
+     fit.js shrinks a line only as far as its longest word needs); the
+     "Teacher:" title sits on its own line above the name (a real request:
+     "The teacher title should still be on each class card"). */
+  .class-schedule-room-grid .class-schedule-room-col { width: 24px; padding: 0.15rem 0.05rem; }
+  .class-schedule-room-grid .class-schedule-room-col-inner { flex-direction: column; align-items: center; gap: 0.2rem; }
+  .class-schedule-room-grid .class-schedule-room-name { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-size: 0.6rem; overflow: visible; }
+  .class-schedule-room-grid th.class-schedule-room-col { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 0.55rem; }
+  .class-schedule-room-grid th,
+  .class-schedule-room-grid td.class-schedule-cell { padding: 0.12rem 0.08rem; }
+  .class-schedule-room-grid .class-card { padding: 0.18rem 0.16rem; border-left-width: 2px; border-radius: 6px; }
+  .class-schedule-room-grid .class-card-header h3 { font-size: 0.62rem; line-height: 1.15; white-space: normal; overflow: hidden; overflow-wrap: normal; }
+  .class-schedule-room-grid .class-card-info { gap: 0.08rem; margin-top: 0.15rem; }
+  .class-schedule-room-grid .class-card-line { font-size: 0.56rem; line-height: 1.2; overflow: hidden; overflow-wrap: normal; }
+  .class-schedule-room-grid .class-card-line-label { display: block; margin-right: 0; }
 }
 
 /* Create/Edit Class form - the form itself takes 1/3 of the page, the
@@ -17437,4 +17456,15 @@ dialog form:has(.permission-section) > h3,
 }
 @media print {
   .member-schedule-semester-title { border-bottom-color: var(--ink); color: var(--ink); }
+}
+
+/* Moving Class Schedule grid columns (public/js/room-row-reorder.js). */
+.class-schedule-room-grid th[data-col-position] { white-space: nowrap; }
+.col-drag-handle { display: inline-flex; vertical-align: middle; cursor: grab; touch-action: none; color: var(--muted); margin-right: 0.25rem; }
+.col-drag-handle .icon { width: 0.9rem; height: 0.9rem; }
+.class-schedule-room-grid th.col-dragging { opacity: 0.6; outline: 2px dashed var(--brand-dark); }
+@media (max-width: 480px) {
+  .class-schedule-room-grid th[data-col-position] { white-space: normal; text-align: center; }
+  .col-drag-handle { display: flex; justify-content: center; margin: 0 0 0.1rem; }
+  .col-drag-handle .icon { width: 0.7rem; height: 0.7rem; }
 }

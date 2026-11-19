@@ -78,6 +78,7 @@ const {
   ensureDayRoster,
   isClassArchived,
   classGlobalSettings,
+  saveColumnOrder,
   HOUR_POSITIONS,
   COLOR_PALETTE,
   GRADE_LEVELS,
@@ -369,6 +370,17 @@ router.post('/class-schedule/:day/edit', requireFullAdmin, requireClassDay, asyn
 // from public/js/room-row-reorder.js right after a drag ends, not a full
 // form submit, so reordering stays a single smooth interaction instead of
 // a page reload.
+// A real request: "Be able to move columns like we do rows." Saves the
+// grid's column (hour) display order for this semester+day
+// (utils/classSchedule.js's saveColumnOrder) - display only, so each
+// column keeps its own hour, times and classes.
+router.post('/class-schedule/:day/columns/reorder', requireFullAdmin, requireClassDay, async (req, res) => {
+  const semesterId = req.body.semesterId ? parseInt(req.body.semesterId, 10) || null : null;
+  const positions = [].concat(req.body.positions || []).map((n) => parseInt(n, 10)).filter((n) => n > 0);
+  await saveColumnOrder(req.params.day, semesterId, positions);
+  res.json({ ok: true });
+});
+
 router.post('/class-schedule/:day/rooms/reorder', requireFullAdmin, requireClassDay, async (req, res) => {
   const day = req.params.day;
   const rooms = [].concat(req.body.rooms || []).map((r) => String(r));

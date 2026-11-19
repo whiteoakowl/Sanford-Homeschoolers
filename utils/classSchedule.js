@@ -516,6 +516,28 @@ async function saveRoomOrder(day, rooms) {
   await setAppSetting(roomOrderSettingKey(day), JSON.stringify(rooms));
 }
 
+// The Class Schedule grid's saved column (hour) display order for one
+// semester+day - [] when never moved (columns show in hour order).
+function columnOrderSettingKey(day, semesterId) {
+  return `${day}_${semesterId == null ? 'none' : semesterId}_column_order`;
+}
+
+async function getColumnOrder(day, semesterId) {
+  const raw = await appSetting(columnOrderSettingKey(day, semesterId), null);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map((n) => parseInt(n, 10)).filter((n) => n > 0) : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+async function saveColumnOrder(day, semesterId, positions) {
+  const clean = [...new Set(positions.map((n) => parseInt(n, 10)).filter((n) => n > 0))];
+  await setAppSetting(columnOrderSettingKey(day, semesterId), JSON.stringify(clean));
+}
+
 // A semester+day's own declared room list (the new Add/Edit Class
 // Schedule Grid popup's Rooms column) - [] if that combo has never had
 // one authored, meaning roomGridForDay/roomsForDay keep deriving rooms
@@ -602,9 +624,16 @@ async function roomGridForDay(day, semesterId) {
   );
   const gridPositions = [];
   for (let p = 1; p <= gridPositionCount; p++) gridPositions.push(p);
+  // A real request: "Be able to move columns like we do rows." The saved
+  // column order (drag a column's handle - POST /class-schedule/:day/
+  // columns/reorder) is display order only: each column keeps its own
+  // hour position, so floater hours, member schedules and times aren't
+  // touched; any position not in the saved order is appended in order.
+  const savedColumnOrder = (await getColumnOrder(day, layoutSemesterId)).filter((p) => gridPositions.includes(p));
+  const displayPositions = [...savedColumnOrder, ...gridPositions.filter((p) => !savedColumnOrder.includes(p))];
   const storedByPosition = {};
   storedHours.forEach((h) => { storedByPosition[h.position] = h; });
-  const hours = gridPositions.map((p) => {
+  const hours = displayPositions.map((p) => {
     const h = storedByPosition[p] || { day, position: p, label: `Hour ${p}`, start_time: null, end_time: null };
     const minutes = earliestMinutesByPosition[h.position];
     return minutes != null ? { ...h, label: minutesToClockLabelLocal(minutes) } : h;
@@ -687,8 +716,13 @@ async function roomGridForDay(day, semesterId) {
     });
 
     const cells = [];
-    let h = 1;
-    while (h <= gridPositionCount) {
+    // Walks the columns in display order. A class only spans into the
+    // next column (or merges with a matching class there) while that
+    // column really is its next hour - once columns are moved apart, it
+    // shows in its own starting hour instead.
+    let i = 0;
+    while (i < displayPositions.length) {
+      const h = displayPositions[i];
       const here = byHour[h];
 
       // Preferred over the name/color/grade merge below when the class
@@ -711,15 +745,15 @@ async function roomGridForDay(day, semesterId) {
       // column still gets its own cell on the next loop iteration
       // instead of being swallowed.
       if (here.length === 1 && here[0].endTimeSpan > 1) {
-        const maxSpan = Math.min(here[0].endTimeSpan, gridPositionCount - h + 1);
+        const maxSpan = Math.min(here[0].endTimeSpan, displayPositions.length - i);
         let span = 1;
-        while (span < maxSpan && byHour[h + span].length === 0) span++;
+        while (span < maxSpan && displayPositions[i + span] === h + span && byHour[h + span].length === 0) span++;
         cells.push({ span, classes: [here[0]] });
-        h += span;
+        i += span;
         continue;
       }
 
-      const next = byHour[h + 1];
+      const next = displayPositions[i + 1] === h + 1 ? byHour[h + 1] : null;
       // age_group (grade) is part of this match, not just name/color - a
       // real bug report: a recurring class name split across grade bands
       // (e.g. "Forest Wildlings" for K-2 at 10am and again for 3-5 at
@@ -738,10 +772,10 @@ async function roomGridForDay(day, semesterId) {
         (next[0].age_group || '') === (here[0].age_group || '')
       ) {
         cells.push({ span: 2, classes: [here[0]] });
-        h += 2;
+        i += 2;
       } else {
         cells.push({ span: 1, classes: here });
-        h += 1;
+        i += 1;
       }
     }
     return { room, cells };
@@ -2826,6 +2860,8 @@ async function membersForSectionRaw(listId, sectionId) {
 }
 
 module.exports = {
+  getColumnOrder,
+  saveColumnOrder,
   NOT_IN_ARCHIVED_SEMESTER_SQL,
   isSemesterArchived,
   isClassArchived,

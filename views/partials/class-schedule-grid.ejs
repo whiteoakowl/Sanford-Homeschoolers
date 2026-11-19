@@ -527,8 +527,14 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
     <thead>
       <tr>
         <th class="class-schedule-room-col">Room</th>
+        <%# A real request: "Be able to move columns like we do rows" -
+            each hour column's own drag handle (public/js/room-row-
+            reorder.js) saves a display order for this semester+day. %>
         <% roomGrid.hours.forEach(function(h) { %>
-          <th><%= h.label %></th>
+          <th data-col-position="<%= h.position %>">
+            <% if (!gridReadOnly) { %><span class="col-drag-handle no-print" aria-label="Drag to move <%= h.label %>" title="Drag to move column"><svg class="icon"><use href="#icon-menu"/></svg></span><% } %>
+            <span class="col-head-label"><%= h.label %></span>
+          </th>
         <% }); %>
       </tr>
     </thead>

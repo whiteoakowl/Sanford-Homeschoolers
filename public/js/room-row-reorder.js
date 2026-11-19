@@ -70,3 +70,67 @@
     }
   });
 })();
+
+// A real request: "Be able to move columns like we do rows." Grabbing an
+// hour column's handle (.col-drag-handle) and moving it left/right slides
+// its header into place; dropping saves the order (POST /class-schedule/
+// :day/columns/reorder) and reloads so every row's cells follow.
+(function () {
+  if (window.__gridColumnReorderInstalled) return;
+  window.__gridColumnReorderInstalled = true;
+
+  let dragging = null; // { th, table, startOrder }
+
+  function headers(table) {
+    return Array.from(table.querySelectorAll('thead th[data-col-position]'));
+  }
+  function order(table) {
+    return headers(table).map((th) => th.getAttribute('data-col-position'));
+  }
+  function headerAtX(table, x) {
+    for (const th of headers(table).filter((t) => t !== dragging.th)) {
+      const rect = th.getBoundingClientRect();
+      if (x < rect.left + rect.width / 2) return th;
+    }
+    return null;
+  }
+
+  document.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.col-drag-handle');
+    if (!handle) return;
+    const th = handle.closest('th[data-col-position]');
+    const table = handle.closest('table[data-room-reorder-day]');
+    if (!th || !table) return;
+    e.preventDefault();
+    dragging = { th, table, startOrder: order(table).join(',') };
+    handle.setPointerCapture(e.pointerId);
+    th.classList.add('col-dragging');
+  });
+
+  document.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const row = dragging.th.parentNode;
+    const target = headerAtX(dragging.table, e.clientX);
+    if (target) row.insertBefore(dragging.th, target);
+    else row.appendChild(dragging.th);
+  });
+
+  document.addEventListener('pointerup', async () => {
+    if (!dragging) return;
+    const { th, table, startOrder } = dragging;
+    th.classList.remove('col-dragging');
+    dragging = null;
+    const positions = order(table);
+    if (positions.join(',') === startOrder) return;
+    try {
+      await fetch(`/admin/class-schedule/${table.getAttribute('data-room-reorder-day')}/columns/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN || '' },
+        body: JSON.stringify({ positions, semesterId: table.getAttribute('data-room-reorder-semester') || '' }),
+      });
+    } catch (err) {
+      // Same as the row reorder above - not page-breaking if it fails.
+    }
+    window.location.reload();
+  });
+})();
