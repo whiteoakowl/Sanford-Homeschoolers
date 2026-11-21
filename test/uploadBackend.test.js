@@ -104,12 +104,16 @@ test('urlForUpload', async (t) => {
     assert.equal(url, '/uploads/members/abc-123.jpg');
   });
 
-  await t.test('builds a Supabase public URL from a bare key when a client is given', () => {
+  await t.test('builds a Supabase public URL from a bare key for a public bucket when a client is given', () => {
     const savedUrl = process.env.SUPABASE_URL;
     process.env.SUPABASE_URL = 'https://example.supabase.co';
     try {
-      const url = urlForUpload({ client: fakeClient(), bucket: 'member-photos', webDir: '/uploads/members', key: 'abc-123.jpg' });
-      assert.equal(url, 'https://example.supabase.co/storage/v1/object/public/member-photos/abc-123.jpg');
+      const url = urlForUpload({ client: fakeClient(), bucket: 'training-resources', webDir: '/uploads/training', key: 'abc-123.jpg' });
+      assert.equal(url, 'https://example.supabase.co/storage/v1/object/public/training-resources/abc-123.jpg');
+      // Member (and child) photos are private: a signed app link instead
+      // (see test/signed-file-links.test.js).
+      const photo = urlForUpload({ client: fakeClient(), bucket: 'member-photos', webDir: '/uploads/members', key: 'abc-123.jpg' });
+      assert.match(photo, /^\/files\/member-photos\/abc-123\.jpg\?exp=/);
     } finally {
       if (savedUrl === undefined) delete process.env.SUPABASE_URL;
       else process.env.SUPABASE_URL = savedUrl;

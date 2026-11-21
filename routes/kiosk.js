@@ -26,7 +26,9 @@ const fullscreenPinLimiter = require('../utils/classCheckinPinRateLimit');
 const checkinLimiter = createRateLimiter({ windowMs: 60 * 1000, maxAttempts: 40 });
 const findParentLimiter = createRateLimiter({ windowMs: 60 * 1000, maxAttempts: 40 });
 
-// Security audit: one-time unlock for a kiosk device (see
+const { unlockDeviceForToday, isUnlockedToday } = require('../middleware/requireKioskDevice');
+
+// Security audit: daily unlock for a kiosk device (see
 // middleware/requireKioskDevice.js). Same Class Check-In PIN and the same
 // shared, database-backed attempt limit as every other place that PIN is
 // typed.
@@ -37,7 +39,7 @@ function safeKioskNext(value) {
 
 router.get('/unlock', (req, res) => {
   const next = safeKioskNext(req.query.next);
-  if (req.session && req.session.kioskDeviceUnlocked) return res.redirect(next);
+  if (isUnlockedToday(req)) return res.redirect(next);
   res.render('kiosk-unlock', { title: 'Unlock Kiosk', error: null, next });
 });
 
@@ -52,7 +54,7 @@ router.post('/unlock', async (req, res) => {
     return res.status(401).render('kiosk-unlock', { title: 'Unlock Kiosk', error: 'Incorrect PIN.', next });
   }
   await fullscreenPinLimiter.recordSuccess(req.ip);
-  req.session.kioskDeviceUnlocked = true;
+  unlockDeviceForToday(req);
   res.redirect(next);
 });
 

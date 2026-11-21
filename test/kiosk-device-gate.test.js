@@ -43,7 +43,7 @@ test('scan endpoints refuse remote barcode guessing', async () => {
   }
 });
 
-test('a wrong PIN does not unlock; the right PIN unlocks the device for good', async () => {
+test('a wrong PIN does not unlock; the right PIN unlocks the device for today', async () => {
   const wrong = await request(app).post('/kiosk/unlock').type('form').send({ pin: '9999', next: '/absence' });
   assert.equal(wrong.status, 401);
   assert.match(wrong.text, /Incorrect PIN/);
@@ -55,6 +55,24 @@ test('a wrong PIN does not unlock; the right PIN unlocks the device for good', a
   assert.ok(cookie);
   assert.equal((await request(app).get('/absence').set('Cookie', cookie)).status, 200);
   assert.equal((await request(app).get('/kiosk/checkin').set('Cookie', cookie)).status, 200);
+
+  // The next day the same device is locked again until an admin enters
+  // the PIN (simulated by backdating the stored unlock date).
+  const sid = decodeURIComponent(cookie.split('=')[1]).replace(/^s:/, '').split('.')[0];
+  const row = await db.prepare('SELECT data_json FROM sessions WHERE sid = ?').get(sid);
+  const data = JSON.parse(row.data_json);
+  assert.ok(data.kioskDeviceUnlockedOn, 'the unlock date is stored');
+  data.kioskDeviceUnlockedOn = '2000-01-01';
+  await db.prepare('UPDATE sessions SET data_json = ? WHERE sid = ?').run(JSON.stringify(data), sid);
+  const nextDay = await request(app).get('/kiosk/checkin').set('Cookie', cookie);
+  assert.equal(nextDay.status, 302);
+  assert.match(nextDay.headers.location, /^\/kiosk\/unlock/);
+});
+
+test('the unlock screen is an admin setup screen, with no member sign-in prompt', async () => {
+  const page = await request(app).get('/kiosk/unlock');
+  assert.match(page.text, /set up this kiosk for today/);
+  assert.doesNotMatch(page.text, /Member\?/);
 });
 
 test('the unlock page never redirects off-site', async () => {

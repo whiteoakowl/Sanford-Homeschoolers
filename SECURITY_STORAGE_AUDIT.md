@@ -68,7 +68,13 @@ of them children).
    being streamed through it. After the permission check, the browser now
    goes to a Supabase link that expires after 5 minutes. Large files work,
    and a forwarded link stops working quickly.
-4. **Database connections.** Each running server instance now uses at most
+4. **Children's photos and class files are private now.** Member and
+   child photos, teachers' handouts, and homework handed in before this
+   change were in public storage folders. Both folders are now private.
+   Pages show these files through links signed by the app that expire
+   within about two days, so a copied link stops working. The signed links
+   also work in printed PDFs (name tags, rosters) and on the kiosk.
+5. **Database connections.** Each running server instance now uses at most
    5 connections (setting: `PG_POOL_MAX`). Idle ones close after 10
    seconds, so a busy morning can't use up Supabase's connection limit.
 
@@ -109,14 +115,14 @@ of them children).
 
    Each member code had about a 1-in-1,250 chance of matching someone.
 
-   These pages now open only:
-   - for someone signed in with a member account (parents can still report
-     an absence from home), or
-   - on a device unlocked once with the Class Check-In PIN. That's the new
-     `/kiosk/unlock` screen; unlocking Class Check-In also counts.
+   These pages now open only on a kiosk device an admin has unlocked
+   **today** with the Class Check-In PIN. That's the new `/kiosk/unlock`
+   screen; unlocking Class Check-In also counts. Members using the kiosk
+   never sign in. A member who is already signed in on their own device
+   can also open them, for example to report an absence from home.
 
-   **What you need to do once:** on each kiosk tablet, open the kiosk and
-   enter the Class Check-In PIN. The tablet then stays unlocked.
+   **Each co-op day:** an admin opens the kiosk on each tablet and enters
+   the PIN once. It stays unlocked until midnight (Eastern time).
 3. **Login and PIN lockouts didn't work on Netlify.** Wrong-password and
    wrong-PIN counts were kept in each server instance's memory, so they
    reset all the time. They're now saved in the database (new
@@ -165,15 +171,16 @@ of them children).
    - the Main Admin account `mainadmin@coop.local` / `changeme123`,
    - the Class Check-In PIN `0000`.
 2. **Upgrade Supabase to Pro** so you get daily backups (see section 1).
-3. **Run the four new migrations** in the Supabase SQL Editor. Start with
+3. **Run the five new migrations** in the Supabase SQL Editor. Start with
    the row-level security one, since it's the most urgent; the other
    three can go in any order after it:
    - `supabase/migrations/20261231200000_rls_all_tables.sql` (most urgent)
    - `supabase/migrations/20261231170000_assignment_submissions_bucket.sql`
    - `supabase/migrations/20261231180000_login_failures.sql`
    - `supabase/migrations/20261231190000_push_notifications.sql`
+   - `supabase/migrations/20261231210000_private_photos_and_class_files.sql`
 
-   The other three turn row-level security on for their own new tables.
+   The new tables turn row-level security on for their own new tables.
 
    **Deploy the new code only after these have run.** The new code expects
    the new tables and columns, so deploying first would break logins and
@@ -188,12 +195,6 @@ of them children).
      admins can upload spreadsheets, so the risk is low.
    - `archiver` (photo zip downloads) has moderate warnings that need a
      major-version update. Upload paths aren't affected.
-7. **Old homework files** saved before this change are still in the public
-   folder. Ask me if you want them moved into the private one.
-8. **Member photos** (including children's) are in a public bucket under
-   random names. They can't be listed or guessed, but anyone who has a
-   photo's link can open it. Moving them to private links is a bigger
-   change across many pages. Ask me if you want it.
 
 ## 3. Push notifications
 
@@ -217,6 +218,9 @@ can now also arrive as a phone or computer push notification.
   3. Redeploy.
 
   Until then, the page says push isn't set up and nothing is sent.
+- **No Google account or Firebase project is needed.** This uses the
+  standard Web Push protocol with your own VAPID keys. Each browser
+  delivers through its own built-in push service automatically.
 - **Privacy:** each push is encrypted for the one device it goes to.
   Links inside a push can only point to pages on this site. When a device
   turns push off or is reset, it's removed automatically.

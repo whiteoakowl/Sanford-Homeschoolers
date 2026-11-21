@@ -17,6 +17,7 @@
 const fs = require('fs');
 const path = require('path');
 const { uploadFile, deleteFile, publicUrl, generateKey } = require('./storage');
+const { SIGNED_BUCKETS, signedFileUrl } = require('./signedFileUrl');
 
 // Saves `buffer` under `bucket` in Supabase Storage when `client` is
 // non-null, otherwise writes it under `localDir` on disk - either way
@@ -54,6 +55,9 @@ async function removeUpload({ client, bucket, localDir, key }) {
 function urlForUpload({ client, bucket, webDir, key }) {
   if (!key) return null;
   if (key.startsWith('/')) return key;
+  // Private buckets (member and child photos) get a server-signed app
+  // link instead of a public Supabase one - see utils/signedFileUrl.js.
+  if (client && SIGNED_BUCKETS.has(bucket)) return signedFileUrl(bucket, key);
   if (client) return publicUrl(bucket, key);
   return `${webDir}/${key}`;
 }

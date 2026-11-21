@@ -8,7 +8,8 @@ const fs = require('fs');
 const path = require('path');
 const { formatDateLabel, formatFriendlyTimestamp, todayISO } = require('./dates');
 const { lastNameOf } = require('./members');
-const { createStorageClient, uploadFile, deleteFile, generateKey, publicUrl, downloadFile } = require('./storage');
+const { createStorageClient, uploadFile, deleteFile, generateKey, downloadFile } = require('./storage');
+const { signedFileUrl } = require('./signedFileUrl');
 
 // Ordered by each lesson's own drag-reordered position (see the lesson
 // content/quizzes migration's own backfill) rather than due date now that
@@ -680,7 +681,8 @@ if (!createStorageClient() && !fs.existsSync(LESSON_ATTACHMENT_DIR)) {
 
 function lessonAttachmentUrl(key) {
   if (!key) return null;
-  return createStorageClient() ? publicUrl(LESSON_ATTACHMENTS_BUCKET, key) : `/uploads/lesson-attachments/${key}`;
+  // Private bucket - server-signed app link (utils/signedFileUrl.js).
+  return createStorageClient() ? signedFileUrl(LESSON_ATTACHMENTS_BUCKET, key) : `/uploads/lesson-attachments/${key}`;
 }
 
 async function saveLessonAttachment(file, existingKey) {

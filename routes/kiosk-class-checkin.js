@@ -133,8 +133,8 @@ router.post('/unlock', async (req, res) => {
   await pinLimiter.recordSuccess(req.ip);
   req.session.classCheckinUnlocked = true;
   // Unlocking Class Check-In also unlocks this device for the other
-  // kiosk screens (middleware/requireKioskDevice.js).
-  req.session.kioskDeviceUnlocked = true;
+  // kiosk screens for the rest of today (middleware/requireKioskDevice.js).
+  require('../middleware/requireKioskDevice').unlockDeviceForToday(req);
   res.redirect(next || '/kiosk/class-checkin/classes');
 });
 

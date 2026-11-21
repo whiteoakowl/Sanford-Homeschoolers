@@ -526,6 +526,9 @@ app.use('/parent', parentFamilySchoolRouter);
 // and a student can both legitimately need the exact same URL.
 app.use('/', familySchoolFilesRouter);
 app.use('/', require('./routes/class-submission-files'));
+// Private member photos and class files, behind server-signed links
+// (utils/signedFileUrl.js).
+app.use('/', require('./routes/signed-files'));
 // Registered before the generic '/main-admin' mounts below (Express
 // tries mounted routers in registration order for matching prefixes,
 // and '/main-admin/events' is otherwise just a prefix match away from

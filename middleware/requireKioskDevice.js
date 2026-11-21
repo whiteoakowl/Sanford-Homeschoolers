@@ -10,19 +10,30 @@
 // These pages now open only for:
 //   - anyone signed in with a member account (parents can still report
 //     an absence from home, teachers can still use their QR links), or
-//   - a device that has been unlocked once with the Class Check-In PIN
-//     (GET/POST /kiosk/unlock, or the existing Class Check-In unlock).
-//     The unlock is stored in that device's session, which lasts until
-//     it's cleared, so a kiosk tablet only needs it once.
+//   - a kiosk device an admin has unlocked TODAY with the Class Check-In
+//     PIN (GET/POST /kiosk/unlock, or the existing Class Check-In
+//     unlock). The unlock is good until midnight Eastern; each co-op day
+//     an admin enters the PIN once to set the kiosk up. Members using the
+//     kiosk never sign in.
 //
 // KIOSK_OPEN_ACCESS=1 turns this off - ONLY for a building-network-only
 // install (README's LAN kiosk setup) that the internet can't reach.
+const { todayISO } = require('../utils/dates');
+
 function kioskOpenAccess() {
   return process.env.KIOSK_OPEN_ACCESS === '1';
 }
 
+function unlockDeviceForToday(req) {
+  req.session.kioskDeviceUnlockedOn = todayISO();
+}
+
+function isUnlockedToday(req) {
+  return !!(req.session && req.session.kioskDeviceUnlockedOn === todayISO());
+}
+
 function isKioskDevice(req) {
-  return kioskOpenAccess() || !!req.portalAccount || !!(req.session && req.session.kioskDeviceUnlocked);
+  return kioskOpenAccess() || !!req.portalAccount || isUnlockedToday(req);
 }
 
 // Paths under the gated prefixes that must stay reachable: the unlock
@@ -42,4 +53,4 @@ function requireKioskDevice(req, res, next) {
   res.redirect('/kiosk/unlock?next=' + encodeURIComponent(req.originalUrl));
 }
 
-module.exports = { requireKioskDevice, isKioskDevice, kioskOpenAccess };
+module.exports = { requireKioskDevice, isKioskDevice, kioskOpenAccess, unlockDeviceForToday, isUnlockedToday };
