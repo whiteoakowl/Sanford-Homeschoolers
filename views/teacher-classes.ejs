@@ -15,6 +15,7 @@
       </div>
     </div>
     <h1>Class Schedule</h1>
+    <%- include('partials/help/link', { slug: 'teacher-class-schedule', label: 'Schedule help' }) %>
 
     <%
       const semesterQuery = selectedSemesterId ? `&semesterId=${selectedSemesterId}` : '';

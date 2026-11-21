@@ -864,14 +864,12 @@ const communityLinksTitle = 'Community';
       Settings
     </a>
   <% } %>
-  <%# Help & Support (routes/help.js) - every member-facing portal; not
-      Main Admin, whose tools the customer Help Center doesn't cover. %>
-  <% if (portalTitle !== 'Main Admin') { %>
-    <a class="admin-corner-link" href="/help">
-      <svg class="icon"><use href="#icon-help-circle"/></svg>
-      Help
-    </a>
-  <% } %>
+  <%# Help: the member Help Center (routes/help.js) from member portals,
+      the Admin Help Center (routes/admin-help.js) from Main Admin. %>
+  <a class="admin-corner-link" href="<%= portalTitle === 'Main Admin' ? '/admin-help' : '/help' %>">
+    <svg class="icon"><use href="#icon-help-circle"/></svg>
+    Help
+  </a>
   <%# A real request: "On desktop when you click the portal button at the
       top of every portal there should not be a dropdown to click choose
       portals. Clicking the portal button should simply take you to the
@@ -903,9 +901,7 @@ const communityLinksTitle = 'Community';
       <% if (showSettingsGear) { %>
         <a class="admin-nav-right-link" href="<%= settingsHref %><%= cornerPortalQuery %>" aria-label="Settings"><svg class="icon"><use href="#icon-gear"/></svg></a>
       <% } %>
-      <% if (portalTitle !== 'Main Admin') { %>
-        <a class="admin-nav-right-link" href="/help" aria-label="Help &amp; Support"><svg class="icon"><use href="#icon-help-circle"/></svg></a>
-      <% } %>
+      <a class="admin-nav-right-link" href="<%= portalTitle === 'Main Admin' ? '/admin-help' : '/help' %>" aria-label="<%= portalTitle === 'Main Admin' ? 'Admin Help Center' : 'Help & Support' %>"><svg class="icon"><use href="#icon-help-circle"/></svg></a>
       <% if (showSwitcher) { %>
         <a class="admin-nav-right-link" href="/portal" aria-label="Switch Portal"><svg class="icon"><use href="#icon-monitor"/></svg></a>
       <% } %>

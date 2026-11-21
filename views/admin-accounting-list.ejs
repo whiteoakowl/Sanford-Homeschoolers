@@ -10,6 +10,7 @@
 
   <main id="main-content" tabindex="-1" class="admin-main">
     <h1>Accounts</h1>
+    <%- include('partials/help/link', { slug: 'main-admin-accounts', label: 'Accounting help', base: '/admin-help' }) %>
 
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>

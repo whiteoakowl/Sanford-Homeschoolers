@@ -8,6 +8,7 @@
   <%- include('partials/admin-nav') %>
   <main id="main-content" tabindex="-1" class="admin-main" data-day="<%= day %>" data-semester-id="<%= semesterId %>">
     <h1>Floater Assignments</h1>
+    <%- include('partials/help/link', { slug: 'coop-admin-floaters', label: 'Floater help', base: '/admin-help' }) %>
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>

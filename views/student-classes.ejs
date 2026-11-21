@@ -23,6 +23,7 @@
       Teacher or Assistant" button. %>
   <main id="main-content" tabindex="-1" class="admin-main">
     <h1>Co-op Schedule</h1>
+    <%- include('partials/help/link', { slug: 'student-co-op-schedule', label: 'Schedule help' }) %>
 
     <%
       const semesterQuery = selectedSemesterId ? `&semesterId=${selectedSemesterId}` : '';

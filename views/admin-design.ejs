@@ -7,6 +7,7 @@
   <%- include('partials/admin-nav') %>
   <main id="main-content" tabindex="-1" class="admin-main">
     <h1><%= tab === 'print' ? 'Print' : tab === 'requests' ? 'Requests' : 'Design' %></h1>
+    <%- include('partials/help/link', { slug: 'coop-admin-printing', label: 'Design/Print help', base: '/admin-help' }) %>
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>

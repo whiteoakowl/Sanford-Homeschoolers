@@ -40,7 +40,4 @@ module.exports = [
   { q: 'How do I find my roster?', a: 'Select **View Roster** on your Home page, or open the class from **My Classes**.', article: 'teacher-class-page', audiences: ['teacher'] },
   { q: 'How do I get my lessons approved?', a: 'Add your lessons, then select **Submit for Admin Approval**.', article: 'lesson-plans', audiences: ['teacher'] },
   { q: 'How do I get reimbursed for supplies?', a: 'Open **Reimbursements** and select **+ Fill Out Reimbursement Form**.', article: 'teacher-reimbursements', audiences: ['teacher'] },
-  { q: 'How do I unlock the kiosk for the day?', a: 'Open the kiosk link on the tablet and enter the Class Check In & Out PIN.', article: 'coop-admin-kiosk-setup', audiences: ['coop_admin'] },
-  { q: 'How do I find a class\'s roster?', a: 'Open **Attendance**, then **Class Rosters**, or open the class from **Classes**.', article: 'coop-admin-rosters', audiences: ['coop_admin'] },
-  { q: 'How do I approve a schedule change?', a: 'Open **Classes**, **Schedule Change Requests**, and select **Approve Switch**.', article: 'coop-admin-schedule-requests', audiences: ['coop_admin'] },
 ];

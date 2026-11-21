@@ -17528,3 +17528,5 @@ dialog form:has(.permission-section) > h3,
   .help-table td { border-bottom: none; padding: 0.3rem 0.75rem; }
   .help-table td::before { content: attr(data-label); display: block; font-size: 0.75rem; font-weight: 700; color: var(--muted-dark); text-transform: uppercase; letter-spacing: 0.02em; }
 }
+h1 + .help-context-link { margin: -0.35rem 0 0.85rem; }
+.help-category-grid .team-info-title { white-space: normal; overflow: visible; text-overflow: clip; }

@@ -24,6 +24,7 @@
       </div>
     <% } %>
     <h1><%= activeTab === 'approvals' ? 'Approvals' : activeTab === 'archive' ? 'Archive' : activeTab === 'locked' ? 'Locked' : activeTab === 'settings' ? 'Settings' : 'Members' %></h1>
+    <%- include('partials/help/link', { slug: 'main-admin-members-list', label: 'Members help', base: '/admin-help' }) %>
 
     <%# A real request: "under members in main admin portal there should
         be a tab that says approvals... there should be another tab

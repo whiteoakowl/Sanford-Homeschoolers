@@ -1,0 +1,115 @@
+module.exports = {
+  slug: 'coop-classes',
+  title: 'Co-op Admin: Classes & Teachers',
+  icon: 'graduation-cap',
+  description: 'Class schedules, registration windows and rules, requests, withdrawals, teachers and lesson plan approval.',
+  articles: [
+    {
+      slug: 'coop-admin-classes',
+      title: 'Adding and managing classes',
+      summary: 'Add or import classes, staff them, add students, and print rosters.',
+      audiences: ['coop_admin'],
+      keywords: ['classes', 'class schedules', 'add class', 'import', 'roster', 'teachers', 'assistants', 'copy class', 'duplicate class', 'delete class', 'slots', 'rooms', 'print roster'],
+      body: [
+        { p: 'Open **Classes**, then **Class Schedules**, and choose a day.' },
+        { list: [
+          '**+ Add Class** adds one class. **Import** adds many from a spreadsheet.',
+          'Select a class to manage it. Its page has **Class Details**, **Slots**, **Teachers & Assistants** (**Add Teacher/Assistant**), **Student Roster** (**Add Students**), **Lessons**, **Attendance**, **Grades** and **Chat**.',
+          'Change details and select **Save Changes**. Slots (times and rooms) save with **Save Slots**.',
+          '**Print Roster** prints the class list. **Copy Class** and **Duplicate Class** make a copy. **Delete Class** removes it.',
+        ] },
+        { note: 'Removing a student or deleting a class may credit the family\'s account, depending on the cancellation setting in **Classes**, **Settings**.' },
+      ],
+      related: ['coop-admin-class-settings', 'coop-admin-registration-log'],
+    },
+    {
+      slug: 'coop-admin-class-settings',
+      title: 'Registration windows and class rules',
+      summary: 'When families can register, who can register for what, age rules and cancellations.',
+      audiences: ['coop_admin'],
+      keywords: ['registration window', 'registration schedule', 'open registration', 'close registration', 'age rule', 'lock by age', 'cancellation', 'class settings'],
+      body: [
+        { h: 'Registration Schedule' },
+        { p: '**Classes**, **Settings**, **Registration Schedule**. With no windows, every open class is available to every family right away.' },
+        { steps: [
+          'Select **+ Add a Window**.',
+          'Give it a **Label**. Choose what it opens: **Parents can register their students for classes**, **Students can register for classes**, **Parents can register for teaching positions**, **Parents can register for class assistant positions**.',
+          'Set **Opens At**, and **Closes At (optional - blank means it stays open)**.',
+          'Save. Use **Edit** or **Delete** on a window to change it.',
+        ] },
+        { h: 'General' },
+        { list: [
+          '**Lock all classes by age**: restricts every class to its selected ages, overriding each class\'s own setting. Leave it off to lock grade or age class by class (each class\'s Details tab).',
+          '**When a class is restricted by age(s)**: whether to **Consider the student\'s age on the class start date**.',
+          '**Allow families to cancel class registrations**: **Through the End of the Class**, **Only Prior to the Class Start Date**, or **Never**.',
+          'Refund rules, for example crediting a family **When a student is removed from a class, or a class is cancelled or deleted, by an admin**.',
+        ] },
+        { p: 'Select **Save Class Settings**.' },
+      ],
+      related: ['coop-admin-classes'],
+    },
+    {
+      slug: 'coop-admin-registration-log',
+      title: 'Class Registration Log and Member Schedules',
+      summary: 'Review registrations, and every member\'s schedule.',
+      audiences: ['coop_admin'],
+      keywords: ['class registration log', 'member schedules', 'import schedules', 'filter'],
+      body: [
+        { list: [
+          '**Classes**, **Class Registration Log**: every registration, waitlist and withdrawal, with print and export.',
+          '**Classes**, **Member Schedules**: every member\'s schedule. Use **Filter** (family, member and so on), and **Import** to load schedules from a spreadsheet.',
+        ] },
+      ],
+    },
+    {
+      slug: 'coop-admin-schedule-requests',
+      title: 'Schedule change requests and co-op withdrawals',
+      summary: 'Approve or decline what families ask for.',
+      audiences: ['coop_admin'],
+      keywords: ['schedule change request', 'approve', 'decline', 'withdraw', 'co-op withdraw'],
+      body: [
+        { list: [
+          '**Classes**, **Schedule Change Requests**: each request lists the classes to **Cancel** and to **Add**. Select **Approve Switch**, or decline with **Decline All** (you can also decline individual parts).',
+          '**Classes**, **Co-op Withdraw**: review a family\'s withdrawal request and their **Family Schedule**, then select **Confirm Withdrawal** or **Reject**. **What was removed** shows the result.',
+        ] },
+        { p: 'Families see the result on their request.' },
+      ],
+    },
+    {
+      slug: 'coop-admin-teachers',
+      title: 'Teachers and assistants',
+      summary: 'Staffing, instructor profiles, reimbursements, class fees and teacher interest.',
+      audiences: ['coop_admin'],
+      keywords: ['teachers', 'assistants', 'staffing', 'instructor profiles', 'reimbursements', 'class fees', 'teacher interest form', 'substitutes'],
+      body: [
+        { p: 'Open **Teachers/Assistants**:' },
+        { table: { head: ['Page', 'What you do there'], rows: [
+          ['**Teachers & Assistants**', 'See who teaches and assists each class, by **Semester**.'],
+          ['**Instructor Profiles**', 'View and edit teachers\' "about me" profiles.'],
+          ['**Teacher Reimbursements**', 'Review supply reimbursement requests with their receipts, and set the form\'s options.'],
+          ['**Class Fees**', 'For each class: **Supply Fee Total**, **Payout Total** (reimbursed to teachers) and **Leftover**. Print or export it.'],
+          ['**Teacher Interest Form**', 'Class ideas parents sent in. **Edit Form** changes the form; **Delete** removes a response.'],
+          ['**Lesson Plans**', 'Shared lesson plans families and teachers can use.'],
+          ['**Lesson Plan Approval**', 'Approve teachers\' lessons. See the next article.'],
+        ] } },
+        { p: 'Classes missing a teacher or assistant appear on **Logs**, **Substitutes Needed**, and families see them under **Classes Needing a Teacher or Assistant**.' },
+      ],
+      related: ['coop-admin-lesson-approval'],
+    },
+    {
+      slug: 'coop-admin-lesson-approval',
+      title: 'Approving lesson plans',
+      summary: 'Review, approve or reject what teachers submit.',
+      audiences: ['coop_admin'],
+      keywords: ['lesson plan approval', 'approve', 'reject', 'lessons', 'substitute plan'],
+      body: [
+        { steps: [
+          'Open **Teachers/Assistants**, then **Lesson Plan Approval**. Filter with **Pending**, **Approved**, **Rejected**, **All** or **By Class**, and by **Semester/Day**.',
+          'Select **View Submission**. Review the **Lesson Details**, **Content**, and any **Substitute Plans Sent With This Lesson**.',
+          'Select **Approve**. Or select **Reject**, write a **Message to the teacher**, and select **Send**.',
+        ] },
+        { p: 'Students and parents only see approved lessons. **Approval History** keeps a record of every decision.' },
+      ],
+    },
+  ],
+};

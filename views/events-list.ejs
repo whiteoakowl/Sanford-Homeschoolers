@@ -73,6 +73,7 @@
     <section class="site-section">
       <div class="site-section-inner">
         <h1><%= (effectivePortal === 'parent' || effectivePortal === 'student') ? 'Event Calendar' : 'Events' %></h1>
+    <% if (typeof portalAccount !== 'undefined' && portalAccount) { %><%- include('partials/help/link', { slug: 'register-for-an-event', label: 'Event help' }) %><% } %>
 
         <div class="roster-toolbar no-print">
           <% if (effectivePortal === 'parent' || (typeof portalAccount !== 'undefined' && portalAccount)) { %>

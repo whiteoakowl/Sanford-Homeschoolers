@@ -32,7 +32,8 @@ async function makeAccount(email, roleKeys, memberType = 'parent') {
   return res.headers['set-cookie'];
 }
 
-const ADMIN_ONLY_SLUGS = [...help.ARTICLES.values()].filter((a) => a.audiences.every((x) => x === 'coop_admin')).map((a) => a.slug);
+// Admin guides live only in the Admin Help Center (/admin-help).
+const ADMIN_ONLY_SLUGS = [...require('../utils/helpCenter/admin').ARTICLES.keys()];
 const INTERNAL_WORDS = /supabase|stripe|api key|database|service_role|vapid|netlify|main admin portal/i;
 
 test('signed-out visitors are sent to log in and returned to the Help Center', async () => {

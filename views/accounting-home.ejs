@@ -29,10 +29,12 @@
     <% } %>
     <% if (!member) { %>
       <h1>Accounting</h1>
+    <%- include('partials/help/link', { slug: 'view-your-account-balance', label: 'Accounting help' }) %>
       <p class="hint">No account on file yet.</p>
     <% } else { %>
       <div class="grid-box-header">
         <h1>Accounting</h1>
+        <%- include('partials/help/link', { slug: 'view-your-account-balance', label: 'Accounting help' }) %>
       </div>
       <%# A real request: "Print button should be an icon. And pdf icons
           should both be next to account year dropdown on the same row.

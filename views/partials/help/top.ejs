@@ -21,6 +21,6 @@
     </nav>
     <form class="help-search-form" method="GET" action="<%= helpBase %>/search" role="search">
       <label class="sr-only" for="help-search-input">Search help</label>
-      <input id="help-search-input" type="search" name="q" value="<%= helpQuery %>" placeholder="Search help, e.g. &quot;register for a class&quot;" autocomplete="off" maxlength="100" />
+      <input id="help-search-input" type="search" name="q" value="<%= helpQuery %>" placeholder="<%= helpBase === '/admin-help' ? 'Search admin help, e.g. "registration window"' : 'Search help, e.g. "register for a class"' %>" autocomplete="off" maxlength="100" />
       <button type="submit" class="primary-btn"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg> Search</button>
     </form>

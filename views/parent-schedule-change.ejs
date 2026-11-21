@@ -12,6 +12,7 @@
   <%- include('partials/portal-nav', { portalTitle: 'Parent Portal' }) %>
   <main id="main-content" tabindex="-1" class="admin-main">
     <h1>Schedule Change Request</h1>
+    <%- include('partials/help/link', { slug: 'schedule-change-request', label: 'Schedule change help' }) %>
     <p class="subtitle">Choose the classes to cancel and the classes to add. A co-op admin approves the switch - nothing changes until then.</p>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>

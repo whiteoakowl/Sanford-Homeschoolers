@@ -4,6 +4,13 @@
       <p class="subtitle"><%= helpIntro %></p>
     </header>
 
+    <% var helpViewerIsAdmin = (typeof isMasterAccount !== 'undefined' && isMasterAccount) || (typeof portalRoles !== 'undefined' && portalRoles.some(function (r) { return r.key === 'coop_admin' || r.key === 'main_admin'; })); %>
+    <% if (helpBase === '/help' && helpViewerIsAdmin) { %>
+      <p class="help-callout help-callout-note"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg><span>You're an admin. Guides for the Co-op Admin and Main Admin portals are in the <a href="/admin-help">Admin Help Center</a>.</span></p>
+    <% } else if (helpBase !== '/help') { %>
+      <p class="help-callout help-callout-note"><svg class="icon" aria-hidden="true"><use href="#icon-info-circle"/></svg><span>Want to see what families, students and teachers see? Open the member <a href="/help">Help Center</a>.</span></p>
+    <% } %>
+
     <section aria-labelledby="help-topics-heading">
       <h2 id="help-topics-heading" class="help-section-title">Browse by topic</h2>
       <div class="team-card-grid help-category-grid">

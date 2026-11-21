@@ -1,0 +1,23 @@
+// Admin Help Center FAQ. Same shape as the member FAQ.
+module.exports = [
+  { q: 'How do I unlock the kiosk for the day?', a: 'Open the kiosk link on each tablet and enter the Class Check In & Out PIN. It stays unlocked until midnight.', article: 'coop-admin-kiosk-setup', audiences: ['coop_admin'] },
+  { q: 'How do I change the Class Check-In PIN?', a: '**Settings**, **Class Check-In PIN**: type a **New PIN** and select **Update PIN**.', article: 'coop-admin-settings', audiences: ['coop_admin'] },
+  { q: 'How do I add a class?', a: '**Classes**, **Class Schedules**, choose the day, then **+ Add Class**.', article: 'coop-admin-classes', audiences: ['coop_admin'] },
+  { q: 'How do I open class registration?', a: '**Classes**, **Settings**, **Registration Schedule**, then **+ Add a Window**.', article: 'coop-admin-class-settings', audiences: ['coop_admin'] },
+  { q: 'How do I approve a schedule change?', a: '**Classes**, **Schedule Change Requests**, then **Approve Switch**.', article: 'coop-admin-schedule-requests', audiences: ['coop_admin'] },
+  { q: 'How do I approve a teacher\'s lessons?', a: '**Teachers/Assistants**, **Lesson Plan Approval**, **View Submission**, then **Approve** or **Reject**.', article: 'coop-admin-lesson-approval', audiences: ['coop_admin'] },
+  { q: 'Who is absent next co-op day?', a: 'Check the **Alert Log** on Home, or **Logs**, **Absence/Late Log**.', article: 'coop-admin-logs', audiences: ['coop_admin'] },
+  { q: 'Which classes need a substitute?', a: '**Logs**, **Substitutes Needed** (also on the dashboard).', article: 'coop-admin-logs', audiences: ['coop_admin'] },
+  { q: 'How do I print name tags?', a: '**Design/Print** (Main Admin: **Name Tags**), **Print**: choose **Name Tags**, pick people, set copies, and **Print**.', article: 'coop-admin-printing', audiences: ['coop_admin', 'main_admin'] },
+  { q: 'How do I text this week\'s floaters?', a: '**Floater Assignments**, **Send Text Notification**, choose the date, write the message, and **Send Now**.', article: 'coop-admin-floaters', audiences: ['coop_admin'] },
+  { q: 'How do I approve a new family?', a: '**Members**, **Approvals**, then **Approve**.', article: 'main-admin-approvals', audiences: ['main_admin'] },
+  { q: 'How do I reset a member\'s password?', a: 'Open the member under **Members**, select **Edit**, and type a new password.', article: 'main-admin-members-list', audiences: ['main_admin'] },
+  { q: 'How do I give someone admin access?', a: '**Settings**, **Admins**: add them to a position and check the pages it manages.', article: 'main-admin-admins', audiences: ['main_admin'] },
+  { q: 'How do I hide a page from parents?', a: '**Settings**, **Portal Permissions**, **View** on Parent, uncheck the page, and **Save**.', article: 'main-admin-portal-permissions', audiences: ['main_admin'] },
+  { q: 'How do I record a payment?', a: '**Accounting**, **Payments**, **+ Add Payment**, choose the method and member, and **Collect Payment**.', article: 'main-admin-payments', audiences: ['main_admin'] },
+  { q: 'Does the site take credit cards?', a: 'No. Credit Card only records a card payment taken elsewhere; card details are never stored.', article: 'main-admin-payments', audiences: ['main_admin'] },
+  { q: 'How do I create an event?', a: '**Events**, **+ New Event**, fill it in, **Create Draft**, build it, then **Publish**.', article: 'main-admin-events', audiences: ['main_admin'] },
+  { q: 'How do I turn off text messages for a notification?', a: '**Settings**, **Text/Email Notifications**, select the type, uncheck **Text**, and **Save**.', article: 'main-admin-notifications', audiences: ['main_admin'] },
+  { q: 'How do I change the public website?', a: '**Settings**, **Public Homepage**, **Edit Site** on a computer, then **Publish**.', article: 'main-admin-public-website', audiences: ['main_admin'] },
+  { q: 'How do I lock a family that hasn\'t paid?', a: '**Members**, use the lock icon. They can only see **Accounting** until unlocked.', article: 'main-admin-archive-lock', audiences: ['main_admin'] },
+];

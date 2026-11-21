@@ -582,6 +582,8 @@ app.use('/main-admin/newsletter', adminNewsletterRouter);
 app.use('/notifications', notificationsRouter);
 // Customer Help Center (signed-in members only) - see routes/help.js.
 app.use('/help', require('./routes/help'));
+// Admin Help Center (Co-op Admin and Main Admin only) - routes/admin-help.js.
+app.use('/admin-help', require('./routes/admin-help'));
 app.use('/main-admin/notifications', adminNotificationsRouter);
 app.use('/photos', photosRouter);
 app.use('/babysitters', babysittersRouter);

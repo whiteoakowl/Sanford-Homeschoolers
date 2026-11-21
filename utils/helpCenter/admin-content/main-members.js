@@ -1,0 +1,123 @@
+module.exports = {
+  slug: 'main-members',
+  title: 'Main Admin: Members & Membership',
+  icon: 'users',
+  description: 'Approvals, members and families, locking and archiving, imports, sections, the member directory and membership settings.',
+  articles: [
+    {
+      slug: 'main-admin-approvals',
+      title: 'Approving or denying membership requests',
+      summary: 'New families wait on Approvals until you decide.',
+      audiences: ['main_admin'],
+      permission: 'view_members_approvals',
+      keywords: ['approvals', 'approve', 'deny', 'new family', 'membership request', 'pending', 'registration'],
+      body: [
+        { steps: [
+          'Open **Members**, then **Approvals**.',
+          'Review each request.',
+          'Select **Approve** to activate the family, or **Deny** to turn it down.',
+        ] },
+        { p: 'Approved families can sign in right away. They (and denied applicants) are emailed the letter you set under **Members**, **Settings**, **Approval/Denial Messages**. "No membership requests awaiting approval." means you\'re caught up.' },
+      ],
+      related: ['main-admin-membership-settings'],
+    },
+    {
+      slug: 'main-admin-members-list',
+      title: 'Managing members and families',
+      summary: 'Add, find, edit, and organize members and families.',
+      audiences: ['main_admin'],
+      permission: 'manage_members',
+      keywords: ['members', 'add member', 'edit member', 'family', 'add family', 'bulk edit', 'filter', 'grade level report', 'reset password', 'delete member'],
+      body: [
+        { list: [
+          '**+ Add Member**: fill in the member form and select **Save Member**. Use **Add Family** on that form to start a new family (**Family Last Name**).',
+          'Select a member to see their **Profile**, **Class Schedule** and **Attendance**, and select **Edit** to change anything, including a new password for their login.',
+          '**Add/Edit Family** (**Manage Families**): rename or delete families, and **Add to Family** to move members.',
+          '**Bulk Edit**: check members, then apply a change to all of them, such as **Add to Section(s)**.',
+          '**Grade Level Report**: students per grade, with filters by **Section**, **Schedule Grid Signup** and **Family**.',
+          'Export, print or download the list with the buttons at the top.',
+        ] },
+        { note: 'Deleting a member can\'t be undone. Use **Archive** for someone leaving the co-op.' },
+      ],
+      related: ['main-admin-archive-lock', 'main-admin-import-members'],
+    },
+    {
+      slug: 'main-admin-archive-lock',
+      title: 'Archiving and locking members',
+      summary: 'Archive members who leave; lock accounts so they only see their balance.',
+      audiences: ['main_admin'],
+      permission: 'manage_members',
+      keywords: ['archive', 'reactivate', 'lock', 'unlock', 'locked', 'suspend', 'balance', 'leave co-op'],
+      body: [
+        { table: { head: ['Action', 'What happens', 'Where to undo it'], rows: [
+          ['**Archive**', 'The member is marked inactive and drops off active member lists, rosters, the kiosk and the directory.', '**Members**, **Archive**, **Reactivate**.'],
+          ['**Lock**', 'The member can sign in, but only to see and pay their balance on **Accounting**.', '**Members**, **Locked**, **Unlock**.'],
+        ] } },
+        { p: 'Use the archive or lock icon on a member\'s row. Archive several at once by checking them first.' },
+      ],
+      related: ['main-admin-accounts'],
+    },
+    {
+      slug: 'main-admin-import-members',
+      title: 'Importing members from a spreadsheet',
+      summary: 'Add or update many members at once.',
+      audiences: ['main_admin'],
+      permission: 'manage_members',
+      keywords: ['import', 'spreadsheet', 'csv', 'excel', 'upload members', 'merge'],
+      body: [
+        { steps: [
+          'Open **Members** and select **Import**.',
+          'Select **Download Sample File** to see the columns, and fill in your spreadsheet the same way.',
+          'Choose your file and select **Import**.',
+          'If some rows match existing members, **Confirm Import Merge** lists them with the **New Information**. Check the ones to update and select **Merge Selected**, or **Skip All**.',
+        ] },
+      ],
+    },
+    {
+      slug: 'main-admin-membership-settings',
+      title: 'Membership settings',
+      summary: 'Grade levels, fee and payment, form fields, approval letters and the Policy Handbook.',
+      audiences: ['main_admin'],
+      permission: 'view_members_settings',
+      keywords: ['membership settings', 'grade level settings', 'membership fee', 'payment instructions', 'form fields', 'approval letter', 'denial letter', 'policy handbook'],
+      body: [
+        { p: 'Open **Members**, then **Settings**. Each card:' },
+        { table: { head: ['Setting', 'What it does', 'Save with'], rows: [
+          ['**Grade Level Settings**', 'Age/date rules for assigning a student\'s grade level.', '**Save Grade Level Settings**'],
+          ['**Membership Fee & Payment**', 'The fee amount and payment instructions shown on the application.', '**Save**'],
+          ['**Membership Form Fields**', 'Extra questions on the Membership Form and public application.', '**Save**'],
+          ['**Approval/Denial Messages**', 'The letters sent when a registration is approved or denied.', '**Save Approval Letter**, **Save Denial Letter**'],
+          ['**Policy Handbook**', 'The handbook families agree to when applying, and see under **Policy Handbook**. Optionally upload a **Policy Handbook File** (PDF/Word) to download.', '**Save Policy Handbook**'],
+        ] } },
+      ],
+      related: ['main-admin-approvals'],
+    },
+    {
+      slug: 'main-admin-sections',
+      title: 'Sections',
+      summary: 'Groups of members used to target classes, chats, forms and messages.',
+      audiences: ['main_admin'],
+      permission: 'manage_sections',
+      keywords: ['sections', 'groups', 'member groups', 'add section'],
+      body: [
+        { steps: [
+          'Open **Sections** and select **+ Add Section**. Enter a **Section Name** and **Description**.',
+          'Open the section and use **+ Add** to add members, or **Remove** to take them out. Select **Save**.',
+        ] },
+        { p: 'Sections are used across the site, for example to limit a chat group, a registration window or a message to certain families. Members can also be added in bulk from **Members**, **Bulk Edit**.' },
+      ],
+    },
+    {
+      slug: 'main-admin-member-directory',
+      title: 'Member Directory settings',
+      summary: 'Choose which fields every member\'s directory listing shows.',
+      audiences: ['main_admin'],
+      permission: 'manage_directory',
+      keywords: ['member directory', 'directory fields', 'privacy', 'phone', 'email', 'address'],
+      body: [
+        { p: 'Go to your site\'s **/main-admin/member-directory** page (it isn\'t in the menu), and check the fields to show: **Photo**, **Phone Number**, **Email**, **Address**, **Grade Level**, **Family Name**. Select **Save**.' },
+        { p: 'Nothing is shown until you turn fields on. Each member can still remove themselves under their **Settings**, **My Privacy**.' },
+      ],
+    },
+  ],
+};

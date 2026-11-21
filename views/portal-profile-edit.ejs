@@ -14,6 +14,7 @@
   <main id="main-content" tabindex="-1" class="admin-main">
     <p class="subtitle no-print"><a href="/portal/profile">&larr; My Profile</a></p>
     <h1>Edit <%= member.name %></h1>
+    <%- include('partials/help/link', { slug: 'edit-your-profile', label: 'Profile help' }) %>
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>

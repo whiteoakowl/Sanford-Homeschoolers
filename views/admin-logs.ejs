@@ -18,6 +18,7 @@
         messages (partials/class-registration-log.ejs). %>
     <% if (tab !== 'classregistration') { %>
     <h1><%= title %></h1>
+    <%- include('partials/help/link', { slug: 'coop-admin-logs', label: 'Logs help', base: '/admin-help' }) %>
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>

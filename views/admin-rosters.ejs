@@ -28,6 +28,7 @@
     <%# A real request: the Playground page "should be called Playground
         roster" - each hour's own page (playgroundLog) keeps its title. %>
     <h1><%= view === 'grid' ? `${dayLabel} Attendance` : view === 'playgroundRoster' ? 'Playground Roster' : view === 'playgroundLog' ? 'Playground Attendance' : view === 'classList' ? 'Class Rosters' : 'Attendance' %></h1>
+    <%- include('partials/help/link', { slug: 'coop-admin-rosters', label: 'Roster help', base: '/admin-help' }) %>
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>

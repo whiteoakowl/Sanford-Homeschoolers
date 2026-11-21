@@ -77,7 +77,6 @@ module.exports = createHelpCenter({
     'notifications-settings',
     'privacy',
     'security',
-    'coop-admin',
   ],
   faqFile: 'faq',
   audiences: ['member', 'parent', 'student', 'teacher', 'coop_admin'],

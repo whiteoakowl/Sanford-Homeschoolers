@@ -20,6 +20,7 @@
     </div>
 
     <h1>Setup/Cleanup Teams</h1>
+    <%- include('partials/help/link', { slug: 'coop-admin-setup-cleanup', label: 'Setup/Cleanup help', base: '/admin-help' }) %>
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>

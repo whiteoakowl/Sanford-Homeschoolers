@@ -16,6 +16,7 @@
     <%# Class Registration Log carries its own picture banner title
         (partials/class-registration-log.ejs). %>
     <% if (tab !== 'classregistrationlog') { %><h1><%= tab === 'settings' ? 'Co-op Class Settings' : tab === 'members' ? 'Member Schedules' : 'Class Schedules' %></h1><% } %>
+    <%- include('partials/help/link', { slug: 'coop-admin-classes', label: 'Class help', base: '/admin-help' }) %>
 
     <%# Class Schedules/Member Schedules/Settings now live as subpages
         under the orange bar's own Schedules item (views/partials/admin-

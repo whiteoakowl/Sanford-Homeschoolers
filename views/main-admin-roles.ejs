@@ -13,6 +13,7 @@
     <%# A real request: "roles and permissions should be called portal
         permissions." %>
     <h1>Portal Permissions</h1>
+    <%- include('partials/help/link', { slug: 'main-admin-portal-permissions', label: 'Permissions help', base: '/admin-help' }) %>
 
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
 

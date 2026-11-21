@@ -1,0 +1,113 @@
+module.exports = {
+  slug: 'main-accounting',
+  title: 'Main Admin: Accounting',
+  icon: 'coin',
+  description: 'Family accounts, invoices, payments, adjustments, transactions, receipts, reports and settings.',
+  articles: [
+    {
+      slug: 'main-admin-accounts',
+      title: 'Family accounts and balances',
+      summary: 'See every member\'s balance and open their account.',
+      audiences: ['main_admin'],
+      permission: 'manage_finances',
+      keywords: ['accounting', 'accounts', 'balance', 'past due', 'email invoices', 'parked'],
+      body: [
+        { p: 'Open **Accounting** (**Accounts**). Each row shows the **Member**, **Balance** and what\'s **Past Due**.' },
+        { list: [
+          '**+ Invoice**, **+ Payment** and **+ Adjustment** start a new one.',
+          '**Email All Past Due Invoices** or **Email All Invoices** sends families their statements. The envelope icon emails one family.',
+          'Select **View account** to open one family\'s account. From there: **+ Add Charge**, **Record Payment** on a charge, and **Print**. Choose **Current Year** or **All Years** under **Account Year**.',
+        ] },
+        { p: 'A family shows as "parked" when an invoice marked **Auto-Park/Unpark Family if/when Unpaid/Paid?** is unpaid past its due date. It\'s a reminder badge only; paying the invoice clears it. To actually restrict a family, lock them under **Members**.' },
+        { p: 'Class, event and store charges are created automatically when families register or order, and billed to the family\'s Primary Parent.' },
+      ],
+      related: ['main-admin-invoices', 'main-admin-payments'],
+    },
+    {
+      slug: 'main-admin-invoices',
+      title: 'Creating and editing invoices',
+      summary: 'Bill a family, split an invoice, set due dates and categories.',
+      audiences: ['main_admin'],
+      permission: 'view_accounting_invoices',
+      keywords: ['invoice', 'bill', 'charge', 'split invoice', 'due date', 'category', 'print invoice'],
+      body: [
+        { steps: [
+          'Open **Accounting**, then **Invoices**, and select **+ Invoice**.',
+          'Choose the **Family** and **Member**, a **Category**, the **Date** and **Due Date**.',
+          'Fill in the **Description (Maximum 255 Characters)** and **Amount ($)**. Use **+ Split Invoice** to add more lines.',
+          'Choose **Auto-Park/Unpark Family if/when Unpaid/Paid?** and add any **Admin Notes**.',
+          'Save.',
+        ] },
+        { p: 'On **Invoices**, use **Filter** (**Member**, **Section**) to find one. The edit and print icons open or print an invoice.' },
+      ],
+      related: ['main-admin-payments', 'main-admin-accounting-categories'],
+    },
+    {
+      slug: 'main-admin-payments',
+      title: 'Recording payments, refunds and adjustments',
+      summary: 'Record cash, check or card payments, refunds, credits and discounts.',
+      audiences: ['main_admin'],
+      permission: 'view_accounting_payments',
+      keywords: ['payment', 'record payment', 'cash', 'check', 'credit card', 'refund', 'credit', 'discount', 'exemption', 'adjustment'],
+      body: [
+        { h: 'A payment' },
+        { steps: [
+          'Open **Accounting**, then **Payments**, and select **+ Add Payment**.',
+          'Choose the **Payment Method** (**Cash**, **Check** or **Credit Card**), the **Member** and the **Amount ($)**. For a check, add the **Check Number**.',
+          'Select **Collect Payment**.',
+        ] },
+        { note: 'The site doesn\'t process cards. **Credit Card** only records that a card payment was taken elsewhere. Card details typed here are never stored.' },
+        { h: 'Against a specific invoice, or a refund' },
+        { p: 'Use **+ Payment** (or **Record Payment** on the family\'s account): choose the **Member** and **Invoice**, a **Direction** (**Payment received** or **Refund issued**), the **Amount ($)**, **Method** and a **Note**.' },
+        { h: 'Adjustments' },
+        { p: 'Use **+ Adjustment** and choose an **Adjustment Type**: **Refund**, **Exemption**, **Credit** or **Discount**. Exemptions, credits and discounts lower what\'s owed without counting as money received. **Adjustments** lists **Refunds** and **Cancelled Charges**.' },
+      ],
+      related: ['main-admin-accounts'],
+    },
+    {
+      slug: 'main-admin-accounting-categories',
+      title: 'Categories and fiscal years',
+      summary: 'Organize income and expenses, and define your fiscal year.',
+      audiences: ['main_admin'],
+      permission: 'view_accounting_categories',
+      keywords: ['category', 'fiscal year', 'accounting category', 'code', 'year'],
+      body: [
+        { list: [
+          '**Category/Fiscal Year**: **+ Add Category** with a **Title** and **Code**, and **+ Add Fiscal Year** with a **Start Date** and **End Date**. Edit or delete with the row icons.',
+          'Classes and events can be assigned an accounting category so their charges are grouped in reports.',
+        ] },
+      ],
+    },
+    {
+      slug: 'main-admin-transactions',
+      title: 'Transactions and receipts',
+      summary: 'Record co-op purchases and income, with receipt photos.',
+      audiences: ['main_admin'],
+      permission: 'view_accounting_transactions',
+      keywords: ['transaction', 'expense', 'purchase', 'income', 'receipt', 'upload receipt'],
+      body: [
+        { steps: [
+          'Open **Accounting**, then **Transactions**, and select **+ Add Transaction**.',
+          'Choose the **Type** (**Purchase** or **Income**), and enter the **Name**, **Date**, **Amount** and **Payment Category**.',
+          'Use **Upload Image** for the receipt, then select **Add Transaction**.',
+        ] },
+        { p: '**Receipts** lists every receipt (including teacher reimbursement receipts). Filter by **From** and **To** dates and view each one.' },
+      ],
+    },
+    {
+      slug: 'main-admin-accounting-reports',
+      title: 'Reports, logs and accounting settings',
+      summary: 'Profit and Loss, Balance Sheet, Cash Flow, the accounting log and payment methods.',
+      audiences: ['main_admin'],
+      permission: 'view_accounting_reports',
+      keywords: ['reports', 'profit and loss', 'balance sheet', 'cash flow', 'logs', 'payment methods', 'settings'],
+      body: [
+        { list: [
+          '**Reports**: **Profit and Loss** and **Cash Flow Statement** (choose **From** and **To**, then **Apply**), and **Balance Sheet** (**As of** a date).',
+          '**Logs**: every accounting change, with **Action**, **Detail**, who did it (**By**) and **Date**.',
+          '**Settings**: the **Payment Methods** offered when recording payments. Select **Save**.',
+        ] },
+      ],
+    },
+  ],
+};

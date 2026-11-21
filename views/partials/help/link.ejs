@@ -1,2 +1,5 @@
-<%# Contextual help link for any page: include('partials/help/link', { slug: 'register-for-a-class', label: 'Class registration help' }). %>
-<a class="help-context-link no-print" href="/help/a/<%= slug %>" title="<%= typeof label !== 'undefined' ? label : 'Help' %>"><svg class="icon" aria-hidden="true"><use href="#icon-help-circle"/></svg><span><%= typeof label !== 'undefined' ? label : 'Help' %></span></a>
+<%# Contextual help link, shown next to a page title. Usage:
+      include('partials/help/link', { slug: 'register-for-a-class', label: 'Registration help' })
+    Admin pages pass base: '/admin-help'. test/help-context-links.test.js
+    checks every slug used across views exists. %>
+<a class="help-context-link no-print" href="<%= typeof base !== 'undefined' && base ? base : '/help' %>/a/<%= slug %>"><svg class="icon" aria-hidden="true"><use href="#icon-help-circle"/></svg><span><%= typeof label !== 'undefined' && label ? label : 'Help' %></span></a>
