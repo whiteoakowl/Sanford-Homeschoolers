@@ -17,7 +17,7 @@ function helpText(text) {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 }
 
-function createHelpRouter({ help, basePath, name, intro, portalTitle, allow, suggestions }) {
+function createHelpRouter({ help, basePath, name, intro, portalTitle, allow, suggestions, navFor }) {
   const router = express.Router();
   router.use(requirePortalAuth);
 
@@ -33,23 +33,24 @@ function createHelpRouter({ help, basePath, name, intro, portalTitle, allow, sug
     });
   }
 
-  const navLinks = [
-    { href: '/portal', icon: 'home', label: 'My Portals' },
-    { href: basePath, icon: 'help-circle', label: name },
-    { href: `${basePath}/faq`, icon: 'info-circle', label: 'FAQ' },
-    { href: `${basePath}/search`, icon: 'search', label: 'Search Help' },
-  ];
-
+  // Help pages keep the menu of the portal the person came from, so
+  // their sidebar and phone bottom bar don't change while they read
+  // help. The Help link passes ?portal=...; it's remembered in the
+  // session so following links inside help keeps the same menu.
+  // `navFor(req, res)` returns { adminNav: true } (Co-op Admin's menu)
+  // or { portalTitle } for the shared portal menu.
   router.use((req, res, next) => {
     req.helpViewer = help.viewerFromRequest(req);
+    if (typeof req.query.portal === 'string' && /^[a-z_]{1,30}$/.test(req.query.portal)) req.session.helpPortal = req.query.portal;
+    const nav = navFor(req, res);
     Object.assign(res.locals, {
       helpText,
-      helpNavLinks: navLinks,
       helpQuery: '',
       helpBase: basePath,
       helpName: name,
       helpIntro: intro,
-      helpPortalTitle: portalTitle,
+      helpUseAdminNav: !!nav.adminNav,
+      helpPortalTitle: nav.portalTitle || portalTitle,
     });
     next();
   });

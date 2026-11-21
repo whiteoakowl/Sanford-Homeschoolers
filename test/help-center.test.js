@@ -122,8 +122,13 @@ test('content: every related link and FAQ points at a real article, and nothing 
   for (const f of help.FAQS) assert.ok(help.ARTICLES.has(f.article), f.q);
 });
 
-test('the Help link appears in member portals but not in the Main Admin portal', async () => {
+test('the Help link keeps the portal\'s menu, and Help pages show that portal\'s own menu', async () => {
   const cookie = await makeAccount('help-nav@example.com', ['parent']);
   const page = await request(app).get('/parent').set('Cookie', cookie);
-  assert.match(page.text, /href="\/help"/);
+  assert.match(page.text, /href="\/help\?portal=parent"/);
+  const helpPage = await request(app).get('/help?portal=parent').set('Cookie', cookie);
+  assert.match(helpPage.text, /<span class="brand-text">Parent Portal|Parent Portal/);
+  // No Help Center links take over the phone's bottom bar.
+  const bottom = /<nav class="admin-mobile-tabs"[\s\S]*?<\/nav>/.exec(helpPage.text)[0];
+  assert.doesNotMatch(bottom, /Help Center|Search Help|>FAQ</);
 });

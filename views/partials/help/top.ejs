@@ -7,7 +7,11 @@
   <%- include('../head', { title }) %>
 </head>
 <body>
-  <%- include('../portal-nav', { portalTitle: helpPortalTitle, navLinks: helpNavLinks }) %>
+  <% if (helpUseAdminNav) { %>
+    <%- include('../admin-nav') %>
+  <% } else { %>
+    <%- include('../portal-nav', { portalTitle: helpPortalTitle, navLinks: [] }) %>
+  <% } %>
 
   <main id="main-content" tabindex="-1" class="admin-main help-center">
     <nav class="help-breadcrumbs" aria-label="Breadcrumb">
@@ -18,6 +22,10 @@
         <% }); %>
         <% if (typeof currentCrumb !== 'undefined' && currentCrumb) { %><li aria-current="page"><%= currentCrumb %></li><% } %>
       </ol>
+    </nav>
+    <nav class="help-subnav" aria-label="Help sections">
+      <a href="<%= helpBase %>"><svg class="icon" aria-hidden="true"><use href="#icon-help-circle"/></svg> <%= helpName %></a>
+      <a href="<%= helpBase %>/faq"><svg class="icon" aria-hidden="true"><use href="#icon-info-circle"/></svg> FAQ</a>
     </nav>
     <form class="help-search-form" method="GET" action="<%= helpBase %>/search" role="search">
       <label class="sr-only" for="help-search-input">Search help</label>

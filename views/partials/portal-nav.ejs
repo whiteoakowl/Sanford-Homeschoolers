@@ -66,6 +66,9 @@ const cornerPortalQuery = portalTitle === 'Parent Portal' ? '?portal=parent' : p
 // student, purely the same shared scaffolding Co-op Teacher Portal still
 // uses that same hub for, so hiding just this nav entry (both corner
 // links below) leaves nothing orphaned.
+// Help link: the Help Center keeps showing this portal's menu.
+const helpHref = portalTitle === 'Main Admin' ? '/admin-help'
+  : '/help' + ({ 'Parent Portal': '?portal=parent', 'Family School Management': '?portal=family_school', 'Student Portal': '?portal=student', 'Co-op Teacher Portal': '?portal=teacher' }[portalTitle] || '');
 const showSettingsGear = portalTitle !== 'Student Portal';
 
 // A real request: "On parent, student and teacher portal on mobile add an
@@ -866,7 +869,7 @@ const communityLinksTitle = 'Community';
   <% } %>
   <%# Help: the member Help Center (routes/help.js) from member portals,
       the Admin Help Center (routes/admin-help.js) from Main Admin. %>
-  <a class="admin-corner-link" href="<%= portalTitle === 'Main Admin' ? '/admin-help' : '/help' %>">
+  <a class="admin-corner-link" href="<%= helpHref %>">
     <svg class="icon"><use href="#icon-help-circle"/></svg>
     Help
   </a>
@@ -901,7 +904,7 @@ const communityLinksTitle = 'Community';
       <% if (showSettingsGear) { %>
         <a class="admin-nav-right-link" href="<%= settingsHref %><%= cornerPortalQuery %>" aria-label="Settings"><svg class="icon"><use href="#icon-gear"/></svg></a>
       <% } %>
-      <a class="admin-nav-right-link" href="<%= portalTitle === 'Main Admin' ? '/admin-help' : '/help' %>" aria-label="<%= portalTitle === 'Main Admin' ? 'Admin Help Center' : 'Help & Support' %>"><svg class="icon"><use href="#icon-help-circle"/></svg></a>
+      <a class="admin-nav-right-link" href="<%= helpHref %>" aria-label="<%= portalTitle === 'Main Admin' ? 'Admin Help Center' : 'Help & Support' %>"><svg class="icon"><use href="#icon-help-circle"/></svg></a>
       <% if (showSwitcher) { %>
         <a class="admin-nav-right-link" href="/portal" aria-label="Switch Portal"><svg class="icon"><use href="#icon-monitor"/></svg></a>
       <% } %>
