@@ -165,7 +165,19 @@ function wrapQueryable(queryable, ready = Promise.resolve()) {
 // open/close connections far more often than a long-running server would,
 // which is exactly what the pooler is for.
 function createPgDb(connectionString, ready) {
-  const pool = new Pool({ connectionString });
+  // Storage/capacity audit: every warm Netlify Function instance keeps
+  // its own pool, so on a busy morning (200 families checking in at
+  // once) many instances run side by side. A small per-instance cap
+  // (default 5, override with PG_POOL_MAX) keeps the total well under
+  // the Supabase pooler's client-connection limit; idle connections are
+  // closed after 10s so a frozen instance doesn't hold them, and a
+  // connection wait fails after 10s instead of hanging the request.
+  const pool = new Pool({
+    connectionString,
+    max: parseInt(process.env.PG_POOL_MAX, 10) || 5,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 10000,
+  });
   const base = wrapQueryable(pool, ready);
 
   base.withTransaction = async (fn) => {

@@ -7,7 +7,7 @@
 // way instead of re-deriving every field type's own posting shape.
 const path = require('path');
 const fs = require('fs');
-const { createStorageClient, uploadFile, downloadFile, generateKey } = require('./storage');
+const { createStorageClient, uploadFile, generateKey, redirectToSignedUrl } = require('./storage');
 const customForms = require('./customForms');
 
 // A private bucket (like admin-documents.js's own `documents` bucket) -
@@ -43,9 +43,7 @@ async function saveFormFile(file) {
 // missing - the caller has already done its own access check.
 async function sendFormFile(res, key) {
   if (storageClient) {
-    const buffer = await downloadFile(storageClient, FORM_FILES_BUCKET, key);
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.send(buffer);
+    await redirectToSignedUrl(res, storageClient, FORM_FILES_BUCKET, key, { download: true });
     return true;
   }
   const filePath = path.join(FORM_FILES_DIR, path.basename(key));

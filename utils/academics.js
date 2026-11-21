@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { formatDateLabel, formatFriendlyTimestamp, todayISO } = require('./dates');
 const { lastNameOf } = require('./members');
-const { createStorageClient, uploadFile, deleteFile, generateKey, publicUrl } = require('./storage');
+const { createStorageClient, uploadFile, deleteFile, generateKey, publicUrl, downloadFile } = require('./storage');
 
 // Ordered by each lesson's own drag-reordered position (see the lesson
 // content/quizzes migration's own backfill) rather than due date now that
@@ -702,6 +702,105 @@ async function saveLessonAttachment(file, existingKey) {
   return key;
 }
 
+// Students' handed-in work (Assignment Upload / Assignment Submission
+// files) lives in its own PRIVATE bucket, not the public
+// lesson-attachments bucket teachers' own handouts use - a child's
+// homework should never be reachable by anyone who just has the link.
+// Served only through GET /class-submissions/:key
+// (routes/class-submission-files.js), which checks the viewer is the
+// student, someone in the student's family, a teacher of the class, or
+// a Co-op Admin. Submissions saved before this change still have their
+// key in lesson-attachments; submissionFileBuffer() falls back to it.
+const SUBMISSIONS_BUCKET = 'assignment-submissions';
+const SUBMISSIONS_DIR = path.join(__dirname, '..', 'private-uploads', 'assignment-submissions');
+
+function submissionFileUrl(key) {
+  if (!key) return null;
+  return `/class-submissions/${encodeURIComponent(key)}`;
+}
+
+async function saveSubmissionFile(file, existingKey) {
+  const client = createStorageClient();
+  let key;
+  if (client) {
+    key = await uploadFile(client, SUBMISSIONS_BUCKET, file.buffer, file.originalname, file.mimetype);
+  } else {
+    fs.mkdirSync(SUBMISSIONS_DIR, { recursive: true });
+    key = generateKey(file.originalname);
+    fs.writeFileSync(path.join(SUBMISSIONS_DIR, key), file.buffer);
+  }
+  if (existingKey && existingKey !== key) await removeSubmissionFile(existingKey);
+  return key;
+}
+
+// Best-effort: the old file is removed from whichever bucket holds it
+// (new private bucket, or the legacy public one). A failure here must
+// never block the student's new submission from saving.
+async function removeSubmissionFile(key) {
+  if (!key) return;
+  const client = createStorageClient();
+  try {
+    if (client) {
+      await deleteFile(client, SUBMISSIONS_BUCKET, key);
+      await deleteFile(client, LESSON_ATTACHMENTS_BUCKET, key);
+    } else {
+      for (const dir of [SUBMISSIONS_DIR, LESSON_ATTACHMENT_DIR]) {
+        const p = path.join(dir, path.basename(key));
+        if (fs.existsSync(p)) fs.unlinkSync(p);
+      }
+    }
+  } catch (err) {
+    console.error(`Could not remove old submission file ${key}:`, err.message);
+  }
+}
+
+async function submissionFileBuffer(key) {
+  if (!key) return null;
+  const client = createStorageClient();
+  if (client) {
+    try {
+      return await downloadFile(client, SUBMISSIONS_BUCKET, key);
+    } catch {
+      return downloadFile(client, LESSON_ATTACHMENTS_BUCKET, key);
+    }
+  }
+  for (const dir of [SUBMISSIONS_DIR, LESSON_ATTACHMENT_DIR]) {
+    const p = path.join(dir, path.basename(key));
+    if (fs.existsSync(p)) return fs.readFileSync(p);
+  }
+  return null;
+}
+
+// Which bucket actually holds `key` - the private one for anything
+// handed in after the storage audit, the legacy public one for older
+// submissions.
+async function submissionBucketForKey(client, key) {
+  const { data } = await client.storage.from(SUBMISSIONS_BUCKET).list('', { search: key, limit: 1 });
+  return data && data.some((f) => f.name === key) ? SUBMISSIONS_BUCKET : LESSON_ATTACHMENTS_BUCKET;
+}
+
+// The submission row behind a stored file key, with the class and
+// student it belongs to - the input to the download route's own
+// authorization check.
+async function submissionForFileKey(key) {
+  if (!key) return null;
+  return db
+    .prepare(
+      `SELECT s.student_id, s.file_name, a.class_id, m.family_id AS student_family_id
+       FROM assignment_submissions s
+       JOIN lesson_content_items ci ON ci.id = s.content_item_id
+       JOIN class_assignments a ON a.id = ci.assignment_id
+       JOIN members m ON m.id = s.student_id
+       WHERE s.file_url = ?`
+    )
+    .get(key);
+}
+
+async function existingSubmissionFileKey(contentItemId, studentId) {
+  const row = await db.prepare('SELECT file_url FROM assignment_submissions WHERE content_item_id = ? AND student_id = ?').get(contentItemId, studentId);
+  return row ? row.file_url : null;
+}
+
 async function getContentItem(id) {
   return db.prepare('SELECT * FROM lesson_content_items WHERE id = ?').get(id);
 }
@@ -827,7 +926,7 @@ async function submissionsForContentItem(contentItemId) {
   // file_url in the DB is actually the storage KEY (same convention
   // lesson_content_items.attachment_url already uses) - resolved to a
   // real URL here the same way lessonAttachmentUrl() does for that column.
-  const rows = rawRows.map((r) => ({ ...r, fileUrl: lessonAttachmentUrl(r.file_url) }));
+  const rows = rawRows.map((r) => ({ ...r, fileUrl: submissionFileUrl(r.file_url) }));
   return { contentItem, assignment, rows };
 }
 
@@ -1064,7 +1163,7 @@ async function lessonsForStudentView(classId, studentId, { includeUnapproved = f
           if (item.type === 'assignment_submission' || item.type === 'assignment_upload') {
             const submission = await getAssignmentSubmission(item.id, studentId);
             const completion = item.type === 'assignment_upload' && !submission ? await getLessonItemCompletion(item.id, studentId) : null;
-            return { ...item, dueDateLabel, submission: submission ? { ...submission, fileUrl: lessonAttachmentUrl(submission.file_url) } : null, completed: !!submission || !!completion };
+            return { ...item, dueDateLabel, submission: submission ? { ...submission, fileUrl: submissionFileUrl(submission.file_url) } : null, completed: !!submission || !!completion };
           }
           const completion = await getLessonItemCompletion(item.id, studentId);
           return { ...item, dueDateLabel, completed: !!completion };
@@ -1230,6 +1329,12 @@ module.exports = {
   getAssignmentSubmission,
   submitAssignment,
   submissionsForContentItem,
+  saveSubmissionFile,
+  submissionFileUrl,
+  submissionFileBuffer,
+  submissionBucketForKey,
+  submissionForFileKey,
+  existingSubmissionFileKey,
   gradeAssignmentSubmission,
   reorderContentItems,
   lessonAttachmentUrl,

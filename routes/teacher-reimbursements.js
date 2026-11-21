@@ -6,6 +6,7 @@
 // at '/') rather than more routes inside routes/teacher-portal.js, so it
 // carries its own gates per route.
 const express = require('express');
+const { createStorageClient, redirectToSignedUrl } = require('../utils/storage');
 const router = express.Router();
 const multer = require('multer');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
@@ -241,6 +242,14 @@ router.get('/reimbursement-receipts/:id', requirePortalAuth, async (req, res) =>
   if (!hasCoopAdminAccess(req)) {
     const request = await reimb.getRequest(receipt.request_id);
     if (!(await canViewRequest(req, request))) return res.status(404).send('Not found');
+  }
+  const storageClient = createStorageClient();
+  if (storageClient && receipt.storage_key) {
+    try {
+      return await redirectToSignedUrl(res, storageClient, reimb.RECEIPTS_BUCKET, receipt.storage_key);
+    } catch {
+      return res.status(404).send('Not found');
+    }
   }
   const buffer = await reimb.receiptBuffer(receipt);
   if (!buffer) return res.status(404).send('Not found');

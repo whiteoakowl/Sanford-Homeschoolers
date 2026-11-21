@@ -19,7 +19,7 @@ const membershipHandbook = require('../utils/membershipHandbook');
 const membershipFormFields = require('../utils/membershipFormFields');
 const path = require('path');
 const fs = require('fs');
-const { createStorageClient, downloadFile } = require('../utils/storage');
+const { createStorageClient, redirectToSignedUrl } = require('../utils/storage');
 const { uploadIntakePhotos, savePhotoFile, parseArrayField } = require('../utils/memberIntake');
 const { familyEditSections, applyFamilyEditSubmission } = require('../utils/memberFamilyEdit');
 
@@ -103,7 +103,7 @@ router.get('/handbook-file', async (req, res) => {
   let buffer;
   if (client) {
     try {
-      buffer = await downloadFile(client, HANDBOOK_FILE_BUCKET, file.key);
+      return await redirectToSignedUrl(res, client, HANDBOOK_FILE_BUCKET, file.key);
     } catch {
       return res.status(404).send('Not found');
     }

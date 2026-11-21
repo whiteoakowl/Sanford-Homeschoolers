@@ -16,7 +16,7 @@ const crypto = require('crypto');
 const db = require('../db');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { documentFileFilter, imageFileFilter, DOCUMENT_MIME_BY_EXT } = require('../utils/uploads');
-const { createStorageClient, uploadFile, deleteFile, downloadFile, generateKey, createSignedUploadUrl } = require('../utils/storage');
+const { createStorageClient, uploadFile, deleteFile, downloadFile, generateKey, createSignedUploadUrl, redirectToSignedUrl } = require('../utils/storage');
 const { roleKeysByDocument, setDocumentRoleKeys } = require('../utils/documents');
 const { documentKind, docxHtmlFor } = require('../utils/documentRender');
 const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('../utils/pagination');
@@ -108,7 +108,7 @@ router.get('/:id/file', async (req, res) => {
   let buffer;
   if (client) {
     try {
-      buffer = await downloadFile(client, DOCUMENTS_BUCKET, doc.file_path);
+      return await redirectToSignedUrl(res, client, DOCUMENTS_BUCKET, doc.file_path);
     } catch {
       return res.status(404).send('Not found');
     }

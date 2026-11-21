@@ -24,6 +24,7 @@
 // the Record Payment dialog's own method dropdown, stored in the generic
 // app_settings key/value table - no new schema needed).
 const express = require('express');
+const { createStorageClient, redirectToSignedUrl } = require('../utils/storage');
 const router = express.Router();
 const multer = require('multer');
 const db = require('../db');
@@ -907,6 +908,14 @@ router.post('/transactions/:id/receipt', requirePortalPermission('view_accountin
 router.get('/transactions/:id/receipt/file', requirePortalPermission('view_accounting_transactions'), async (req, res) => {
   const txn = await transactions.getTransaction(req.params.id);
   if (!txn || !txn.receipt_key) return res.status(404).render('404', { title: 'Not Found' });
+  const storageClient = createStorageClient();
+  if (storageClient) {
+    try {
+      return await redirectToSignedUrl(res, storageClient, transactions.RECEIPTS_BUCKET, txn.receipt_key);
+    } catch {
+      return res.status(404).render('404', { title: 'Not Found' });
+    }
+  }
   const buffer = await transactions.receiptBuffer(txn.receipt_key);
   if (!buffer) return res.status(404).render('404', { title: 'Not Found' });
   res.set('Content-Type', txn.receipt_content_type || 'application/octet-stream');

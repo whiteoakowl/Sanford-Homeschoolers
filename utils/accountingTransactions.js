@@ -122,4 +122,5 @@ module.exports = {
   deleteTransaction,
   saveReceipt,
   receiptBuffer,
+  RECEIPTS_BUCKET,
 };

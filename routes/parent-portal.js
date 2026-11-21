@@ -69,7 +69,8 @@ const {
   getQuizAttempt,
   submitQuizAttempt,
   submitAssignment,
-  saveLessonAttachment,
+  saveSubmissionFile,
+  existingSubmissionFileKey,
   contentItemsForAssignment,
   markLessonItemComplete,
   TRANSCRIPT_GRADE_LETTERS,
@@ -1129,7 +1130,7 @@ router.post('/content/:id/submit', requirePortalPermission('view_parent_classroo
   if (await isLessonLockedForStudent(cls.id, selectedChild.id, assignment.id)) return res.status(404).render('404', { title: 'Not Found' });
   const responseBody = sanitizePostBody(req.body.responseBody || '').trim();
   if (!req.file && !responseBody) return res.redirect(`/parent/classes/dashboard/${assignment.class_id}?tab=lessons&studentId=${selectedChild.id}&error=` + encodeURIComponent('Type a response or choose a file to upload.'));
-  const fileKey = req.file ? await saveLessonAttachment(req.file) : null;
+  const fileKey = req.file ? await saveSubmissionFile(req.file, await existingSubmissionFileKey(contentItem.id, selectedChild.id)) : null;
   await submitAssignment({ contentItemId: contentItem.id, studentId: selectedChild.id, fileUrl: fileKey, fileName: req.file ? req.file.originalname : null, responseBody });
   if (contentItem.type === 'assignment_upload') await markLessonItemComplete(contentItem.id, selectedChild.id);
   res.redirect(`/parent/classes/dashboard/${assignment.class_id}?tab=lessons&studentId=${selectedChild.id}&notice=` + encodeURIComponent('Assignment submitted.'));

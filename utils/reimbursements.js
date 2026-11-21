@@ -742,6 +742,7 @@ module.exports = {
   saveReceipts,
   getReceipt,
   receiptBuffer,
+  RECEIPTS_BUCKET,
   formSettings,
   saveFormSettings,
   parseAmountToCents,

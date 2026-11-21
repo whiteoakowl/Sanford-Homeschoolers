@@ -14,7 +14,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { documentKind, loadDocumentBuffer, docxHtmlFor, downloadFilename } = require('../utils/documentRender');
+const { documentKind, loadDocumentBuffer, docxHtmlFor, downloadFilename, DOCUMENTS_BUCKET } = require('../utils/documentRender');
+const { createStorageClient, redirectToSignedUrl } = require('../utils/storage');
 const { renderViewToPdf } = require('../utils/pdfRender');
 
 async function loadByToken(token) {
@@ -22,6 +23,15 @@ async function loadByToken(token) {
 }
 
 async function streamKey(res, key, mimeType, filename, disposition = 'inline') {
+  if (!key) return res.status(404).send('Not found');
+  const client = createStorageClient();
+  if (client) {
+    try {
+      return await redirectToSignedUrl(res, client, DOCUMENTS_BUCKET, key, { filename, download: disposition === 'attachment' });
+    } catch {
+      return res.status(404).send('Not found');
+    }
+  }
   const buffer = await loadDocumentBuffer(key);
   if (!buffer) return res.status(404).send('Not found');
   res.setHeader('Content-Type', mimeType || 'application/octet-stream');

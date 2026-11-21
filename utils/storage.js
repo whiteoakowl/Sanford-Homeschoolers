@@ -110,4 +110,24 @@ async function downloadFile(client, bucket, key) {
   return Buffer.from(await data.arrayBuffer());
 }
 
-module.exports = { createStorageClient, uploadFile, deleteFile, publicUrl, downloadFile, generateKey, createSignedUploadUrl };
+// Large-file-safe way to hand a PRIVATE file to a browser: after the
+// caller's own permission check passes, send the browser to a signed
+// link that works for `expiresIn` seconds only, instead of streaming the
+// bytes through this app. Two reasons (storage/security audit):
+//   - Netlify Functions can't return a response body over ~6MB, so a
+//     10MB homework file or a 20MB document streamed through the app
+//     simply failed to open.
+//   - A copied/forwarded link stops working after a few minutes, so it
+//     can't become a permanent public link to someone's private file.
+// download=true makes the browser save the file (with `filename`)
+// rather than show it inline.
+async function redirectToSignedUrl(res, client, bucket, key, { filename, download = false, expiresIn = 300 } = {}) {
+  const options = download ? { download: filename || true } : undefined;
+  const { data, error } = await client.storage.from(bucket).createSignedUrl(key, expiresIn, options);
+  if (error || !data || !data.signedUrl) throw new Error(`Supabase Storage signed URL failed (${bucket}/${key}): ${error ? error.message : 'no URL'}`);
+  res.set('Cache-Control', 'private, no-store');
+  res.set('Referrer-Policy', 'no-referrer');
+  return res.redirect(302, data.signedUrl);
+}
+
+module.exports = { createStorageClient, uploadFile, deleteFile, publicUrl, downloadFile, generateKey, createSignedUploadUrl, redirectToSignedUrl };

@@ -503,6 +503,7 @@ app.use('/parent', parentFamilySchoolRouter);
 // routes/family-school-files.js's own header comment for why a parent
 // and a student can both legitimately need the exact same URL.
 app.use('/', familySchoolFilesRouter);
+app.use('/', require('./routes/class-submission-files'));
 // Registered before the generic '/main-admin' mounts below (Express
 // tries mounted routers in registration order for matching prefixes,
 // and '/main-admin/events' is otherwise just a prefix match away from

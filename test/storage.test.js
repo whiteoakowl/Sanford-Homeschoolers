@@ -154,3 +154,53 @@ test('createStorageClient returns null (not a throw) when SUPABASE_URL/SERVICE_R
     if (savedKey !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = savedKey;
   }
 });
+
+// Storage audit: private files are handed to the browser as a short-lived
+// signed link (a redirect), never streamed through the Netlify Function,
+// which can't return more than ~6MB.
+test('redirectToSignedUrl', async (t) => {
+  const { redirectToSignedUrl } = require('../utils/storage');
+  function signingClient(result) {
+    const calls = [];
+    return {
+      calls,
+      storage: {
+        from(bucket) {
+          return {
+            async createSignedUrl(key, expiresIn, options) {
+              calls.push({ bucket, key, expiresIn, options });
+              return result;
+            },
+          };
+        },
+      },
+    };
+  }
+  function fakeRes() {
+    const res = { headers: {}, redirectedTo: null, status: null };
+    res.set = (k, v) => { res.headers[k] = v; return res; };
+    res.redirect = (status, url) => { res.status = status; res.redirectedTo = url; return res; };
+    return res;
+  }
+
+  await t.test('redirects to a 5-minute signed link and marks it uncacheable', async () => {
+    const client = signingClient({ data: { signedUrl: 'https://x.supabase.co/signed/abc' }, error: null });
+    const res = fakeRes();
+    await redirectToSignedUrl(res, client, 'documents', 'k.pdf');
+    assert.deepEqual(client.calls, [{ bucket: 'documents', key: 'k.pdf', expiresIn: 300, options: undefined }]);
+    assert.equal(res.status, 302);
+    assert.equal(res.redirectedTo, 'https://x.supabase.co/signed/abc');
+    assert.match(res.headers['Cache-Control'], /no-store/);
+  });
+
+  await t.test('download=true asks Storage to send it as a download with the real filename', async () => {
+    const client = signingClient({ data: { signedUrl: 'https://x/s' }, error: null });
+    await redirectToSignedUrl(fakeRes(), client, 'documents', 'k.docx', { filename: 'Essay.docx', download: true });
+    assert.deepEqual(client.calls[0].options, { download: 'Essay.docx' });
+  });
+
+  await t.test('throws (so the route can 404) when Storage refuses', async () => {
+    const client = signingClient({ data: null, error: { message: 'Object not found' } });
+    await assert.rejects(redirectToSignedUrl(fakeRes(), client, 'documents', 'missing.pdf'), /Object not found/);
+  });
+});

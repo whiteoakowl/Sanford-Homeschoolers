@@ -1401,6 +1401,7 @@ module.exports = {
   attachmentUrl,
   saveAttachment,
   attachmentBuffer,
+  ATTACHMENTS_BUCKET,
   attachmentAccessForFamily,
   classesForFamily,
   getClass,

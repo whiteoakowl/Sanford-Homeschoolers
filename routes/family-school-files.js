@@ -18,13 +18,26 @@ const path = require('path');
 const router = express.Router();
 const { requirePortalAuth } = require('../middleware/portalAuth');
 const { memberForAccount } = require('../utils/portalAuth');
-const { attachmentBuffer, attachmentAccessForFamily } = require('../utils/familySchool');
+const { attachmentBuffer, attachmentAccessForFamily, ATTACHMENTS_BUCKET } = require('../utils/familySchool');
+const { createStorageClient, redirectToSignedUrl } = require('../utils/storage');
 const { logError } = require('../utils/logger');
 
 router.get('/family-school/files/:key', requirePortalAuth, async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
   const access = await attachmentAccessForFamily(member ? member.family_id : null, req.params.key);
   if (!access) return res.status(404).send('Not found');
+  // On Supabase: send the browser to a short-lived signed link (see
+  // utils/storage.js's redirectToSignedUrl - large files can't pass
+  // through a Netlify Function).
+  const client = createStorageClient();
+  if (client) {
+    try {
+      return await redirectToSignedUrl(res, client, ATTACHMENTS_BUCKET, req.params.key);
+    } catch (err) {
+      console.error(err);
+      return res.status(404).send('Not found');
+    }
+  }
   // attachmentBuffer() can throw (Storage's own download() rejects with
   // a real error rather than returning null/undefined on a bucket/
   // object-level failure) - caught here, not left to bubble past this
