@@ -17,7 +17,7 @@ var isSettingsTab = activeTab === 'settings';
       (public/js/custom-form-builder.js reads this to swap in a real
       <select> of a choice field's own options once one is picked as
       the condition's target). %>
-  <script type="application/json" id="cf-field-meta"><%- JSON.stringify(Object.fromEntries(allFields.map(function(f) { return [f.id, { type: f.field_type, options: f.options.map(function(o){ return o.label; }) }]; }))) %></script>
+  <script type="application/json" id="cf-field-meta"><%- jsonScriptSafe(Object.fromEntries(allFields.map(function(f) { return [f.id, { type: f.field_type, options: f.options.map(function(o){ return o.label; }) }]; }))) %></script>
 
   <main id="main-content" tabindex="-1" class="admin-main">
     <div class="grid-box-header">
@@ -185,7 +185,7 @@ var isSettingsTab = activeTab === 'settings';
               <% if (page.fields.length === 0) { %>
                 <p class="roster-empty">No elements on this page yet.</p>
               <% } else { %>
-                <div class="cf-elements-canvas" data-homepage-blocks-container data-reorder-url="/main-admin/forms/<%= form.id %>/fields/reorder" data-reorder-extra='<%- JSON.stringify({ pageId: page.id }) %>'>
+                <div class="cf-elements-canvas" data-homepage-blocks-container data-reorder-url="/main-admin/forms/<%= form.id %>/fields/reorder" data-reorder-extra='<%- jsonScriptSafe({ pageId: page.id }) %>'>
                   <% page.fields.forEach(function(field) { %>
                     <div class="cf-element-row" data-homepage-block-row="<%= field.id %>">
                       <span data-homepage-block-drag-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span>
@@ -252,7 +252,7 @@ var isSettingsTab = activeTab === 'settings';
                   class="cf-page<%= pageIndex === 0 ? ' cf-page-active' : '' %>"
                   data-cf-page="<%= page.id %>"
                   data-cf-page-index="<%= pageIndex %>"
-                  <% if (page.conditionalLogicParsed) { %>data-cf-condition='<%- JSON.stringify(page.conditionalLogicParsed) %>'<% } %>
+                  <% if (page.conditionalLogicParsed) { %>data-cf-condition='<%- jsonScriptSafe(page.conditionalLogicParsed) %>'<% } %>
                 >
                   <% if (pages.length > 1 && (page.title || page.description)) { %>
                     <div class="member-form-full cf-page-heading">

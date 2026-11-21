@@ -70,7 +70,7 @@
                           data-city="<%= l.city || '' %>"
                           data-state="<%= l.state || '' %>"
                           data-category-id="<%= l.category_id || '' %>"
-                          data-role-keys='<%- JSON.stringify(l.roleKeys || []) %>'
+                          data-role-keys='<%- jsonScriptSafe(l.roleKeys || []) %>'
                         ><%= l.title %></button>
                         <% if (l.description) { %><span class="member-row-subline"><%= l.description %></span><% } %>
                       </td>

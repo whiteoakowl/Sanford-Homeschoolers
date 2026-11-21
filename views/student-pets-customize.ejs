@@ -48,8 +48,8 @@
 
   <script>
     (function () {
-      var LOOKS = <%- JSON.stringify(looks) %>;
-      var currentLook = <%- JSON.stringify(currentLook) %>;
+      var LOOKS = <%- jsonScriptSafe(looks) %>;
+      var currentLook = <%- jsonScriptSafe(currentLook) %>;
 
       var index = Math.max(0, LOOKS.findIndex(function (l) { return l.key === currentLook; }));
 

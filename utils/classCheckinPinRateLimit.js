@@ -1,17 +1,13 @@
-// Brute-force guard for the Class Check-In kiosk flow's shared 4-digit
-// PIN (see utils/classCheckinPin.js) - its own independent instance of
-// utils/loginRateLimit.js's failure-counting limiter, not a shared one
-// with the admin login guard. A 4-digit PIN has only 10,000 possible
-// values (vs. an arbitrary-length admin password), so brute-force
-// resistance matters even more here, but sharing a counter with admin
-// login would let unrelated admin-login typos from the same kiosk IP
-// lock out class check-in PIN attempts, and vice versa - confusing
-// cross-feature interaction neither guard's own purpose calls for.
-const { createFailureRateLimiter } = require('./loginRateLimit');
+// Shared limiter for every place the Class Check-In PIN is typed (kiosk
+// unlock, kiosk full-screen exit, admin full-screen exit) - a burst of
+// wrong guesses at one counts against all of them. Database-backed (see
+// utils/persistentRateLimit.js) so it holds across Netlify instances;
+// the PIN is only 4 digits, so a limiter that resets is no limiter.
+const { createPersistentLimiter } = require('./persistentRateLimit');
 
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const MAX_ATTEMPTS = 5;
 
-const limiter = createFailureRateLimiter({ windowMs: WINDOW_MS, maxAttempts: MAX_ATTEMPTS });
+const limiter = createPersistentLimiter({ name: 'class-checkin-pin', windowMs: WINDOW_MS, maxAttempts: MAX_ATTEMPTS });
 
 module.exports = { ...limiter, WINDOW_MS, MAX_ATTEMPTS };

@@ -26,6 +26,36 @@ const fullscreenPinLimiter = require('../utils/classCheckinPinRateLimit');
 const checkinLimiter = createRateLimiter({ windowMs: 60 * 1000, maxAttempts: 40 });
 const findParentLimiter = createRateLimiter({ windowMs: 60 * 1000, maxAttempts: 40 });
 
+// Security audit: one-time unlock for a kiosk device (see
+// middleware/requireKioskDevice.js). Same Class Check-In PIN and the same
+// shared, database-backed attempt limit as every other place that PIN is
+// typed.
+function safeKioskNext(value) {
+  if (typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') && !value.includes('\\') && !value.startsWith('/kiosk/unlock')) return value;
+  return '/kiosk';
+}
+
+router.get('/unlock', (req, res) => {
+  const next = safeKioskNext(req.query.next);
+  if (req.session && req.session.kioskDeviceUnlocked) return res.redirect(next);
+  res.render('kiosk-unlock', { title: 'Unlock Kiosk', error: null, next });
+});
+
+router.post('/unlock', async (req, res) => {
+  const next = safeKioskNext(req.body.next);
+  if (await fullscreenPinLimiter.isRateLimited(req.ip)) {
+    return res.status(429).render('kiosk-unlock', { title: 'Unlock Kiosk', error: 'Too many attempts. Please wait a few minutes and try again.', next });
+  }
+  const pin = (req.body.pin || '').trim();
+  if (!(await verifyClassCheckinPin(pin))) {
+    await fullscreenPinLimiter.recordFailure(req.ip);
+    return res.status(401).render('kiosk-unlock', { title: 'Unlock Kiosk', error: 'Incorrect PIN.', next });
+  }
+  await fullscreenPinLimiter.recordSuccess(req.ip);
+  req.session.kioskDeviceUnlocked = true;
+  res.redirect(next);
+});
+
 // Full kiosk landing screen (Check In/Out, Floater Assignments, forms) -
 // not the site's homepage anymore (that's now the member/staff login),
 // reached via the "Full Kiosk Screen" quick link in admin Settings.
@@ -44,15 +74,15 @@ router.get('/', (req, res) => {
 // guesses on one door counts against both), no auth required - matches
 // routes/kiosk-class-checkin.js's own POST /unlock exactly.
 router.post('/fullscreen/verify-pin', async (req, res) => {
-  if (fullscreenPinLimiter.isRateLimited(req.ip)) {
+  if (await fullscreenPinLimiter.isRateLimited(req.ip)) {
     return res.status(429).json({ ok: false, error: 'Too many attempts. Please wait a few minutes and try again.' });
   }
   const pin = (req.body.pin || '').trim();
   if (!(await verifyClassCheckinPin(pin))) {
-    fullscreenPinLimiter.recordFailure(req.ip);
+    await fullscreenPinLimiter.recordFailure(req.ip);
     return res.status(401).json({ ok: false, error: 'Incorrect PIN.' });
   }
-  fullscreenPinLimiter.recordSuccess(req.ip);
+  await fullscreenPinLimiter.recordSuccess(req.ip);
   res.json({ ok: true });
 });
 

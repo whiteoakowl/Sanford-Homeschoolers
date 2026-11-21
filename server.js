@@ -275,6 +275,9 @@ const PORT = process.env.PORT || 3000;
 app.set('view engine', 'ejs');
 // Class times saved in 24-hour form print as "11:00 AM" - see utils/dates.js.
 app.locals.formatClockTime = require('./utils/dates').formatClockTime;
+// Security audit: views embed JSON with <%- jsonScriptSafe(x) %>, never
+// a bare JSON.stringify (see utils/json.js).
+app.locals.jsonScriptSafe = require('./utils/json').jsonScriptSafe;
 // A real request: "All dates and times for trainings should be August 1,
 // 2025 and 4:45pm where applicable." A date alone reads "August 1, 2025";
 // a saved date+time reads "August 1, 2025 4:45pm" (Eastern time).
@@ -330,8 +333,24 @@ app.use(express.json());
 // images, documents) already gets its extension checked against its
 // declared mimetype before being saved (see utils/uploads.js) specifically
 // so nothing ever gets served as a type it wasn't validated as.
+// Security audit: baseline browser protections on every response.
+//   - X-Frame-Options / frame-ancestors: no other website can put this
+//     app's pages in a frame (clickjacking); the app's own previews
+//     (website builder, document viewer) still frame its own pages.
+//   - Strict-Transport-Security: once a browser has visited over HTTPS
+//     it never falls back to plain http:// for this site. Only sent on
+//     HTTPS requests, so a plain-http LAN kiosk install is unaffected.
+//   - Referrer-Policy: other sites never see full in-app URLs.
+//   - Permissions-Policy: camera is allowed for this site only (kiosk
+//     barcode scanning); microphone/location/payment APIs are off.
+app.disable('x-powered-by');
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self'; base-uri 'self'; object-src 'none'");
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=()');
+  if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   next();
 });
 
@@ -486,6 +505,9 @@ app.use((req, res, next) => {
 // link back to it by that name) - both URLs render the same page.
 app.use('/', publicSiteRouter);
 app.use('/welcome', publicSiteRouter);
+// Security audit: kiosk screens open only on an unlocked kiosk device or
+// for a signed-in member - see middleware/requireKioskDevice.js.
+app.use(['/kiosk', '/absence', '/name-tag', '/volunteers', '/setup', '/training'], require('./middleware/requireKioskDevice').requireKioskDevice);
 app.use('/kiosk', kioskRouter);
 app.use('/kiosk', checkoutRouter);
 app.use('/kiosk/class-checkin', kioskClassCheckinRouter);

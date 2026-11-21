@@ -118,7 +118,7 @@ router.get('/', (req, res) => {
 
 router.post('/unlock', async (req, res) => {
   const next = isSafeNextPath(req.body.next) ? req.body.next : null;
-  if (pinLimiter.isRateLimited(req.ip)) {
+  if (await pinLimiter.isRateLimited(req.ip)) {
     return res.render('kiosk-class-checkin-pin', {
       title: 'Class Check-In',
       error: 'Too many attempts. Please wait a few minutes and try again.',
@@ -127,11 +127,14 @@ router.post('/unlock', async (req, res) => {
   }
   const pin = (req.body.pin || '').trim();
   if (!(await verifyClassCheckinPin(pin))) {
-    pinLimiter.recordFailure(req.ip);
+    await pinLimiter.recordFailure(req.ip);
     return res.render('kiosk-class-checkin-pin', { title: 'Class Check-In', error: 'Incorrect PIN.', next });
   }
-  pinLimiter.recordSuccess(req.ip);
+  await pinLimiter.recordSuccess(req.ip);
   req.session.classCheckinUnlocked = true;
+  // Unlocking Class Check-In also unlocks this device for the other
+  // kiosk screens (middleware/requireKioskDevice.js).
+  req.session.kioskDeviceUnlocked = true;
   res.redirect(next || '/kiosk/class-checkin/classes');
 });
 

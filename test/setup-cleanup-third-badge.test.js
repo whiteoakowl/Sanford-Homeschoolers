@@ -20,6 +20,8 @@ process.env.UPLOADS_DIR = testUploadsDir;
 process.env.SESSION_SECRET = 'test-secret-not-for-real-use';
 
 const request = require('supertest');
+// These tests exercise kiosk screens directly (see middleware/requireKioskDevice.js).
+process.env.KIOSK_OPEN_ACCESS = '1';
 const app = require('../server');
 const db = require('../db');
 const { todayISO } = require('../utils/dates');

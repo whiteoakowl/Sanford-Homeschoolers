@@ -55,7 +55,7 @@ var buttonRadius = form.theme_button_style === 'pill' ? '999px' : form.theme_but
           class="cf-page<%= pageIndex === 0 ? ' cf-page-active' : '' %>"
           data-cf-page="<%= page.id %>"
           data-cf-page-index="<%= pageIndex %>"
-          <% if (page.conditionalLogicParsed) { %>data-cf-condition='<%- JSON.stringify(page.conditionalLogicParsed) %>'<% } %>
+          <% if (page.conditionalLogicParsed) { %>data-cf-condition='<%- jsonScriptSafe(page.conditionalLogicParsed) %>'<% } %>
         >
           <% if (pages.length > 1 && (page.title || page.description)) { %>
             <div class="member-form-full cf-page-heading">

@@ -8,7 +8,7 @@ const db = require('../db');
 const { findAccountByEmail, verifyPassword, hashPassword, memberForAccount, familyForAccount, sortByPortalSwitcherOrder } = require('../utils/portalAuth');
 const { generateMemberCode, setPrimaryParent } = require('../utils/members');
 const { savePhotoFile: saveMemberPhotoFile, deletePhotoFile: deleteMemberPhotoFile } = require('../utils/memberPhoto');
-const { createFailureRateLimiter } = require('../utils/loginRateLimit');
+const { createPersistentLimiter } = require('../utils/persistentRateLimit');
 const { GRADE_OPTIONS } = require('../utils/membership');
 const { CLASS_DAY_LABELS_FULL } = require('../utils/classSchedule');
 const { memberScheduleTables } = require('../utils/schedule');
@@ -23,7 +23,21 @@ const { createStorageClient, redirectToSignedUrl } = require('../utils/storage')
 const { uploadIntakePhotos, savePhotoFile, parseArrayField } = require('../utils/memberIntake');
 const { familyEditSections, applyFamilyEditSubmission } = require('../utils/memberFamilyEdit');
 
-const portalLoginLimiter = createFailureRateLimiter({ windowMs: 15 * 60 * 1000, maxAttempts: 8 });
+// Security audit: counted in the database (utils/persistentRateLimit.js)
+// so it holds across Netlify instances. Two counters: 8 wrong passwords
+// for one email locks that email for 15 minutes (stops guessing one
+// parent's password), and 30 from one network address locks that
+// address (stops trying many emails) - set higher than the per-email
+// limit because a whole co-op building shares one public address.
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const emailLoginLimiter = createPersistentLimiter({ name: 'login-email', windowMs: LOGIN_WINDOW_MS, maxAttempts: 8 });
+const ipLoginLimiter = createPersistentLimiter({ name: 'login-ip', windowMs: LOGIN_WINDOW_MS, maxAttempts: 30 });
+
+// Security audit: a fresh session id at sign-in, so a session id an
+// attacker planted or saw before login is worthless after it.
+function regenerateSession(req) {
+  return new Promise((resolve, reject) => req.session.regenerate((err) => (err ? reject(err) : resolve())));
+}
 
 // Only ever redirect back to a path within this app - same reasoning as
 // routes/admin.js's own safeNext.
@@ -39,18 +53,19 @@ router.get('/login', (req, res) => {
 
 router.post('/login', async (req, res) => {
   const next = safeNext(req.body.next);
-  if (portalLoginLimiter.isRateLimited(req.ip)) {
+  const email = (req.body.email || '').trim();
+  if ((await ipLoginLimiter.isRateLimited(req.ip)) || (email && (await emailLoginLimiter.isRateLimited(email)))) {
     return res.render('portal-login', { title: 'Member Login', error: 'Too many login attempts. Please wait a few minutes and try again.', notice: null, next });
   }
 
-  const email = (req.body.email || '').trim();
   const account = await findAccountByEmail(email);
   const passwordOk = account && (await verifyPassword(account, req.body.password));
   if (!account || !passwordOk) {
-    portalLoginLimiter.recordFailure(req.ip);
+    await ipLoginLimiter.recordFailure(req.ip);
+    if (email) await emailLoginLimiter.recordFailure(email);
     return res.render('portal-login', { title: 'Member Login', error: 'Incorrect email or password.', notice: null, next });
   }
-  portalLoginLimiter.recordSuccess(req.ip);
+  await emailLoginLimiter.recordSuccess(email);
 
   if (account.status === 'pending') {
     return res.render('portal-login', {
@@ -61,6 +76,7 @@ router.post('/login', async (req, res) => {
     });
   }
   await db.prepare('UPDATE member_accounts SET last_login_at = now_text() WHERE id = ?').run(account.id);
+  await regenerateSession(req);
   req.session.portalAccountId = account.id;
   // A real request: "After a member signs in on the homepage, they
   // should not be asked again to sign into any portal pages. Not even

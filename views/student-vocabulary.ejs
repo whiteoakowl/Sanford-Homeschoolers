@@ -43,7 +43,7 @@
   </main>
 
   <script>
-    var VOCABULARY_ROUND = <%- JSON.stringify(round) %>;
+    var VOCABULARY_ROUND = <%- jsonScriptSafe(round) %>;
   </script>
   <script src="/js/vocabulary-game.js" defer></script>
 </body>

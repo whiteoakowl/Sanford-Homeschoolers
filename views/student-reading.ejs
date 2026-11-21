@@ -197,7 +197,7 @@
     (function () {
       var input = document.getElementById('reading-hours-input');
       var preview = document.getElementById('reading-points-preview');
-      var pointsPerHour = <%- JSON.stringify(dashboard ? dashboard.pointsPerHour : 10) %>;
+      var pointsPerHour = <%- jsonScriptSafe(dashboard ? dashboard.pointsPerHour : 10) %>;
       if (!input) return;
 
       function updatePreview() {

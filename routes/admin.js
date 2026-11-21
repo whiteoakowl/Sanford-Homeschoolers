@@ -498,15 +498,15 @@ router.post('/settings/class-checkin-pin', requireAdmin, requireFullAdmin, async
 // authenticated-admin version stays exactly as it is for every other
 // portal's own Full Screen button.
 router.post('/fullscreen/verify-pin', requireAdmin, async (req, res) => {
-  if (fullscreenPinLimiter.isRateLimited(req.ip)) {
+  if (await fullscreenPinLimiter.isRateLimited(req.ip)) {
     return res.status(429).json({ ok: false, error: 'Too many attempts. Please wait a few minutes and try again.' });
   }
   const pin = (req.body.pin || '').trim();
   if (!(await verifyClassCheckinPin(pin))) {
-    fullscreenPinLimiter.recordFailure(req.ip);
+    await fullscreenPinLimiter.recordFailure(req.ip);
     return res.status(401).json({ ok: false, error: 'Incorrect PIN.' });
   }
-  fullscreenPinLimiter.recordSuccess(req.ip);
+  await fullscreenPinLimiter.recordSuccess(req.ip);
   res.json({ ok: true });
 });
 

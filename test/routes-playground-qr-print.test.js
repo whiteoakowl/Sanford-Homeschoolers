@@ -18,6 +18,8 @@ process.env.ADMIN_USERNAME = 'testadmin';
 process.env.ADMIN_PASSWORD = 'testpassword123';
 
 const request = require('supertest');
+// These tests exercise kiosk screens directly (see middleware/requireKioskDevice.js).
+process.env.KIOSK_OPEN_ACCESS = '1';
 const app = require('../server');
 
 test.before(() => app.ready);

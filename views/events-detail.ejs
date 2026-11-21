@@ -318,7 +318,7 @@
                   data-flat-price-cents="<%= event.price_cents != null ? event.price_cents : '' %>"
                   data-flat-price-per="<%= event.price_per || '' %>"
                 >
-                  <script type="application/json" id="event-register-ticket-types-data"><%- JSON.stringify(event.ticketTypes || []) %></script>
+                  <script type="application/json" id="event-register-ticket-types-data"><%- jsonScriptSafe(event.ticketTypes || []) %></script>
                   <form id="event-register-dialog-form" class="member-form-grid">
                     <h3 class="member-form-full">Register</h3>
                     <p class="alert alert-error member-form-full" id="event-register-dialog-error" hidden></p>

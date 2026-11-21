@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body class="public-page">
+  <main id="main-content" tabindex="-1" class="form-wrap form-wrap-narrow login-wrap">
+    <img class="login-logo" src="/img/logo.png" alt="Sanford Homeschoolers" />
+    <h1>Unlock This Kiosk</h1>
+    <p class="subtitle">Kiosk screens show member names, so they only open on a co-op kiosk or for signed-in members. Staff: enter the Class Check In &amp; Out PIN once on this device.</p>
+
+    <% if (error) { %>
+      <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <form method="POST" action="/kiosk/unlock" class="stack-form" data-preserve-fullscreen>
+      <input type="hidden" name="next" value="<%= next %>" />
+      <input id="pin" class="visually-kiosk-hidden" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" autofocus required aria-label="4-digit staff PIN" />
+      <div id="kiosk-unlock-keypad" class="kiosk-scan-col"></div>
+      <button type="submit" class="primary-btn">Unlock</button>
+    </form>
+
+    <p class="hint">Member? <a href="/login?next=<%= encodeURIComponent(next) %>">Sign in</a> instead.</p>
+  </main>
+  <script src="/js/kiosk-pin-keypad.js"></script>
+  <script>
+    initPinKeypad(document.getElementById('kiosk-unlock-keypad'), document.getElementById('pin'), document.querySelector('.stack-form'));
+  </script>
+  <script src="/js/fullscreen-nav.js"></script>
+</body>
+</html>
