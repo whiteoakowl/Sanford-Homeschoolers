@@ -1,0 +1,8 @@
+<%# One article as a list row. Locals: article, showCategory (optional). %>
+<li class="help-article-link">
+  <a href="<%= helpBase %>/a/<%= article.slug %>">
+    <span class="help-article-link-title"><%= article.title %></span>
+    <span class="help-article-link-summary"><%= article.summary %></span>
+    <% if (typeof categoryTitle !== 'undefined' && categoryTitle) { %><span class="help-article-link-category"><%= categoryTitle %></span><% } %>
+  </a>
+</li>

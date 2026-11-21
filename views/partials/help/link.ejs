@@ -1,0 +1,2 @@
+<%# Contextual help link for any page: include('partials/help/link', { slug: 'register-for-a-class', label: 'Class registration help' }). %>
+<a class="help-context-link no-print" href="/help/a/<%= slug %>" title="<%= typeof label !== 'undefined' ? label : 'Help' %>"><svg class="icon" aria-hidden="true"><use href="#icon-help-circle"/></svg><span><%= typeof label !== 'undefined' ? label : 'Help' %></span></a>

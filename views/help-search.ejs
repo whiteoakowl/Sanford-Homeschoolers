@@ -1,0 +1,29 @@
+<%- include('partials/help/top', { title, crumbs: [], currentCrumb: 'Search' }) %>
+    <header class="help-hero">
+      <h1><%= query ? 'Search results' : 'Search Help' %></h1>
+      <% if (query) { %>
+        <p class="subtitle" role="status"><%= results.length %> result<%= results.length === 1 ? '' : 's' %> for &ldquo;<%= query %>&rdquo;</p>
+      <% } else { %>
+        <p class="subtitle">Type a word or question in the search box above.</p>
+      <% } %>
+    </header>
+
+    <% if (query && results.length) { %>
+      <ul class="help-article-list">
+        <% results.forEach(function (r) { %>
+          <%- include('partials/help/article-link', { article: r.article, categoryTitle: r.category.title }) %>
+        <% }); %>
+      </ul>
+    <% } else { %>
+      <div class="help-empty">
+        <% if (query) { %>
+          <h2>No matching articles</h2>
+          <p>Try a shorter or different word, check the spelling, or browse the topics on the <a href="<%= helpBase %>"><%= helpName %></a> home page.</p>
+        <% } %>
+        <p>Popular searches:</p>
+        <ul class="help-suggestions">
+          <% suggestions.forEach(function (s) { %><li><a href="<%= helpBase %>/search?q=<%= encodeURIComponent(s) %>"><%= s %></a></li><% }); %>
+        </ul>
+      </div>
+    <% } %>
+<%- include('partials/help/bottom') %>

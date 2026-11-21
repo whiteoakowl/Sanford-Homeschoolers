@@ -1,0 +1,30 @@
+<%- include('partials/help/top', { title, crumbs: [], currentCrumb: null }) %>
+    <header class="help-hero">
+      <h1><%= helpName %></h1>
+      <p class="subtitle"><%= helpIntro %></p>
+    </header>
+
+    <section aria-labelledby="help-topics-heading">
+      <h2 id="help-topics-heading" class="help-section-title">Browse by topic</h2>
+      <div class="team-card-grid help-category-grid">
+        <% categories.forEach(function (c) { %>
+          <div class="team-col">
+            <a class="team-info-card help-category-card" href="<%= helpBase %>/c/<%= c.slug %>">
+              <span class="team-info-icon"><svg class="icon" aria-hidden="true"><use href="#icon-<%= c.icon %>"/></svg></span>
+              <h3 class="team-info-title"><%= c.title %></h3>
+              <span class="help-category-desc"><%= c.description %></span>
+              <span class="help-category-count"><%= c.articles.length %> article<%= c.articles.length === 1 ? '' : 's' %></span>
+            </a>
+          </div>
+        <% }); %>
+      </div>
+    </section>
+
+    <% if (faqs.length) { %>
+      <section aria-labelledby="help-faq-heading">
+        <h2 id="help-faq-heading" class="help-section-title">Common questions</h2>
+        <%- include('partials/help/faq-list', { faqs }) %>
+        <p><a href="<%= helpBase %>/faq">See all frequently asked questions <span aria-hidden="true">&rarr;</span></a></p>
+      </section>
+    <% } %>
+<%- include('partials/help/bottom') %>

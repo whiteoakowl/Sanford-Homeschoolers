@@ -580,6 +580,8 @@ app.use('/main-admin/store', adminStoreRouter);
 app.use('/newsletter', newsletterRouter);
 app.use('/main-admin/newsletter', adminNewsletterRouter);
 app.use('/notifications', notificationsRouter);
+// Customer Help Center (signed-in members only) - see routes/help.js.
+app.use('/help', require('./routes/help'));
 app.use('/main-admin/notifications', adminNotificationsRouter);
 app.use('/photos', photosRouter);
 app.use('/babysitters', babysittersRouter);

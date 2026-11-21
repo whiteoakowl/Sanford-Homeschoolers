@@ -1,0 +1,7 @@
+<%- include('partials/help/top', { title, crumbs: [], currentCrumb: null }) %>
+    <div class="help-empty">
+      <h1><%= title %></h1>
+      <p><%= message %></p>
+      <p>Try searching above, or go back to the <a href="<%= helpBase %>"><%= helpName %></a> home page.</p>
+    </div>
+<%- include('partials/help/bottom') %>

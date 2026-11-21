@@ -1,0 +1,33 @@
+<%# Renders an article's body blocks (see utils/helpCenter/index.js for
+    the block types). Every string goes through helpText(), which escapes
+    it and only allows **bold**. %>
+<% blocks.forEach(function (b) { %>
+  <% if (b.h) { %>
+    <h2 class="help-subheading"><%- helpText(b.h) %></h2>
+  <% } else if (b.p) { %>
+    <p><%- helpText(b.p) %></p>
+  <% } else if (b.steps) { %>
+    <ol class="help-steps">
+      <% b.steps.forEach(function (s) { %><li><%- helpText(s) %></li><% }); %>
+    </ol>
+  <% } else if (b.list) { %>
+    <ul class="help-list">
+      <% b.list.forEach(function (s) { %><li><%- helpText(s) %></li><% }); %>
+    </ul>
+  <% } else if (b.tip) { %>
+    <p class="help-callout help-callout-tip"><svg class="icon" aria-hidden="true"><use href="#icon-lightbulb"/></svg><span><strong>Tip:</strong> <%- helpText(b.tip) %></span></p>
+  <% } else if (b.note) { %>
+    <p class="help-callout help-callout-note"><svg class="icon" aria-hidden="true"><use href="#icon-info-circle"/></svg><span><strong>Note:</strong> <%- helpText(b.note) %></span></p>
+  <% } else if (b.table) { %>
+    <div class="help-table-wrap">
+      <table class="help-table">
+        <thead><tr><% b.table.head.forEach(function (h) { %><th scope="col"><%- helpText(h) %></th><% }); %></tr></thead>
+        <tbody>
+          <% b.table.rows.forEach(function (row) { %>
+            <tr><% row.forEach(function (cell, i) { %><td data-label="<%= b.table.head[i] %>"><%- helpText(cell) %></td><% }); %></tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+<% }); %>

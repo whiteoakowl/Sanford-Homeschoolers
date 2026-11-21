@@ -1,0 +1,111 @@
+module.exports = {
+  slug: 'events',
+  title: 'Events & Calendar',
+  icon: 'calendar-check',
+  description: 'Finding events, registering your family, guests, sign-ups, tickets and cancelling.',
+  articles: [
+    {
+      slug: 'view-the-calendar',
+      title: 'Viewing the events calendar',
+      summary: 'See upcoming events in a calendar or a list, and print or save them.',
+      audiences: ['member'],
+      keywords: ['calendar', 'events', 'list view', 'month', 'upcoming', 'field trip', 'activities', 'category', 'colors'],
+      body: [
+        { steps: [
+          'Open **Events** (Parent Portal) or **Event Calendar** (Student Portal).',
+          'Use the calendar and list buttons at the top to switch between **Calendar view** and **List view**.',
+          'Select an event to see its details.',
+        ] },
+        { p: 'Each event shows its category as a colored label. **Past Events** are listed separately below upcoming ones.' },
+        { tip: 'Use the **Print**, **Download PDF** and **Export CSV** buttons to print the calendar, save it as a PDF, or open it in a spreadsheet.' },
+      ],
+      related: ['register-for-an-event', 'add-event-to-your-calendar'],
+    },
+    {
+      slug: 'register-for-an-event',
+      title: 'Registering for an event',
+      summary: 'Choose who\'s going, pick tickets, answer any questions, and complete your registration.',
+      audiences: ['member'],
+      keywords: ['register', 'event registration', 'sign up', 'ticket', 'rsvp', 'family', 'student', 'payment', 'deadline', 'capacity', 'full'],
+      body: [
+        { steps: [
+          'Open **Events** and select the event (or select **Register Now** on its card).',
+          'In the **Register** section, choose the family members who are going.',
+          'If the event has tickets, choose one under **Select a Ticket for Each Member** and select **Next**.',
+          'Answer any questions the event asks.',
+          'If there\'s a fee, the **Payment** step explains how to pay.',
+          'Select **Complete Registration**. You\'ll see **Thank You!**',
+        ] },
+        { p: 'Some simpler events just have a **Register Selected** button. Check who\'s going and select it.' },
+        { list: [
+          'When registration is closed (past its deadline, or full), the event shows it as **Closed**.',
+          'Fees are added to your family\'s **Accounting** page and billed to the Primary Parent. The website doesn\'t take card payments; follow the event\'s payment instructions.',
+          'Your registrations appear under **My Registration** on the event, on **My Event Registrations**, and on **My Profile**, **Event Signups**.',
+        ] },
+      ],
+      related: ['my-event-registrations', 'event-guests-and-signups', 'view-your-account-balance'],
+    },
+    {
+      slug: 'event-guests-and-signups',
+      title: 'Guests, volunteer spots, donations and food',
+      summary: 'Bring a guest, or sign up to volunteer or bring something.',
+      audiences: ['member'],
+      keywords: ['guest', 'bringing a guest', 'volunteer', 'donation', 'food', 'potluck', 'sign up'],
+      body: [
+        { h: 'Bringing a guest' },
+        { steps: ['On the event, under **Bringing a Guest?**, select **+ Register a Guest**.', 'Enter the **Guest Name**, and optionally **Email** and **Phone**.', 'Save the guest registration.'] },
+        { h: 'Volunteer, donation and food sign-ups' },
+        { p: 'Events can list volunteer positions, donation items or food to bring. Select **Sign Up** next to the one you\'ll take. What you signed up for shows under **Volunteer Positions Signed Up For**, **Donations Signed Up For** and **Food Signed Up For**. Select **Cancel** next to one to remove yourself.' },
+      ],
+      related: ['register-for-an-event'],
+    },
+    {
+      slug: 'my-event-registrations',
+      title: 'Changing or cancelling an event registration',
+      summary: 'Edit, unregister, or print a ticket.',
+      audiences: ['member'],
+      keywords: ['cancel event', 'unregister', 'edit registration', 'change registration', 'ticket', 'print ticket', 'my event registrations'],
+      body: [
+        { h: 'On the event page' },
+        { list: [
+          '**Edit Registration**: change your answers or tickets.',
+          '**Unregister**: take a family member off the event.',
+        ] },
+        { h: 'On My Event Registrations' },
+        { steps: [
+          'Open **Events** (students: **Event Calendar**) and select **My Event Registrations**.',
+          'Select **Cancel** next to a registration to cancel it, or **Print Ticket** to print an event ticket.',
+        ] },
+      ],
+      related: ['register-for-an-event'],
+    },
+    {
+      slug: 'add-event-to-your-calendar',
+      title: 'Adding an event to your phone or computer calendar',
+      summary: 'Use Add to Calendar on the event page.',
+      audiences: ['member'],
+      keywords: ['google calendar', 'apple calendar', 'outlook', 'ics', 'add to calendar', 'phone calendar'],
+      body: [
+        { steps: ['Open the event.', 'Under **Add to Calendar**, choose **Google Calendar** or **Apple / Outlook (.ics)**.'] },
+      ],
+      related: ['view-the-calendar'],
+    },
+    {
+      slug: 'submit-an-event',
+      title: 'Suggesting an event',
+      summary: 'Submit an event idea for the co-op to approve.',
+      audiences: ['member'],
+      keywords: ['submit event', 'create event', 'suggest', 'propose', 'new event', 'organize'],
+      body: [
+        { steps: [
+          'Open **Events** and select **+ Submit an Event**.',
+          'Fill in **Title**, **Description**, **Location**, **Starts** and **Ends**.',
+          'Select **Submit for Approval**.',
+        ] },
+        { p: 'A co-op leader reviews it before it appears on the calendar.' },
+        { p: 'If the co-op makes you an organizer of an event, you\'ll see an **Edit Event** button on that event.' },
+      ],
+      related: ['view-the-calendar'],
+    },
+  ],
+};

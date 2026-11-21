@@ -1,0 +1,26 @@
+<%# Shared top of every Help Center page: nav, then the title area with
+    breadcrumbs and the search box. Locals: title, crumbs (optional array
+    of { href, label }; the current page is added last). %>
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('../head', { title }) %>
+</head>
+<body>
+  <%- include('../portal-nav', { portalTitle: helpPortalTitle, navLinks: helpNavLinks }) %>
+
+  <main id="main-content" tabindex="-1" class="admin-main help-center">
+    <nav class="help-breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="<%= helpBase %>"><%= helpName %></a></li>
+        <% (typeof crumbs !== 'undefined' ? crumbs : []).forEach(function (c) { %>
+          <li><a href="<%= c.href %>"><%= c.label %></a></li>
+        <% }); %>
+        <% if (typeof currentCrumb !== 'undefined' && currentCrumb) { %><li aria-current="page"><%= currentCrumb %></li><% } %>
+      </ol>
+    </nav>
+    <form class="help-search-form" method="GET" action="<%= helpBase %>/search" role="search">
+      <label class="sr-only" for="help-search-input">Search help</label>
+      <input id="help-search-input" type="search" name="q" value="<%= helpQuery %>" placeholder="Search help, e.g. &quot;register for a class&quot;" autocomplete="off" maxlength="100" />
+      <button type="submit" class="primary-btn"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg> Search</button>
+    </form>

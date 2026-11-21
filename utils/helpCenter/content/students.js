@@ -1,0 +1,91 @@
+module.exports = {
+  slug: 'students',
+  title: 'For Students',
+  icon: 'star',
+  description: 'Your schedule, classes, lessons, grades, chat and fun activities.',
+  articles: [
+    {
+      slug: 'student-portal-overview',
+      title: 'Your Student Portal',
+      summary: 'What\'s on your Home page and in your menu.',
+      audiences: ['student'],
+      keywords: ['student portal', 'student', 'home', 'my classes', 'word of the week', 'dashboard'],
+      body: [
+        { p: 'Your **Home** page shows **Announcements**, the **Word of the Week**, **My Classes** (select **View My Classes**) and **Nature News** (select **Share a Discovery**).' },
+        { p: 'Your menu has:' },
+        { list: [
+          '**Event Calendar**: co-op events.',
+          '**Co-op Schedule**: your co-op classes, times and rooms.',
+          '**Classroom Dashboard**: **Classes**, **Grades**, **Attendance**, **Weekly Planner**, **Portfolio** and **Transcripts**.',
+          '**Chat**, **Resources**, **Photos** and **Babysitter Profile**.',
+          'Activities: **Reading Challenge**, **Nature News**, **Vocabulary**, **Games**, **Pet**, **Achievements** and **Leaderboard**.',
+        ] },
+        { p: 'Your parent sets up your login. To change your password, open **My Profile**, select **Edit**, type a new password, and select **Save**.' },
+      ],
+      related: ['student-classroom-dashboard', 'student-co-op-schedule', 'student-activities'],
+    },
+    {
+      slug: 'student-classroom-dashboard',
+      title: 'Your classes, lessons and grades',
+      summary: 'Open a class from Classroom Dashboard to see lessons, assignments, attendance and grades.',
+      audiences: ['student'],
+      permission: 'view_student_classes_dashboard',
+      keywords: ['classroom dashboard', 'classes', 'lessons', 'assignments', 'homework', 'grades', 'quiz', 'class chat', 'supply list'],
+      body: [
+        { steps: [
+          'Open **Classroom Dashboard**, then **Classes**.',
+          'Your **Co-op Classes** and **Homeschool Family Classes** are listed. Select **View Class**.',
+        ] },
+        { p: 'A class has tabs such as **Details** (description and **Supply List**), **Lessons**, **Assignments** (with **Due** dates), **Attendance**, **Grades** (with **Score** and **Feedback**), **Resources** and **Class Forum** (select **Open Class Chat**).' },
+        { p: 'Open a lesson item to watch a video, read, take a quiz, or hand in an assignment. See **Handing in an assignment**.' },
+        { p: 'You can also see all your grades on **Classroom Dashboard**, **Grades**, and your attendance on **Attendance**.' },
+      ],
+      related: ['submit-an-assignment', 'class-chat'],
+    },
+    {
+      slug: 'student-transcript',
+      title: 'Your transcript',
+      summary: 'See the co-op classes you\'ve completed.',
+      audiences: ['student'],
+      permission: 'view_student_transcript',
+      keywords: ['transcript', 'completed classes', 'past terms'],
+      body: [
+        { p: 'Open **Classroom Dashboard**, then **Transcripts**. You\'ll see your **Current Term** and **Past Terms**, with each **Class**, **Day**, **Teacher** and when it was **Completed**.' },
+      ],
+    },
+    {
+      slug: 'student-activities',
+      title: 'Activities: reading, games, pets and more',
+      summary: 'Fun extras in your Student Portal.',
+      audiences: ['student'],
+      keywords: ['games', 'pet', 'vocabulary', 'nature news', 'reading', 'achievements', 'leaderboard', 'fun'],
+      body: [
+        { list: [
+          '**Reading Challenge**: log your reading and set a weekly goal.',
+          '**Nature News**: share something you discovered outside. Fill in **What did you discover?**, add a **Photo**, and select **Submit for Approval**. A co-op leader approves it before others can see it.',
+          '**Vocabulary**: answer word questions, then **Play Again**. See the **Top Players**.',
+          '**Games**: choose a type (**Puzzle**, **Arcade**, **Word**, **Classic**, **Trivia**, **Skill**) and **Start Challenge**.',
+          '**Pet**: take care of your pet with **Feed**, **Play** and **Bathe**, rename it, or **Edit Appearance**.',
+          '**Achievements** and **Leaderboard**: see what you\'ve earned and how you compare.',
+        ] },
+      ],
+      related: ['reading-challenge'],
+    },
+    {
+      slug: 'student-what-you-can-see',
+      title: 'What students can see and change',
+      summary: 'What your account can see, and what your parents manage.',
+      audiences: ['student'],
+      keywords: ['permissions', 'privacy', 'student account', 'what can i see', 'parent manages'],
+      body: [
+        { list: [
+          'You see your own schedule, classes, lessons, grades, attendance and work you handed in.',
+          'You can edit your own profile and password from **My Profile**.',
+          'Class registration, payments and family details are managed by your parents.',
+          'In **Chat** and **Photos**, other members can see what you post, so keep it kind and safe.',
+        ] },
+      ],
+      related: ['who-can-see-what'],
+    },
+  ],
+};

@@ -1,0 +1,76 @@
+module.exports = {
+  slug: 'name-tags',
+  title: 'Name Tags & Schedule Cards',
+  icon: 'badge',
+  description: 'Printing your family\'s name tags, requesting new ones, and (for Co-op Admins) designing them.',
+  articles: [
+    {
+      slug: 'print-your-name-tags',
+      title: 'Printing your family\'s name tags',
+      summary: 'Print name tags, with each person\'s schedule on the back if you want.',
+      audiences: ['parent'],
+      permission: 'view_parent_name_tags',
+      keywords: ['name tag', 'badge', 'print name tag', 'schedule card', 'barcode', 'lanyard'],
+      body: [
+        { steps: [
+          'In the Parent Portal, open **Name Tags**.',
+          'Check each family member whose name tag you want.',
+          'Check **Include schedule on the back** to print their schedule card on the back.',
+          'Select **Print Selected**.',
+        ] },
+        { p: 'Each name tag has a barcode for checking in and out at the kiosk. The design is set by the co-op.' },
+        { tip: 'For two-sided printing, turn on double-sided (duplex) printing in your printer settings.' },
+      ],
+      related: ['name-tag-form', 'check-in-at-the-kiosk'],
+    },
+    {
+      slug: 'name-tag-form',
+      title: 'Requesting a new or replacement name tag',
+      summary: 'Use the Name Tag Form for a new, lost, or updated name tag.',
+      audiences: ['parent'],
+      permission: 'view_parent_name_tag_form',
+      keywords: ['name tag form', 'lost name tag', 'new name tag', 'replacement', 'schedule change', 'request'],
+      body: [
+        { steps: [
+          'Open **Co-op Classes**, then **Name Tag Form**. (It\'s also under **Forms** on your Home page.)',
+          'Under **Your Name**, choose your name, then check each person who needs one (or **Select All**).',
+          'Under **What Do You Need?**, choose **New Name Tag**, **Lost Name Tag**, **Schedule Change** or **Both**.',
+          'Choose the **Day** and add a **Description** if needed.',
+          'Select **Submit**.',
+        ] },
+        { p: 'The co-op prints it for you. Requests show on the co-op\'s Name Tag Requests list.' },
+      ],
+      related: ['print-your-name-tags'],
+    },
+    {
+      slug: 'design-name-tags',
+      title: 'Designing name tags and schedule cards (Co-op Admin)',
+      summary: 'Use Design/Print to lay out name tags, schedule cards and badges.',
+      audiences: ['coop_admin'],
+      keywords: ['design', 'name tag design', 'template', 'font', 'color', 'shape', 'barcode', 'image', 'text', 'outline', 'border', 'reset', 'layer'],
+      body: [
+        { steps: [
+          'In Co-op Admin, open **Design/Print**, then **Design**.',
+          'Choose what to design: **Student Name Tag**, **Parent Name Tag**, **Admin Name Tag**, **Schedule Card**, **Setup/Cleanup Badge** or **Custom Badge**.',
+        ] },
+        { h: 'Adding and changing elements' },
+        { list: [
+          '**Add Text**, **Add Image**, **Add Barcode** and **Add Schedule Table** put a new element on the design. **Add Element** adds shapes and other pieces.',
+          'Drag an element to move it. Drag its corners to resize it.',
+          'With an element selected, change its **Font**, **Font size**, **Bold**, **Italic**, **Color**, **Text align**, **Fill color**, **Border color**, **Border width**, **Line style** or **Opacity**.',
+          '**Bring to Front**, **Bring Forward**, **Send Backward** and **Send to Back** change the **Layer order**. **Duplicate** copies an element. **Lock** stops it moving. **Delete Element** removes it.',
+          'For images, **Crop Image** then **Apply Crop**.',
+          '**Change Background** sets the card\'s background color or image.',
+          '**Undo**, **Redo**, **Zoom**, **Toggle Grid** and **Toggle Snap to Grid** help with layout.',
+        ] },
+        { h: 'Saving' },
+        { list: [
+          '**Save Template** saves the design.',
+          '**Copy Design to All Name Tags** applies this design to the other name tag types.',
+          '**Reset to Default** goes back to the original design.',
+        ] },
+      ],
+      related: ['coop-admin-printing'],
+    },
+  ],
+};

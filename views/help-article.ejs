@@ -1,0 +1,22 @@
+<%- include('partials/help/top', { title, crumbs: category ? [{ href: helpBase + '/c/' + category.slug, label: category.title }] : [], currentCrumb: article.title }) %>
+    <article class="help-article">
+      <header>
+        <h1><%= article.title %></h1>
+        <p class="subtitle"><%= article.summary %></p>
+      </header>
+      <div class="help-article-body">
+        <%- include('partials/help/blocks', { blocks: article.body }) %>
+      </div>
+    </article>
+    <% if (related.length) { %>
+      <section class="help-related" aria-labelledby="help-related-heading">
+        <h2 id="help-related-heading" class="help-section-title">Related articles</h2>
+        <ul class="help-article-list">
+          <% related.forEach(function (a) { %>
+            <%- include('partials/help/article-link', { article: a, categoryTitle: null }) %>
+          <% }); %>
+        </ul>
+      </section>
+    <% } %>
+    <% if (category) { %><p><a href="<%= helpBase %>/c/<%= category.slug %>"><span aria-hidden="true">&larr;</span> More in <%= category.title %></a></p><% } %>
+<%- include('partials/help/bottom') %>

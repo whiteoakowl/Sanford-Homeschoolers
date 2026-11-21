@@ -1,0 +1,11 @@
+<%- include('partials/help/top', { title, crumbs: [], currentCrumb: 'FAQ' }) %>
+    <header class="help-hero">
+      <h1>Frequently Asked Questions</h1>
+      <p class="subtitle">Select a question to see the answer.</p>
+    </header>
+    <% if (faqs.length) { %>
+      <%- include('partials/help/faq-list', { faqs }) %>
+    <% } else { %>
+      <p class="help-empty">No questions to show yet. Browse the <a href="<%= helpBase %>"><%= helpName %></a> instead.</p>
+    <% } %>
+<%- include('partials/help/bottom') %>

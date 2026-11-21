@@ -1,0 +1,11 @@
+<%- include('partials/help/top', { title, crumbs: [], currentCrumb: category.title }) %>
+    <header class="help-hero">
+      <h1><%= category.title %></h1>
+      <p class="subtitle"><%= category.description %></p>
+    </header>
+    <ul class="help-article-list">
+      <% category.articles.forEach(function (a) { %>
+        <%- include('partials/help/article-link', { article: a, categoryTitle: null }) %>
+      <% }); %>
+    </ul>
+<%- include('partials/help/bottom') %>

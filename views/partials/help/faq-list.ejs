@@ -1,0 +1,12 @@
+<%# Expandable FAQ list. Locals: faqs. %>
+<div class="help-faq-list">
+  <% faqs.forEach(function (f) { %>
+    <details class="help-faq">
+      <summary><%= f.q %></summary>
+      <div class="help-faq-answer">
+        <p><%- helpText(f.a) %></p>
+        <p><a href="<%= helpBase %>/a/<%= f.article %>">Read the full article <span aria-hidden="true">&rarr;</span></a></p>
+      </div>
+    </details>
+  <% }); %>
+</div>
