@@ -1,0 +1,35 @@
+<%# Duplicate Class / Copy Class dialog for views/admin-class-schedule-manage.ejs.
+    Locals: cls, combos (listScheduleCombos - active semesters only),
+    archived (true = the archived class's Copy Class: blank picker that
+    must be chosen, Save Copy). %>
+<dialog id="duplicate-class-dialog" class="member-picker-dialog">
+  <form method="POST" action="/admin/class-schedule/classes/<%= cls.id %>/duplicate">
+    <h3><%= archived ? 'Copy Class to an Active Semester' : 'Duplicate Class' %></h3>
+    <% if (archived) { %><p class="hint">Copies this class's information into a new class. Students and registrations are not copied.</p><% } %>
+    <%# A real request: "it asks keep the same teachers, separately
+        ask to keep the same assistants. Also ask to keep the
+        description. Ask to keep finance settings" - split the old
+        single "copy staff" checkbox into 4 independent ones; none
+        are copied unless checked, same as the original checkbox's
+        own default. %>
+    <label class="checkbox-option"><input type="checkbox" name="copyTeachers" value="1" /> Keep the same teachers</label>
+    <label class="checkbox-option"><input type="checkbox" name="copyAssistants" value="1" /> Keep the same assistants</label>
+    <label class="checkbox-option"><input type="checkbox" name="copyDescription" value="1" /> Keep the same description</label>
+    <label class="checkbox-option"><input type="checkbox" name="copyFinance" value="1" /> Keep the same finance settings (price, charged per, account category)</label>
+    <label><%= archived ? 'Active semester/day for the new class' : 'Add the duplicate to' %>
+      <select name="targetComboId" required>
+        <% if (archived) { %><option value="" selected disabled>Choose an active semester...</option><% } %>
+        <% combos.forEach(function(combo) { %>
+          <option value="<%= combo.id %>"><%= combo.label %></option>
+        <% }); %>
+      </select>
+    </label>
+    <% if (archived && !combos.length) { %>
+      <p class="hint">There are no active semesters with class days yet. Add one under Settings &gt; Semesters first.</p>
+    <% } %>
+    <div class="notes-dialog-actions">
+      <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+      <button type="submit" class="primary-btn"<%= archived && !combos.length ? ' disabled' : '' %>><%= archived ? 'Save Copy' : 'Duplicate' %></button>
+    </div>
+  </form>
+</dialog>

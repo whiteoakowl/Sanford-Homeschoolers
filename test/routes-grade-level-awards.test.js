@@ -47,7 +47,7 @@ test('Family School Management Grade Level Awards: builder, preview with names, 
 
   const page = await agent.get('/parent/academics/awards?grade=3');
   assert.equal(page.status, 200);
-  assert.match(page.text, /<h1>Grade Level Awards<\/h1>/);
+  assert.match(page.text, /<h1>Rewards Certificates<\/h1>/);
   assert.match(page.text, /<select name="grade">/);
   assert.match(page.text, /<option value="3" selected>3rd Grade<\/option>/);
   assert.equal((page.text.match(/<label class="dip-choice ga-choice/g) || []).length, 15);
@@ -67,18 +67,43 @@ test('Family School Management Grade Level Awards: builder, preview with names, 
   assert.match(print.text, /@page \{ size: letter landscape; margin: 0; \}/);
   assert.match(print.text, /12th Grade!/);
   assert.match(print.text, />Award Kid<\/text>/);
-  assert.match(print.text, /Student Name:/);
-  assert.equal((print.text.match(/Parent\/Teacher:/g) || []).length, 2, 'blank parent lines stay for handwriting');
+  assert.match(print.text, />STUDENT NAME</);
+  assert.equal((print.text.match(/>Parent\/Teacher</g) || []).length, 2, 'blank parent lines stay for handwriting');
 });
 
-test('Main Admin Family School Management has a Grade Level Awards subpage', async () => {
+test('Main Admin Family School Management has a Rewards Certificates subpage', async () => {
   const admin = request.agent(app);
   await admin.post('/login').type('form').send({ email: 'mainadmin@coop.local', password: 'changeme123', next: '/main-admin' });
   const page = await admin.get('/main-admin/family-school/awards?grade=k');
   assert.equal(page.status, 200);
-  assert.match(page.text, /href="\/main-admin\/family-school\/awards"[^>]*>Grade Level Awards/);
+  assert.match(page.text, /href="\/main-admin\/family-school\/awards"[^>]*>Rewards Certificates/);
   assert.match(page.text, /Kindergarten!/);
   const print = await admin.get('/main-admin/family-school/awards/print?grade=k&design=apple');
   assert.equal(print.status, 200);
   assert.match(print.text, /grade-award-apple/);
+});
+
+// A real request: "Rewards certificates... parent signature title and
+// lines should be side by side a bit away from each other so the child's
+// name can stand out more in the center. Child's name should be larger
+// than parent signatures. Add font choice for child's name and parents
+// names."
+test('Rewards Certificates: big centered name, side-by-side signatures, name and parent fonts', async () => {
+  const admin = request.agent(app);
+  await admin.post('/login').type('form').send({ email: 'mainadmin@coop.local', password: 'changeme123', next: '/main-admin' });
+  const page = await admin.get('/main-admin/family-school/awards?grade=4&design=sports&studentName=Kid%20Star&parent1=Mom%20Star&parent2=Dad%20Star&nameFont=marker&parentFont=script');
+  assert.equal(page.status, 200);
+  assert.match(page.text, /<select name="nameFont">[\s\S]*?<option value="marker"[^>]*selected>Marker</);
+  assert.match(page.text, /<select name="parentFont">[\s\S]*?<option value="script"[^>]*selected>Fancy Script</);
+  const svg = page.text.slice(page.text.indexOf('id="award-preview"'));
+  const name = /<text x="550"[^>]*font-family="([^"]*)"[^>]*font-size="(\d+)"[^>]*>Kid Star</.exec(svg);
+  const mom = /<text x="(\d+)"[^>]*font-family="([^"]*)"[^>]*font-size="(\d+)"[^>]*>Mom Star</.exec(svg);
+  const dad = /<text x="(\d+)"[^>]*font-size="(\d+)"[^>]*>Dad Star</.exec(svg);
+  assert.ok(name && mom && dad, 'all three names drawn');
+  assert.match(name[1], /Permanent Marker/);
+  assert.match(mom[2], /Great Vibes/);
+  assert.ok(Number(name[2]) > Number(mom[3]), "the child's name is larger than the signatures");
+  assert.ok(Number(mom[1]) < 450 && Number(dad[1]) > 650, 'signatures sit side by side, apart, left and right');
+  const print = await admin.get('/main-admin/family-school/awards/print?grade=4&design=sports&nameFont=marker');
+  assert.match(print.text, /family=Permanent\+Marker/);
 });

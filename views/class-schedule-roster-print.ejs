@@ -15,6 +15,7 @@
   <%- include('partials/head', { title }) %>
   <style>@page { size: letter; margin: 0.4in; }</style>
 </head>
+<% var includeMedical = typeof locals.includeMedical !== 'undefined' && locals.includeMedical; %>
 <body class="admin-page class-roster-print-page">
   <%- include('partials/admin-nav') %>
   <main id="main-content" tabindex="-1" class="admin-main">
@@ -71,10 +72,10 @@
         <div>
           <h3>Student Roster</h3>
           <table class="roster-table">
-            <thead><tr><th>Name</th><th>Family</th><th>Age</th><th>Grade</th><th>Birthday</th><th>Medical/Allergy Notes</th></tr></thead>
+            <thead><tr><th>Name</th><th>Family</th><th>Age</th><th>Grade</th><th>Birthday</th><% if (includeMedical) { %><th>Medical/Allergy Notes</th><% } %></tr></thead>
             <tbody>
               <% if (cls.students.length === 0) { %>
-                <tr><td colspan="6" class="roster-empty">No students enrolled yet.</td></tr>
+                <tr><td colspan="<%= includeMedical ? 6 : 5 %>" class="roster-empty">No students enrolled yet.</td></tr>
               <% } %>
               <% cls.students.forEach(function(s) { %>
                 <tr>
@@ -83,7 +84,7 @@
                   <td><%= s.age !== null && s.age !== undefined ? s.age : '—' %></td>
                   <td><%= s.grade_level || '—' %></td>
                   <td><%= s.birthday || '—' %></td>
-                  <td><%= s.medical_notes || '—' %></td>
+                  <% if (includeMedical) { %><td><%= s.medical_notes || '—' %></td><% } %>
                 </tr>
               <% }); %>
             </tbody>

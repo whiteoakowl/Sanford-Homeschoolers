@@ -1,0 +1,39 @@
+<%# Add/Edit Substitute Plan popup (views/partials/substitute-plan-
+    manage.ejs). Locals: dialogId, heading, action, submitLabel, values
+    ({ title, description, mediaUrl, teacherNotes }), plan (null when
+    adding - otherwise its current worksheet is shown with a Remove box). %>
+<dialog id="<%= dialogId %>" class="class-form-dialog">
+  <form method="POST" action="<%= action %>" enctype="multipart/form-data">
+    <div class="class-form-dialog-header">
+      <span class="class-form-dialog-icon"><svg class="icon"><use href="#icon-book"/></svg></span>
+      <h3><%= heading %></h3>
+      <button type="button" class="class-form-dialog-close" onclick="this.closest('dialog').close()" aria-label="Close"><svg class="icon"><use href="#icon-x-circle"/></svg></button>
+    </div>
+    <div class="member-form-grid">
+      <label class="member-form-full">Title
+        <input type="text" name="title" value="<%= values.title %>" required maxlength="200" />
+      </label>
+      <label class="member-form-full">Description
+        <textarea name="description" rows="4"><%= values.description %></textarea>
+      </label>
+      <label class="member-form-full">Worksheet for Printing <span class="hint">(PDF, Word or image, up to 10MB)</span>
+        <input type="file" name="worksheet" accept=".pdf,.doc,.docx,.odt,.txt,.pptx,.xlsx,.jpg,.jpeg,.png,.gif,.webp" />
+      </label>
+      <% if (plan && plan.worksheetUrl) { %>
+        <div class="member-form-full">
+          <span class="hint">Current worksheet: <a href="<%= plan.worksheetUrl %>" target="_blank" rel="noopener"><%= plan.worksheet_name || 'Worksheet' %></a></span>
+          <label class="checkbox-option"><input type="checkbox" name="removeWorksheet" value="1" /> Remove this worksheet</label>
+        </div>
+      <% } %>
+      <label class="member-form-full">Video or Song Link
+        <input type="url" name="mediaUrl" value="<%= values.mediaUrl %>" placeholder="https://" />
+      </label>
+      <label class="member-form-full">Special Notes from Teacher
+        <textarea name="teacherNotes" rows="3"><%= values.teacherNotes %></textarea>
+      </label>
+      <div class="member-form-full">
+        <button type="submit" class="primary-btn"><%= submitLabel %></button>
+      </div>
+    </div>
+  </form>
+</dialog>

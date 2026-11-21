@@ -1,0 +1,27 @@
+<%# One substitute plan's contents, read-only - inside its bar on the
+    teacher/admin manage page and on the class QR code's View Substitute
+    Plan page. Locals: plan (utils/substitutePlans.js row). %>
+<div class="sub-plan-details">
+  <% if (plan.description) { %>
+    <p class="plain-text-display"><%= plan.description %></p>
+  <% } %>
+  <% if (plan.worksheetUrl || plan.media_url) { %>
+    <div class="sub-plan-links">
+      <% if (plan.worksheetUrl) { %>
+        <a class="btn-secondary" href="<%= plan.worksheetUrl %>" target="_blank" rel="noopener"><svg class="icon"><use href="#icon-printer"/></svg> <span>Print Worksheet<% if (plan.worksheet_name) { %> <span class="sub-plan-file">(<%= plan.worksheet_name %>)</span><% } %></span></a>
+      <% } %>
+      <% if (plan.media_url) { %>
+        <a class="btn-secondary" href="<%= plan.media_url %>" target="_blank" rel="noopener noreferrer"><svg class="icon"><use href="#icon-video"/></svg> Open Video or Song</a>
+      <% } %>
+    </div>
+  <% } %>
+  <% if (plan.teacher_notes) { %>
+    <div class="sub-plan-notes">
+      <strong>Special Notes from Teacher</strong>
+      <p class="plain-text-display"><%= plan.teacher_notes %></p>
+    </div>
+  <% } %>
+  <% if (!plan.description && !plan.worksheetUrl && !plan.media_url && !plan.teacher_notes) { %>
+    <p class="hint">No details added yet.</p>
+  <% } %>
+</div>

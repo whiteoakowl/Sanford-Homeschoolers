@@ -31,6 +31,10 @@ const { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate } = re
 const pinLimiter = require('../utils/classCheckinPinRateLimit');
 const { isValidClassQrKey, isValidPlaygroundQrKey } = require('../utils/classQrKey');
 const { createRateLimiter } = require('../utils/rateLimit');
+const { isClassArchived } = require('../utils/classSchedule');
+const { lessonPlanSummary } = require('../utils/lessonPlanSummary');
+const { substitutePlansForClass } = require('../utils/substitutePlans');
+const { orientationScanCheckIn, defaultSemesterId } = require('../utils/orientation');
 
 // Separate from the main portal's own checkinLimiter (routes/kiosk.js) -
 // same generous per-kiosk-device threshold, tuned the same way, just its
@@ -99,6 +103,8 @@ async function requirePlaygroundAccess(req, res, next) {
 // tab and this router's own class list use, so a class looks identical
 // wherever it's shown - see allClassesList in utils/classSchedule.js.
 async function findClassWithLabels(id) {
+  // An archived semester's classes don't open from the kiosk/QR code.
+  if (await isClassArchived(id)) return null;
   const raw = await db.prepare('SELECT day FROM classes WHERE id = ?').get(id);
   if (!raw) return null;
   return (await allClassesList(raw.day, await getActiveKioskSemesterId())).find((c) => c.id === id) || null;
@@ -132,6 +138,51 @@ router.post('/unlock', async (req, res) => {
 router.post('/lock', (req, res) => {
   if (req.session) delete req.session.classCheckinUnlocked;
   res.redirect('/kiosk');
+});
+
+// A real request: "Add a tab on the orange menu bar on the kiosk screen
+// called orientation kiosk. When you click this button it asks for the
+// code that is set for class check in and out. On this screen it looks
+// like the normal kiosk screen but the large buttons are Tour check in.
+// Open house check in. Teacher check in. Volunteer check in. These are
+// linked to the items under the orientation tab that are tracked per
+// member." Same PIN as Class Check In & Out (requireUnlocked); each
+// button opens the orientation scan screen and checks that item on
+// Orientation Tracking for the scanned member's family. Volunteer Check
+// In marks Parent Orientation (the parent/volunteer obligation) - there's
+// no separate volunteer item. The semester is Orientation Tracking's own
+// default (the newest).
+const ORIENTATION_KIOSK_ITEMS = {
+  tour: { field: 'tour', label: 'Tour Check In', icon: 'map-pin', color: 'green' },
+  'open-house': { field: 'openHouse', label: 'Open House Check In', icon: 'home', color: 'green' },
+  teacher: { field: 'teacherTraining', label: 'Teacher Check In', icon: 'graduation-cap', color: 'purple' },
+  volunteer: { field: 'video', label: 'Volunteer Check In', icon: 'users', color: 'purple' },
+};
+
+router.get('/orientation', requireUnlocked, (req, res) => {
+  res.render('kiosk-orientation', { title: 'Orientation Kiosk', items: ORIENTATION_KIOSK_ITEMS });
+});
+
+router.get('/orientation/:kind/scan', requireUnlocked, async (req, res) => {
+  const item = ORIENTATION_KIOSK_ITEMS[req.params.kind];
+  if (!item) return res.status(404).send('Not found');
+  res.render('admin-orientation-checkin-scan', {
+    title: item.label,
+    heading: item.label,
+    kioskShell: true,
+    semesterId: await defaultSemesterId(),
+    scanPostUrl: `/kiosk/class-checkin/orientation/${req.params.kind}/scan`,
+    completeUrl: '/kiosk/class-checkin/orientation',
+  });
+});
+
+router.post('/orientation/:kind/scan', requireUnlocked, async (req, res) => {
+  const item = ORIENTATION_KIOSK_ITEMS[req.params.kind];
+  if (!item) return res.status(404).json({ ok: false, message: 'Not found' });
+  if (classScanLimiter.isLimited(req.ip)) return res.status(429).json({ ok: false, message: 'Too many scans - please wait a moment.' });
+  classScanLimiter.recordAttempt(req.ip);
+  const semesterId = req.body.semesterId ? parseInt(req.body.semesterId, 10) : null;
+  res.json(await orientationScanCheckIn({ barcode: req.body.barcode, semesterId, field: item.field }));
 });
 
 // Day picker - a card per day of the week, the top level of the unlocked
@@ -192,6 +243,27 @@ router.get('/classes/:id/attendance', requireClassAccess, async (req, res) => {
     dateLabels: grid.dateLabels,
     summary: grid.summary,
   });
+});
+
+// A real request: the class QR code "won't just be for check in" - the
+// attendance page gets View Lesson Plan and View Substitute Plan buttons.
+// Read-only, same QR key/PIN gate as the attendance page. The lesson plan
+// shows only admin-approved lessons (what students see), with each
+// lesson's content titles but never quiz answers.
+router.get('/classes/:id/lesson-plan', requireClassAccess, async (req, res) => {
+  const cls = await findClassWithLabels(parseInt(req.params.id, 10));
+  if (!cls) return res.status(404).render('404', { title: 'Not Found' });
+  const lessons = await lessonPlanSummary(cls.id, { approvedOnly: true });
+  res.render('kiosk-class-lesson-plan', { title: `Lesson Plan - ${cls.class_name}`, cls, lessons });
+});
+
+// The class's approved substitute plans (utils/substitutePlans.js),
+// read-only - a teacher's plan shows once Co-op Admin approves it.
+router.get('/classes/:id/substitute-plan', requireClassAccess, async (req, res) => {
+  const cls = await findClassWithLabels(parseInt(req.params.id, 10));
+  if (!cls) return res.status(404).render('404', { title: 'Not Found' });
+  const plans = await substitutePlansForClass(cls.id, { approvedOnly: true });
+  res.render('kiosk-class-substitute-plan', { title: `Substitute Plan - ${cls.class_name}`, cls, plans });
 });
 
 // A real request: "class attendance should allow for manually changing
@@ -258,7 +330,7 @@ router.get('/classes/:id/scan', requireClassAccess, async (req, res) => {
 async function resolveScan(req, res) {
   const classId = parseInt(req.params.id, 10);
   const cls = await db.prepare('SELECT * FROM classes WHERE id = ?').get(classId);
-  if (!cls || !cls.roster_id) {
+  if (!cls || !cls.roster_id || (await isClassArchived(classId))) {
     res.json({ ok: false, message: 'Class not found.' });
     return null;
   }

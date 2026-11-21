@@ -81,8 +81,35 @@ function allMigrationSql() {
 let db;
 let schemaReady;
 
+// A real bug report: "Every time you click a page in co-op admin portal
+// it says something went wrong" - a push added migrations (new tables and
+// semesters.archived_at, which almost every class list now filters on)
+// that the live Supabase database never got, since it doesn't apply this
+// directory on its own. The migrations from RUNTIME_MIGRATIONS_FROM on
+// are written to be safe to re-run (only CREATE ... IF NOT EXISTS / ADD
+// COLUMN IF NOT EXISTS), so a real-Postgres boot applies them itself
+// before serving any query. A failure is logged, never fatal - the
+// schema may already be there.
+const RUNTIME_MIGRATIONS_FROM = '20261231110000';
+async function applyRuntimeMigrations(connectionString) {
+  const { Pool } = require('pg');
+  const pool = new Pool({ connectionString, max: 1 });
+  try {
+    const files = fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql') && f >= RUNTIME_MIGRATIONS_FROM).sort();
+    for (const f of files) {
+      try {
+        await pool.query(fs.readFileSync(path.join(MIGRATIONS_DIR, f), 'utf8'));
+      } catch (err) {
+        console.error(`Runtime migration ${f} failed:`, err.message);
+      }
+    }
+  } finally {
+    await pool.end().catch(() => {});
+  }
+}
+
 if (process.env.DATABASE_URL) {
-  schemaReady = Promise.resolve();
+  schemaReady = applyRuntimeMigrations(process.env.DATABASE_URL).catch((err) => console.error('Runtime migrations failed:', err.message));
   db = createPgDb(process.env.DATABASE_URL, schemaReady);
 } else {
   // Every test file sets DB_PATH to its own throwaway path (a leftover

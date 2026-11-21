@@ -16,15 +16,49 @@
         falling back to Settings > Kiosk's active semester. %>
     <p class="subtitle no-print"><a href="/admin/schedule?tab=<%= cls.day %>&semesterId=<%= cls.semester_id == null ? 'none' : cls.semester_id %>">&larr; <%= dayLabel %> Class Schedule</a></p>
 
+    <% var isArchivedClass = typeof archivedSemester !== 'undefined' && !!archivedSemester; %>
     <div class="roster-toolbar">
       <div><h1><%= cls.class_name %></h1></div>
       <div class="roster-btn-row no-print">
+        <%# A real request: "it should have a print roster button at the
+            top. Pop up asks if you want to include medical/allergy
+            information with a check box." %>
+        <button type="button" class="roster-action-btn" onclick="document.getElementById('print-roster-dialog').showModal()"><svg class="icon"><use href="#icon-printer"/></svg> Print Roster</button>
+        <% if (isArchivedClass) { %>
+          <%# A real request: "Add a copy class button on an archived class
+              so that you can still copy the class information into a new
+              active class for an active semester. It will require
+              choosing the new active semester before saving." Same copy
+              as Duplicate Class (POST /duplicate - the archived class's
+              view-only guard lets it through); the picker only lists
+              active semesters and starts blank. %>
+          <button type="button" class="roster-action-btn" onclick="document.getElementById('duplicate-class-dialog').showModal()"><svg class="icon"><use href="#icon-copy"/></svg> Copy Class</button>
+        <% } else { %>
         <form method="POST" action="/admin/class-schedule/classes/<%= cls.id %>/delete" data-confirm="Delete &quot;<%= cls.class_name %>&quot;? This cannot be undone.">
           <button type="submit" class="roster-action-btn roster-action-btn-danger">Delete Class</button>
         </form>
+        <% } %>
       </div>
     </div>
+    <dialog id="print-roster-dialog" class="member-picker-dialog">
+      <form method="GET" action="/admin/class-schedule/classes/<%= cls.id %>/roster/print" target="_blank" onsubmit="this.closest('dialog').close()">
+        <h3>Print Roster</h3>
+        <label class="checkbox-option"><input type="checkbox" name="medical" value="1" /> Include medical/allergy information</label>
+        <div class="notes-dialog-actions">
+          <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+          <button type="submit" class="primary-btn">Print</button>
+        </div>
+      </form>
+    </dialog>
+    <% if (isArchivedClass) { %><%- include('partials/duplicate-class-dialog', { cls: cls, combos: combos, archived: true }) %><% } %>
 
+    <%# Settings > Semesters: this class's semester is archived - view-only. %>
+    <% if (typeof archivedSemester !== 'undefined' && archivedSemester) { %>
+      <div class="alert alert-info archived-semester-banner no-print">
+        <svg class="icon"><use href="#icon-archive"/></svg>
+        <div><strong>View only.</strong> This class is in the archived semester <a href="/admin/schedule/semesters/<%= archivedSemester.id %>/archive"><%= archivedSemester.title %></a>, so it can't be changed and doesn't show on any portal. Unarchive the semester under Settings &gt; Semesters to edit it.</div>
+      </div>
+    <% } %>
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
 
@@ -38,6 +72,7 @@
       <a class="view-tab<%= activeTab === 'details' ? ' active' : '' %>" href="?tab=details">Details</a>
       <a class="view-tab<%= activeTab === 'staffRoster' ? ' active' : '' %>" href="?tab=staffRoster">Staff &amp; Roster</a>
       <a class="view-tab<%= activeTab === 'assignments' ? ' active' : '' %>" href="?tab=assignments">Lessons</a>
+      <a class="view-tab<%= activeTab === 'attendance' ? ' active' : '' %>" href="?tab=attendance">Attendance</a>
       <a class="view-tab<%= activeTab === 'grades' ? ' active' : '' %>" href="?tab=grades">Grades</a>
       <a class="view-tab<%= activeTab === 'chat' ? ' active' : '' %>" href="?tab=chat">Chat</a>
     </div>
@@ -129,7 +164,17 @@
               <%# Checked by default, matching the old always-on behavior
                   from before grade/age locks could be turned off
                   independently. %>
-              <label class="checkbox-option"><input type="checkbox" name="lockByGrade" value="1" <%= cls.lock_by_grade == false || Number(cls.lock_by_grade) === 0 ? '' : 'checked' %> /> Lock class by grade</label>
+              <%# "Lock all classes by grade" (Co-op Class Settings) overrides
+                  this box: shown checked and greyed out, with the class's
+                  own choice kept in a hidden field so it's back when the
+                  override is turned off. %>
+              <% var ownGradeLock = !(cls.lock_by_grade == false || Number(cls.lock_by_grade) === 0); %>
+              <% if (lockAllByGrade) { %>
+                <input type="hidden" name="lockByGrade" value="<%= ownGradeLock ? '1' : '0' %>" />
+                <label class="checkbox-option"><input type="checkbox" checked disabled /> Lock class by grade <span class="hint">(locked for all classes in <a href="/admin/schedule?tab=settings&amp;settingsTab=general">Class Settings</a>)</span></label>
+              <% } else { %>
+                <label class="checkbox-option"><input type="checkbox" name="lockByGrade" value="1" <%= ownGradeLock ? 'checked' : '' %> /> Lock class by grade</label>
+              <% } %>
               <%- include('partials/multi-select-checkbox', {
                 name: 'ageGroup',
                 options: gradeLevels.map(function(g) { return { value: g, label: g }; }),
@@ -142,7 +187,17 @@
                 be separate menus of choices" %>
             <div class="member-form-full">
               <span class="roster-checkbox-label">Age <span class="hint">(select all that apply)</span></span>
-              <label class="checkbox-option"><input type="checkbox" name="lockByAge" value="1" <%= cls.lock_by_age == false || Number(cls.lock_by_age) === 0 ? '' : 'checked' %> /> Lock class by age</label>
+              <%# "Lock all classes by age" (Co-op Class Settings) overrides
+                  this box: shown checked and greyed out, with the class's
+                  own choice kept in a hidden field so it's back when the
+                  override is turned off. %>
+              <% var ownAgeLock = !(cls.lock_by_age == false || Number(cls.lock_by_age) === 0); %>
+              <% if (lockAllByAge) { %>
+                <input type="hidden" name="lockByAge" value="<%= ownAgeLock ? '1' : '0' %>" />
+                <label class="checkbox-option"><input type="checkbox" checked disabled /> Lock class by age <span class="hint">(locked for all classes in <a href="/admin/schedule?tab=settings&amp;settingsTab=general">Class Settings</a>)</span></label>
+              <% } else { %>
+                <label class="checkbox-option"><input type="checkbox" name="lockByAge" value="1" <%= ownAgeLock ? 'checked' : '' %> /> Lock class by age</label>
+              <% } %>
               <%- include('partials/multi-select-checkbox', {
                 name: 'numericAges',
                 options: ageOptions.map(function(a) { return { value: a, label: a }; }),
@@ -229,32 +284,7 @@
           </form>
         </div>
 
-        <dialog id="duplicate-class-dialog" class="member-picker-dialog">
-          <form method="POST" action="/admin/class-schedule/classes/<%= cls.id %>/duplicate">
-            <h3>Duplicate Class</h3>
-            <%# A real request: "it asks keep the same teachers, separately
-                ask to keep the same assistants. Also ask to keep the
-                description. Ask to keep finance settings" - split the old
-                single "copy staff" checkbox into 4 independent ones; none
-                are copied unless checked, same as the original checkbox's
-                own default. %>
-            <label class="checkbox-option"><input type="checkbox" name="copyTeachers" value="1" /> Keep the same teachers</label>
-            <label class="checkbox-option"><input type="checkbox" name="copyAssistants" value="1" /> Keep the same assistants</label>
-            <label class="checkbox-option"><input type="checkbox" name="copyDescription" value="1" /> Keep the same description</label>
-            <label class="checkbox-option"><input type="checkbox" name="copyFinance" value="1" /> Keep the same finance settings (price, charged per, account category)</label>
-            <label>Add the duplicate to
-              <select name="targetComboId" required>
-                <% combos.forEach(function(combo) { %>
-                  <option value="<%= combo.id %>"><%= combo.label %></option>
-                <% }); %>
-              </select>
-            </label>
-            <div class="notes-dialog-actions">
-              <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
-              <button type="submit" class="primary-btn">Duplicate</button>
-            </div>
-          </form>
-        </dialog>
+        <% if (!isArchivedClass) { %><%- include('partials/duplicate-class-dialog', { cls: cls, combos: combos, archived: false }) %><% } %>
     <% } else if (activeTab === 'staffRoster') { %>
       <div class="class-manage-roster-col">
         <%# A real request: "# of students, # of teachers, # of class
@@ -334,7 +364,11 @@
                 replaces the old always-visible inline "New Lesson" card
                 at the bottom of this tab. %>
             <button type="button" class="roster-action-btn" onclick="document.getElementById('add-lesson-dialog').showModal()">+ New Lesson</button>
-            <a class="btn-secondary" href="/admin/class-schedule/quiz-review">Quiz Review</a>
+            <%# A real request: "Next to add a lesson plan button should be
+                the add a substitute plan button." %>
+            <a class="roster-action-btn" href="/admin/class-schedule/classes/<%= cls.id %>/substitute-plan">Add/Edit Substitute Plan</a>
+            <%# A real request: "there shouldn't be a quiz review button.
+                Quizzes are created through assignments." %>
           </div>
         </div>
         <%# A real request: the same lesson/assignment design as the
@@ -426,6 +460,32 @@
       <script src="/js/lesson-drag-reorder.js"></script>
       <script src="/js/lesson-content-form.js"></script>
       <script src="/js/assignment-upload-word-count.js"></script>
+    <% } else if (activeTab === 'attendance') { %>
+      <%# A real request: "Add an attendance tab to the classes. Click the
+          attendance tab and its will show the attendance grid. Be able to
+          manually check attendance and check in and out buttons." Same
+          grid as Attendance > Class Rosters and the class QR code page
+          (partials/class-attendance-grid.ejs) - P/L/A saves on change;
+          Check In/Out open the barcode scan screen and come back here. %>
+      <div class="manage-section">
+        <div class="grid-box-header">
+          <h2>Attendance</h2>
+          <div class="class-checkin-actions no-print">
+            <a class="class-checkin-btn" href="/admin/rosters/classes/<%= cls.id %>/scan?mode=checkin&from=manage">
+              <svg class="icon"><use href="#icon-check"/></svg> Check In
+            </a>
+            <a class="class-checkin-btn" href="/admin/rosters/classes/<%= cls.id %>/scan?mode=checkout&from=manage">
+              <svg class="icon"><use href="#icon-log-out"/></svg> Check Out
+            </a>
+          </div>
+        </div>
+        <% if (!attendanceGrid) { %>
+          <p class="roster-empty">This class doesn't have a roster yet.</p>
+        <% } else { %>
+          <%- include('partials/class-attendance-grid', { rows: attendanceGrid.rows, dateLabels: attendanceGrid.dateLabels, summary: attendanceGrid.summary, endpoint: '/admin/rosters/class-' + cls.id + '/attendance' }) %>
+          <script src="/js/attendance-grid.js"></script>
+        <% } %>
+      </div>
     <% } else if (activeTab === 'grades') { %>
       <div class="manage-section">
         <div class="grid-box-header">

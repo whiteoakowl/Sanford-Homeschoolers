@@ -12,6 +12,7 @@
 // (routes/teacher-portal.js) is entirely untouched by this file.
 const express = require('express');
 const router = express.Router();
+const { substitutePlansSubmittedWith, reviewSubstitutePlansWith } = require('../utils/substitutePlans');
 const db = require('../db');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
 const {
@@ -21,11 +22,13 @@ const {
   reviewAssignment,
   approvalEventsForAssignment,
   APPROVAL_QUEUE_FILTERS,
+  lessonApprovalStatusByClass,
 } = require('../utils/academics');
-const { formatDateLabel, formatFriendlyTimestamp } = require('../utils/dates');
+const { formatDateLabel, formatFriendlyTimestamp, formatClockTime } = require('../utils/dates');
 const notifications = require('../utils/notifications');
 const { logError } = require('../utils/logger');
-const { allClassesList } = require('../utils/classSchedule');
+const { allClassesList, listScheduleCombos, hoursForDay } = require('../utils/classSchedule');
+const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
 const { mountLessonPlanContentRoutes } = require('./lessonPlanContentRoutes');
 const {
   listLessonPlans,
@@ -64,17 +67,51 @@ router.post('/lesson-plans', async (req, res) => {
 // before /lesson-plans/:id so "approval" is never parsed as a template
 // id. ---
 
+// A real request: "Lesson plan approval page. Should list all of the
+// classes by semester/day. Drop down menu to switch semester/day. Hour
+// sections, class name, teacher name, lesson plan column, substitute plan
+// column. Bubbles under each column and each row and it says approved,
+// rejected, submitted or nothing. Button at the end of each row that says
+// view submission if something has been submitted." That class grid is
+// the page's default view (?combo= a semester/day from listScheduleCombos,
+// else the Kiosk's active semester's first day); ?status= still opens the
+// earlier Pending/Approved/Rejected/All submission lists.
 router.get('/lesson-plans/approval', async (req, res) => {
-  // 'declined' is the old spelling of 'rejected' (bookmarked links).
-  const requested = req.query.status === 'declined' ? 'rejected' : req.query.status;
-  const status = APPROVAL_QUEUE_FILTERS.includes(requested) ? requested : 'pending';
-  res.render('admin-lesson-plan-approval', {
-    title: 'Lesson Plan Approval',
-    status,
-    lessons: await lessonsForApprovalQueue(status),
-    notice: req.query.notice || null,
-    error: req.query.error || null,
-  });
+  const notice = req.query.notice || null;
+  const error = req.query.error || null;
+  if (req.query.status) {
+    // 'declined' is the old spelling of 'rejected' (bookmarked links).
+    const requested = req.query.status === 'declined' ? 'rejected' : req.query.status;
+    const status = APPROVAL_QUEUE_FILTERS.includes(requested) ? requested : 'pending';
+    return res.render('admin-lesson-plan-approval', { title: 'Lesson Plan Approval', view: 'list', status, lessons: await lessonsForApprovalQueue(status), notice, error });
+  }
+  const combos = await listScheduleCombos();
+  const activeSemesterId = await getActiveKioskSemesterId();
+  let combo = combos.find((c) => String(c.id) === String(req.query.combo));
+  if (!combo) combo = combos.find((c) => c.semesterId === (activeSemesterId ?? null)) || combos[0] || null;
+  let hours = [];
+  if (combo) {
+    const classes = await allClassesList(combo.day, combo.semesterId);
+    const statusByClass = await lessonApprovalStatusByClass(classes.map((c) => c.id));
+    const hourRows = await hoursForDay(combo.day, combo.semesterId);
+    const positions = [...new Set([...hourRows.map((h) => h.position), ...classes.map((c) => c.hour_position)])].sort((a, b) => a - b);
+    hours = positions
+      .map((pos) => {
+        const h = hourRows.find((x) => x.position === pos);
+        const time = h && h.start_time ? `${formatClockTime(h.start_time)}${h.end_time ? ' - ' + formatClockTime(h.end_time) : ''}` : '';
+        return {
+          position: pos,
+          label: `Hour ${pos}${h && h.label && h.label !== `Hour ${pos}` ? ' · ' + h.label : ''}`,
+          time,
+          classes: classes
+            .filter((c) => c.hour_position === pos)
+            .sort((a, b) => a.class_name.localeCompare(b.class_name))
+            .map((c) => ({ ...c, approval: statusByClass[c.id] })),
+        };
+      })
+      .filter((h) => h.classes.length > 0);
+  }
+  res.render('admin-lesson-plan-approval', { title: 'Lesson Plan Approval', view: 'classes', combos, combo, hours, notice, error });
 });
 
 // Read-only preview of the full submitted lesson (details + every
@@ -97,6 +134,7 @@ router.get('/lesson-plans/approval/:id', async (req, res) => {
     submittedAtLabel: assignment.submitted_at ? formatFriendlyTimestamp(assignment.submitted_at) : null,
     reviewedAtLabel: assignment.reviewed_at ? formatFriendlyTimestamp(assignment.reviewed_at) : null,
     contentItems,
+    subPlans: await substitutePlansSubmittedWith(assignment.id),
     events: await approvalEventsForAssignment(assignment.id),
     notice: req.query.notice || null,
     error: req.query.error || null,
@@ -121,14 +159,45 @@ async function notifySubmitter(assignment, approved, note) {
   }
 }
 
+// Substitute plans sent with a lesson that was already approved (added
+// later) - their submitter hears about them on their own.
+async function notifySubPlanSubmitters(assignment, plans, approved, note) {
+  const accountIds = [...new Set(plans.map((p) => p.submitted_by_account_id).filter(Boolean))];
+  for (const accountId of accountIds) {
+    try {
+      await notifications.notify(accountId, 'lesson_plan_review', {
+        title: approved ? `Substitute plans approved: ${assignment.class_name}` : `Substitute plans rejected: ${assignment.class_name}`,
+        body: approved
+          ? `Your substitute plans for ${assignment.class_name} were approved and substitutes can see them now.`
+          : `Your substitute plans for ${assignment.class_name} were rejected. Message: ${note} You can edit them and resubmit.`,
+        linkUrl: `/teacher/classes/${assignment.class_id}/substitute-plan`,
+      });
+    } catch (err) {
+      console.error('Substitute plan review notification failed:', err);
+      logError('substitute plan review notification', err);
+    }
+  }
+}
+
+function reviewSummary(assignment, lessonChanged, subPlans, approved) {
+  const parts = [];
+  if (lessonChanged) parts.push(`"${assignment.title}"`);
+  if (subPlans.length) parts.push(`${subPlans.length} substitute plan${subPlans.length === 1 ? '' : 's'}`);
+  return `${approved ? 'Approved' : 'Rejected'} ${parts.join(' and ')}.`;
+}
+
+// A real request: a lesson and the substitute plans sent with it are
+// approved/rejected together - one decision covers both.
 router.post('/lesson-plans/approval/:id/approve', async (req, res) => {
   const assignment = await getAssignment(parseInt(req.params.id, 10));
   if (!assignment) return res.status(404).render('404', { title: 'Not Found' });
   const reviewerId = req.portalAccount ? req.portalAccount.id : null;
   const changed = await reviewAssignment(assignment.id, { approve: true, accountId: reviewerId });
-  if (!changed) return res.redirect('/admin/lesson-plans/approval?error=' + encodeURIComponent(`"${assignment.title}" isn't pending approval.`));
-  await notifySubmitter(assignment, true, null);
-  res.redirect('/admin/lesson-plans/approval?notice=' + encodeURIComponent(`Approved "${assignment.title}". Enrolled students can see it now.`));
+  const subPlans = await reviewSubstitutePlansWith(assignment.id, { approve: true });
+  if (!changed && !subPlans.length) return res.redirect('/admin/lesson-plans/approval?error=' + encodeURIComponent(`"${assignment.title}" isn't pending approval.`));
+  if (changed) await notifySubmitter(assignment, true, null);
+  else await notifySubPlanSubmitters(assignment, subPlans, true, null);
+  res.redirect('/admin/lesson-plans/approval?notice=' + encodeURIComponent(`${reviewSummary(assignment, changed, subPlans, true)} ${changed ? 'Enrolled students' : 'Substitutes'} can see ${changed ? 'it' : 'them'} now.`));
 });
 
 // A real request: rejection works "just like for teacher reimbursements"
@@ -142,9 +211,11 @@ router.post('/lesson-plans/approval/:id/reject', async (req, res) => {
   if (!message) return res.redirect(back + '?error=' + encodeURIComponent('A rejection message is required.'));
   const reviewerId = req.portalAccount ? req.portalAccount.id : null;
   const changed = await reviewAssignment(assignment.id, { approve: false, note: message, accountId: reviewerId });
-  if (!changed) return res.redirect(back + '?error=' + encodeURIComponent(`"${assignment.title}" isn't pending approval.`));
-  await notifySubmitter(assignment, false, message);
-  res.redirect('/admin/lesson-plans/approval?notice=' + encodeURIComponent(`Rejected "${assignment.title}". The teacher can edit and resubmit it.`));
+  const subPlans = await reviewSubstitutePlansWith(assignment.id, { approve: false, note: message });
+  if (!changed && !subPlans.length) return res.redirect(back + '?error=' + encodeURIComponent(`"${assignment.title}" isn't pending approval.`));
+  if (changed) await notifySubmitter(assignment, false, message);
+  else await notifySubPlanSubmitters(assignment, subPlans, false, message);
+  res.redirect('/admin/lesson-plans/approval?notice=' + encodeURIComponent(`${reviewSummary(assignment, changed, subPlans, false)} The teacher can edit and resubmit.`));
 });
 
 router.post('/lesson-plans/:id/delete', async (req, res) => {

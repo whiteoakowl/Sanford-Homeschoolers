@@ -113,34 +113,94 @@ const APPROVAL_QUEUE_FILTERS = ['pending', 'approved', 'rejected', 'all'];
 // APPROVAL_QUEUE_FILTERS. Only lessons that were actually submitted by
 // a teacher are listed (submitted_at set) - not every lesson that was
 // simply backfilled/admin-created as approved.
+// A real request: substitute plans are sent for approval together with a
+// lesson (utils/substitutePlans.js) - a lesson with substitute plans
+// waiting on it counts as pending here even when the lesson itself was
+// already approved (plans added later ride along with the class's most
+// recent lesson).
+const HAS_PENDING_SUB_PLANS = "EXISTS (SELECT 1 FROM class_substitute_plans sp WHERE sp.submitted_with_assignment_id = ca.id AND sp.approval_status = 'pending')";
+const HAS_SUB_PLANS = 'EXISTS (SELECT 1 FROM class_substitute_plans sp WHERE sp.submitted_with_assignment_id = ca.id)';
+
 async function lessonsForApprovalQueue(status) {
   const statusClause = {
-    pending: "ca.approval_status = 'pending'",
-    approved: "ca.approval_status = 'approved'",
+    pending: `(ca.approval_status = 'pending' OR ${HAS_PENDING_SUB_PLANS})`,
+    approved: `ca.approval_status = 'approved' AND NOT ${HAS_PENDING_SUB_PLANS}`,
     rejected: "ca.approval_status IN ('rejected', 'declined')",
     all: "ca.approval_status IN ('pending', 'approved', 'rejected', 'declined')",
   }[status];
   const rows = await db
     .prepare(
-      `SELECT ca.*, m.name AS submitted_by_name, cl.day AS class_day
+      `SELECT ca.*, m.name AS submitted_by_name, cl.day AS class_day,
+         (SELECT COUNT(*) FROM class_substitute_plans sp WHERE sp.submitted_with_assignment_id = ca.id) AS sub_plan_count,
+         (SELECT MAX(sp.submitted_at) FROM class_substitute_plans sp WHERE sp.submitted_with_assignment_id = ca.id) AS sub_plan_submitted_at
        FROM class_assignments ca
        LEFT JOIN member_accounts ma ON ma.id = ca.submitted_by_account_id
        LEFT JOIN members m ON m.id = ma.member_id
        LEFT JOIN classes cl ON cl.id = ca.class_id
-       WHERE ${statusClause} AND ca.submitted_at IS NOT NULL
-       ORDER BY ${status === 'pending' ? 'ca.submitted_at ASC' : 'COALESCE(ca.reviewed_at, ca.submitted_at) DESC'}
+       WHERE NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = cl.semester_id AND arch.archived_at IS NOT NULL) AND ${statusClause} AND (ca.submitted_at IS NOT NULL OR ${HAS_SUB_PLANS})
+       ORDER BY ${status === 'pending' ? 'COALESCE(ca.submitted_at, (SELECT MAX(sp.submitted_at) FROM class_substitute_plans sp WHERE sp.submitted_with_assignment_id = ca.id)) ASC' : 'COALESCE(ca.reviewed_at, ca.submitted_at) DESC'}
        LIMIT 200`
     )
     .all();
   return rows.map((r) => ({
     ...withNormalizedStatus(r),
-    submittedAtLabel: r.submitted_at ? formatFriendlyTimestamp(r.submitted_at) : null,
+    subPlanCount: Number(r.sub_plan_count) || 0,
+    submittedAtLabel: r.submitted_at || r.sub_plan_submitted_at ? formatFriendlyTimestamp(r.submitted_at || r.sub_plan_submitted_at) : null,
     reviewedAtLabel: r.reviewed_at ? formatFriendlyTimestamp(r.reviewed_at) : null,
   }));
 }
 
+// Lesson Plan Approval's class grid - a real request: "Should list all
+// of the classes by semester/day... Hour sections, class name, teacher
+// name, lesson plan column, substitute plan column. Bubbles under each
+// column and each row and it says approved, rejected, submitted or
+// nothing. Button at the end of each row that says view submission if
+// something has been submitted." Per class, one status each for its
+// lesson plans and its substitute plans: 'pending' (Submitted) if
+// anything is waiting, else the most recently decided one's
+// 'approved'/'rejected', else null; plus which submitted lesson View
+// Submission opens (the waiting one, else the most recent).
+async function lessonApprovalStatusByClass(classIds) {
+  const out = {};
+  if (!classIds.length) return out;
+  const ph = classIds.map(() => '?').join(',');
+  const lessons = await db
+    .prepare(
+      `SELECT id, class_id, title, approval_status, submitted_at, reviewed_at FROM class_assignments
+       WHERE class_id IN (${ph}) AND submitted_at IS NOT NULL AND approval_status IN ('pending', 'approved', 'rejected', 'declined')
+       ORDER BY COALESCE(reviewed_at, submitted_at) DESC, id DESC`
+    )
+    .all(...classIds);
+  const subs = await db
+    .prepare(
+      `SELECT id, class_id, approval_status, submitted_with_assignment_id, submitted_at, reviewed_at FROM class_substitute_plans
+       WHERE class_id IN (${ph}) AND approval_status IN ('pending', 'approved', 'rejected', 'declined') AND submitted_with_assignment_id IS NOT NULL
+       ORDER BY COALESCE(reviewed_at, submitted_at) DESC, id DESC`
+    )
+    .all(...classIds);
+  const norm = (st) => (st === 'declined' ? 'rejected' : st);
+  const summarize = (rows) => {
+    if (!rows.length) return null;
+    const waiting = rows.find((r) => r.approval_status === 'pending');
+    return waiting ? { status: 'pending', row: waiting } : { status: norm(rows[0].approval_status), row: rows[0] };
+  };
+  for (const id of classIds) {
+    const l = summarize(lessons.filter((r) => r.class_id === id));
+    const sp = summarize(subs.filter((r) => r.class_id === id));
+    const viewId = (l && l.status === 'pending' && l.row.id) || (sp && sp.status === 'pending' && sp.row.submitted_with_assignment_id) || (l && l.row.id) || (sp && sp.row.submitted_with_assignment_id) || null;
+    out[id] = {
+      lessonStatus: l ? l.status : null,
+      lessonTitle: l ? l.row.title : null,
+      lessonCount: lessons.filter((r) => r.class_id === id).length,
+      subStatus: sp ? sp.status : null,
+      viewAssignmentId: viewId,
+    };
+  }
+  return out;
+}
+
 async function pendingApprovalCount() {
-  const { c } = await db.prepare("SELECT COUNT(*) AS c FROM class_assignments WHERE approval_status = 'pending'").get();
+  const { c } = await db.prepare(`SELECT COUNT(*) AS c FROM class_assignments ca WHERE ca.approval_status = 'pending' OR ${HAS_PENDING_SUB_PLANS}`).get();
   return Number(c);
 }
 
@@ -308,7 +368,7 @@ async function transcriptForStudent(studentId) {
       `SELECT c.class_name, c.day, c.age_group,
               (SELECT string_agg(m.name, ', ') FROM class_staff cs JOIN members m ON m.id = cs.member_id WHERE cs.class_id = c.id AND cs.role = 'teacher') AS teacher_names
        FROM class_enrollments ce JOIN classes c ON c.id = ce.class_id
-       WHERE ce.student_id = ?
+       WHERE ce.student_id = ? AND NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)
        ORDER BY LOWER(c.class_name)`
     )
     .all(studentId);
@@ -400,14 +460,27 @@ const TRANSCRIPT_GRADE_POINTS = {
   'C+': 2.3, C: 2.0, 'C-': 1.7,
   'D+': 1.3, D: 1.0, 'D-': 0.7,
   F: 0.0,
+  // S = Satisfactory (the transcript's own grading scale): earns its
+  // credits but isn't part of the GPA.
+  S: null,
 };
 const TRANSCRIPT_GRADE_LETTERS = Object.keys(TRANSCRIPT_GRADE_POINTS);
+// Honors (*) / College Course (**) - a transcript class's course_level.
+const TRANSCRIPT_COURSE_LEVELS = [
+  ['', 'Regular'],
+  ['honors', 'Honors'],
+  ['college', 'College Course'],
+];
+const TRANSCRIPT_GRADE_LEVELS = ['6th', '7th', '8th', '9th', '10th', '11th', '12th'];
 
+// totalCredits: the credits behind the GPA; creditsEarned: every graded
+// class except an F (an S counts too).
 function gpaOf(entries) {
   const graded = entries.filter((e) => e.grade_letter && TRANSCRIPT_GRADE_POINTS[e.grade_letter] != null);
   const totalCredits = graded.reduce((sum, e) => sum + Number(e.credit_hours), 0);
   const gpa = totalCredits > 0 ? graded.reduce((sum, e) => sum + Number(e.credit_hours) * TRANSCRIPT_GRADE_POINTS[e.grade_letter], 0) / totalCredits : null;
-  return { gpa, totalCredits };
+  const creditsEarned = entries.filter((e) => e.grade_letter && e.grade_letter !== 'F').reduce((sum, e) => sum + Number(e.credit_hours), 0);
+  return { gpa, totalCredits, creditsEarned };
 }
 
 // One group per distinct school_year (in the order entries were first
@@ -417,25 +490,107 @@ function gpaOf(entries) {
 // every entry regardless of year ("for the entire 4 years" - not
 // hardcoded to exactly 4; however many school years this student
 // actually has entries for).
+// Each year also carries its Grade Level and the cumulative GPA through
+// the end of that year (the transcript's own per-year footer).
 async function transcriptBuilderForStudent(studentId) {
   const rows = await db.prepare('SELECT * FROM parent_transcript_entries WHERE student_id = ? ORDER BY id').all(studentId);
+  const levels = await db.prepare('SELECT school_year, grade_level FROM transcript_year_levels WHERE student_id = ?').all(studentId);
+  const levelOf = new Map(levels.map((l) => [l.school_year, l.grade_level]));
   const bySchoolYear = new Map();
   for (const r of rows) {
     if (!bySchoolYear.has(r.school_year)) bySchoolYear.set(r.school_year, []);
     bySchoolYear.get(r.school_year).push(r);
   }
-  const schoolYears = Array.from(bySchoolYear.entries()).map(([schoolYear, entries]) => ({ schoolYear, entries, ...gpaOf(entries) }));
-  const { gpa: cumulativeGpa, totalCredits: cumulativeCredits } = gpaOf(rows);
-  return { schoolYears, cumulativeGpa, cumulativeCredits };
+  const soFar = [];
+  const schoolYears = Array.from(bySchoolYear.entries()).map(([schoolYear, entries]) => {
+    soFar.push(...entries);
+    return { schoolYear, gradeLevel: levelOf.get(schoolYear) || '', entries, ...gpaOf(entries), cumulativeGpaToDate: gpaOf(soFar).gpa };
+  });
+  const { gpa: cumulativeGpa, totalCredits: cumulativeCredits, creditsEarned: cumulativeCreditsEarned } = gpaOf(rows);
+  return { schoolYears, cumulativeGpa, cumulativeCredits, cumulativeCreditsEarned };
 }
 
-async function createTranscriptEntry({ studentId, schoolYear, className, creditHours, gradeLetter, createdByAccountId }) {
+// Everything on the printed transcript besides the classes. Saved
+// values win; blank student contact fields fall back to the student's
+// own member record, then the family's primary parent; the School
+// Information box comes from Family School Management's settings (its
+// school name, plus the address/phone/email saved here), falling back
+// to the primary parent's contact details.
+async function transcriptDetailsFor(student) {
+  const saved = (await db.prepare('SELECT * FROM transcript_details WHERE student_id = ?').get(student.id)) || {};
+  const member = (await db.prepare('SELECT * FROM members WHERE id = ?').get(student.id)) || student;
+  const parent = member.family_id
+    ? await db.prepare("SELECT * FROM members WHERE family_id = ? AND member_type IN ('parent', 'admin') ORDER BY is_primary_parent DESC, id LIMIT 1").get(member.family_id)
+    : null;
+  const school = member.family_id ? (await db.prepare('SELECT * FROM family_school_settings WHERE family_id = ?').get(member.family_id)) || {} : {};
+  const family = member.family_id ? await db.prepare('SELECT name FROM families WHERE id = ?').get(member.family_id) : null;
+  const pick = (...vals) => vals.find((v) => v != null && String(v).trim() !== '') || '';
+  return {
+    saved,
+    studentAddress: pick(saved.student_address, member.address, parent && parent.address),
+    studentPhone: pick(saved.student_phone, member.phone, parent && parent.phone),
+    studentEmail: pick(saved.student_email, member.email, parent && parent.email),
+    birthday: pick(saved.birthday, member.birthday),
+    graduationDate: pick(saved.graduation_date),
+    attendance: pick(saved.attendance),
+    testScores: pick(saved.test_scores),
+    activities: pick(saved.activities),
+    diplomaName: pick(saved.diploma_name, 'High School Diploma'),
+    schoolName: pick(school.school_name, family ? `${family.name} Homeschool` : ''),
+    schoolAddress: pick(school.school_address, parent && parent.address),
+    schoolPhone: pick(school.school_phone, parent && parent.phone),
+    schoolEmail: pick(school.school_email, parent && parent.email),
+    savedSchool: school,
+  };
+}
+
+// Saves the Transcript Details form: the student's own fields, each
+// school year's Grade Level (body.gradeLevel[<school year>]), and the
+// family's School Information (address/phone/email on its Family School
+// Management settings).
+async function saveTranscriptDetails(student, body) {
+  const t = (v) => (v == null ? null : String(v).trim() || null);
+  await db
+    .prepare(
+      `INSERT INTO transcript_details (student_id, student_address, student_phone, student_email, birthday, graduation_date, attendance, test_scores, activities, diploma_name, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now_text())
+       ON CONFLICT (student_id) DO UPDATE SET student_address = excluded.student_address, student_phone = excluded.student_phone, student_email = excluded.student_email,
+         birthday = excluded.birthday, graduation_date = excluded.graduation_date, attendance = excluded.attendance, test_scores = excluded.test_scores,
+         activities = excluded.activities, diploma_name = excluded.diploma_name, updated_at = now_text()`
+    )
+    .run(student.id, t(body.studentAddress), t(body.studentPhone), t(body.studentEmail), t(body.birthday), t(body.graduationDate), t(body.attendance), t(body.testScores), t(body.activities), t(body.diplomaName));
+  const levels = body.gradeLevel && typeof body.gradeLevel === 'object' ? body.gradeLevel : {};
+  for (const [schoolYear, level] of Object.entries(levels)) {
+    const value = TRANSCRIPT_GRADE_LEVELS.includes(level) ? level : null;
+    await db
+      .prepare('INSERT INTO transcript_year_levels (student_id, school_year, grade_level) VALUES (?, ?, ?) ON CONFLICT (student_id, school_year) DO UPDATE SET grade_level = excluded.grade_level')
+      .run(student.id, String(schoolYear), value);
+  }
+  if (student.family_id) {
+    const existing = await db.prepare('SELECT family_id FROM family_school_settings WHERE family_id = ?').get(student.family_id);
+    if (existing) {
+      await db
+        .prepare('UPDATE family_school_settings SET school_name = COALESCE(?, school_name), school_address = ?, school_phone = ?, school_email = ?, updated_at = now_text() WHERE family_id = ?')
+        .run(t(body.schoolName), t(body.schoolAddress), t(body.schoolPhone), t(body.schoolEmail), student.family_id);
+    } else {
+      await db
+        .prepare('INSERT INTO family_school_settings (family_id, school_name, school_address, school_phone, school_email) VALUES (?, ?, ?, ?, ?)')
+        .run(student.family_id, t(body.schoolName), t(body.schoolAddress), t(body.schoolPhone), t(body.schoolEmail));
+    }
+  }
+}
+
+function transcriptCourseLevel(value) {
+  return TRANSCRIPT_COURSE_LEVELS.some(([v]) => v && v === value) ? value : null;
+}
+
+async function createTranscriptEntry({ studentId, schoolYear, className, creditHours, gradeLetter, courseLevel, createdByAccountId }) {
   const info = await db
     .prepare(
-      `INSERT INTO parent_transcript_entries (student_id, school_year, class_name, credit_hours, grade_letter, created_by_account_id)
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO parent_transcript_entries (student_id, school_year, class_name, credit_hours, grade_letter, course_level, created_by_account_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(studentId, schoolYear, className, creditHours, gradeLetter || null, createdByAccountId);
+    .run(studentId, schoolYear, className, creditHours, gradeLetter || null, transcriptCourseLevel(courseLevel), createdByAccountId);
   return info.lastInsertRowid;
 }
 
@@ -443,10 +598,10 @@ async function getTranscriptEntry(id) {
   return db.prepare('SELECT * FROM parent_transcript_entries WHERE id = ?').get(id);
 }
 
-async function updateTranscriptEntry(id, { schoolYear, className, creditHours, gradeLetter }) {
+async function updateTranscriptEntry(id, { schoolYear, className, creditHours, gradeLetter, courseLevel }) {
   await db
-    .prepare('UPDATE parent_transcript_entries SET school_year = ?, class_name = ?, credit_hours = ?, grade_letter = ?, updated_at = now_text() WHERE id = ?')
-    .run(schoolYear, className, creditHours, gradeLetter || null, id);
+    .prepare('UPDATE parent_transcript_entries SET school_year = ?, class_name = ?, credit_hours = ?, grade_letter = ?, course_level = ?, updated_at = now_text() WHERE id = ?')
+    .run(schoolYear, className, creditHours, gradeLetter || null, transcriptCourseLevel(courseLevel), id);
 }
 
 async function deleteTranscriptEntry(id) {
@@ -1028,6 +1183,11 @@ async function completionStatsForAssignments(classId) {
 }
 
 module.exports = {
+  lessonApprovalStatusByClass,
+  TRANSCRIPT_COURSE_LEVELS,
+  TRANSCRIPT_GRADE_LEVELS,
+  transcriptDetailsFor,
+  saveTranscriptDetails,
   assignmentsForClass,
   getAssignment,
   createAssignment,

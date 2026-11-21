@@ -9,7 +9,11 @@ const { formatChatTimestamp } = require('./dates');
 const { GRADE_OPTIONS, AGE_OPTIONS, parseAgeGroupList } = require('./events');
 const { ageFromBirthday } = require('./emailComposer');
 
-const CATEGORY_SELECT = `SELECT c.*, cl.class_name AS "class_name", mo.name AS "moderatorName"
+// "classArchived": the chat's class belongs to an archived semester (Settings
+// > Semesters) - hidden from every portal (canAccessCategory) and the
+// admin Chat list; still opens from that semester's own View page.
+const CATEGORY_SELECT = `SELECT c.*, cl.class_name AS "class_name", mo.name AS "moderatorName",
+   EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = cl.semester_id AND arch.archived_at IS NOT NULL) AS "classArchived"
    FROM forum_categories c
    LEFT JOIN classes cl ON cl.id = c.class_id
    LEFT JOIN members mo ON mo.id = c.moderator_member_id`;
@@ -159,6 +163,7 @@ async function categoryRoleKeys(categoryId) {
 // section membership differs from their enrolled child's still sees a
 // section-restricted class chat their child belongs to.
 async function canAccessCategory(category, family, accountRoleKeys) {
+  if (category && category.classArchived) return false;
   const roleKeys = accountRoleKeys || [];
   // A real request: "Teacher portal chat will only have class chats." A
   // teacher-ONLY account (no other portal role - a teacher who's also a

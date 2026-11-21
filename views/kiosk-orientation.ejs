@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%# The kiosk's Orientation Kiosk (routes/kiosk-class-checkin.js's GET
+    /orientation, behind the Class Check In & Out PIN) - laid out like the
+    kiosk home screen (views/kiosk-home.ejs), with the four orientation
+    check-ins as its big buttons. Each opens the orientation scan screen
+    for its Orientation Tracking item. %>
+<body class="landing">
+  <%- include('partials/icon-sprite') %>
+  <main id="main-content" tabindex="-1" class="landing-wrap">
+    <div class="kiosk-orientation-top">
+      <a href="/kiosk" class="kiosk-home"><svg class="icon"><use href="#icon-home"/></svg> Home</a>
+      <form method="POST" action="/kiosk/class-checkin/lock" data-preserve-fullscreen>
+        <button type="submit" class="kiosk-home kiosk-orientation-done"><svg class="icon"><use href="#icon-lock"/></svg> Done</button>
+      </form>
+    </div>
+    <div class="landing-banner">
+      <img class="landing-logo-sm" src="/img/logo-owl.png" alt="Sanford Homeschoolers" />
+      <h1 class="landing-welcome">Orientation Kiosk</h1>
+    </div>
+
+    <% var keys = Object.keys(items); %>
+    <div class="landing-columns landing-desktop-only">
+      <% [keys.slice(0, 2), keys.slice(2)].forEach(function(col) { %>
+        <div class="landing-column">
+          <% col.forEach(function(k) { var it = items[k]; %>
+            <a class="landing-card landing-card-<%= it.color %> landing-card-wide" href="/kiosk/class-checkin/orientation/<%= k %>/scan">
+              <span class="landing-icon"><svg class="icon"><use href="#icon-<%= it.icon %>"/></svg></span>
+              <span class="landing-label"><%= it.label %></span>
+            </a>
+          <% }); %>
+        </div>
+      <% }); %>
+    </div>
+
+    <div class="landing-mobile-grid">
+      <div class="landing-grid">
+        <% keys.forEach(function(k) { var it = items[k]; %>
+          <a class="landing-card landing-card-<%= it.color %>" href="/kiosk/class-checkin/orientation/<%= k %>/scan">
+            <span class="landing-icon"><svg class="icon"><use href="#icon-<%= it.icon %>"/></svg></span>
+            <span class="landing-label"><%= it.label %></span>
+          </a>
+        <% }); %>
+      </div>
+    </div>
+  </main>
+  <script src="/js/fullscreen-nav.js"></script>
+</body>
+</html>

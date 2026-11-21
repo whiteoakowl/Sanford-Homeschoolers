@@ -243,7 +243,7 @@ const MAIN_ADMIN_NAV_LINKS = [
   { href: '/main-admin/family-school', icon: 'home-heart', label: 'Family School Management', mobileLabel: 'Family School<br>Management', perm: 'view_family_school_main_admin', subpages: [
     { href: '/main-admin/family-school', label: 'Transcripts' },
     { href: '/main-admin/family-school/diplomas', label: 'Diplomas', perm: 'view_family_school_diplomas_main_admin' },
-    { href: '/main-admin/family-school/awards', label: 'Grade Level Awards', perm: 'view_family_school_diplomas_main_admin' },
+    { href: '/main-admin/family-school/awards', label: 'Rewards Certificates', perm: 'view_family_school_diplomas_main_admin' },
   ] },
   // Same Training & Learning module as Co-op Admin's own Training tab
   // (routes/main-admin-training.js, shared utils/training.js data) - a
@@ -303,6 +303,9 @@ const PARENT_NAV_LINKS = [
   { href: '/events?view=calendar&portal=parent', icon: 'calendar-check', label: 'Events', perm: 'view_parent_events' },
   { href: '/parent/classes', icon: 'graduation-cap', label: 'Co-op Classes', mobileLabel: 'Co-op<br>Classes', subpages: [
     { href: '/parent/classes', label: 'Class Registration', perm: 'view_parent_classes' },
+    // A real request: "This form can be found on the parent portal under
+    // class registration tab as a subpage."
+    { href: '/parent/classes/schedule-change', label: 'Schedule Change Request', perm: 'view_parent_classes' },
     { href: '/parent/classes/dashboard', label: 'Classroom Dashboard', perm: 'view_parent_classroom_dashboard' },
     { href: '/name-tag', label: 'Name Tag Form', perm: 'view_parent_name_tag_form' },
     { href: '/absence', label: 'Absence/Late Form', perm: 'view_parent_absence_form' },
@@ -357,7 +360,7 @@ const FAMILY_SCHOOL_NAV_LINKS = [
   { href: '/parent/family-school/weekly-planner', icon: 'calendar-check', label: 'Weekly Planner', mobileLabel: 'Weekly<br>Planner', perm: 'view_fsm_weekly_planner' },
   { href: '/parent/academics', icon: 'graduation-cap', label: 'Transcripts', perm: 'view_fsm_transcripts' },
   { href: '/parent/academics/diplomas', icon: 'graduation-cap', label: 'Diplomas', perm: 'view_fsm_diplomas' },
-  { href: '/parent/academics/awards', icon: 'trophy', label: 'Grade Level Awards', mobileLabel: 'Grade Level<br>Awards', perm: 'view_fsm_diplomas' },
+  { href: '/parent/academics/awards', icon: 'trophy', label: 'Rewards Certificates', mobileLabel: 'Rewards<br>Certificates', perm: 'view_fsm_diplomas' },
   { href: '/parent/family-school/portfolio', icon: 'file-text', label: 'Portfolio', perm: 'view_fsm_portfolio' },
   // Settings used to be a tab here too - moved behind the gear icon (see
   // settingsHref above) per a later real request.
@@ -399,12 +402,11 @@ const TEACHER_NAV_LINKS = [
   { href: '/teacher/attendance', icon: 'calendar-check', label: 'Attendance', perm: 'view_teacher_attendance' },
   { href: '/teacher/classes', icon: 'graduation-cap', label: 'Class Schedule', mobileLabel: 'Class<br>Schedule', perm: 'view_teacher_classes' },
   { href: '/teacher/training', icon: 'graduation-cap', label: 'Training', perm: 'view_teacher_training' },
-  // A real request: "When the admin approves the lesson plan, it will
-  // show on the teacher side on the lesson plan approved by admins."
-  { href: '/teacher/assignments', icon: 'clipboard-list', label: 'Assignments', subpages: [
-    { href: '/teacher/assignments', label: 'Assignments', perm: 'view_teacher_assignments' },
-    { href: '/teacher/lesson-plans/approved', label: 'Approved by Admins', perm: 'view_teacher_assignments' },
-  ] },
+  // A real request: "Teacher portal dashboard panel. Remove assignments
+  // tab." Its Assignments and Approved by Admins pages stay at their own
+  // /teacher/assignments and /teacher/lesson-plans/approved URLs - each
+  // class's own page (Lessons/Grades tabs, Add/Edit Lesson Plan) covers
+  // them now. Dropped from the nav, not from the route table.
   { href: '/forums?portal=teacher', icon: 'users', label: 'Chat', perm: 'view_teacher_chat' },
   { href: '/photos?portal=teacher', icon: 'camera', label: 'Photos', perm: 'view_teacher_photos' },
   // A real request: "Teachers can edit their instructor profile on the

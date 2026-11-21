@@ -9,10 +9,13 @@ const express = require('express');
 const { diplomaFieldsFromBody } = require('../utils/diplomaDesign');
 const { awardFromQuery, awardQuery } = require('../utils/gradeAwards');
 const router = express.Router();
+const coopWithdrawal = require('../utils/coopWithdrawal');
+const scheduleChange = require('../utils/scheduleChange');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../db');
+const { isClassArchived, classGlobalSettings } = require('../utils/classSchedule');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount, familyForAccount } = require('../utils/portalAuth');
@@ -71,6 +74,10 @@ const {
   markLessonItemComplete,
   TRANSCRIPT_GRADE_LETTERS,
   transcriptBuilderForStudent,
+  transcriptDetailsFor,
+  saveTranscriptDetails,
+  TRANSCRIPT_COURSE_LEVELS,
+  TRANSCRIPT_GRADE_LEVELS,
   transcriptBuilderDataForStudent,
   createTranscriptEntry,
   getTranscriptEntry,
@@ -454,7 +461,8 @@ router.get('/classes/needing-staff', requirePortalPermission('view_parent_classe
 router.get('/classes/:id/fragment', requirePortalPermission('view_parent_classes'), async (req, res) => {
   const classId = parseInt(req.params.id, 10);
   const cls = await getClass(classId);
-  if (!cls) return res.status(404).send('Not found');
+  // An archived semester's classes don't show on any portal.
+  if (!cls || (await isClassArchived(cls.id))) return res.status(404).send('Not found');
 
   const children = await childrenForAccount(req.portalAccount);
   const childIds = children.map((c) => c.id);
@@ -499,11 +507,13 @@ router.get('/classes/:id/fragment', requirePortalPermission('view_parent_classes
   // this same answer ready at render time, not just a not-yet-registered
   // child's own real Register button.
   const windowOpenByChild = {};
+  // Co-op Class Settings' "Lock all classes by grade/age" overrides.
+  const lockAllSettings = await classGlobalSettings();
   for (const child of children) {
     const isCurrentlyRegistered = enrolledIds.has(child.id) || waitlistPositionByStudentId[child.id] != null;
     if (!isCurrentlyRegistered) {
-      if (cls.lock_by_grade && allowedGrades.length && !allowedGrades.includes(child.grade_level)) continue;
-      if (cls.lock_by_age && allowedAges.length && !allowedAges.includes(String(ageFromBirthday(child.birthday)))) continue;
+      if ((cls.lock_by_grade || lockAllSettings.defaultLockByGrade) && allowedGrades.length && !allowedGrades.includes(child.grade_level)) continue;
+      if ((cls.lock_by_age || lockAllSettings.defaultLockByAge) && allowedAges.length && !allowedAges.includes(String(ageFromBirthday(child.birthday)))) continue;
     }
     const childSectionIds = await sectionIdsForMember(child.id);
     if (!isCurrentlyRegistered && restriction.length && !memberSatisfiesRestriction(childSectionIds, restriction)) continue;
@@ -768,8 +778,11 @@ router.get('/classes/dashboard', requirePortalPermission('view_parent_classroom_
   const days = Object.keys(byDay).sort((a, b) => CLASS_DAY_ORDER[a] - CLASS_DAY_ORDER[b]);
   days.forEach((d) => byDay[d].sort(byHourPosition));
 
+  const withdrawMember = await memberForAccount(req.portalAccount.id);
   res.render('parent-class-dashboard', {
     title: 'Class Dashboard',
+    pendingWithdrawal: withdrawMember ? await coopWithdrawal.pendingForFamily(withdrawMember.family_id) : null,
+    withdrawNotice: req.query.notice || null,
     children,
     parents,
     selectedChild,
@@ -779,6 +792,46 @@ router.get('/classes/dashboard', requirePortalPermission('view_parent_classroom_
     dayLabels: CLASS_DAY_LABELS_FULL,
     byDay,
   });
+});
+
+// A real request: "Parent portal, classroom dashboard. At the top add a
+// button that says Withdraw from co-op classes... Option to add a note to
+// admins." Only a request - Co-op Admin confirms or rejects it on
+// Classes > Co-op Withdraw (utils/coopWithdrawal.js).
+router.post('/classes/withdraw', requirePortalPermission('view_parent_classroom_dashboard'), async (req, res) => {
+  const member = await memberForAccount(req.portalAccount.id);
+  if (!member) return res.redirect('/parent/classes/dashboard');
+  await coopWithdrawal.requestWithdrawal({ member, accountId: req.portalAccount.id, note: req.body.note });
+  res.redirect('/parent/classes/dashboard?notice=' + encodeURIComponent('Your request to withdraw from co-op classes was sent to the co-op admins.'));
+});
+
+// Schedule Change Request (utils/scheduleChange.js) - each child's
+// current classes with Cancel boxes, then classes with room to add, and a
+// note; a Co-op Admin approves it on Classes > Schedule Change Requests.
+router.get('/classes/schedule-change', requirePortalPermission('view_parent_classes'), async (req, res) => {
+  const children = await childrenForAccount(req.portalAccount);
+  const member = await memberForAccount(req.portalAccount.id);
+  const kids = [];
+  for (const child of children) {
+    kids.push({ child, current: await classesForChild(child.id), available: await scheduleChange.availableClassesFor(child.id) });
+  }
+  res.render('parent-schedule-change', {
+    title: 'Schedule Change Request',
+    kids,
+    dayLabels: CLASS_DAY_LABELS_FULL,
+    history: member ? await scheduleChange.requestsForFamily(member.family_id, member.id) : [],
+    notice: req.query.notice || null,
+    error: req.query.error || null,
+  });
+});
+
+router.post('/classes/schedule-change', requirePortalPermission('view_parent_classes'), async (req, res) => {
+  const children = await childrenForAccount(req.portalAccount);
+  const member = await memberForAccount(req.portalAccount.id);
+  if (!member) return res.redirect('/parent/classes/schedule-change');
+  const result = await scheduleChange.submitRequest({ member, accountId: req.portalAccount.id, children, body: req.body });
+  if (!result.ok) return res.redirect('/parent/classes/schedule-change?error=' + encodeURIComponent(result.error));
+  res.redirect('/parent/classes/schedule-change?notice=' + encodeURIComponent('Your schedule change request was sent to the co-op admins.'));
 });
 
 // A real request: "Remove assignment tab from classroom dashboard" -
@@ -1253,6 +1306,7 @@ router.get('/academics', requirePortalPermission('view_fsm_transcripts'), async 
     transcripts.push({
       child,
       builder,
+      details: await transcriptDetailsFor(child),
       // "Add classes from co-op classes or family management classes
       // or manually add" - precomputed per child here (each list is
       // small - a family's own classes) rather than a second fetch()
@@ -1268,6 +1322,8 @@ router.get('/academics', requirePortalPermission('view_fsm_transcripts'), async 
     yearOptions,
     currentSchoolYearValue: currentSchoolYear(),
     gradeLetters: TRANSCRIPT_GRADE_LETTERS,
+    courseLevels: TRANSCRIPT_COURSE_LEVELS,
+    gradeLevels: TRANSCRIPT_GRADE_LEVELS,
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
@@ -1294,9 +1350,20 @@ router.post('/academics/transcripts', requirePortalPermission('view_fsm_transcri
     className,
     creditHours: Number.isFinite(creditHours) && creditHours > 0 ? creditHours : 1,
     gradeLetter,
+    courseLevel: req.body.courseLevel,
     createdByAccountId: req.portalAccount.id,
   });
   res.redirect('/parent/academics?notice=' + encodeURIComponent('Class added to transcript.'));
+});
+
+// The transcript's Student/School Information, Grade Level per school
+// year, attendance, test scores and activities (Transcript Details).
+router.post('/academics/transcripts/:studentId/details', requirePortalPermission('view_fsm_transcripts'), async (req, res) => {
+  const studentId = parseInt(req.params.studentId, 10);
+  if (!(await requireOwnChild(req, studentId))) return res.status(404).send('Not found');
+  const child = (await childrenForAccount(req.portalAccount)).find((c) => c.id === studentId);
+  await saveTranscriptDetails(child, req.body);
+  res.redirect('/parent/academics?notice=' + encodeURIComponent('Transcript details saved.'));
 });
 
 router.post('/academics/transcripts/:id/edit', requirePortalPermission('view_fsm_transcripts'), async (req, res) => {
@@ -1309,7 +1376,7 @@ router.post('/academics/transcripts/:id/edit', requirePortalPermission('view_fsm
   }
   const creditHours = parseFloat(req.body.creditHours);
   const gradeLetter = TRANSCRIPT_GRADE_LETTERS.includes(req.body.gradeLetter) ? req.body.gradeLetter : null;
-  await updateTranscriptEntry(entry.id, { schoolYear, className, creditHours: Number.isFinite(creditHours) && creditHours > 0 ? creditHours : 1, gradeLetter });
+  await updateTranscriptEntry(entry.id, { schoolYear, className, creditHours: Number.isFinite(creditHours) && creditHours > 0 ? creditHours : 1, gradeLetter, courseLevel: req.body.courseLevel });
   res.redirect('/parent/academics?notice=' + encodeURIComponent('Transcript entry updated.'));
 });
 
@@ -1344,6 +1411,8 @@ router.get('/academics/transcripts/:studentId/print', requirePortalPermission('v
     title: 'Transcript',
     member: child,
     builder: await transcriptBuilderForStudent(studentId),
+    details: await transcriptDetailsFor(child),
+    courseLevels: TRANSCRIPT_COURSE_LEVELS,
     familySettings: await familySettingsForAccount(req.portalAccount),
   });
 });
@@ -1361,6 +1430,8 @@ router.get('/academics/transcripts/:studentId/download.pdf', requirePortalPermis
     title: 'Transcript',
     member: child,
     builder: await transcriptBuilderForStudent(studentId),
+    details: await transcriptDetailsFor(child),
+    courseLevels: TRANSCRIPT_COURSE_LEVELS,
     familySettings: await familySettingsForPdf(await familySettingsForAccount(req.portalAccount)),
   });
   sendPdf(res, `${child.name.replace(/[^a-z0-9]+/gi, '-')}-transcript.pdf`, pdf);
@@ -1434,7 +1505,7 @@ router.get('/academics/diplomas/:studentId/download.pdf', requirePortalPermissio
 router.get('/academics/awards', requirePortalPermission('view_fsm_diplomas'), async (req, res) => {
   const children = await childrenForAccount(req.portalAccount);
   res.render('grade-awards', {
-    title: 'Grade Level Awards',
+    title: 'Rewards Certificates',
     portalTitle: 'Family School Management',
     award: awardFromQuery(req.query),
     basePath: '/parent/academics/awards',
@@ -1444,7 +1515,7 @@ router.get('/academics/awards', requirePortalPermission('view_fsm_diplomas'), as
 
 router.get('/academics/awards/print', requirePortalPermission('view_fsm_diplomas'), (req, res) => {
   const award = awardFromQuery(req.query);
-  res.render('grade-award-print', { title: 'Grade Level Award', award, backHref: '/parent/academics/awards?' + awardQuery(award) });
+  res.render('grade-award-print', { title: 'Rewards Certificate', award, backHref: '/parent/academics/awards?' + awardQuery(award) });
 });
 
 // Name Tags - a real request: parents should be able to print name tags

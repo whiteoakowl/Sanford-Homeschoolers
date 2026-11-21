@@ -5308,6 +5308,25 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 .class-checkin-btn:hover { background: var(--btn-purple-hover); border-color: var(--btn-purple-hover); }
+/* View Lesson Plan / View Substitute Plan - stacked above Check In/Out,
+   each row the same width, in the app's blue so they read as a separate
+   pair from the purple check-in actions. */
+.class-checkin-action-stack { display: flex; flex-direction: column; gap: 0.5rem; }
+.class-checkin-action-stack .class-checkin-actions { display: grid; grid-template-columns: 1fr 1fr; }
+.class-checkin-action-stack .class-checkin-btn { justify-content: center; min-width: 0; text-align: center; }
+@media (max-width: 640px) {
+  .class-checkin-action-stack .class-checkin-actions { gap: 0.45rem; }
+  .class-checkin-action-stack .class-checkin-btn { padding: 0.55rem 0.4rem; font-size: 0.8rem; gap: 0.25rem; white-space: normal; line-height: 1.2; }
+  .class-checkin-action-stack .class-checkin-btn .icon { flex-shrink: 0; }
+}
+.class-checkin-btn-plan { background: var(--btn-blue); border-color: var(--btn-blue); color: #fff; }
+.class-checkin-btn-plan:hover { background: var(--btn-blue-hover); border-color: var(--btn-blue-hover); color: #fff; }
+.kiosk-plan-lesson { padding: 0.9rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); margin-bottom: 0.75rem; }
+.kiosk-plan-lesson h2 { margin: 0 0 0.25rem; font-size: 1.1rem; }
+.kiosk-plan-lesson-dates { margin: 0 0 0.4rem; color: var(--muted-dark); font-size: 0.85rem; }
+.kiosk-plan-lesson-desc { margin: 0 0 0.5rem; white-space: pre-line; }
+.kiosk-plan-items { margin: 0; padding-left: 1.2rem; }
+.kiosk-plan-items li { margin-bottom: 0.2rem; }
 
 @media (max-width: 640px) {
   .class-checkin-attendance-header { flex-direction: column-reverse; align-items: stretch; }
@@ -9175,6 +9194,25 @@ li[data-assignment-id].fs-weekly-plan-dragging { opacity: 0.5; background: var(-
   .class-schedule-room-grid .class-card-pill-label,
   .class-schedule-room-grid .class-card .badge-pill { font-size: 0.52rem; padding: 0.1rem 0.3rem; }
   .class-schedule-room-grid .class-card-thumb { width: 26px; height: 26px; border-radius: 4px; }
+  /* A real request: "Shrink to fit 6 columns on the schedule grid for
+     mobile. Make sure you can still read the class name, grades and
+     teacher name" (and no hyphenating). The room name turns sideways in a
+     slim column so the hour columns get its width; class name, grade and
+     teacher lines wrap between whole words (public/js/shrink-title-to-
+     fit.js shrinks a line only as far as its longest word needs); the
+     "Teacher:" title sits on its own line above the name (a real request:
+     "The teacher title should still be on each class card"). */
+  .class-schedule-room-grid .class-schedule-room-col { width: 24px; padding: 0.15rem 0.05rem; }
+  .class-schedule-room-grid .class-schedule-room-col-inner { flex-direction: column; align-items: center; gap: 0.2rem; }
+  .class-schedule-room-grid .class-schedule-room-name { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-size: 0.6rem; overflow: visible; }
+  .class-schedule-room-grid th.class-schedule-room-col { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 0.55rem; }
+  .class-schedule-room-grid th,
+  .class-schedule-room-grid td.class-schedule-cell { padding: 0.12rem 0.08rem; }
+  .class-schedule-room-grid .class-card { padding: 0.18rem 0.16rem; border-left-width: 2px; border-radius: 6px; }
+  .class-schedule-room-grid .class-card-header h3 { font-size: 0.62rem; line-height: 1.15; white-space: normal; overflow: hidden; overflow-wrap: normal; }
+  .class-schedule-room-grid .class-card-info { gap: 0.08rem; margin-top: 0.15rem; }
+  .class-schedule-room-grid .class-card-line { font-size: 0.56rem; line-height: 1.2; overflow: hidden; overflow-wrap: normal; }
+  .class-schedule-room-grid .class-card-line-label { display: block; margin-right: 0; }
 }
 
 /* Create/Edit Class form - the form itself takes 1/3 of the page, the
@@ -16373,7 +16411,7 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 .reimbursement-links { padding-left: 1.1rem; word-break: break-all; }
 
 @media (max-width: 640px) {
-  .reimbursement-item-row { grid-template-columns: minmax(0, 1fr) 2.5rem; }
+  .reimbursement-item-row { grid-template-columns: minmax(0, 1fr) 6.5rem 2.5rem; }
   .reimbursement-item-row input[type="text"]:first-child { grid-column: 1 / -1; }
   .reimbursement-item-head { display: none; }
 }
@@ -16410,7 +16448,10 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 .member-schedule-subheading { font-size: 1.1rem; font-weight: 600; margin: 0.9rem 0 0.5rem; color: var(--ink); }
 .member-schedule-empty { color: var(--muted); margin: 0.25rem 0 0; }
 .member-schedule-table {
-  width: 100%;
+  /* A real request: "Shrink the width of the grid. Fit to text... time
+     of class on one line. Email address on one line. Neatly and clean." */
+  width: auto;
+  max-width: 100%;
   border-collapse: collapse;
   border: 1px solid var(--table-border);
   background: var(--surface);
@@ -16426,12 +16467,16 @@ a.manage-classes-row-title:hover { text-decoration: underline; }
 }
 .member-schedule-table thead th { background: var(--table-head-bg); font-weight: 700; }
 .member-schedule-table tbody tr:nth-child(even) td { background: var(--table-stripe-bg); }
-.member-schedule-details { width: 48%; }
+.member-schedule-details { min-width: 12rem; }
+.member-schedule-daytime,
+.member-schedule-dates,
+.member-schedule-email,
+.member-schedule-phone { white-space: nowrap; }
 .member-schedule-line { display: block; }
 .member-schedule-class-title { display: block; font-weight: 600; }
 a.member-schedule-class-title { color: var(--brand-dark); }
 a.member-schedule-class-title:hover { color: var(--brand-darker); }
-.member-schedule-email { color: var(--brand-dark); overflow-wrap: anywhere; }
+.member-schedule-email { color: var(--brand-dark); }
 .member-schedule-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.4rem; margin: 0 0 1rem; }
 .notes-dialog-actions .member-schedule-actions { margin: 0; }
 /* Keep each member's own table together on one printed page where it
@@ -16700,14 +16745,19 @@ dialog form:has(.permission-section) > h3,
 .mah-member:hover .mah-member-icon { background: var(--brand-soft); color: var(--brand-dark); }
 .mah-member-value { font-size: 1.3rem; font-weight: 700; line-height: 1.1; }
 .mah-member-label { font-size: 0.85rem; color: var(--ink); text-align: center; overflow-wrap: anywhere; }
-.mah-request-has @media (max-width: 480px) {
-  .mah-card { padding: 0.9rem 0.75rem 1rem; }
-  .mah-member { padding: 0.25rem 0.15rem; }
-  .mah-member-icon { width: 42px; height: 42px; }
-  .mah-member-icon .icon { width: 20px; height: 20px; }
-  .mah-member-value { font-size: 1.1rem; }
-  .mah-member-label { font-size: 0.72rem; }
-  }
+@media (max-width: 640px) {
+  .mah-card { padding: 0.8rem 0.6rem 0.85rem; }
+  .mah-card-header { gap: 0.45rem; }
+  .mah-card-header > .icon { width: 18px; height: 18px; }
+  .mah-card-header h2 { font-size: 1rem; }
+  .mah-viewall { font-size: 0.82rem; gap: 0.25rem; }
+  .mah-viewall .icon { width: 14px; height: 14px; }
+  .mah-member { gap: 0.15rem; padding: 0.15rem 0.1rem; }
+  .mah-member-icon { width: 34px; height: 34px; margin-bottom: 0.25rem; }
+  .mah-member-icon .icon { width: 16px; height: 16px; }
+  .mah-member-value { font-size: 0.95rem; }
+  .mah-member-label { font-size: 0.66rem; }
+}
 /* A real request: "This is how the class cards should look on the
    teacher portal homepage" - photo left, details right. */
 .teacher-class-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 1.25rem; margin-top: 0.75rem; }
@@ -16779,9 +16829,9 @@ dialog form:has(.permission-section) > h3,
 .mah-card-header-blue .mah-viewall:hover { color: #fff; }
 .mah-card-header-orange .mah-viewall:hover { color: var(--ink); text-decoration: underline; }
 .mah-card-header-blue .mah-viewall:hover { text-decoration: underline; }
-.mah-card-header-blue + @media (max-width: 480px) {
+@media (max-width: 640px) {
   .mah-card-header-orange,
-  .mah-card-header-blue { margin: -0.9rem -0.75rem 0.9rem; padding: 0.7rem 0.75rem; }
+  .mah-card-header-blue { margin: -0.8rem -0.6rem 0.75rem; padding: 0.6rem 0.7rem; }
 }
 /* A real request: "Family school management portal homepage. Each
    student card summary should look like this." */
@@ -16849,7 +16899,7 @@ dialog form:has(.permission-section) > h3,
 }
 .fs-overview-grid:has(.fs-student-card) { grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 1.25rem; }
 @media print {
-  .dip { width: 10.2in; height: 7.6in; max-width: none; aspect-ratio: auto; border-width: 0.03in; margin: 0 auto; break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .dip { width: 10.2in; height: 7.6in; max-width: none; aspect-ratio: auto; border-width: 0.03in; margin: 0 auto; break-inside: avoid; page-break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
 /* Diploma builder (views/partials/diploma-student-builder.ejs) */
 .dip-builder { display: flex; flex-direction: column; gap: 1.25rem; max-width: 1100px; }
@@ -16915,16 +16965,44 @@ dialog form:has(.permission-section) > h3,
 .pr-color-teal { background: #dcf1f3; color: #0f7c86; }
 .pr-color-gold { background: #fdf1d8; color: #d18a00; }
 @media (max-width: 640px) {
-  .pr-card { padding: 1rem 0.9rem 0.5rem; }
-  .pr-card-header { gap: 0.8rem; flex-wrap: wrap; }
-  .pr-card-header-icon { width: 60px; height: 60px; }
-  .pr-card-header-icon .icon { width: 26px; height: 26px; }
-  .pr-card-heading h2 { font-size: 1.3rem; }
-  .pr-card-heading p { font-size: 0.9rem; }
-  .pr-card-item-icon { width: 54px; height: 54px; }
-  .pr-card-item-icon .icon { width: 25px; height: 25px; }
-  .pr-card-item-label { font-size: 0.82rem; }
-  .pr-card-item { padding: 0.9rem 0.3rem 1rem; }
+  .pr-card { padding: 0.8rem 0.6rem 0.35rem; border-radius: 16px; }
+  .pr-card-header { gap: 0.6rem; margin-bottom: 0.25rem; }
+  .pr-card-header-icon { width: 40px; height: 40px; }
+  .pr-card-header-icon .icon { width: 19px; height: 19px; }
+  .pr-card-heading h2 { font-size: 1rem; }
+  .pr-card-heading p { font-size: 0.72rem; margin-top: 0.1rem; }
+  .pr-card-viewall { font-size: 0.82rem; gap: 0.25rem; }
+  .pr-card-viewall .icon { width: 14px; height: 14px; }
+  .pr-card-item { gap: 0.4rem; padding: 0.6rem 0.2rem 0.7rem; }
+  .pr-card-item-icon { width: 38px; height: 38px; }
+  .pr-card-item-icon .icon { width: 18px; height: 18px; }
+  .pr-card-item-label { font-size: 0.68rem; line-height: 1.25; }
+  .pr-card-count { top: -5px; right: -7px; min-width: 1.15rem; height: 1.15rem; line-height: 1.15rem; padding: 0 0.25rem; font-size: 0.62rem; }
+}
+/* Co-op Admin homepage: sized to match its other cards (Co-op Member
+   Counts, Today's Attendance - 480px wide, 20px header icon, 1.05rem
+   title, 30px row icons, 0.85rem labels). */
+.pr-card-compact { max-width: 480px; padding: 1.1rem 1.25rem 0.4rem; border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.pr-card-compact .pr-card-header { gap: 0.6rem; margin-bottom: 0.35rem; }
+.pr-card-compact .pr-card-header-icon { width: 34px; height: 34px; }
+.pr-card-compact .pr-card-header-icon .icon { width: 18px; height: 18px; }
+.pr-card-compact .pr-card-heading h2 { font-size: 1.05rem; }
+.pr-card-compact .pr-card-heading p { font-size: 0.75rem; margin-top: 0.1rem; }
+.pr-card-compact .pr-card-viewall { font-size: 0.85rem; gap: 0.25rem; }
+.pr-card-compact .pr-card-viewall .icon { width: 14px; height: 14px; }
+.pr-card-compact .pr-card-item { gap: 0.45rem; padding: 0.7rem 0.3rem 0.8rem; }
+.pr-card-compact .pr-card-item-icon { width: 40px; height: 40px; }
+.pr-card-compact .pr-card-item-icon .icon { width: 19px; height: 19px; }
+.pr-card-compact .pr-card-item-label { font-size: 0.8rem; line-height: 1.3; }
+.pr-card-compact .pr-card-count { top: -5px; right: -7px; min-width: 1.2rem; height: 1.2rem; line-height: 1.2rem; padding: 0 0.25rem; font-size: 0.65rem; }
+@media (max-width: 720px) {
+  .pr-card-compact { max-width: none; padding: 0.9rem 0.85rem 0.35rem; }
+  .pr-card-compact .pr-card-heading h2 { font-size: 0.95rem; }
+  .pr-card-compact .pr-card-heading p { font-size: 0.7rem; }
+  .pr-card-compact .pr-card-viewall { font-size: 0.78rem; }
+  .pr-card-compact .pr-card-item-icon { width: 34px; height: 34px; }
+  .pr-card-compact .pr-card-item-icon .icon { width: 16px; height: 16px; }
+  .pr-card-compact .pr-card-item-label { font-size: 0.68rem; }
 }
 /* Grade Level Awards (views/partials/grade-award.ejs, -builder.ejs) */
 .grade-award { display: block; width: 100%; height: auto; aspect-ratio: 1100 / 850; border-radius: 4px; background: #fff; }
@@ -16939,4 +17017,454 @@ dialog form:has(.permission-section) > h3,
   .ga-print-body { background: #fff; }
   .ga-print-page { width: 11in; height: 8.5in; max-width: none; margin: 0; box-shadow: none; overflow: hidden; }
   .ga-print-page .grade-award { width: 11in; height: 8.5in; border-radius: 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+/* Substitute plans (views/partials/substitute-plan-details.ejs) */
+.sub-plan-details { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 0.75rem; }
+.sub-plan-details p { margin: 0; }
+.sub-plan-links { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.sub-plan-links .btn-secondary { display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none; }
+.sub-plan-links .btn-secondary .icon { width: 1rem; height: 1rem; flex-shrink: 0; }
+.sub-plan-file { font-weight: 400; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .sub-plan-links .btn-secondary { flex: 1 1 100%; justify-content: center; text-align: center; }
+}
+.sub-plan-notes { padding: 0.7rem 0.9rem; border-radius: 10px; background: var(--orange-bg); }
+.sub-plan-notes strong { display: block; margin-bottom: 0.25rem; }
+.sub-plan-tab-section { margin-top: 1.5rem; }
+/* Class Registration Log (views/partials/class-registration-log.ejs) - a
+   real request: "should look like this" (a picture: watercolor banner,
+   deep purple table header, NEW pills, soft status chips, red trash
+   buttons, Total/Confirmed/Pending counts beside a Learn. Grow. Belong.
+   panel). Shared by Classes > Class Registration Log and Logs > Class
+   Registration. */
+.crl { max-width: 1120px; }
+.crl .crl-banner { margin: 0 0 1rem; padding: 0; border: 0; line-height: 0; }
+.crl-banner img { display: block; width: 100%; height: auto; border-radius: 18px; }
+.crl-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
+.crl-search { position: relative; flex: 1 1 320px; max-width: 460px; display: flex; align-items: center; }
+/* !important: same global-input-reset precedent as .members-search-bar
+   input[type="search"] - otherwise the icon sits on the placeholder. */
+.crl .crl-search input[type="search"] { width: 100%; padding: 0.7rem 1rem 0.7rem 3rem !important; border: 1.5px solid #d6cbee; border-radius: 999px; background: #fff; font-size: 1rem; color: #2b2140; box-shadow: 0 2px 6px rgba(75, 47, 127, 0.06); }
+.crl .crl-search input[type="search"]:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px rgba(109, 74, 153, 0.18); }
+.crl-search-btn { position: absolute; left: 0.55rem; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border: 0; border-radius: 50%; background: transparent; color: #2b2140; cursor: pointer; }
+.crl-search-btn .icon { width: 1.2rem; height: 1.2rem; }
+.crl-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; }
+.crl-clear { color: #4b2f7f; font-weight: 600; text-decoration: none; padding: 0 0.4rem; }
+.crl-clear:hover { text-decoration: underline; }
+.crl-table-wrap { border: 1px solid #d9d1ee; border-radius: 16px; overflow: hidden; background: #fff; box-shadow: 0 6px 18px rgba(75, 47, 127, 0.08); }
+.crl-table { width: 100%; border-collapse: collapse; }
+.crl-table thead th { background: #4b2f7f; color: #fff; text-align: left; font-weight: 600; font-size: 1.02rem; padding: 0.95rem 1.1rem; white-space: nowrap; border-left: 1px solid rgba(255, 255, 255, 0.22); }
+.crl-table thead th:first-child { border-left: 0; }
+.crl-table thead th .icon { width: 1.2rem; height: 1.2rem; vertical-align: -0.2rem; margin-right: 0.45rem; color: #fff; }
+.crl-table tbody td { padding: 0.7rem 1.1rem; border-top: 1px solid #ece8f4; border-left: 1px solid #ece8f4; color: #1f1830; font-size: 1rem; vertical-align: middle; }
+.crl-table tbody td:first-child { border-left: 0; }
+.crl-table tbody tr:hover td { background: #faf8fe; }
+.crl-name { font-weight: 600; }
+.crl-new { display: inline-block; margin-left: 0.55rem; padding: 0.18rem 0.65rem; border-radius: 999px; background: #e9dcfb; color: #4b2f7f; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.03em; vertical-align: 0.1rem; }
+.crl-day { display: block; color: #6b6280; font-size: 0.8rem; }
+.crl-status { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; min-width: 8.6rem; padding: 0.35rem 0.9rem; border-radius: 999px; font-weight: 600; font-size: 0.95rem; border: 1px solid transparent; }
+.crl-status .icon { width: 1.15rem; height: 1.15rem; flex-shrink: 0; }
+.crl-status-confirmed { background: #e3f5e8; border-color: #c6e9d1; color: #17602f; }
+.crl-status-confirmed .icon { color: #1e8f45; }
+.crl-status-waitlisted { background: #e4edff; border-color: #c9d9fb; color: #1f3d86; }
+.crl-status-waitlisted .icon { color: #2a5bd7; }
+.crl-status-cancelled { background: #fde8e8; border-color: #f6cccc; color: #9d1c1c; }
+.crl-status-cancelled .icon { color: #d32f2f; }
+.crl-date { text-align: center; white-space: nowrap; }
+.crl-actions-col { text-align: center; width: 1%; white-space: nowrap; }
+.crl-table thead th.crl-actions-col { text-align: left; }
+.crl-actions-col form { display: inline; margin: 0; }
+.crl-trash { display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.3rem; border: 0; border-radius: 8px; background: #fde3e3; color: #d32f2f; cursor: pointer; }
+.crl-trash:hover { background: #fbcfcf; }
+.crl-trash .icon { width: 1.25rem; height: 1.25rem; }
+.crl-empty { text-align: center; color: #6b6280; padding: 1.5rem; }
+.crl-footer { display: flex; flex-wrap: nowrap; align-items: center; gap: 1rem; margin-top: 1.25rem; }
+.crl-stats { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: nowrap; align-items: center; padding: 0.9rem 0.5rem; border-radius: 16px; background: linear-gradient(90deg, #ece2fb 0%, #f4effc 55%, #f7f4fc 100%); }
+.crl-stat { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 0.7rem; padding: 0.2rem 1.1rem; border-left: 2px solid #3a2a5e; }
+.crl-stat:first-child { border-left: 0; flex-grow: 1.5; }
+.crl-stat .icon { width: 2.4rem; height: 2.4rem; flex-shrink: 0; }
+.crl-stat strong { display: block; font-size: 1.75rem; line-height: 1.1; color: #2b2140; }
+.crl-stat-label { display: block; font-size: 1rem; font-weight: 600; white-space: nowrap; }
+.crl-stat-total .icon, .crl-stat-total .crl-stat-label { color: #4b2f7f; }
+.crl-stat-confirmed .icon, .crl-stat-confirmed .crl-stat-label { color: #1e8f45; }
+.crl-stat-waitlisted .icon, .crl-stat-waitlisted .crl-stat-label { color: #2a5bd7; }
+.crl-stat-cancelled .icon, .crl-stat-cancelled .crl-stat-label { color: #c62828; }
+.crl-motto { flex: 0 1 340px; min-width: 200px; width: 100%; max-width: 340px; height: auto; border-radius: 14px; }
+@media (max-width: 640px) {
+  .crl-banner img { border-radius: 12px; }
+  .crl-search { max-width: none; flex-basis: 100%; }
+  .crl-table thead { display: none; }
+  .crl-table, .crl-table tbody, .crl-table tr, .crl-table td { display: block; width: 100%; }
+  .crl-table tbody tr { position: relative; padding: 0.75rem 0.9rem; border-top: 1px solid #ece8f4; }
+  .crl-table tbody tr:first-child { border-top: 0; }
+  .crl-table tbody td { border: 0; padding: 0.15rem 0; text-align: left; }
+  .crl-table tbody td.crl-student { padding-right: 3rem; }
+  .crl-table tbody td.crl-date::before { content: 'Registered '; color: #6b6280; }
+  .crl-table tbody td.crl-date { font-size: 0.9rem; }
+  .crl-table tbody td.crl-actions-col { position: absolute; top: 0.6rem; right: 0.7rem; width: auto; padding: 0; }
+  .crl-table tbody tr:hover td { background: none; }
+  .crl-day { display: inline; margin-left: 0.3rem; }
+  .crl-status { min-width: 0; margin: 0.25rem 0; }
+  .crl-footer { flex-wrap: wrap; }
+  .crl-stats { flex-basis: 100%; flex-wrap: wrap; row-gap: 0.6rem; }
+  .crl-stat { flex: 1 1 45%; padding: 0.2rem 0.7rem; gap: 0.5rem; border-left-width: 1px; }
+  .crl-stat:nth-child(odd) { border-left: 0; }
+  .crl-stat .icon { width: 1.8rem; height: 1.8rem; }
+  .crl-stat strong { font-size: 1.3rem; }
+  .crl-stat-label { font-size: 0.78rem; white-space: normal; }
+  .crl-motto { max-width: none; flex-basis: 100%; }
+}
+/* Attendance > Class Rosters > class: View Lesson Plan/View Substitute
+   Plan above Check In/Check Out (views/admin-rosters.ejs). */
+.admin-class-roster-actions { max-width: 560px; margin: 0.25rem 0 1rem; }
+/* Playground Roster (views/partials/playground-roster.ejs) - one date's
+   playground check-ins grouped under each hour and its times. */
+.pg-roster-filter-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.pg-roster-filter-summary .roster-action-btn { display: inline-flex; align-items: center; gap: 0.4rem; flex: 0 0 auto; width: auto; }
+.pg-roster-filter-summary .roster-action-btn .icon { width: 1rem; height: 1rem; }
+.pg-roster-date { display: flex; align-items: center; gap: 0.8rem; margin: 0.5rem 0 1rem; }
+.pg-roster-date > .icon { width: 2rem; height: 2rem; color: var(--brand-dark); flex-shrink: 0; }
+.pg-roster-date h2 { margin: 0; font-size: 1.35rem; }
+.pg-roster-date .hint { margin: 0.15rem 0 0; }
+.pg-roster-hour { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 0.9rem 1.1rem; margin-bottom: 0.9rem; break-inside: avoid; page-break-inside: avoid; }
+.pg-roster-hour-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.6rem; }
+.pg-roster-hour-head h3 { margin: 0; font-size: 1.1rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.pg-roster-hour-time { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 600; font-size: 0.9rem; color: var(--brand-dark); background: var(--brand-soft); border-radius: 999px; padding: 0.15rem 0.6rem; }
+.pg-roster-hour-time .icon { width: 0.95rem; height: 0.95rem; }
+.pg-roster-empty { margin: 0; color: var(--muted-dark); font-size: 0.92rem; }
+.pg-roster-table { width: 100%; }
+/* Class Registration Log family dropdowns - a later real request: "should
+   still be organized by family, order is based on newest registration". */
+.crl-families { display: flex; flex-direction: column; gap: 0.7rem; }
+.crl-family { border: 1px solid #d9d1ee; border-radius: 16px; background: #fff; box-shadow: 0 4px 12px rgba(75, 47, 127, 0.06); overflow: hidden; }
+.crl-family > summary { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.85rem 1.1rem; cursor: pointer; background: #f6f2fd; }
+.crl-family > summary::-webkit-details-marker { display: none; }
+.crl-family[open] > summary { background: #4b2f7f; color: #fff; }
+.crl-family-name { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 1.08rem; }
+.crl-family-name .icon { width: 1.2rem; height: 1.2rem; }
+.crl-family-meta { margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; font-size: 0.92rem; }
+.crl-family-latest { display: inline-flex; align-items: center; gap: 0.3rem; }
+.crl-family-latest .icon { width: 1rem; height: 1rem; }
+.crl-family-count { padding: 0.15rem 0.6rem; border-radius: 999px; background: #e9dcfb; color: #4b2f7f; font-weight: 700; font-size: 0.82rem; }
+.crl-family-chevron { width: 1.1rem; height: 1.1rem; transition: transform 0.15s ease; }
+.crl-family[open] .crl-family-chevron { transform: rotate(180deg); }
+.crl-family .crl-table-wrap { border: 0; border-radius: 0; box-shadow: none; }
+.crl-time { display: block; color: #6b6280; font-size: 0.85rem; }
+@media (max-width: 640px) {
+  .crl-family > summary { position: relative; padding: 0.75rem 2.6rem 0.75rem 0.85rem; }
+  .crl-family-meta { margin-left: 0; width: 100%; font-size: 0.85rem; }
+  .crl-family-chevron { position: absolute; top: 0.95rem; right: 0.85rem; }
+  .crl-time { display: inline; margin-left: 0.3rem; }
+}
+/* Classes > List view: each row opens the class, same as a grid card. */
+.class-schedule-list-row-clickable { cursor: pointer; }
+.class-schedule-list-row-clickable:hover td { background: var(--brand-soft); }
+.class-schedule-list-row-clickable:focus-visible { outline: 2px solid var(--brand-dark); outline-offset: -2px; }
+/* Member schedules: a day title above each day's classes, and on phones
+   the room/instructor info beside the class title and time instead of a
+   separate block under it - a real request: "Class information should be
+   next to class title and time, especially on mobile. Outside of the
+   class cards their should be distinct day titles seperating the
+   schedules by day." */
+.member-schedule-day-title { display: flex; align-items: center; gap: 0.45rem; margin: 0.85rem 0 0.4rem; padding: 0.35rem 0.75rem; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark); font-weight: 700; font-size: 0.95rem; width: fit-content; }
+.member-schedule-day-title .icon { width: 1rem; height: 1rem; }
+.member-schedule-subheading + .member-schedule-day-title { margin-top: 0.3rem; }
+@media (max-width: 640px) {
+  .member-schedule-table tr { display: grid; grid-template-columns: auto minmax(0, 1fr); }
+  .member-schedule-table td.member-schedule-location { font-size: 0.82rem; }
+  .member-schedule-table td { border-bottom: none; }
+  .member-schedule-table td.member-schedule-location { border-left: 1px solid var(--table-border); }
+  .member-schedule-table td.member-schedule-location::before { content: none; }
+  .member-schedule-table td { font-size: 0.9rem; padding: 0.6rem 0.65rem; }
+  .member-schedule-details { min-width: 0; }
+  .member-schedule-table .member-schedule-daytime,
+  .member-schedule-table .member-schedule-dates { font-size: 0.8rem; }
+  .member-schedule-table .member-schedule-email { font-size: 0.74rem; overflow: hidden; text-overflow: ellipsis; }
+}
+@media print {
+  .member-schedule-day-title { background: none; padding: 0; margin: 0.5rem 0 0.25rem; }
+}
+/* Every log's Print preview / PDF (views/logs-*-print.ejs, the Class and
+   Event Registration Log prints) - a real request: "Check all log pdfs
+   and printing. Make sure nothing drifts off the pages." .roster-table
+   cells never wrap (white-space: nowrap, right for scrolling on screen),
+   so a long name, reason or class pushed the table past the paper's
+   right edge, where it was cut off. On these pages cells wrap on whole
+   words instead and the table never grows wider than the page. */
+.log-print-page main table.roster-table { width: 100%; max-width: 100%; table-layout: auto; }
+.log-print-page main table.roster-table th,
+.log-print-page main table.roster-table td { white-space: normal; overflow-wrap: break-word; word-break: normal; }
+.log-print-page main table.roster-table .status-badge,
+.log-print-page main table.roster-table .badge-pill { white-space: nowrap; }
+@media print {
+  .log-print-page main table.roster-table { font-size: 0.78rem; }
+  .log-print-page main table.roster-table th,
+  .log-print-page main table.roster-table td { padding: 0.3rem 0.4rem; }
+}
+/* Edit Reimbursement Form's Preview - a real request: "Should show an
+   actual preview of the form line by line under preview." The real form's
+   own fields (views/reimbursement-form.ejs), read-only, in a framed box. */
+.reimbursement-form-preview { border: 1px dashed var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; background: var(--surface); }
+.reimbursement-preview-title { margin: 0 0 0.4rem; font-size: 1.35rem; }
+.reimbursement-form-preview .reimbursement-form { pointer-events: none; }
+.reimbursement-form-preview select:disabled,
+.reimbursement-form-preview input:disabled { opacity: 1; background: var(--surface); cursor: default; }
+.reimbursement-form-preview .reimbursement-add-item,
+.reimbursement-form-preview .reimbursement-preview-submit { display: inline-flex; width: auto; }
+.reimbursement-form-preview .reimbursement-preview-submit { margin-top: 0.5rem; }
+/* The preview column is narrower than the real form, so its item row
+   gives the Item field the most room instead of a fixed-width date. */
+.reimbursement-form-preview .reimbursement-item-row { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(0, 0.8fr) 2.5rem; }
+/* Teacher Portal reimbursements on a phone - a real request: "When
+   teacher is viewing their reimbursement it drifts off the page on
+   mobile." The item table's descriptions wrap (date and amount stay on
+   one line), and a stacked Class Fees table's Total row stacks too. */
+@media (max-width: 640px) {
+  .reimbursement-items-table { width: 100%; table-layout: auto; }
+  .reimbursement-items-table td:first-child { white-space: normal; overflow-wrap: break-word; }
+  .reimbursement-items-table th,
+  .reimbursement-items-table td { padding: 0.45rem 0.4rem; }
+  .class-fees-table.table-stack-mobile tfoot,
+  .class-fees-table.table-stack-mobile tfoot tr { display: block; width: 100%; }
+  .class-fees-table.table-stack-mobile tfoot th { display: block; text-align: right; border: none; padding: 0.2rem 0.65rem; }
+  .class-fees-table.table-stack-mobile tfoot th:first-child { text-align: left; }
+}
+/* A real request: "Submit for reimbursement button should be much smaller
+   to match other button sizes on the page" - same compact size as the
+   form's own + Add an Item / + Add More Receipts buttons, on its own line. */
+.reimbursement-form .primary-btn,
+.reimbursement-form-preview .reimbursement-preview-submit {
+  display: flex;
+  width: fit-content;
+  margin-top: 1rem;
+  padding: var(--control-padding-compact);
+  font-size: var(--control-font-size-compact);
+  line-height: 1.3;
+}
+/* Settings > Semesters archive controls and the archived semester view. */
+.semester-actions-col { white-space: nowrap; text-align: right; }
+.semester-actions-col form, .semester-actions-col .btn-secondary { display: inline-flex; vertical-align: middle; margin-left: 0.3rem; }
+.archived-semesters h2 { display: flex; align-items: center; gap: 0.45rem; }
+.archived-semesters h2 .icon { width: 1.2rem; height: 1.2rem; }
+.archived-semester-banner { display: flex; gap: 0.7rem; align-items: flex-start; }
+.archived-semester-banner > .icon { width: 1.4rem; height: 1.4rem; flex-shrink: 0; margin-top: 0.1rem; }
+.archived-semester-banner form { display: inline-block; margin-left: 0.5rem; }
+.archived-semester-links { margin: 0; padding-left: 1.2rem; }
+.archived-semester-links li { margin-bottom: 0.3rem; }
+
+/* Member Schedules: one dropdown per family, titled by the primary
+   parent (views/admin-schedule.ejs, a real request). */
+.ms-families { display: flex; flex-direction: column; gap: 0.75rem; }
+.ms-family { border: 1px solid var(--border); border-radius: 14px; background: var(--surface); overflow: hidden; }
+.ms-family > summary { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.85rem 1.1rem; cursor: pointer; background: var(--brand-soft); }
+.ms-family > summary::-webkit-details-marker { display: none; }
+.ms-family[open] > summary { background: var(--brand-dark); color: var(--surface); }
+.ms-family-name { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 1.08rem; }
+.ms-family-name .icon { width: 1.2rem; height: 1.2rem; }
+.ms-family-meta { margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; font-size: 0.92rem; }
+.ms-family-count { padding: 0.15rem 0.6rem; border-radius: 999px; background: var(--surface); color: var(--brand-dark); font-weight: 700; font-size: 0.82rem; }
+.ms-family-chevron { width: 1.1rem; height: 1.1rem; transition: transform 0.15s; }
+.ms-family[open] .ms-family-chevron { transform: rotate(180deg); }
+.ms-family-body { padding: 1rem; }
+
+/* Orientation Kiosk (views/kiosk-orientation.ejs): Home and Done links
+   across the top of the kiosk-style screen. */
+.kiosk-orientation-top form { margin: 0; }
+.kiosk-home.kiosk-orientation-done { left: auto; right: 1rem; cursor: pointer; font-family: inherit; font-weight: 600; font-size: 0.85rem; }
+
+/* Official High School Transcript (views/parent-academics-transcript-
+   print.ejs, a real request: "Transcripts should print like this") -
+   black-on-white boxes with gray title bars, school years two across. */
+.transcript-sheet { color: var(--ink); font-size: 0.78rem; line-height: 1.3; }
+.transcript-title { display: flex; align-items: center; justify-content: center; gap: 0.6rem; margin: 0 0 0.6rem; font-size: 1.35rem; text-transform: uppercase; letter-spacing: 0.02em; text-align: center; }
+.transcript-box { border: 1px solid var(--ink); }
+.transcript-box-title,
+.transcript-band { margin: 0; padding: 0.2rem 0.5rem; background: var(--table-head-bg); border-bottom: 1px solid var(--ink); font-size: 0.78rem; font-weight: 700; text-transform: uppercase; text-align: center; letter-spacing: 0.03em; }
+.transcript-band { border: 1px solid var(--ink); margin: 0.6rem 0 0.4rem; font-size: 0.85rem; }
+.transcript-box-body { padding: 0.35rem 0.5rem; }
+.transcript-box-body p { margin: 0 0 0.15rem; }
+.transcript-two { display: flex; justify-content: space-between; gap: 0.5rem; }
+.transcript-info-row,
+.transcript-years { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.transcript-bottom-row { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem; }
+.transcript-year-head,
+.transcript-year-foot { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.2rem 0.4rem; font-weight: 700; text-transform: uppercase; font-size: 0.72rem; }
+.transcript-year-head { border-bottom: 1px solid var(--ink); }
+.transcript-year-foot { border-top: 1px solid var(--ink); text-transform: none; }
+.transcript-table,
+.transcript-summary { width: 100%; border-collapse: collapse; }
+.transcript-table th,
+.transcript-table td { padding: 0.1rem 0.4rem; border-bottom: 1px solid var(--table-border); text-align: left; }
+.transcript-table th { font-style: italic; font-weight: 700; border-bottom-color: var(--ink); }
+.transcript-table th + th,
+.transcript-table td + td { width: 3.6rem; text-align: center; border-left: 1px solid var(--ink); }
+.transcript-summary td { padding: 0.15rem 0.5rem; border-bottom: 1px solid var(--table-border); text-transform: uppercase; font-size: 0.7rem; }
+.transcript-summary td + td { text-align: right; text-transform: none; font-weight: 700; }
+.transcript-scale { display: flex; gap: 0.6rem; padding: 0.3rem 0.5rem; }
+.transcript-scale ul,
+.transcript-list { margin: 0; padding: 0; list-style: none; }
+.transcript-list { padding: 0.3rem 0.5rem 0.3rem 1.3rem; list-style: disc; }
+.transcript-sub { margin: 0; padding: 0 0.5rem; font-weight: 700; font-size: 0.72rem; text-transform: uppercase; }
+.transcript-certify { margin: 0.8rem 0 1.6rem; text-align: center; font-size: 0.75rem; }
+.transcript-sign-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; text-align: center; font-size: 0.72rem; }
+.transcript-line { display: block; border-top: 1px solid var(--ink); margin-bottom: 0.2rem; }
+.transcript-empty { margin: 0.4rem 0; }
+.transcript-details-group { border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.8rem; margin: 0 0 0.6rem; display: grid; gap: 0.5rem; }
+.transcript-details-group legend { font-weight: 700; padding: 0 0.3rem; }
+@media (max-width: 640px) {
+  .transcript-print-page .print-page { width: 100%; height: auto; }
+}
+.transcript-scale li { white-space: nowrap; }
+.transcript-scale { justify-content: space-between; font-size: 0.72rem; }
+.transcript-sheet .transcript-title { border-bottom: none; padding-bottom: 0; }
+@media print {
+  /* The transcript is one page: its school header sits in normal flow
+     (inside the shrink-to-fit sheet) instead of repeating as a fixed
+     header over a 1in padded margin, which pushed it onto a 2nd page. */
+  .transcript-print-page .family-school-print-header { position: static; }
+  .transcript-print-page .admin-main:has(.family-school-print-header) { padding-top: 0; }
+}
+
+/* Teacher Interest Form (views/parent-teacher-interest.ejs, views/admin-
+   teacher-interest*.ejs). */
+.teacher-interest-wrap { max-width: 44rem; }
+.teacher-interest-group { border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.9rem; margin: 0; }
+.teacher-interest-group legend { font-weight: 700; padding: 0 0.3rem; }
+.teacher-interest-options { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; }
+.ti-submissions { display: flex; flex-direction: column; gap: 0.6rem; }
+.ti-submission { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.ti-submission > summary { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; cursor: pointer; background: var(--brand-soft); }
+.ti-submission > summary::-webkit-details-marker { display: none; }
+.ti-submission-name { display: inline-flex; align-items: center; gap: 0.45rem; font-weight: 700; }
+.ti-submission-when { margin-left: auto; display: inline-flex; align-items: center; gap: 0.35rem; color: var(--muted-dark); font-size: 0.92rem; white-space: nowrap; }
+.ti-submission-name .icon,
+.ti-submission-when .icon,
+.ti-submission-chevron { width: 1rem; height: 1rem; }
+.ti-submission[open] .ti-submission-chevron { transform: rotate(180deg); }
+.ti-submission-body { padding: 0.9rem 1rem; }
+.ti-submission-fields { display: grid; grid-template-columns: max-content 1fr; gap: 0.45rem 1rem; margin: 0 0 0.8rem; }
+.ti-submission-fields dt { font-weight: 700; }
+.ti-submission-fields dd { margin: 0; }
+.ti-idea { white-space: pre-wrap; }
+.ti-chip { display: inline-block; margin: 0 0.3rem 0.3rem 0; padding: 0.1rem 0.55rem; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark); font-size: 0.85rem; }
+.ti-edit-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+.ti-option-list { list-style: none; margin: 0 0 0.6rem; padding: 0; }
+.ti-option-list li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
+.ti-option-list form { margin: 0; }
+.ti-add-option { display: flex; gap: 0.4rem; }
+.ti-add-option input { flex: 1; min-width: 0; }
+.ti-add-option button { flex: none; width: auto; white-space: nowrap; padding-left: 0.9rem; padding-right: 0.9rem; }
+@media (max-width: 640px) {
+  .ti-submission-fields { grid-template-columns: 1fr; gap: 0.15rem; }
+  .ti-submission-fields dd { margin-bottom: 0.4rem; }
+}
+
+/* Co-op Withdraw (views/admin-coop-withdraw.ejs): one row per family's
+   request; the open one shows its note, actions and schedule. */
+.cw-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.cw-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.8rem 1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--brand-soft); color: var(--ink); text-decoration: none; }
+.cw-row:hover { border-color: var(--brand); }
+.cw-row-open { background: var(--brand-dark); color: var(--surface); border-radius: 12px 12px 0 0; }
+.cw-family { display: inline-flex; align-items: center; gap: 0.45rem; font-weight: 700; font-size: 1.05rem; }
+.cw-when { margin-left: auto; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; white-space: nowrap; }
+.cw-family .icon,
+.cw-when .icon,
+.cw-chevron { width: 1rem; height: 1rem; }
+.cw-row-open .cw-chevron { transform: rotate(180deg); }
+.cw-status { padding: 0.12rem 0.6rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: var(--surface); }
+.cw-status-pending { color: var(--orange); }
+.cw-status-confirmed { color: var(--green); }
+.cw-status-rejected { color: var(--muted-dark); }
+.cw-detail { margin-top: -0.6rem; padding: 1rem; border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; background: var(--surface); }
+.cw-detail p { margin: 0 0 0.4rem; }
+.cw-actions { margin: 0.8rem 0; justify-content: flex-start; }
+.cw-actions form { margin: 0; }
+.cw-schedule-title { font-size: 1.15rem; margin: 1rem 0 0.4rem; }
+.cw-removed { margin: 0.5rem 0; }
+
+/* Schedule Change Request (views/parent-schedule-change.ejs, views/admin-
+   schedule-change.ejs - the admin log reuses the .cw-* family rows). */
+.sc-sub { font-size: 1rem; margin: 0.8rem 0 0.35rem; }
+.sc-list { list-style: none; margin: 0; padding: 0; }
+.sc-list li { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; padding: 0.45rem 0; border-bottom: 1px solid var(--border); }
+.sc-class { display: flex; flex-wrap: wrap; gap: 0.2rem 0.5rem; align-items: baseline; }
+.sc-add { display: flex; align-items: center; gap: 0.5rem; flex: 1; cursor: pointer; }
+.sc-cancel { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; color: var(--red); font-weight: 600; }
+.sc-spots { white-space: nowrap; color: var(--green); font-size: 0.85rem; font-weight: 600; }
+.sc-note { display: block; margin: 1rem 0; }
+.sc-note textarea { width: 100%; }
+.sc-history-title { margin-top: 2rem; }
+.sc-history p { margin: 0 0 0.4rem; }
+.sc-item-list { margin: 0; padding-left: 1.2rem; }
+.sc-status-pending { color: var(--orange); font-weight: 700; }
+.sc-status-approved,
+.sc-status-partial { color: var(--green); font-weight: 700; }
+.sc-status-declined { color: var(--muted-dark); font-weight: 700; }
+.sc-counts { font-size: 0.9rem; }
+.sc-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+@media (max-width: 640px) {
+  .sc-columns { grid-template-columns: 1fr; gap: 0.4rem; }
+}
+.cw-actions > .roster-action-btn,
+.cw-actions > form > button { flex: none; width: auto; }
+
+/* Lesson Plan Approval > By Class (views/admin-lesson-plan-approval.ejs):
+   a semester/day picker, then one table per hour with a status bubble per
+   class for its lesson plan and its substitute plan. */
+.lpa-picker { display: flex; align-items: center; gap: 0.6rem; margin: 1rem 0; }
+.lpa-picker select { width: auto; min-width: 14rem; }
+.lpa-hour { margin: 0 0 1.4rem; }
+.lpa-hour-title { font-size: 1.15rem; margin: 0 0 0.45rem; padding: 0.35rem 0.8rem; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark); width: fit-content; }
+.lpa-hour-title .hint { font-weight: 400; margin-left: 0.4rem; }
+.lpa-col { text-align: center; width: 9.5rem; }
+.lpa-action { text-align: right; width: 11rem; white-space: nowrap; }
+.lpa-bubble { display: inline-block; min-width: 6.5rem; padding: 0.22rem 0.7rem; border-radius: 999px; font-size: 0.82rem; font-weight: 700; text-align: center; }
+.lpa-bubble-none { min-width: 1.4rem; height: 1.4rem; padding: 0; border: 2px solid var(--border); background: var(--surface); vertical-align: middle; }
+.lpa-bubble-pending { background: var(--orange-bg); color: var(--orange); }
+.lpa-bubble-approved { background: var(--green-bg); color: var(--green); }
+.lpa-bubble-rejected { background: var(--red-bg); color: var(--red); }
+.lpa-teacher-inline,
+.lpa-view-short { display: none; }
+/* A real request: "On mobile submission log should still be one row.
+   Shrink to fit." - the teacher moves under the class name, and the
+   bubbles and button shrink, so each class stays one row. */
+@media (max-width: 640px) {
+  .lpa-table { font-size: 0.8rem; }
+  .lpa-table th,
+  .lpa-table td { padding: 0.45rem 0.3rem; }
+  .lpa-teacher-col { display: none; }
+  .lpa-teacher-inline { display: block; color: var(--muted-dark); font-size: 0.72rem; }
+  .lpa-col { width: auto; }
+  .lpa-action { width: auto; }
+  .lpa-bubble { min-width: 0; padding: 0.15rem 0.4rem; font-size: 0.66rem; }
+  .lpa-bubble-none { width: 1.1rem; height: 1.1rem; }
+  .lpa-view-full { display: none; }
+  .lpa-view-short { display: inline; }
+  .lpa-view-btn { padding: 0.3rem 0.55rem; font-size: 0.75rem; min-height: 0; }
+}
+
+/* Member schedules: a semester title above each semester's day groups (a
+   real request: "class should be separated by semester"), and on phones
+   every line in the Location/Instructor column stays one line ("Shrink
+   to fit the 2nd column... one single row for each item"). */
+.member-schedule-semester-title { display: flex; align-items: center; gap: 0.45rem; margin: 0.9rem 0 0.2rem; font-weight: 800; font-size: 1rem; color: var(--purple); text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 2px solid var(--purple-soft); padding-bottom: 0.2rem; }
+.member-schedule-semester-title .icon { width: 1rem; height: 1rem; }
+.member-schedule-subheading + .member-schedule-semester-title { margin-top: 0.3rem; }
+@media (max-width: 640px) {
+  .member-schedule-table td.member-schedule-location { min-width: 0; font-size: 0.74rem; }
+  .member-schedule-table .member-schedule-location .member-schedule-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: inherit; }
+}
+@media print {
+  .member-schedule-semester-title { border-bottom-color: var(--ink); color: var(--ink); }
+}
+
+/* Moving Class Schedule grid columns (public/js/room-row-reorder.js). */
+.class-schedule-room-grid th[data-col-position] { white-space: nowrap; }
+.col-drag-handle { display: inline-flex; vertical-align: middle; cursor: grab; touch-action: none; color: var(--muted); margin-right: 0.25rem; }
+.col-drag-handle .icon { width: 0.9rem; height: 0.9rem; }
+.class-schedule-room-grid th.col-dragging { opacity: 0.6; outline: 2px dashed var(--brand-dark); }
+@media (max-width: 480px) {
+  .class-schedule-room-grid th[data-col-position] { white-space: normal; text-align: center; }
+  .col-drag-handle { display: flex; justify-content: center; margin: 0 0 0.1rem; }
+  .col-drag-handle .icon { width: 0.7rem; height: 0.7rem; }
 }

@@ -1,0 +1,13 @@
+<%# Read-only substitute plans - the class QR code's View Substitute
+    Plan page and Co-op Teacher Portal's Attendance > class > View
+    Substitute Plan. Locals: plans, showStatus (optional - each plan's
+    approval badge, for the teacher's own view). %>
+<% if (plans.length === 0) { %>
+  <p class="roster-empty">No substitute plan has been added for this class yet.</p>
+<% } %>
+<% plans.forEach(function(plan) { %>
+  <section class="kiosk-plan-lesson">
+    <h2><%= plan.title %><% if (typeof showStatus !== 'undefined' && showStatus) { %> <%- include('lesson-approval-badge', { status: plan.approval_status }) %><% } %></h2>
+    <%- include('substitute-plan-details', { plan }) %>
+  </section>
+<% }); %>

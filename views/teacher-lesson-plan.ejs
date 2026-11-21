@@ -27,7 +27,10 @@
         </form>
       <% } %>
     </div>
-    <p class="hint">Lessons stay in Draft until you click Submit for Admin Approval. An admin reviews them on the Lesson Plan Approval log, and each lesson is published to the class once it's approved.</p>
+    <p class="hint">Lessons stay in Draft until you click Submit for Admin Approval. An admin reviews them on the Lesson Plan Approval log, and each lesson is published to the class once it's approved. Your <a href="/teacher/classes/<%= cls.id %>/substitute-plan">substitute plans</a> are sent along with your lessons and approved together with them.</p>
+    <% if (unsubmittedSubPlans) { %>
+      <div class="alert alert-info"><%= unsubmittedSubPlans %> substitute plan<%= unsubmittedSubPlans === 1 ? ' is' : 's are' %> waiting to be sent. Click Submit for Admin Approval to send <%= unsubmittedSubPlans === 1 ? 'it' : 'them' %> with your lessons.</div>
+    <% } %>
 
     <% if (lessons.length === 0) { %>
       <p class="roster-empty">No lessons yet. Click Add Lesson to add the first one.</p>

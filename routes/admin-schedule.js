@@ -6,14 +6,14 @@ const fs = require('fs');
 const db = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
-const { isValidISODate, easternInputToUtcText, utcTextToEasternInput, formatTimestamp, formatDateLabel, todayISO, weekdayOf } = require('../utils/dates');
+const { isValidISODate, easternInputToUtcText, utcTextToEasternInput, formatTimestamp, todayISO, weekdayOf } = require('../utils/dates');
 const { listWindows, createWindow, updateWindow, deleteWindow, cloneRegistrationWindowsFromMostRecentSemester } = require('../utils/registrationWindows');
 const { sendCsv, buildTemplateWorkbook, readRowsFromFile } = require('../utils/spreadsheet');
 const { schedulesForMembers, scheduleMembers, memberScheduleTables } = require('../utils/schedule');
 const { sendMemberSchedules, sortFamilyForPrint } = require('../utils/memberScheduleOutput');
 const { byLastName, allFamilies } = require('../utils/members');
-const { allClassRegistrationActions, buildClassRegistrationLogExportCsvLines } = require('../utils/classRegistration');
-const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('../utils/pagination');
+const { allClassRegistrationActions, buildClassRegistrationLogExportCsvLines, classRegistrationLogRows } = require('../utils/classRegistration');
+const { classRegistrationLogLocals } = require('../utils/classRegistrationLogPage');
 const { renderViewToPdf } = require('../utils/pdfRender');
 const {
   CLASS_DAYS,
@@ -43,6 +43,8 @@ const {
   classGlobalSettings,
   saveClassGlobalSettings,
   listScheduleCombos,
+  setSemesterArchived,
+  allClassesList,
 } = require('../utils/classSchedule');
 const { comboSemesterId, qsSemester, findComboId } = require('../utils/scheduleComboLinks');
 const { assignMissingSemesterData } = require('../utils/semesterAssignment');
@@ -81,30 +83,6 @@ const uploadDesignImage = multer({
 
 const SPECIAL_SCHEDULE_TABS = ['members', 'settings', 'classregistrationlog'];
 
-// A real request: "Co-op admin portal, classes tab, add a sub page
-// called class registration log... record every time a member registers
-// for a class or cancels[,] organized by date and then by family." True
-// two-level grouping (date -> its own family sub-groups), same shape
-// routes/admin-events.js's own groupEventRegistrationActionsByDate
-// already established for Main Admin's Event Registration Log -
-// duplicated here (not imported from that file) since the two portals'
-// route files stay self-contained, same reasoning that file's own
-// comment gives for not reaching into routes/admin-logs.js either.
-function groupClassRegistrationActionsByDate(actions) {
-  const dateGroups = new Map();
-  for (const a of actions) {
-    if (!dateGroups.has(a.date)) dateGroups.set(a.date, { date: a.date, dateLabel: a.dateLabel, familyGroups: [] });
-    const dateGroup = dateGroups.get(a.date);
-    const familyKey = a.familyId != null ? `f${a.familyId}` : `solo-${a.memberName}`;
-    let familyGroup = dateGroup.familyGroups.find((f) => f.key === familyKey);
-    if (!familyGroup) {
-      familyGroup = { key: familyKey, familyName: a.familyName || a.memberName, members: [] };
-      dateGroup.familyGroups.push(familyGroup);
-    }
-    familyGroup.members.push(a);
-  }
-  return Array.from(dateGroups.values());
-}
 const SETTINGS_SUBTABS = ['general', 'registration-schedule'];
 const MEMBER_TYPE_FILTERS = ['student', 'parent'];
 const PAGE_SIZE = 25;
@@ -160,6 +138,45 @@ async function resolveSemesterId(semesterId) {
 function defaultDateForClassDay(day) {
   const today = todayISO();
   return weekdayOf(today) === CLASS_DAY_WEEKDAY_FULL[day] ? today : '';
+}
+
+// Member Schedules' family list: the filtered members grouped by family,
+// titled by the family's primary parent. Returns [{ key, primaryName,
+// familyName, members }] sorted by primaryName's last name.
+async function groupMembersByPrimaryParent(members) {
+  const familyIds = [...new Set(members.map((m) => m.family_id).filter((id) => id != null))];
+  const families = familyIds.length
+    ? await db.prepare(`SELECT id, name FROM families WHERE id IN (${familyIds.map(() => '?').join(',')})`).all(...familyIds)
+    : [];
+  const parents = familyIds.length
+    ? await db
+        .prepare(
+          `SELECT id, name, family_id, is_primary_parent FROM members WHERE active = 1 AND member_type IN ('parent', 'admin') AND family_id IN (${familyIds.map(() => '?').join(',')}) ORDER BY is_primary_parent DESC, id`
+        )
+        .all(...familyIds)
+    : [];
+  const familyName = new Map(families.map((f) => [f.id, f.name]));
+  const primaryByFamily = new Map();
+  parents.forEach((p) => { if (!primaryByFamily.has(p.family_id)) primaryByFamily.set(p.family_id, p); });
+
+  const groups = new Map();
+  for (const m of members) {
+    const key = m.family_id != null ? `f${m.family_id}` : `m${m.id}`;
+    if (!groups.has(key)) {
+      const primary = m.family_id != null ? primaryByFamily.get(m.family_id) : null;
+      const fam = m.family_id != null ? familyName.get(m.family_id) : null;
+      groups.set(key, { key, familyId: m.family_id, primaryName: primary ? primary.name : fam ? `${fam} Family` : m.name, sortName: primary ? primary.name : fam || m.name, familyName: fam || null, members: [] });
+    }
+    groups.get(key).members.push(m);
+  }
+  // Inside a family: the primary parent first, then other parents, then students.
+  const rank = (m, g) => {
+    const primary = g.familyId != null ? primaryByFamily.get(g.familyId) : null;
+    if (primary && m.id === primary.id) return 0;
+    return m.member_type === 'student' ? 2 : 1;
+  };
+  for (const g of groups.values()) g.members.sort((a, b) => rank(a, g) - rank(b, g) || byLastName(a, b));
+  return [...groups.values()].sort((a, b) => byLastName({ name: a.sortName }, { name: b.sortName }));
 }
 
 router.get('/schedule', requireAdmin, async (req, res) => {
@@ -305,29 +322,15 @@ router.get('/schedule', requireAdmin, async (req, res) => {
     });
   }
 
+  // A real request: "Class Registration log should look like this" -
+  // one flat table (views/partials/class-registration-log.ejs), same as
+  // Logs > Class Registration.
   if (tab === 'classregistrationlog') {
-    const dateFilter = req.query.date || '';
-    const allActions = await allClassRegistrationActions();
-    // Already newest-first (allClassRegistrationActions' own sort) - a
-    // Map keyed by date preserves first-seen order, so this stays
-    // newest-first too without a separate sort.
-    const dates = Array.from(new Map(allActions.map((a) => [a.date, { date: a.date, label: a.dateLabel }])).values());
-    const filteredActions = dateFilter ? allActions.filter((a) => a.date === dateFilter) : allActions;
-    const dateGroups = groupClassRegistrationActionsByDate(filteredActions);
-    const pageSize = parsePageSize(req.query.pageSize, DEFAULT_PAGE_SIZE);
-    const pagination = paginate(dateGroups, parsePage(req.query.page), pageSize);
     return res.render('admin-schedule', {
       title: 'Class Registration Log',
       tab,
       topTab: 'classregistrationlog',
-      dateGroups: pagination.items,
-      allSubmissions: filteredActions,
-      pagination,
-      viewingAll: pageSize === Infinity,
-      baseHref: `/admin/schedule?tab=classregistrationlog${dateFilter ? `&date=${encodeURIComponent(dateFilter)}` : ''}&`,
-      dates,
-      dateFilter,
-      dateFilterLabel: dateFilter ? formatDateLabel(dateFilter) : 'All dates',
+      ...(await classRegistrationLogLocals(req, { formAction: '/admin/schedule', tabParam: 'classregistrationlog', exportBase: '/admin/schedule/classregistrationlog', isFullAdmin: res.locals.isFullAdmin })),
       error: req.query.error || null,
       notice: req.query.notice || null,
     });
@@ -362,17 +365,30 @@ router.get('/schedule', requireAdmin, async (req, res) => {
       .all(...memberTypes)
   ).sort(byLastName);
 
+  // A real request: "When you click on member schedules it should show a
+  // list of primary parent name and a dropdown to show the families
+  // schedules." The filtered members are grouped by family, each family
+  // listed under its primary parent's name (the family's first parent if
+  // none is marked primary, or the family name), sorted by that name's
+  // last name; a member with no family is their own entry. A page is 25
+  // families, and only those families' tables are computed.
+  const familyGroups = await groupMembersByPrimaryParent(members);
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-  const totalPages = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
-  const pageMembers = members.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(familyGroups.length / PAGE_SIZE));
+  const pageGroups = familyGroups.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageTables = await memberScheduleTables(pageGroups.flatMap((g) => g.members));
+  const tableByMemberId = new Map(pageTables.map((t) => [t.member.id, t]));
+  const familySchedules = pageGroups.map((g) => ({ ...g, tables: g.members.map((m) => tableByMemberId.get(m.id)).filter(Boolean) }));
 
   res.render('admin-schedule', {
     title: 'Schedules',
     tab,
     topTab: tab,
     typeFilter,
-    tables: await memberScheduleTables(pageMembers),
-    totalCount: members.length,
+    tables: pageTables,
+    familySchedules,
+    openAllFamilies: familySchedules.length === 1,
+    totalCount: familyGroups.length,
     page,
     totalPages,
     allNames,
@@ -512,7 +528,7 @@ router.post('/schedule/semesters/:id/update', requireFullAdmin, async (req, res)
   const semesterId = parseInt(req.params.id, 10);
   try {
     await renameSemester(semesterId, req.body.title);
-    const semester = (await listSemesters()).find((s) => s.id === semesterId);
+    const semester = (await listSemesters({ includeArchived: true })).find((s) => s.id === semesterId);
     const existing = (await listClassSchedules()).filter((cs) => cs.semester_id === semesterId);
     const days = checkedClassDays(req);
     for (const day of days) {
@@ -534,6 +550,68 @@ router.post('/schedule/semesters/:id/delete', requireFullAdmin, async (req, res)
   const sep = back.includes('?') ? '&' : '?';
   await deleteSemester(req.params.id);
   res.redirect(back + sep + 'notice=' + encodeURIComponent('Semester removed.'));
+});
+
+// A real request: "Settings gear. Semesters. Add an archive icon to each
+// semester... All classes, rosters, class chats, and registration will be
+// archived for this semester and will not show up on ANY portals. Be able
+// to unarchive a semester. Be able to simply view anything from an
+// archived semester." Archiving only sets semesters.archived_at - nothing
+// is moved or deleted - so Unarchive brings everything back exactly as it
+// was. utils/classSchedule.js's NOT_IN_ARCHIVED_SEMESTER_SQL is the filter.
+router.post('/schedule/semesters/:id/archive', requireFullAdmin, async (req, res) => {
+  const back = semesterSettingsBack(req);
+  const sep = back.includes('?') ? '&' : '?';
+  const semesterId = parseInt(req.params.id, 10);
+  const semester = (await listSemesters({ includeArchived: true })).find((s) => s.id === semesterId);
+  if (!semester) return res.redirect(back + sep + 'error=' + encodeURIComponent('That semester no longer exists.'));
+  await setSemesterArchived(semesterId, true);
+  const activeKiosk = await getActiveKioskSemesterId();
+  const kioskNote = activeKiosk === semesterId ? ' It was the Kiosk\'s active semester - choose another under Settings > Kiosk.' : '';
+  res.redirect(back + sep + 'notice=' + encodeURIComponent(`Archived "${semester.title}". Its classes, rosters, class chats and registrations are hidden from every portal.${kioskNote}`));
+});
+
+router.post('/schedule/semesters/:id/unarchive', requireFullAdmin, async (req, res) => {
+  const back = semesterSettingsBack(req);
+  const sep = back.includes('?') ? '&' : '?';
+  const semesterId = parseInt(req.params.id, 10);
+  const semester = (await listSemesters({ includeArchived: true })).find((s) => s.id === semesterId);
+  if (!semester) return res.redirect(back + sep + 'error=' + encodeURIComponent('That semester no longer exists.'));
+  await setSemesterArchived(semesterId, false);
+  res.redirect(back + sep + 'notice=' + encodeURIComponent(`Unarchived "${semester.title}". Everything in it shows again.`));
+});
+
+// View an archived semester: its classes by day (each opening its full
+// class page, view-only), its day rosters, its class chats and every
+// registration - nothing editable here.
+router.get('/schedule/semesters/:id/archive', requireFullAdmin, async (req, res) => {
+  const semesterId = parseInt(req.params.id, 10);
+  const semester = (await listSemesters({ includeArchived: true })).find((s) => s.id === semesterId);
+  if (!semester) return res.status(404).render('404', { title: 'Not Found' });
+  const classes = await allClassesList(null, semesterId, { includeArchived: true });
+  const days = CLASS_DAYS.filter((d) => classes.some((c) => c.day === d));
+  const rosters = await db
+    .prepare("SELECT id, name, schedule_day FROM rosters WHERE semester_id = ? AND category = 'Class Schedule' ORDER BY schedule_day, name")
+    .all(semesterId);
+  rosters.forEach((r) => {
+    r.href = `/admin/rosters?tab=${r.schedule_day}-${/Parent/.test(r.name) ? 'parent' : 'student'}&semesterId=${semesterId}`;
+  });
+  // Each class's own Chat tab (class_chat_messages) that has messages.
+  const chats = await db
+    .prepare('SELECT c.id, c.class_name, COUNT(m.id) AS "messageCount" FROM classes c JOIN class_chat_messages m ON m.class_id = c.id WHERE c.semester_id = ? GROUP BY c.id, c.class_name ORDER BY LOWER(c.class_name)')
+    .all(semesterId);
+  const registrations = await classRegistrationLogRows({}, { semesterId });
+  res.render('admin-semester-archive', {
+    title: `${semester.title} (Archived)`,
+    semester,
+    archivedAtLabel: semester.archived_at ? formatTimestamp(semester.archived_at) : null,
+    classes,
+    days,
+    dayLabels: CLASS_DAY_LABELS,
+    rosters,
+    chats,
+    registrations,
+  });
 });
 
 // A real request: "create a fall 2026 semester and connect all classes,

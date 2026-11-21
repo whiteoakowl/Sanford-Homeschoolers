@@ -60,7 +60,7 @@ async function loginTeacher(classIds) {
   return loginRes.headers['set-cookie'];
 }
 
-test('clicking a class lands on the read-only view page (Details/Lessons tabs), with an Edit Class button', async () => {
+test('clicking a class lands on the read-only view page (Details/Lessons/Attendance/Chat/Grades tabs), with an Edit Class button', async () => {
   const classId = await createClass({ day: 'monday', hourPosition: 1, className: 'Nature Study', room: 'Room 2' });
   const cookie = await loginTeacher([classId]);
 
@@ -70,13 +70,13 @@ test('clicking a class lands on the read-only view page (Details/Lessons tabs), 
   assert.match(page.text, /class="roster-action-btn" href="\/teacher\/classes\/\d+\/edit">Edit Class</);
   assert.match(page.text, /class="view-tab active" href="\?tab=details">Details/);
   assert.match(page.text, /href="\?tab=lessons">Lessons/);
-  // Scoped to this page's own .view-tabs row, not the sidebar (which has
-  // its own global "Assignments" nav link, unrelated to this check) -
-  // assignments/grades/attendance are per-student, not shown here.
+  // A later real request: "the tabs should be details, lessons,
+  // Attendance, chat and grades" - in that order. Scoped to this page's
+  // own .view-tabs row, not the sidebar.
   const viewTabsSection = /<div class="view-tabs no-print">[\s\S]*?<\/div>/.exec(page.text)[0];
+  const tabLabels = [...viewTabsSection.matchAll(/class="view-tab[^"]*" href="\?tab=\w+">(\w+)</g)].map((m) => m[1]);
+  assert.deepEqual(tabLabels, ['Details', 'Lessons', 'Attendance', 'Chat', 'Grades']);
   assert.doesNotMatch(viewTabsSection, />Assignments</);
-  assert.doesNotMatch(viewTabsSection, />Grades</);
-  assert.doesNotMatch(viewTabsSection, />Attendance</);
   // The old page's own content (roster table, New Assignment form) should
   // not be what clicking the class shows any more.
   assert.doesNotMatch(page.text, /No students enrolled yet\./);
@@ -218,7 +218,7 @@ test('Lesson Plan page: Add Lesson makes a bar, each lesson has its own assignme
   assert.doesNotMatch((await request(app).get(`/teacher/classes/${classId}/lesson-plan`).set('Cookie', cookie)).text, /<button type="submit" class="roster-action-btn">Submit for Admin Approval/);
 });
 
-test('Chat tab only appears when the class has allow_parent_chat on, and posting a message works', async () => {
+test('Chat tab is always there - with chat off it says so instead - and posting a message works', async () => {
   const classId = await createClass({ day: 'wednesday', hourPosition: 4, className: 'Chat Class', allowParentChat: true });
   const cookie = await loginTeacher([classId]);
 
@@ -228,7 +228,9 @@ test('Chat tab only appears when the class has allow_parent_chat on, and posting
   const noChatClassId = await createClass({ day: 'monday', hourPosition: 2, className: 'No Chat Class', allowParentChat: false });
   const cookie2 = await loginTeacher([noChatClassId]);
   const page2 = await request(app).get(`/teacher/classes/${noChatClassId}`).set('Cookie', cookie2);
-  assert.doesNotMatch(page2.text, /href="\?tab=chat">Chat/);
+  assert.match(page2.text, /href="\?tab=chat">Chat/);
+  const offTab = await request(app).get(`/teacher/classes/${noChatClassId}?tab=chat`).set('Cookie', cookie2);
+  assert.match(offTab.text, /Chat is turned off for this class/);
 
   const csrfMatch = /name="csrf-token" content="([^"]*)"/.exec(page.text);
   await request(app)
@@ -238,4 +240,23 @@ test('Chat tab only appears when the class has allow_parent_chat on, and posting
     .send({ body: 'Hello class', _csrf: csrfMatch[1] });
   const chatTab = await request(app).get(`/teacher/classes/${classId}?tab=chat`).set('Cookie', cookie);
   assert.match(chatTab.text, /Hello class/);
+});
+
+test('Attendance tab shows today\'s attendance with Check In/Out, and Grades tab lists lessons with graded counts', async () => {
+  const classId = await createClass({ day: 'monday', hourPosition: 5, className: 'Tabs Class', room: 'Room 11' });
+  const cookie = await loginTeacher([classId]);
+  await createAssignment({ classId, className: 'Tabs Class', title: 'Pond Life', approvalStatus: 'draft' });
+
+  const attendance = await request(app).get(`/teacher/classes/${classId}?tab=attendance`).set('Cookie', cookie);
+  assert.equal(attendance.status, 200);
+  assert.match(attendance.text, /class="view-tab active" href="\?tab=attendance">Attendance/);
+  assert.match(attendance.text, new RegExp(`href="/teacher/classes/${classId}/scan\\?mode=checkin"`));
+  assert.match(attendance.text, new RegExp(`href="/teacher/classes/${classId}/scan\\?mode=checkout"`));
+
+  const grades = await request(app).get(`/teacher/classes/${classId}?tab=grades`).set('Cookie', cookie);
+  assert.equal(grades.status, 200);
+  assert.match(grades.text, /class="view-tab active" href="\?tab=grades">Grades/);
+  assert.match(grades.text, /Pond Life/);
+  assert.match(grades.text, /0 \/ 0/);
+  assert.match(grades.text, /href="\/teacher\/assignments\/\d+">Grade</);
 });

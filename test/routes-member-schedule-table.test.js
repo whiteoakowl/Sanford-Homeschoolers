@@ -151,8 +151,11 @@ function assertStudentTable(html, f) {
   assert.match(html, new RegExp(`class="member-schedule-class-title"[^>]*>PE &amp; Health ${f.n}<`));
   assert.match(html, /Aug\. 24, 2026 – Nov\. 16, 2026/, 'date range from the class\'s semester+day grid');
   assert.match(html, /Mon 10:00 AM – 10:45 AM/);
-  assert.match(html, new RegExp(`Room 3 / Lara Snyder ${f.n}`));
-  assert.match(html, new RegExp(`<a class="member-schedule-line member-schedule-email" href="mailto:lara${f.n}@example.com">lara${f.n}@example.com</a>`));
+  // Room and teacher on their own lines (a real request: one single row
+  // for each item, so a phone's narrow column doesn't cut them off).
+  assert.match(html, /<span class="member-schedule-line member-schedule-room"[^>]*>Room 3<\/span>/);
+  assert.match(html, new RegExp(`<span class="member-schedule-line member-schedule-teacher"[^>]*>Lara Snyder ${f.n}</span>`));
+  assert.match(html, new RegExp(`<a class="member-schedule-line member-schedule-email" href="mailto:lara${f.n}@example.com"( title="[^"]*")?>lara${f.n}@example.com</a>`));
   assert.match(html, /<span class="member-schedule-line member-schedule-phone">919-555-0142<\/span>/);
   // A real request: "Take the price off the class schedules."
   assert.doesNotMatch(html, /member-schedule-price|>Price</);
@@ -337,4 +340,26 @@ test('a parent\'s Floater Assignments hour shows under its own "Floater" group',
   assert.equal(floater.entries.length, 1);
   assert.equal(floater.entries[0].title, 'Floater');
   assert.equal(floater.entries[0].dayShort, 'Mon');
+});
+
+// A real request: "Class information should be next to class title and
+// time, especially on mobile. Outside of the class cards their should be
+// distinct day titles seperating the schedules by day."
+test('Member Schedules: a day title above each day\'s classes, in week order', async () => {
+  const cookie = await loginAsAdmin();
+  const kid = (await db.prepare("INSERT INTO members (name, barcode, member_type, active) VALUES ('Day Title Kid', 'DTK-1', 'student', 1) RETURNING id").get()).id;
+  const wed = await createClass({ day: 'wednesday', hourPosition: 1, className: 'Day Title Wed Class', room: 'Room 9' });
+  const mon = await createClass({ day: 'monday', hourPosition: 1, className: 'Day Title Mon Class', room: 'Room 8' });
+  await setEnrollment(wed, [kid]);
+  await setEnrollment(mon, [kid]);
+  const res = await request(app).get(`/admin/schedule?tab=members&memberId=${kid}`).set('Cookie', cookie);
+  assert.equal(res.status, 200);
+  const section = res.text.slice(res.text.indexOf('>Day Title Kid<'));
+  const monTitle = section.indexOf('</svg> Monday</p>');
+  const wedTitle = section.indexOf('</svg> Wednesday</p>');
+  assert.ok(monTitle > 0 && wedTitle > monTitle, 'Monday title, then Wednesday title');
+  assert.ok(section.indexOf('Day Title Mon Class') > monTitle && section.indexOf('Day Title Mon Class') < wedTitle, "Monday's class sits under Monday");
+  assert.ok(section.indexOf('Day Title Wed Class') > wedTitle, "Wednesday's class sits under Wednesday");
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'styles.css'), 'utf8');
+  assert.match(css, /\.member-schedule-table tr \{ display: grid; grid-template-columns:/, 'on phones the room/instructor sits beside the class');
 });

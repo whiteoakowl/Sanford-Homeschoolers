@@ -1,0 +1,140 @@
+<%# A real request: "Class Registration log should look like this" - a
+    picture: a watercolor banner (books, cap, leaves) over the title, a
+    search box, one table (Student Name with a NEW pill, Class Name,
+    Status, Registered On, a trash Action) and Total/Confirmed/Pending
+    counts beside a "Learn. Grow. Belong." panel. The banner and that
+    panel are cut from the picture itself (public/img/class-registration-
+    log/). Shared by Classes > Class Registration Log (views/admin-
+    schedule.ejs) and Logs > Class Registration (views/admin-logs.ejs).
+    The trash cancels the registration, same as the class roster's own
+    Remove (routes/admin-class-schedule.js's POST /class-registrations/
+    :id/cancel); the row stays listed as Cancelled. Date filter and
+    Export/Print/PDF sit where the picture's own button is.
+    Locals: families (this page - [{ familyName, latestOnLabel,
+    latestAtLabel, hasNew, rows }]), counts ({ total, confirmed, waitlisted,
+    cancelled } across every matching row), search, dateFilter,
+    dateFilterLabel, formAction, tabParam, exportBase, pagination,
+    baseHref, canCancel, returnTo, error, notice. %>
+<div class="crl">
+  <h1 class="crl-banner">
+    <img src="/img/class-registration-log/banner.jpg" width="1672" height="184" alt="Class Registration Log - Manage and view all class registrations" />
+  </h1>
+
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+  <% if (typeof notice !== 'undefined' && notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+
+  <div class="crl-toolbar no-print">
+    <form method="GET" action="<%= formAction %>" class="crl-search" role="search">
+      <input type="hidden" name="tab" value="<%= tabParam %>" />
+      <% if (dateFilter) { %><input type="hidden" name="date" value="<%= dateFilter %>" /><% } %>
+      <button type="submit" class="crl-search-btn" aria-label="Search"><svg class="icon"><use href="#icon-search"/></svg></button>
+      <input type="search" name="q" value="<%= search %>" placeholder="Search by student or class name..." aria-label="Search by student or class name" />
+    </form>
+    <div class="crl-tools">
+      <form method="GET" action="<%= formAction %>" class="dashboard-date-picker">
+        <input type="hidden" name="tab" value="<%= tabParam %>" />
+        <% if (search) { %><input type="hidden" name="q" value="<%= search %>" /><% } %>
+        <svg class="icon"><use href="#icon-calendar-check"/></svg>
+        <span class="dashboard-date-picker-label"><%= dateFilterLabel %></span>
+        <svg class="icon"><use href="#icon-chevron-down"/></svg>
+        <input type="date" name="date" value="<%= dateFilter %>" aria-label="Filter by date" onchange="this.form.requestSubmit()" />
+      </form>
+      <% if (dateFilter || search) { %><a class="crl-clear" href="<%= formAction %>?tab=<%= tabParam %>">Clear</a><% } %>
+      <div class="roster-btn-row" data-fixed-columns="3">
+        <a class="icon-btn" href="<%= exportBase %>/export.csv<%= dateFilter ? '?date=' + encodeURIComponent(dateFilter) : '' %>" aria-label="Export CSV" title="Export CSV"><svg class="icon"><use href="#icon-download"/></svg></a>
+        <a class="icon-btn" href="<%= exportBase %>/print<%= dateFilter ? '?date=' + encodeURIComponent(dateFilter) : '' %>" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
+        <a class="icon-btn" href="<%= exportBase %>/download.pdf<%= dateFilter ? '?date=' + encodeURIComponent(dateFilter) : '' %>" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
+      </div>
+    </div>
+  </div>
+
+  <%# A later real request: "It should still be organized by family,
+      order is based on newest registration. Family dropdown shows their
+      log based on date. Include time stamps." Each family is a dropdown
+      (newest registration first), its own table inside, newest first. %>
+  <% if (families.length === 0) { %>
+    <div class="crl-table-wrap"><p class="crl-empty">No class registrations<%= search ? ' match "' + search + '"' : dateFilter ? ' for this date' : ' yet' %>.</p></div>
+  <% } %>
+  <div class="crl-families">
+    <% families.forEach(function(f, i) { %>
+      <details class="crl-family"<%= i === 0 && families.length === 1 ? ' open' : '' %>>
+        <summary>
+          <span class="crl-family-name"><svg class="icon"><use href="#icon-users"/></svg> <%= f.familyName %></span>
+          <% if (f.hasNew) { %><span class="crl-new" title="A member's first class sign-up">NEW</span><% } %>
+          <span class="crl-family-meta">
+            <span class="crl-family-latest"><svg class="icon"><use href="#icon-clock"/></svg> <%= f.latestOnLabel %> · <%= f.latestAtLabel %></span>
+            <span class="crl-family-count"><%= f.rows.length %> registration<%= f.rows.length === 1 ? '' : 's' %></span>
+            <svg class="icon crl-family-chevron"><use href="#icon-chevron-down"/></svg>
+          </span>
+        </summary>
+        <div class="crl-table-wrap">
+          <table class="crl-table">
+            <thead>
+              <tr>
+                <th scope="col"><svg class="icon"><use href="#icon-user"/></svg> Student Name</th>
+                <th scope="col"><svg class="icon"><use href="#icon-book"/></svg> Class Name</th>
+                <th scope="col"><svg class="icon"><use href="#icon-check-circle"/></svg> Status</th>
+                <th scope="col"><svg class="icon"><use href="#icon-calendar-check"/></svg> Registered On</th>
+                <% if (canCancel) { %><th scope="col" class="crl-actions-col"><svg class="icon"><use href="#icon-trash"/></svg> Actions</th><% } %>
+              </tr>
+            </thead>
+            <tbody>
+              <% f.rows.forEach(function(r) { %>
+                <tr>
+                  <td data-label="Student Name" class="crl-student">
+                    <span class="crl-name"><%= r.memberName %></span>
+                    <% if (r.isNew) { %><span class="crl-new" title="First class this member signed up for">NEW</span><% } %>
+                  </td>
+                  <td data-label="Class Name"><%= r.className %> <span class="crl-day"><%= r.classDayLabel %></span></td>
+                  <td data-label="Status">
+                    <span class="crl-status crl-status-<%= r.status %>">
+                      <svg class="icon"><use href="#icon-<%= r.status === 'waitlisted' ? 'clock' : r.status === 'cancelled' ? 'x-circle' : 'check-circle' %>"/></svg>
+                      <%= r.statusLabel %>
+                    </span>
+                  </td>
+                  <td data-label="Registered On" class="crl-date"><%= r.registeredOnLabel %> <span class="crl-time"><%= r.registeredAtLabel %></span></td>
+                  <% if (canCancel) { %>
+                    <td class="crl-actions-col">
+                      <% if (r.status !== 'cancelled') { %>
+                        <form method="POST" action="/admin/class-registrations/<%= r.id %>/cancel" data-confirm="Cancel <%= r.memberName %>'s registration for <%= r.className %>? They'll be taken out of the class.">
+                          <input type="hidden" name="returnTo" value="<%= returnTo %>" />
+                          <button type="submit" class="crl-trash" aria-label="Cancel <%= r.memberName %>'s registration for <%= r.className %>" title="Cancel registration"><svg class="icon"><use href="#icon-trash"/></svg></button>
+                        </form>
+                      <% } %>
+                    </td>
+                  <% } %>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    <% }); %>
+  </div>
+
+  <%- include('pagination-controls', { pagination: pagination, baseHref: baseHref }) %>
+
+  <div class="crl-footer">
+    <div class="crl-stats">
+      <div class="crl-stat crl-stat-total">
+        <svg class="icon"><use href="#icon-users"/></svg>
+        <div><span class="crl-stat-label">Total Registrations</span><strong><%= counts.total %></strong></div>
+      </div>
+      <div class="crl-stat crl-stat-confirmed">
+        <svg class="icon"><use href="#icon-check-circle"/></svg>
+        <div><span class="crl-stat-label">Confirmed</span><strong><%= counts.confirmed %></strong></div>
+      </div>
+      <div class="crl-stat crl-stat-waitlisted">
+        <svg class="icon"><use href="#icon-clock"/></svg>
+        <div><span class="crl-stat-label">Waitlisted</span><strong><%= counts.waitlisted %></strong></div>
+      </div>
+      <% if (counts.cancelled) { %>
+        <div class="crl-stat crl-stat-cancelled">
+          <svg class="icon"><use href="#icon-x-circle"/></svg>
+          <div><span class="crl-stat-label">Cancelled</span><strong><%= counts.cancelled %></strong></div>
+        </div>
+      <% } %>
+    </div>
+    <img class="crl-motto" src="/img/class-registration-log/learn-grow-belong.jpg" width="618" height="116" alt="Learn. Grow. Belong." />
+  </div>
+</div>

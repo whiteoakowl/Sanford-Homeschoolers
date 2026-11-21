@@ -8,6 +8,14 @@
   <main id="main-content" tabindex="-1" class="admin-main">
     <div class="roster-toolbar no-print">
       <h1><%= title %></h1>
+      <%# A real request: "teacher and assistant subpages are seperate and
+          should be combined, with a pill toggle to switch between teachers
+          and assistants" - same pill as Attendance's Parent/Student. %>
+      <% var semQ = selectedSemesterId ? '&semesterId=' + selectedSemesterId : (selectedSemesterId === null ? '&semesterId=' : ''); %>
+      <div class="day-toggle staff-role-toggle" role="group" aria-label="Teachers or assistants">
+        <a class="day-toggle-option<%= role === 'teacher' ? ' active' : '' %>" href="/admin/teachers?role=teacher<%= semQ %>" aria-current="<%= role === 'teacher' ? 'page' : 'false' %>">Teachers</a>
+        <a class="day-toggle-option<%= role === 'assistant' ? ' active' : '' %>" href="/admin/teachers?role=assistant<%= semQ %>" aria-current="<%= role === 'assistant' ? 'page' : 'false' %>">Assistants</a>
+      </div>
       <div class="roster-btn-row">
         <%# A real request: "organized by schedule grid semester with a
             dropdown filter" - a plain Semester-only select, same shape as
@@ -20,6 +28,7 @@
             it's actually on - a later real request split this single
             page into GET /teachers and GET /teachers/assistants. %>
         <form method="GET" action="<%= basePath %>" class="category-filter">
+          <input type="hidden" name="role" value="<%= role %>" />
           <label for="teachers-semester-select">Semester</label>
           <select id="teachers-semester-select" name="semesterId" onchange="this.form.submit()">
             <option value="" <%= !selectedSemesterId ? 'selected' : '' %>>All Semesters</option>
@@ -47,7 +56,7 @@
         <% members.forEach(function(m) { %>
           <li class="teacher-list-item">
             <details>
-              <summary><%= m.name %> <span class="teacher-class-count"><%= m.classes.length %> class<%= m.classes.length === 1 ? '' : 'es' %></span></summary>
+              <summary><%= m.name %> <span class="teacher-class-count"><%= [m.teachingCount ? m.teachingCount + ' teaching' : '', m.assistingCount ? m.assistingCount + ' assisting' : ''].filter(Boolean).join(' · ') %></span></summary>
               <ul class="teacher-class-list">
                 <% m.classes.forEach(function(c) { %>
                   <%# A real request: "You can click on the class and it
@@ -60,14 +69,13 @@
                       nav.ejs's own comment) instead lands on that
                       class's own day grid, the closest a read-only
                       viewer can actually open. %>
-                  <%# Role is deliberately not shown per-class any more -
-                      this whole page is already scoped to one role (see
-                      routes/admin-teachers.js's own roleLabel), so a
-                      Teacher/Assistant tag on every row would just repeat
-                      the same word back for every class on this page. %>
+                  <%# A later real request: a teacher's dropdown "will also
+                      show any classes they are assisting in so that we
+                      know their full schedule" - each class is tagged
+                      Teaching or Assisting again. %>
                   <li>
                     <a href="<%= isFullAdmin ? `/admin/class-schedule/classes/${c.id}/manage` : `/admin/schedule?tab=${c.day}${selectedSemesterId ? '&semesterId=' + selectedSemesterId : ''}` %>">
-                      <span class="teacher-class-name"><%= c.className %></span>
+                      <span class="teacher-class-name"><%= c.className %> <span class="badge-pill <%= c.role === 'teacher' ? 'badge-pill-blue' : 'badge-pill-purple' %>"><%= c.roleLabel %></span></span>
                       <span class="teacher-class-meta"><%= c.dayLabel %><%= c.timeLabel ? ' · ' + c.timeLabel : '' %><%= c.room ? ' · ' + c.room : '' %></span>
                     </a>
                   </li>

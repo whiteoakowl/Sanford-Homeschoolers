@@ -336,7 +336,7 @@ async function memberScheduleEntries(memberIds) {
   if (activeDays.length === 0) return result;
   const dayPh = activeDays.map(() => '?').join(',');
   const classes = await db
-    .prepare(`SELECT c.*, s.title AS semester_title FROM classes c LEFT JOIN semesters s ON s.id = c.semester_id WHERE c.day IN (${dayPh})`)
+    .prepare(`SELECT c.*, s.title AS semester_title FROM classes c LEFT JOIN semesters s ON s.id = c.semester_id WHERE c.day IN (${dayPh}) AND s.archived_at IS NULL`)
     .all(...activeDays);
   const classById = {};
   classes.forEach((c) => { classById[c.id] = c; });

@@ -15,12 +15,26 @@
     but inside the normal Co-op Admin authenticated shell instead of the
     bare PIN-gated public kiosk one, same combination views/admin-events-
     checkin-scan.ejs already uses for Events check-in. %>
-<body class="admin-page" data-semester-id="<%= semesterId != null ? semesterId : '' %>" data-scan-post-url="<%= scanPostUrl %>" data-complete-url="<%= completeUrl %>">
-  <%- include('partials/admin-nav') %>
+<%# kioskShell: the kiosk's Orientation Kiosk (routes/kiosk-class-checkin.js) -
+    the bare kiosk frame instead of the admin nav. %>
+<% var kioskShell = typeof locals.kioskShell !== 'undefined' && locals.kioskShell; %>
+<body class="<%= kioskShell ? 'kiosk kiosk-checkin' : 'admin-page' %>" data-semester-id="<%= semesterId != null ? semesterId : '' %>" data-scan-post-url="<%= scanPostUrl %>" data-complete-url="<%= completeUrl %>">
+  <% if (kioskShell) { %><%- include('partials/icon-sprite') %><% } else { %><%- include('partials/admin-nav') %><% } %>
 
-  <main id="main-content" tabindex="-1" class="admin-main">
-    <p><a href="<%= completeUrl %>">&larr; Back to <%= heading %></a></p>
-    <h1><%= heading %></h1>
+  <main id="main-content" tabindex="-1" class="<%= kioskShell ? 'kiosk-wrap' : 'admin-main' %>">
+    <% if (kioskShell) { %>
+      <a href="<%= completeUrl %>" class="kiosk-home"><svg class="icon"><use href="#icon-home"/></svg> Back to Orientation Kiosk</a>
+    <% } else { %>
+      <p><a href="<%= completeUrl %>">&larr; Back to <%= heading %></a></p>
+    <% } %>
+    <% if (kioskShell) { %>
+      <div class="kiosk-header">
+        <img class="kiosk-logo" src="/img/logo.png" alt="Sanford Homeschoolers" />
+        <h1><%= heading %></h1>
+      </div>
+    <% } else { %>
+      <h1><%= heading %></h1>
+    <% } %>
 
     <div class="kiosk-panel">
       <div class="kiosk-method-choice">
@@ -101,5 +115,6 @@
   <script src="/js/kiosk-common.js"></script>
   <script src="/js/kiosk-id-keypad.js"></script>
   <script src="/js/admin-orientation-checkin-scan.js"></script>
+  <% if (kioskShell) { %><script src="/js/fullscreen-nav.js"></script><% } %>
 </body>
 </html>

@@ -1,8 +1,27 @@
 const express = require('express');
 const router = express.Router();
+
+// An archived semester's class roster is view-only (Settings > Semesters):
+// marking attendance or adding/removing members on it is refused.
+router.post(/^\/rosters\/class-(\d+)\//, async (req, res, next) => {
+  const classId = parseInt(req.params[0], 10);
+  if (!(await isClassArchived(classId))) return next();
+  const message = 'This class is in an archived semester, so its roster is view-only.';
+  if (req.get('X-Requested-With') === 'fetch') return res.status(409).json({ ok: false, error: message });
+  res.redirect(`/admin/rosters?tab=class-${classId}&error=` + encodeURIComponent(message));
+});
+// Same for a day's Parent/Student roster opened for an archived semester
+// (the archived semester's View page links to them with ?semesterId=).
+router.post(/^\/rosters\/[a-z]+-(parent|student)\//, async (req, res, next) => {
+  const semesterId = parseInt(req.query.semesterId, 10);
+  if (Number.isNaN(semesterId) || !(await isSemesterArchived(semesterId))) return next();
+  const message = 'This roster is in an archived semester, so it is view-only.';
+  if (req.get('X-Requested-With') === 'fetch') return res.status(409).json({ ok: false, error: message });
+  res.redirect(req.get('Referer') || `/admin/schedule/semesters/${semesterId}/archive`);
+});
 const db = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
-const { isValidISODate, formatDateLabel, todayISO, weekdayOf } = require('../utils/dates');
+const { isValidISODate, formatDateLabel, formatDateLong, todayISO, weekdayOf } = require('../utils/dates');
 const { byLastName } = require('../utils/members');
 const { toCsvRow, sendCsv } = require('../utils/spreadsheet');
 const {
@@ -25,8 +44,12 @@ const { comboSemesterId, qsSemester, appendSemester, findComboId } = require('..
 const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
 const { absenceFormSubmissionsForRoster } = require('../utils/alerts');
 const { rosterDates, buildRosterGridData } = require('../utils/rosterGrid');
-const { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate } = require('../utils/playground');
+const { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate, playgroundRosterPage } = require('../utils/playground');
 const { renderViewToPdf } = require('../utils/pdfRender');
+const { classScanCheckIn, classScanCheckOut } = require('../utils/classScan');
+const { isClassArchived, isSemesterArchived } = require('../utils/classSchedule');
+const { lessonPlanSummary } = require('../utils/lessonPlanSummary');
+const { substitutePlansForClass } = require('../utils/substitutePlans');
 
 // Mirrors routes/admin-schedule.js's own resolveSemesterId - Attendance's
 // Parent/Student rosters, like Classes' own grid, have no single
@@ -223,20 +246,17 @@ router.get('/rosters', requireAdmin, async (req, res) => {
   // ("playground-monday-1", mirroring "class-<id>" above), which the
   // regex just below matches against.
   if (requestedTab === 'playground') {
-    const entries = [];
-    for (const day of activeDays) {
-      for (const hour of HOUR_POSITIONS) {
-        entries.push({ day, hour, dayLabel: CLASS_DAY_LABELS_FULL[day], hourLabel: await playgroundHourLabel(day, hour) });
-      }
-    }
+    // A real request: "This sub page should be called Playground roster...
+    // a filter button that filters by semester, the day, then date. Page
+    // then shows the date and times and a list of those that were checked
+    // in under each time." (utils/playground.js's playgroundRosterPage).
+    // Each hour's own page (?tab=playground-<day>-<hour>) still works.
     return res.render('admin-rosters', {
-      title: 'Attendance',
+      title: 'Playground Roster',
       tab: 'playground',
       topTab: 'playground',
-      view: 'playgroundList',
-      playgroundEntries: entries,
-      activeDays,
-      dayLabels: CLASS_DAY_LABELS_FULL,
+      view: 'playgroundRoster',
+      ...(await playgroundRosterPage(req.query)),
       error: req.query.error || null,
       notice: req.query.notice || null,
     });
@@ -284,9 +304,11 @@ router.get('/rosters', requireAdmin, async (req, res) => {
   let role = null;
   let classSemesterId;
 
+  let archivedSemester = null;
   if (classId) {
     const cls = await classRosterInfo(classId);
     if (!cls) return res.redirect('/admin/rosters?tab=classes');
+    if (await isClassArchived(classId)) archivedSemester = await db.prepare('SELECT id, title FROM semesters WHERE id = ?').get(cls.semester_id);
     day = cls.day;
     tabLabel = `${cls.class_name} (${cls.hourLabel})`;
     classSemesterId = cls.semester_id;
@@ -320,6 +342,9 @@ router.get('/rosters', requireAdmin, async (req, res) => {
   const combos = classId ? null : await listScheduleCombos();
   const resolvedSemesterId = classId ? classSemesterId : await resolveSemesterId(comboSemesterId(req));
   const selectedSemesterId = classId ? null : qsSemester(resolvedSemesterId);
+  if (!classId && resolvedSemesterId && (await isSemesterArchived(resolvedSemesterId))) {
+    archivedSemester = await db.prepare('SELECT id, title FROM semesters WHERE id = ?').get(resolvedSemesterId);
+  }
 
   const rosterId = await rosterIdForTab(tab, resolvedSemesterId);
   const roster = await db.prepare('SELECT * FROM rosters WHERE id = ?').get(rosterId);
@@ -338,6 +363,7 @@ router.get('/rosters', requireAdmin, async (req, res) => {
 
   res.render('admin-rosters', {
     title: 'Attendance',
+    archivedSemester,
     tab,
     topTab: classId ? 'classes' : day,
     view: 'grid',
@@ -393,6 +419,11 @@ router.get('/rosters', requireAdmin, async (req, res) => {
 // null means "no such tab/class" - the caller decides how to respond.
 async function rostersPrintLocals(req) {
   const requestedTab = req.query.tab || '';
+
+  if (requestedTab === 'playground') {
+    const page = await playgroundRosterPage(req.query);
+    return { title: 'Playground Roster Print Preview', view: 'playgroundRoster', ...page };
+  }
 
   const playgroundMatch = new RegExp(`^playground-(${CLASS_DAYS.join('|')})-([1-4])$`).exec(requestedTab);
   if (playgroundMatch) {
@@ -692,6 +723,65 @@ router.get('/roster/:tab/export.csv', requireAdmin, async (req, res) => {
   });
 
   sendCsv(res, `${label.replace(/[^a-z0-9]+/gi, '-')}-roster.csv`, [toCsvRow(header), ...rowLines, ...summaryRows]);
+});
+
+// A real request: "Co-op admin portal, attendance, class rosters. When
+// you click on each class it should show check in and out buttons, as
+// well as view lesson plan, view sub plan buttons." Same buttons as the
+// class QR code page (views/kiosk-class-checkin-attendance.ejs): Check
+// In/Out open the same barcode scan screen (views/kiosk-class-checkin-
+// scan.ejs, utils/classScan.js), coming back to this roster; View
+// Lesson Plan/View Substitute Plan are read-only, every status with its
+// badge (this is admin's own view, not the substitute's).
+const CLASS_SCAN_MODES = ['checkin', 'checkout'];
+const classRosterHref = (classId) => `/admin/rosters?tab=class-${classId}`;
+
+router.get('/rosters/classes/:id/scan', requireAdmin, async (req, res) => {
+  const cls = await classRosterInfo(parseInt(req.params.id, 10));
+  if (!cls) return res.redirect('/admin/rosters?tab=classes');
+  const mode = CLASS_SCAN_MODES.includes(req.query.mode) ? req.query.mode : 'checkin';
+  res.render('kiosk-class-checkin-scan', {
+    title: `${mode === 'checkout' ? 'Check Out' : 'Check In'} - ${cls.class_name}`,
+    mode,
+    dateLabel: formatDateLong(todayISO()),
+    heading: cls.class_name,
+    scanBaseUrl: `/admin/rosters/classes/${cls.id}`,
+    // from=manage: opened from the class page's own Attendance tab
+    // (views/admin-class-schedule-manage.ejs), so it goes back there.
+    completeUrl: req.query.from === 'manage' ? `/admin/class-schedule/classes/${cls.id}/manage?tab=attendance` : classRosterHref(cls.id),
+  });
+});
+
+router.post('/rosters/classes/:id/scan/checkin', requireAdmin, async (req, res) => {
+  res.json(await classScanCheckIn(parseInt(req.params.id, 10), req.body.barcode, 'admin_class_checkin'));
+});
+
+router.post('/rosters/classes/:id/scan/checkout', requireAdmin, async (req, res) => {
+  res.json(await classScanCheckOut(parseInt(req.params.id, 10), req.body.barcode));
+});
+
+router.get('/rosters/classes/:id/view-lesson-plan', requireAdmin, async (req, res) => {
+  const cls = await classRosterInfo(parseInt(req.params.id, 10));
+  if (!cls) return res.redirect('/admin/rosters?tab=classes');
+  res.render('admin-class-view-plan', {
+    title: `${cls.class_name} Lesson Plan`,
+    cls,
+    kind: 'lesson',
+    backHref: classRosterHref(cls.id),
+    lessons: await lessonPlanSummary(cls.id, { approvedOnly: false }),
+  });
+});
+
+router.get('/rosters/classes/:id/view-substitute-plan', requireAdmin, async (req, res) => {
+  const cls = await classRosterInfo(parseInt(req.params.id, 10));
+  if (!cls) return res.redirect('/admin/rosters?tab=classes');
+  res.render('admin-class-view-plan', {
+    title: `${cls.class_name} Substitute Plan`,
+    cls,
+    kind: 'substitute',
+    backHref: classRosterHref(cls.id),
+    plans: await substitutePlansForClass(cls.id),
+  });
 });
 
 module.exports = router;

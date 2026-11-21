@@ -545,3 +545,38 @@ test('reject (message required) -> teacher sees it, edits and resubmits -> Submi
   const rejectApproved = await submitForm(cookie, `/admin/teachers/reimbursements/${id}/reject`, { _csrf: csrfToken, message: 'too late' });
   assert.equal(rejectApproved.status, 400, 'only a Submitted form can be rejected');
 });
+
+// A real request: "teacher reimbursement form page. Should show an actual
+// preview of the form line by line under preview."
+test('Edit Reimbursement Form: the Preview shows the real form, field by field, read-only', async () => {
+  const { cookie } = await loginAsAdmin();
+  const page = await request(app).get('/admin/teachers/reimbursements/form-settings').set('Cookie', cookie);
+  assert.equal(page.status, 200);
+  const preview = page.text.slice(page.text.indexOf('class="reimbursement-form-preview"'), page.text.indexOf('Links to the form:'));
+  const order = ['data-preview="title"', '>Name', '>Semester', '>Day of Co-op', '>Class', 'Items Purchased', 'What did you buy?', 'Total:', 'Receipts', 'up to 5MB each', 'Submit for Reimbursement'];
+  let at = -1;
+  for (const piece of order) {
+    const i = preview.indexOf(piece, at + 1);
+    assert.ok(i > at, `"${piece}" appears in order in the preview`);
+    at = i;
+  }
+  assert.match(preview, /class="reimbursement-form" inert/, 'read-only');
+  assert.doesNotMatch(preview, /<form/, 'the preview is not a real form');
+  assert.match(preview, /<select disabled>/);
+});
+
+// A real request: "Teacher portal, reimbursement the icon dollar sign is
+// backwards. It should be flipped. When teacher is viewing their
+// reimbursement it drifts off the page on mobile."
+test('Teacher reimbursements: dollar icon flipped; tables stack/wrap on phones', () => {
+  const sprite = fs.readFileSync(path.join(__dirname, '..', 'views', 'partials', 'icon-sprite.ejs'), 'utf8');
+  const coin = sprite.slice(sprite.indexOf('id="icon-coin"'), sprite.indexOf('</symbol>', sprite.indexOf('id="icon-coin"')));
+  assert.match(coin, /<path transform="matrix\(-1 0 0 1 24 0\)"/, 'the S is flipped left-to-right');
+  for (const view of ['teacher-reimbursements.ejs', 'teacher-reimbursements-class.ejs', 'partials/class-fees-table.ejs']) {
+    const s = fs.readFileSync(path.join(__dirname, '..', 'views', view), 'utf8');
+    assert.match(s, /table-stack-mobile/, `${view} stacks on phones`);
+    assert.match(s, /data-label="Status"|data-label="Leftover"/, `${view} labels its cells`);
+  }
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'styles.css'), 'utf8');
+  assert.match(css, /\.reimbursement-items-table td:first-child \{ white-space: normal;/);
+});

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Co-op Teacher Portal' }) %>
+  <%# Attendance > class > View Substitute Plan - read-only, every status with
+      its approval badge (this is the teacher's own class). %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p><a href="/teacher/classes/<%= cls.id %>/attendance">&larr; Back to <%= cls.class_name %> Attendance</a></p>
+    <h1><%= cls.class_name %> Substitute Plan</h1>
+    <%- include('partials/substitute-plan-readonly', { plans, showStatus: true }) %>
+  </main>
+</body>
+</html>

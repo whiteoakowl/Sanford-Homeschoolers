@@ -537,3 +537,25 @@ test('Orientation Settings: linking a Training to a column makes that column hea
   const afterClear = await request(app).get('/admin/orientation').set('Cookie', admin.cookie);
   assert.doesNotMatch(afterClear.text, new RegExp(`<a href="/admin/training/${trainingId}/builder"`));
 });
+
+// A real request: "Orientation tracking page. Add an export, print and pdf
+// icons to this page."
+test('Orientation Tracking: Export CSV, Print and PDF icons cover the listed families', async () => {
+  const admin = await loginAsAdmin();
+  await createFamilyWithEnrolledStudent('monday', { parentName: 'Export Orientation Parent' });
+
+  const page = await request(app).get('/admin/orientation?semesterId=none').set('Cookie', admin.cookie);
+  assert.match(page.text, /href="\/admin\/orientation\/export\.csv\?semesterId=none" aria-label="Export CSV"/);
+  assert.match(page.text, /href="\/admin\/orientation\/print\?semesterId=none" target="_blank" aria-label="Print"/);
+  assert.match(page.text, /href="\/admin\/orientation\/download\.pdf\?semesterId=none" aria-label="Download PDF"/);
+
+  const csv = await request(app).get('/admin/orientation/export.csv?semesterId=none').set('Cookie', admin.cookie);
+  assert.equal(csv.status, 200);
+  assert.match(csv.text, /"Member","Day","Parent Orientation","Teacher Orientation","Tour","Open House","% Complete","Date Completed","Children"/);
+  assert.match(csv.text, /Export Orientation Parent/);
+
+  const print = await request(app).get('/admin/orientation/print?semesterId=none').set('Cookie', admin.cookie);
+  assert.equal(print.status, 200);
+  assert.match(print.text, /Export Orientation Parent/);
+  assert.match(print.text, /Orientation Tracking &mdash; All Semesters/);
+});

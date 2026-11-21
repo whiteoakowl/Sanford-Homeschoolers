@@ -136,7 +136,41 @@
     // breakpoint - on a narrow mobile layout that box can be too narrow
     // for its text at the normal font size, wrapping "Log in" onto a
     // second line instead of shrinking to fit the one it has.
-    document.querySelectorAll('.class-card-header h3, .class-schedule-room-name, .grade-level-report-col-title, .grade-level-bar-label, .grade-level-report-name, .wx-el-login .wx-btn').forEach(shrinkToFit);
+    //
+    // A real request: "Shrink to fit 6 columns on the schedule grid for
+    // mobile. Make sure you can still read the class name, grades and
+    // teacher name" - and "No, hyphenating." On a phone the Class Schedule
+    // grid's class name, grade and teacher lines wrap only BETWEEN words
+    // (never splitting or hyphenating one), shrinking only as far as the
+    // longest single word needs to fit the column whole (wrapWordsToFit);
+    // the sideways room name is left to CSS.
+    var phoneGrid = window.matchMedia && window.matchMedia('(max-width: 480px)').matches;
+    document.querySelectorAll('.class-card-header h3, .class-schedule-room-name, .grade-level-report-col-title, .grade-level-bar-label, .grade-level-report-name, .wx-el-login .wx-btn').forEach(function (el) {
+      if (phoneGrid && el.closest('.class-schedule-room-grid')) {
+        if (el.classList.contains('class-schedule-room-name')) {
+          el.style.fontSize = '';
+          el.style.whiteSpace = '';
+          el.style.overflowWrap = '';
+        } else {
+          wrapWordsToFit(el);
+        }
+      } else {
+        shrinkToFit(el);
+      }
+    });
+    if (phoneGrid) document.querySelectorAll('.class-schedule-room-grid .class-card-line').forEach(wrapWordsToFit);
+  }
+
+  var WORD_MIN_FONT_SIZE_PX = 6;
+  function wrapWordsToFit(el) {
+    el.style.fontSize = '';
+    el.style.whiteSpace = 'normal';
+    el.style.overflowWrap = 'normal';
+    var fontSize = parseFloat(getComputedStyle(el).fontSize);
+    while (el.scrollWidth > el.clientWidth && fontSize > WORD_MIN_FONT_SIZE_PX) {
+      fontSize -= 0.5;
+      el.style.fontSize = fontSize + 'px';
+    }
   }
 
   // document.fonts.ready, not a plain 'load' listener - same reasoning as

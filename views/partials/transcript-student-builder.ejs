@@ -8,13 +8,19 @@
     Main Admin passes '/main-admin/family-school' - every action/print/
     download URL below is built from it so this partial never hardcodes
     which portal it's running in.
-    Locals: rec ({ child, builder, coopClassesBySemester, familyClasses }),
-    semesters, yearOptions, currentSchoolYearValue, gradeLetters, basePath. %>
+    Locals: rec ({ child, builder, details, coopClassesBySemester, familyClasses }),
+    semesters, yearOptions, currentSchoolYearValue, gradeLetters, courseLevels,
+    gradeLevels, basePath. %>
 <div class="manage-section">
   <div class="grid-box-header">
     <h2><%= rec.child.name %></h2>
     <div class="roster-btn-row no-print">
       <button type="button" class="roster-action-btn" onclick="document.getElementById('add-entry-dialog-<%= rec.child.id %>').showModal()">+ Add Class</button>
+      <%# A real request: "Transcripts should print like this... Make sure
+          the Transcript creations features and settings account for what
+          is on this Transcript image." Student/School Information, Grade
+          Level per school year, attendance, test scores, activities. %>
+      <button type="button" class="roster-action-btn" onclick="document.getElementById('transcript-details-dialog-<%= rec.child.id %>').showModal()"><svg class="icon"><use href="#icon-edit"/></svg> Transcript Details</button>
       <a class="icon-btn" href="<%= basePath %>/transcripts/<%= rec.child.id %>/print" target="_blank" aria-label="Print" title="Print"><svg class="icon"><use href="#icon-printer"/></svg></a>
       <a class="icon-btn" href="<%= basePath %>/transcripts/<%= rec.child.id %>/download.pdf" aria-label="Download PDF" title="Download PDF"><svg class="icon"><use href="#icon-pdf"/></svg></a>
     </div>
@@ -24,10 +30,10 @@
     <p class="roster-empty">No classes on this transcript yet.</p>
   <% } else { %>
     <% rec.builder.schoolYears.forEach(function(yr) { %>
-      <h3><%= yr.schoolYear %></h3>
+      <h3><%= yr.schoolYear %><% if (yr.gradeLevel) { %> <span class="hint">&middot; Grade Level: <%= yr.gradeLevel %></span><% } %></h3>
       <div class="roster-scroll">
         <table class="roster-table members-table condensed-table table-stack-mobile">
-          <thead><tr><th>Class</th><th>Credits</th><th>Grade</th><th></th></tr></thead>
+          <thead><tr><th>Class</th><th>Credits</th><th>Grade</th><th>Course Type</th><th></th></tr></thead>
           <tbody>
             <% yr.entries.forEach(function(e) { %>
               <tr>
@@ -37,6 +43,11 @@
                   <select name="gradeLetter" form="transcript-entry-<%= e.id %>">
                     <option value="">No grade yet</option>
                     <% gradeLetters.forEach(function(g) { %><option value="<%= g %>" <%= e.grade_letter === g ? 'selected' : '' %>><%= g %></option><% }); %>
+                  </select>
+                </td>
+                <td data-label="Course Type">
+                  <select name="courseLevel" form="transcript-entry-<%= e.id %>">
+                    <% courseLevels.forEach(function(cl) { %><option value="<%= cl[0] %>" <%= (e.course_level || '') === cl[0] ? 'selected' : '' %>><%= cl[1] %></option><% }); %>
                   </select>
                 </td>
                 <td class="roster-btn-row accounting-row-icons">
@@ -116,10 +127,69 @@
         <% gradeLetters.forEach(function(g) { %><option value="<%= g %>"><%= g %></option><% }); %>
       </select>
     </label>
+    <label>Course Type
+      <select name="courseLevel">
+        <% courseLevels.forEach(function(cl) { %><option value="<%= cl[0] %>"><%= cl[1] %></option><% }); %>
+      </select>
+    </label>
     <div class="notes-dialog-actions">
       <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
       <button type="submit" class="primary-btn">Add Class</button>
     </div>
     <script type="application/json" data-transcript-coop-data><%- JSON.stringify(rec.coopClassesBySemester).replace(/</g, '\\u003c') %></script>
+  </form>
+</dialog>
+
+<% var td = rec.details; %>
+<dialog id="transcript-details-dialog-<%= rec.child.id %>" class="class-form-dialog">
+  <form method="POST" action="<%= basePath %>/transcripts/<%= rec.child.id %>/details" class="stack-form">
+    <div class="class-form-dialog-header">
+      <span class="class-form-dialog-icon"><svg class="icon"><use href="#icon-book"/></svg></span>
+      <h3>Transcript Details &middot; <%= rec.child.name %></h3>
+    </div>
+    <p class="hint">Blank contact fields use the member's (or primary parent's) own details.</p>
+    <fieldset class="transcript-details-group">
+      <legend>Student Information</legend>
+      <label>Address <input type="text" name="studentAddress" value="<%= td.saved.student_address || '' %>" placeholder="<%= td.studentAddress %>" /></label>
+      <label>Phone <input type="tel" name="studentPhone" value="<%= td.saved.student_phone || '' %>" placeholder="<%= td.studentPhone %>" /></label>
+      <label>Email <input type="email" name="studentEmail" value="<%= td.saved.student_email || '' %>" placeholder="<%= td.studentEmail %>" /></label>
+      <label>Date of Birth <input type="date" name="birthday" value="<%= td.birthday %>" /></label>
+      <label>Graduation Date <input type="date" name="graduationDate" value="<%= td.graduationDate %>" /></label>
+    </fieldset>
+    <fieldset class="transcript-details-group">
+      <legend>School Information</legend>
+      <label>School Name <input type="text" name="schoolName" value="<%= td.savedSchool.school_name || '' %>" placeholder="<%= td.schoolName %>" /></label>
+      <label>Address <input type="text" name="schoolAddress" value="<%= td.savedSchool.school_address || '' %>" placeholder="<%= td.schoolAddress %>" /></label>
+      <label>Phone <input type="tel" name="schoolPhone" value="<%= td.savedSchool.school_phone || '' %>" placeholder="<%= td.schoolPhone %>" /></label>
+      <label>Email <input type="email" name="schoolEmail" value="<%= td.savedSchool.school_email || '' %>" placeholder="<%= td.schoolEmail %>" /></label>
+    </fieldset>
+    <% if (rec.builder.schoolYears.length) { %>
+      <fieldset class="transcript-details-group">
+        <legend>Grade Level by School Year</legend>
+        <% rec.builder.schoolYears.forEach(function(yr) { %>
+          <label><%= yr.schoolYear %>
+            <select name="gradeLevel[<%= yr.schoolYear %>]">
+              <option value="">&mdash;</option>
+              <% gradeLevels.forEach(function(g) { %><option value="<%= g %>" <%= yr.gradeLevel === g ? 'selected' : '' %>><%= g %></option><% }); %>
+            </select>
+          </label>
+        <% }); %>
+      </fieldset>
+    <% } %>
+    <fieldset class="transcript-details-group">
+      <legend>Academic Summary &amp; More</legend>
+      <label>Attendance <input type="text" name="attendance" value="<%= td.attendance %>" placeholder="e.g. 180 days per year" /></label>
+      <label>Test Scores <span class="hint">(one per line, e.g. SAT: 1400)</span>
+        <textarea name="testScores" rows="3"><%= td.testScores %></textarea>
+      </label>
+      <label>Activities &amp; Awards <span class="hint">(one per line)</span>
+        <textarea name="activities" rows="3"><%= td.activities %></textarea>
+      </label>
+      <label>Diploma <input type="text" name="diplomaName" value="<%= td.saved.diploma_name || '' %>" placeholder="High School Diploma" /></label>
+    </fieldset>
+    <div class="notes-dialog-actions">
+      <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+      <button type="submit" class="primary-btn">Save Details</button>
+    </div>
   </form>
 </dialog>

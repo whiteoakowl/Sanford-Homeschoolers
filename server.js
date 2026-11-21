@@ -496,6 +496,7 @@ app.use('/kiosk/class-checkin', kioskClassCheckinRouter);
 app.use('/', require('./middleware/csrfProtection'));
 app.use('/', portalAuthRouter);
 app.use('/parent/support', parentSupportRouter);
+app.use('/parent/teacher-interest', require('./routes/parent-teacher-interest'));
 app.use('/parent', parentPortalRouter);
 app.use('/parent', parentFamilySchoolRouter);
 // Mounted at the bare root, not under /parent or /student - see
@@ -600,7 +601,11 @@ app.use('/', trainingRouter);
 // subpage badge (views/partials/admin-nav.ejs) - GET page renders only.
 app.use('/admin', async (req, res, next) => {
   if (req.method === 'GET' && res.locals.isFullAdmin) {
-    res.locals.pendingLessonApprovalCount = await pendingLessonApprovalCount();
+    // A nav badge count must never take the whole page down with it.
+    const safeCount = (fn) => fn().catch((err) => { console.error('Admin nav badge count failed:', err.message); return 0; });
+    res.locals.pendingLessonApprovalCount = await safeCount(pendingLessonApprovalCount);
+    res.locals.pendingCoopWithdrawCount = await safeCount(require('./utils/coopWithdrawal').pendingCount);
+    res.locals.pendingScheduleChangeCount = await safeCount(require('./utils/scheduleChange').pendingCount);
   }
   next();
 });
@@ -610,6 +615,9 @@ app.use('/admin', adminRostersRouter);
 app.use('/admin', adminLogsRouter);
 app.use('/admin', adminVolunteersRouter);
 app.use('/admin', adminSubstitutesRouter);
+app.use('/admin', require('./routes/admin-teacher-interest'));
+app.use('/admin', require('./routes/admin-coop-withdraw'));
+app.use('/admin', require('./routes/admin-schedule-change'));
 app.use('/admin', adminTeachersRouter);
 app.use('/admin', adminSetupRouter);
 app.use('/admin', adminTrainingRouter);

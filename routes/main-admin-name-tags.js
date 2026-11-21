@@ -937,7 +937,7 @@ router.post('/print-classcheckin-qr', async (req, res) => {
     }));
 
   res.render('main-admin-classcheckin-qr-print', {
-    title: 'Print Class Check-In QR Codes',
+    title: 'Print QR Codes for Classes',
     pages: chunkQrPages(pages),
   });
 });
@@ -986,7 +986,7 @@ router.get('/print-classcheckin-qr/download.pdf', async (req, res) => {
     }));
 
   const pdf = await renderViewToPdf(req, 'main-admin-classcheckin-qr-print', {
-    title: 'Print Class Check-In QR Codes',
+    title: 'Print QR Codes for Classes',
     pages: chunkQrPages(pages),
     isFullAdmin: false,
   });

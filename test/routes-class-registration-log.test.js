@@ -110,15 +110,18 @@ test('Co-op Admin Classes > Class Registration Log (tab=classregistrationlog)', 
     assert.match(bobRow, /"Waitlisted"/);
   });
 
-  await t.test('the on-screen log groups by date, then by family', async () => {
+  // A later real request ("Class Registration log should look like
+  // this") replaced the date -> family grouping with one flat table, one
+  // row per registration showing its current status.
+  await t.test('the on-screen log is one table: each registration with its current status', async () => {
     const res = await request(app).get('/admin/schedule?tab=classregistrationlog').set('Cookie', cookie);
     assert.equal(res.status, 200);
-    assert.match(res.text, /Class Registration Log/);
-    assert.match(res.text, /Andy Anderson/);
-    assert.match(res.text, /Alice Anderson/);
-    assert.match(res.text, /Bob Baker/);
-    assert.match(res.text, /Anderson Family/);
-    assert.match(res.text, /Baker Family/);
+    assert.match(res.text, /alt="Class Registration Log/);
+    assert.match(res.text, /<table class="crl-table">/);
+    const rowOf = (name) => res.text.split('<tr>').map((r) => r.split('</tr>')[0]).find((r) => r.includes(name));
+    assert.match(rowOf('Andy Anderson'), /crl-status-cancelled/);
+    assert.match(rowOf('Alice Anderson'), /crl-status-confirmed/);
+    assert.match(rowOf('Bob Baker'), /crl-status-waitlisted/);
   });
 
   await t.test('the date filter narrows the log to just that date', async () => {

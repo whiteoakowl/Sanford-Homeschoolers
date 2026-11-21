@@ -121,8 +121,7 @@ test('the Classes tab Day filter and Playground tab list Tuesday once activated,
 
   const playgroundPage = await request(app).get('/admin/rosters?tab=playground').set('Cookie', admin.cookie);
   assert.equal(playgroundPage.status, 200);
-  assert.match(playgroundPage.text, /Tuesday<\/h3>/);
-  assert.match(playgroundPage.text, /tab=playground-tuesday-1/);
+  assert.match(playgroundPage.text, /<option value="tuesday"[^>]*>Tuesday<\/option>/, "the Playground Roster's Day filter offers Tuesday");
 
   const playgroundLog = await request(app).get('/admin/rosters?tab=playground-tuesday-1').set('Cookie', admin.cookie);
   assert.equal(playgroundLog.status, 200);

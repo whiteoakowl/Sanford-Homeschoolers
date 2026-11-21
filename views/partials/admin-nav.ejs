@@ -63,7 +63,7 @@
         // admin switches days from here now.
         { href: '/admin/rosters', label: 'Parent/Student Rosters' },
         { href: '/admin/rosters?tab=classes', label: 'Class Rosters' },
-        { href: '/admin/rosters?tab=playground', label: 'Playground Check in/out' },
+        { href: '/admin/rosters?tab=playground', label: 'Playground Roster' },
       ] },
       // A real request: "it should be like other pages where the
       // subpages are an attached menu to the orange menu bar" - these two
@@ -101,6 +101,12 @@
         { href: '/admin/schedule?tab=classregistrationlog', label: 'Class Registration Log' },
         ...(isFullAdmin ? [
           { href: '/admin/schedule?tab=members', label: 'Member Schedules' },
+          // A real request: "On admin side shows up under classes subpage
+          // called co-op Withdraw" (routes/admin-coop-withdraw.js).
+          // A real request: "Make a schedule change request form. Should
+          // be listed under co-op classes. As a family list log."
+          { href: '/admin/schedule-changes', label: 'Schedule Change Requests', badge: typeof pendingScheduleChangeCount !== 'undefined' ? pendingScheduleChangeCount : 0 },
+          { href: '/admin/coop-withdraw', label: 'Co-op Withdraw', badge: typeof pendingCoopWithdrawCount !== 'undefined' ? pendingCoopWithdrawCount : 0 },
           { href: '/admin/schedule?tab=settings', label: 'Settings' },
         ] : []),
       ] },
@@ -115,28 +121,23 @@
       // GET /teachers and GET /teachers/assistants) - the group label
       // itself stays Teachers/Assistants, still an accurate umbrella name
       // for the group.
-      { href: '/admin/teachers', icon: 'user-check', label: 'Teachers/Assistants', mobileLabel: 'Teachers<br>Assistants', subpages: [
-        { href: '/admin/teachers', label: 'Teachers' },
-        { href: '/admin/teachers/assistants', label: 'Assistants' },
+      { href: '/admin/teachers', icon: 'user-check', match: '/admin/lesson-plans', label: 'Teachers/Assistants', mobileLabel: 'Teachers<br>Assistants', subpages: [
+        { href: '/admin/teachers', label: 'Teachers & Assistants' },
         { href: '/admin/teachers/instructor-profiles', label: 'Instructor Profiles' },
         { href: '/admin/teachers/reimbursements', label: 'Teacher Reimbursements' },
         { href: '/admin/teachers/class-fees', label: 'Class Fees' },
+        { href: '/admin/teachers/interest-form', label: 'Teacher Interest Form' },
+        // A real request: "Lesson plans tab should be deleted. Lesson plans
+        // sub page and Lesson plan approvals subpage should be under
+        // teacher/assistants tab." Still full-admin only (routes/admin-
+        // lesson-plans.js's own router.use(requireFullAdmin)).
+        ...(isFullAdmin ? [
+          { href: '/admin/lesson-plans', label: 'Lesson Plans' },
+          { href: '/admin/lesson-plans/approval', label: 'Lesson Plan Approval', badge: typeof pendingLessonApprovalCount !== 'undefined' ? pendingLessonApprovalCount : 0 },
+        ] : []),
       ] },
-      // A real request: "Co-op admin portal add a tab called lesson
-      // plans... Admins can create lessons plans and assign them to a
-      // class to be used as an option." A reusable template library,
-      // separate from any one class's own Lessons tab (routes/admin-
-      // lesson-plans.js) - full-admin-only (routes/admin-lesson-plans.js's
-      // own router.use(requireFullAdmin)), same gate Settings above the
-      // Classes group already applies.
-      // A later real request: "Add a page under lesson plans tab called
-      // lesson plan approval" - teacher-submitted class lessons wait
-      // there for a Co-op Admin's approval (routes/admin-lesson-plans.js).
-      // `badge` is the pending count (server.js's own /admin middleware).
-      ...(isFullAdmin ? [{ href: '/admin/lesson-plans', icon: 'clipboard-list', label: 'Lesson Plans', mobileLabel: 'Lesson<br>Plans', subpages: [
-        { href: '/admin/lesson-plans', label: 'Lesson Plans' },
-        { href: '/admin/lesson-plans/approval', label: 'Lesson Plan Approval', badge: typeof pendingLessonApprovalCount !== 'undefined' ? pendingLessonApprovalCount : 0 },
-      ] }] : []),
+      // The old Lesson Plans tab (its Lesson Plans and Lesson Plan
+      // Approval subpages) now lives under Teachers/Assistants above.
       { href: '/admin/logs', icon: 'clipboard-list', label: 'Logs', subpages: [
         // Same bug/fix as Classes' own identical comment above - GET
         // /admin/logs with no ?tab= renders the Absence/Late tab

@@ -81,8 +81,12 @@ router.post('/login', async (req, res) => {
   res.redirect(account.status === 'suspended' ? '/accounting?locked=1' : next);
 });
 
+// A real request: "When you log out of website it should go back to the
+// homepage" - the public homepage at /. Training opened from a portal
+// signs out with it.
 router.post('/logout', (req, res) => {
   req.session.portalAccountId = null;
+  req.session.trainingMemberId = null;
   res.redirect('/');
 });
 

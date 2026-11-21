@@ -38,6 +38,11 @@ function daysForSemester(semesterId) {
   </form>
 </section>
 
+<%# A real request: an archive icon on each semester, an "are you sure"
+    popup, Unarchive, and a way to view an archived semester. Archived
+    semesters are listed separately below the active ones. %>
+<% var archivedSemesters = semesters.filter(function(s) { return s.archived_at; }); %>
+<% semesters = semesters.filter(function(s) { return !s.archived_at; }); %>
 <section class="portal-dashboard-section">
   <% if (semesters.length === 0) { %>
     <p class="roster-empty">No semesters yet.</p>
@@ -55,7 +60,11 @@ function daysForSemester(semesterId) {
                 <button type="button" class="semester-title-btn" data-semester-edit-toggle="semester-edit-<%= s.id %>"><%= s.title %></button>
               </td>
               <td class="hint"><%= semesterDays.length ? semesterDays.map(function(d){ return classDayLabels[d]; }).join(', ') : 'No days yet' %></td>
-              <td>
+              <td class="semester-actions-col">
+                <form method="POST" action="/admin/schedule/semesters/<%= s.id %>/archive" class="inline-block-form" data-confirm="Are you sure you want to archive the &quot;<%= s.title %>&quot; semester? All classes, rosters, class chats, and registration will be archived for this semester and will not show up on ANY portals. You can unarchive it at any time." data-confirm-icon="icon-archive" data-confirm-yes-label="Yes, Archive">
+                  <input type="hidden" name="back" value="<%= semesterBackUrl %>" />
+                  <button type="submit" class="icon-btn" aria-label="Archive <%= s.title %>" title="Archive"><svg class="icon"><use href="#icon-archive"/></svg></button>
+                </form>
                 <form method="POST" action="/admin/schedule/semesters/<%= s.id %>/delete" data-confirm="Are you sure you want to delete the &quot;<%= s.title %>&quot; semester? This action can&#39;t be reversed. Its Floater Assignments, Setup/Cleanup Teams, Task Lists, and Day Settings schedules will be permanently deleted too - classes assigned to it will just show No Semester.">
                   <input type="hidden" name="back" value="<%= semesterBackUrl %>" />
                   <button type="submit" class="icon-btn icon-btn-danger" aria-label="Delete <%= s.title %>" title="Delete"><svg class="icon"><use href="#icon-trash"/></svg></button>
@@ -93,4 +102,31 @@ function daysForSemester(semesterId) {
     </div>
   <% } %>
 </section>
+
+<% if (archivedSemesters.length) { %>
+<section class="portal-dashboard-section archived-semesters">
+  <h2><svg class="icon"><use href="#icon-archive"/></svg> Archived Semesters</h2>
+  <p class="hint">Hidden from every portal. View one to see its classes, rosters, chats and registrations, or unarchive it to bring everything back.</p>
+  <div class="roster-scroll">
+    <table class="roster-table members-table condensed-table semester-list-table">
+      <thead><tr><th>Title</th><th>Archived</th><th></th></tr></thead>
+      <tbody>
+        <% archivedSemesters.forEach(function(s) { %>
+          <tr>
+            <td class="roster-name-col"><%= s.title %> <span class="badge-pill badge-pill-gray">Archived</span></td>
+            <td class="hint"><%= s.archivedAtLabel || s.archived_at.slice(0, 10) %></td>
+            <td class="semester-actions-col">
+              <a class="btn-secondary" href="/admin/schedule/semesters/<%= s.id %>/archive">View</a>
+              <form method="POST" action="/admin/schedule/semesters/<%= s.id %>/unarchive" class="inline-block-form" data-confirm="Unarchive the &quot;<%= s.title %>&quot; semester? Its classes, rosters, class chats and registrations will show on every portal again." data-confirm-icon="icon-archive" data-confirm-safe="1" data-confirm-yes-label="Yes, Unarchive">
+                <input type="hidden" name="back" value="<%= semesterBackUrl %>" />
+                <button type="submit" class="btn-secondary" aria-label="Unarchive <%= s.title %>">Unarchive</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</section>
+<% } %>
 <script src="/js/semester-manager.js"></script>

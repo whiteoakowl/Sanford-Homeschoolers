@@ -92,3 +92,19 @@ test('public Events calendar: Download PDF is a real PDF of the same print previ
   assert.match(pdfRes.headers['content-disposition'], /attachment; filename="events\.pdf"/);
   assert.equal(pdfRes.body.slice(0, 5).toString(), '%PDF-');
 });
+
+// A real request: "Parent portal event calendar. The export, pdf and print
+// icons should be in a row side by side, not a column" - the icon row uses
+// .class-schedule-icon-row, which keeps icons on one line on phones
+// instead of the mobile toolbar grid (one column for icon-only rows).
+test('Events calendar: Export/Print/PDF icons sit in a one-line icon row (calendar and list view)', async () => {
+  for (const view of ['calendar', 'list']) {
+    const res = await request(app).get(`/events?view=${view}&portal=parent`);
+    assert.equal(res.status, 200);
+    const row = /<div class="roster-btn-row([^"]*)">(?:(?!<div class="roster-btn-row)[\s\S])*?aria-label="Export CSV"/.exec(res.text);
+    assert.ok(row, `${view}: the Export icon is inside a toolbar row`);
+    assert.match(row[1], /class-schedule-icon-row/, `${view}: that row is the one-line icon row`);
+  }
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'styles.css'), 'utf8');
+  assert.match(css, /\.roster-btn-row\.class-schedule-icon-row \{\s*display: flex;\s*flex-wrap: nowrap;/);
+});

@@ -186,6 +186,10 @@ async function leaveClassAsStaff({ classId, member, accountId }) {
 async function registerForClass({ classId, studentId, accountId, portalRoles, registrantType }) {
   const cls = await db.prepare('SELECT * FROM classes WHERE id = ?').get(classId);
   if (!cls || !cls.registration_open) return { ok: false, error: 'Registration is not open for that class.' };
+  // An archived semester's classes take no new registrations.
+  if (cls.semester_id != null && (await db.prepare('SELECT 1 FROM semesters WHERE id = ? AND archived_at IS NOT NULL').get(cls.semester_id))) {
+    return { ok: false, error: 'Registration is not open for that class.' };
+  }
   // A real request: "Check box to lock grid to be viewable to members...
   // if these boxes aren't checked then members... can't register."
   const grid = await primaryClassScheduleForClass(cls);
@@ -234,7 +238,9 @@ async function registerForClass({ classId, studentId, accountId, portalRoles, re
   // a given class, e.g. showing an age range for information only while
   // registration only checks grade.
   const allowedGrades = ageGroupList(cls.age_group);
-  if (cls.lock_by_grade && allowedGrades.length && !allowedGrades.includes(student.grade_level)) {
+  // "Lock all classes by grade/age" (Co-op Class Settings) overrides the
+  // class's own Lock class by grade/age box.
+  if ((cls.lock_by_grade || settings.defaultLockByGrade) && allowedGrades.length && !allowedGrades.includes(student.grade_level)) {
     return { ok: false, error: `${student.name} isn't in an eligible grade level for this class.` };
   }
   // A real request: "grade selection and age selection should be
@@ -243,7 +249,7 @@ async function registerForClass({ classId, studentId, accountId, portalRoles, re
   // both gates must pass" shape utils/events.js's own ageGroupAllowsMember/
   // ageBucketAllowsMember pair already uses.
   const allowedAges = ageGroupList(cls.numeric_ages);
-  if (cls.lock_by_age && allowedAges.length) {
+  if ((cls.lock_by_age || settings.defaultLockByAge) && allowedAges.length) {
     const age = ageAsOfDate(student.birthday, ageReferenceDateForClass(cls, settings));
     if (age == null || !allowedAges.includes(String(age))) {
       return { ok: false, error: `${student.name} isn't an eligible age for this class.` };
@@ -443,6 +449,32 @@ async function adminRemoveStudentFromClass(classId, studentId, adminAccountId) {
   }
 }
 
+// Co-op Admin adding a student to a class (an approved Schedule Change
+// Request - utils/scheduleChange.js). Same registration row, charge and
+// waitlist rules as a parent's own registerForClass (the class's price/
+// invoice settings, waitlisted when full), without the registration-
+// window/eligibility gates - an admin approving it is the decision.
+async function adminAddStudentToClass(classId, studentId, adminAccountId) {
+  const cls = await db.prepare('SELECT * FROM classes WHERE id = ?').get(classId);
+  const student = await db.prepare('SELECT * FROM members WHERE id = ?').get(studentId);
+  if (!cls || !student) return { ok: false, error: 'Class or student not found.' };
+  if (await db.prepare('SELECT 1 FROM class_enrollments WHERE class_id = ? AND student_id = ?').get(classId, studentId)) {
+    return { ok: true, status: 'confirmed', already: true };
+  }
+  const enrolledCount = Number((await db.prepare('SELECT COUNT(*) AS c FROM class_enrollments WHERE class_id = ?').get(classId)).c);
+  const status = cls.capacity != null && enrolledCount >= cls.capacity ? 'waitlisted' : 'confirmed';
+  await db.withTransaction(async (tx) => {
+    const chargeId = status === 'confirmed' ? await chargeForConfirmedRegistration(tx, cls, student, adminAccountId) : null;
+    const waitlistPosition =
+      status === 'waitlisted' ? Number((await tx.prepare("SELECT COUNT(*) AS c FROM class_registrations WHERE class_id = ? AND status = 'waitlisted'").get(classId)).c) + 1 : null;
+    await tx
+      .prepare('INSERT INTO class_registrations (class_id, student_id, registered_by_account_id, status, waitlist_position, charge_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(classId, studentId, adminAccountId || null, status, waitlistPosition, chargeId);
+    if (status === 'confirmed') await tx.prepare('INSERT INTO class_enrollments (class_id, student_id) VALUES (?, ?) ON CONFLICT DO NOTHING').run(classId, studentId);
+  });
+  return { ok: true, status };
+}
+
 // A real request: "add a subapage called class registration log[,] setup
 // the same way as I described the new event log[:] record every time a
 // member registers for a class or cancels[,] organized by date and then
@@ -468,11 +500,13 @@ async function allClassRegistrationActions() {
     .prepare(
       `SELECT c.class_name AS "className", c.day AS "classDay",
               m.name AS "memberName", m.family_id AS "familyId", f.name AS "familyName",
-              cr.status, cr.created_at AS "createdAt", cr.cancelled_at AS "cancelledAt"
+              cr.status, cr.created_at AS "createdAt", cr.cancelled_at AS "cancelledAt",
+              (SELECT MIN(substr(cr2.created_at, 1, 10)) FROM class_registrations cr2 WHERE cr2.student_id = cr.student_id) AS "firstDate"
        FROM class_registrations cr
        JOIN classes c ON c.id = cr.class_id
        JOIN members m ON m.id = cr.student_id
-       LEFT JOIN families f ON f.id = m.family_id`
+       LEFT JOIN families f ON f.id = m.family_id
+       WHERE NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)`
     )
     .all();
 
@@ -488,6 +522,12 @@ async function allClassRegistrationActions() {
       actionLabel: r.status === 'waitlisted' ? 'Waitlisted' : 'Registered',
       date,
       dateLabel: formatDateLabel(date),
+      timeLabel: easternStamp(r.createdAt).timeLabel,
+      // A real request: "Show new next to members name if its the first
+      // class they have signed up for so we know that its a new family."
+      // Sign-ups from the day this member first signed up for any class
+      // (several picked at once all count) - never on a Cancelled row.
+      isNew: date === r.firstDate,
     });
     if (r.cancelledAt) {
       const cancelDate = r.cancelledAt.slice(0, 10);
@@ -500,6 +540,7 @@ async function allClassRegistrationActions() {
         actionLabel: 'Cancelled',
         date: cancelDate,
         dateLabel: formatDateLabel(cancelDate),
+        timeLabel: easternStamp(r.cancelledAt).timeLabel,
       });
     }
   }
@@ -512,19 +553,117 @@ async function allClassRegistrationActions() {
   );
 }
 
-const CLASS_REGISTRATION_LOG_EXPORT_HEADER = ['Date', 'Family', 'Name', 'Class', 'Day', 'Action'];
+// A real request: "Class Registration log should look like this" - a
+// picture of one flat table (Student Name with a NEW pill, Class Name,
+// Status, Registered On, a trash Action), a search box, and Total/
+// Confirmed/Pending counts. One row per class_registrations entry (its
+// current status - Cancelled rows stay listed), newest first, shared by
+// Classes > Class Registration Log and Logs > Class Registration
+// (views/partials/class-registration-log.ejs). search matches the
+// student's or class's name; dateFilter is the day it was registered.
+// Eastern (the co-op's own clock) date and time of a stored UTC
+// 'YYYY-MM-DD HH:MM:SS' - e.g. { date: '2026-08-19', dateLabel: 'Aug 19,
+// 2026', timeLabel: '9:47 PM' }.
+const EASTERN_PARTS = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+const EASTERN_ISO = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+function easternStamp(sqlTimestamp) {
+  const d = new Date(String(sqlTimestamp).replace(' ', 'T') + 'Z');
+  const parts = {};
+  for (const p of EASTERN_PARTS.formatToParts(d)) parts[p.type] = p.value;
+  return { date: EASTERN_ISO.format(d), dateLabel: `${parts.month} ${parts.day}, ${parts.year}`, timeLabel: `${parts.hour}:${parts.minute} ${parts.dayPeriod}` };
+}
+
+// opts.semesterId: just that semester's registrations, archived or not
+// (the archived semester's own View page); otherwise archived semesters'
+// registrations are left out.
+async function classRegistrationLogRows({ dateFilter = '', search = '' } = {}, opts = {}) {
+  const rows = await db
+    .prepare(
+      `SELECT cr.id, cr.class_id AS "classId", cr.student_id AS "studentId", cr.status, cr.created_at AS "createdAt",
+              m.name AS "memberName", m.family_id AS "familyId", f.name AS "familyName", c.class_name AS "className", c.day AS "classDay",
+              (SELECT MIN(cr2.created_at) FROM class_registrations cr2 WHERE cr2.student_id = cr.student_id) AS "firstAt"
+       FROM class_registrations cr
+       JOIN members m ON m.id = cr.student_id
+       LEFT JOIN families f ON f.id = m.family_id
+       JOIN classes c ON c.id = cr.class_id
+       WHERE ${opts.semesterId ? 'c.semester_id = ' + Number(opts.semesterId) : `NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)`}
+       ORDER BY cr.created_at DESC, cr.id DESC`
+    )
+    .all();
+  const needle = String(search || '').trim().toLowerCase();
+  return rows
+    .map((r) => {
+      const stamp = easternStamp(r.createdAt);
+      return {
+        id: r.id,
+        classId: r.classId,
+        studentId: r.studentId,
+        memberName: r.memberName,
+        familyId: r.familyId,
+        familyName: r.familyName,
+        className: r.className,
+        classDayLabel: CLASS_DAY_LABELS_FULL[r.classDay] || r.classDay,
+        status: r.status,
+        statusLabel: r.status === 'waitlisted' ? 'Waitlisted' : r.status === 'cancelled' ? 'Cancelled' : 'Confirmed',
+        createdAt: r.createdAt,
+        date: stamp.date,
+        registeredOnLabel: stamp.dateLabel,
+        registeredAtLabel: stamp.timeLabel,
+        // Every sign-up from the (Eastern) day this member first signed up.
+        isNew: stamp.date === easternStamp(r.firstAt).date,
+      };
+    })
+    .filter(
+      (r) =>
+        (!dateFilter || r.date === dateFilter) &&
+        (!needle || r.memberName.toLowerCase().includes(needle) || r.className.toLowerCase().includes(needle) || (r.familyName || '').toLowerCase().includes(needle))
+    );
+}
+
+// A real request: "It should still be organized by family, order is based
+// on newest registration. Family dropdown shows their log based on date."
+// rows arrive newest first, so each family's first row is its newest and
+// families stay in newest-registration order; within a family, newest
+// first. A member with no family is a family of one.
+function groupClassRegistrationLogByFamily(rows) {
+  const families = new Map();
+  for (const r of rows) {
+    const key = r.familyId != null ? `f${r.familyId}` : `m${r.studentId}`;
+    if (!families.has(key)) {
+      families.set(key, { key, familyName: r.familyName || r.memberName, latestOnLabel: r.registeredOnLabel, latestAtLabel: r.registeredAtLabel, rows: [] });
+    }
+    families.get(key).rows.push(r);
+  }
+  return Array.from(families.values()).map((f) => ({ ...f, hasNew: f.rows.some((r) => r.isNew), memberCount: new Set(f.rows.map((r) => r.studentId)).size }));
+}
+
+function classRegistrationLogCounts(rows) {
+  return {
+    total: rows.length,
+    confirmed: rows.filter((r) => r.status === 'confirmed').length,
+    waitlisted: rows.filter((r) => r.status === 'waitlisted').length,
+    cancelled: rows.filter((r) => r.status === 'cancelled').length,
+  };
+}
+
+const CLASS_REGISTRATION_LOG_EXPORT_HEADER = ['Date', 'Time', 'Family', 'Name', 'New', 'Class', 'Day', 'Action'];
 
 function buildClassRegistrationLogExportCsvLines(actions) {
   return [
     toCsvRow(CLASS_REGISTRATION_LOG_EXPORT_HEADER),
-    ...actions.map((a) => toCsvRow([a.dateLabel, a.familyName || '', a.memberName, a.className, a.classDayLabel, a.actionLabel])),
+    ...actions.map((a) => toCsvRow([a.dateLabel, a.timeLabel || '', a.familyName || '', a.memberName, a.isNew ? 'New' : '', a.className, a.classDayLabel, a.actionLabel])),
   ];
 }
 
 module.exports = {
+  easternStamp,
+  classRegistrationLogRows,
+  classRegistrationLogCounts,
+  groupClassRegistrationLogByFamily,
   registerForClass,
   unregisterFromClass,
   adminRemoveStudentFromClass,
+  adminAddStudentToClass,
   joinClassAsStaff,
   leaveClassAsStaff,
   staffCountsForClass,

@@ -93,7 +93,7 @@ test('Teachers list: alphabetical by last name, every member (including a single
 
   const res = await request(app).get('/admin/teachers').set('Cookie', cookie);
   assert.equal(res.status, 200);
-  assert.match(res.text, />Teachers</, 'the page heading should read Teachers');
+  assert.match(res.text, /class="day-toggle-option active" href="\/admin\/teachers\?role=teacher[^"]*" aria-current="page">Teachers</, 'the Teachers pill is selected by default');
 
   // "Organized alphabetical by last name" - Apple before Zebra.
   assert.ok(res.text.indexOf('Bob Apple') < res.text.indexOf('Amy Zebra'), 'Bob Apple (last name Apple) should come before Amy Zebra (last name Zebra)');
@@ -105,22 +105,24 @@ test('Teachers list: alphabetical by last name, every member (including a single
   // multi-class member, just with one <li> once expanded.
   const zebraSection = res.text.slice(res.text.indexOf('Amy Zebra') - 150, res.text.indexOf('Amy Zebra') + 400);
   assert.match(zebraSection, /<details>/, 'a member with only one class should still get a collapsible dropdown');
-  assert.match(zebraSection, /1 class</, 'the summary should show a singular "1 class" count, not "1 classes"');
+  assert.match(zebraSection, /1 teaching</, 'the summary counts the classes they teach');
   assert.match(zebraSection, /Art/);
 
   // Multi-class member: real <details>/<summary> dropdown listing both
   // classes.
   const appleSection = res.text.slice(res.text.indexOf('Bob Apple') - 150, res.text.indexOf('Bob Apple') + 1200);
   assert.match(appleSection, /<details>/, 'a member staffed on more than one class should get a collapsible dropdown');
-  assert.match(appleSection, /2 classes</, 'the summary should show a plural "2 classes" count');
+  assert.match(appleSection, /2 teaching</, 'the summary counts both teaching classes');
   assert.match(appleSection, /Science/);
   assert.match(appleSection, /History/);
 });
 
-// A real request: "Teachers/assistants. Separate into two different
-// pages. One for assistants and one for teachers. Count the classes for
-// each member separately based off if they teach or assistant."
-test('Teachers and Assistants are two separate pages, each counting only its own role\'s classes', async () => {
+// A later real request: "teacher and assistant subpages are seperate and
+// should be combined, with a pill toggle to switch between teachers and
+// assistants. Teacher page when you click on a teacher and the dropdown
+// shows the classes they are teaching it will also show any classes they
+// are assisting in so that we know their full schedule."
+test('Teachers & Assistants: one page with a pill toggle; each dropdown shows the full schedule, tagged by role', async () => {
   const { cookie } = await loginAsAdmin();
 
   const bothId = await createMember('Dana Bothroles');
@@ -133,25 +135,27 @@ test('Teachers and Assistants are two separate pages, each counting only its own
 
   const teachersRes = await request(app).get('/admin/teachers').set('Cookie', cookie);
   assert.equal(teachersRes.status, 200);
-  assert.match(teachersRes.text, /Dana Bothroles/);
-  const teachersSection = teachersRes.text.slice(teachersRes.text.indexOf('Dana Bothroles') - 150, teachersRes.text.indexOf('Dana Bothroles') + 1000);
-  assert.match(teachersSection, /2 classes</, 'the Teachers page should only count this member\'s 2 teaching classes, not the assisting one too');
-  assert.match(teachersSection, /Teaches Alpha/);
-  assert.match(teachersSection, /Teaches Beta/);
-  assert.doesNotMatch(teachersSection, /Assists Gamma/, 'the assisting class should not appear on the Teachers page at all');
+  assert.match(teachersRes.text, /<h1>Teachers &amp; Assistants<\/h1>/);
+  assert.match(teachersRes.text, /href="\/admin\/teachers\?role=assistant[^"]*"[^>]*>Assistants</, 'the pill toggle offers Assistants');
+  const teachersSection = teachersRes.text.slice(teachersRes.text.indexOf('Dana Bothroles') - 150, teachersRes.text.indexOf('Dana Bothroles') + 2500);
+  assert.match(teachersSection, /2 teaching · 1 assisting</);
+  assert.match(teachersSection, /Teaches Alpha <span class="badge-pill badge-pill-blue">Teaching</);
+  assert.match(teachersSection, /Teaches Beta <span class="badge-pill badge-pill-blue">Teaching</);
+  assert.match(teachersSection, /Assists Gamma <span class="badge-pill badge-pill-purple">Assisting</, "the classes they assist are in the teacher's dropdown too");
 
-  const assistantsRes = await request(app).get('/admin/teachers/assistants').set('Cookie', cookie);
+  const assistantsRes = await request(app).get('/admin/teachers?role=assistant').set('Cookie', cookie);
   assert.equal(assistantsRes.status, 200);
-  assert.match(assistantsRes.text, />Assistants</, 'the page heading should read Assistants');
-  assert.match(assistantsRes.text, /Dana Bothroles/);
-  const assistantsSection = assistantsRes.text.slice(assistantsRes.text.indexOf('Dana Bothroles') - 150, assistantsRes.text.indexOf('Dana Bothroles') + 600);
-  assert.match(assistantsSection, /1 class</, 'the Assistants page should only count this member\'s 1 assisting class, not the teaching ones too');
-  assert.match(assistantsSection, /Assists Gamma/);
-  assert.doesNotMatch(assistantsSection, /Teaches Alpha/, 'the teaching classes should not appear on the Assistants page at all');
-  assert.doesNotMatch(assistantsSection, /Teaches Beta/);
+  assert.match(assistantsRes.text, /class="day-toggle-option active" href="\/admin\/teachers\?role=assistant[^"]*" aria-current="page">Assistants</);
+  const assistantsSection = assistantsRes.text.slice(assistantsRes.text.indexOf('Dana Bothroles') - 150, assistantsRes.text.indexOf('Dana Bothroles') + 2500);
+  assert.match(assistantsSection, /Assists Gamma <span class="badge-pill badge-pill-purple">Assisting</);
+
+  // The old Assistants address lands on the same page, Assistants selected.
+  const old = await request(app).get('/admin/teachers/assistants?semesterId=').set('Cookie', cookie);
+  assert.equal(old.status, 302);
+  assert.equal(old.headers.location, '/admin/teachers?role=assistant&semesterId=');
 });
 
-test('a member staffed ONLY as a teacher never appears on the Assistants page, and vice versa', async () => {
+test('a member staffed ONLY as a teacher never appears under Assistants, and vice versa', async () => {
   const { cookie } = await loginAsAdmin();
 
   const teacherOnlyId = await createMember('Teacher Only Person');
@@ -166,7 +170,7 @@ test('a member staffed ONLY as a teacher never appears on the Assistants page, a
   assert.match(teachersRes.text, /Teacher Only Person/);
   assert.doesNotMatch(teachersRes.text, /Assistant Only Person/);
 
-  const assistantsRes = await request(app).get('/admin/teachers/assistants').set('Cookie', cookie);
+  const assistantsRes = await request(app).get('/admin/teachers?role=assistant').set('Cookie', cookie);
   assert.match(assistantsRes.text, /Assistant Only Person/);
   assert.doesNotMatch(assistantsRes.text, /Teacher Only Person/);
 });
@@ -275,4 +279,21 @@ test('Instructor Profile edit form: saves email/phone/about me/qualifications + 
     assert.match(editPage.text, /555-1234/);
     assert.match(editPage.text, /I love teaching\./);
   });
+});
+
+// A real request: "Lesson plans tab should be deleted. Lesson plans sub
+// page and Lesson plan approvals subpage should be under teacher/
+// assistants tab."
+test('Lesson Plans and Lesson Plan Approval sit under Teachers/Assistants; no Lesson Plans tab', async () => {
+  const { cookie } = await loginAsAdmin();
+  const res = await request(app).get('/admin/lesson-plans').set('Cookie', cookie);
+  assert.equal(res.status, 200);
+  const groups = res.text.split('<details class="admin-nav-group">').slice(1);
+  const teachersGroup = groups.find((g) => g.includes('Teachers/Assistants'));
+  assert.ok(teachersGroup, 'the Teachers/Assistants group exists');
+  const teachersSubpages = teachersGroup.slice(0, teachersGroup.indexOf('</details>'));
+  assert.match(teachersSubpages, /href="\/admin\/lesson-plans">Lesson Plans</);
+  assert.match(teachersSubpages, /href="\/admin\/lesson-plans\/approval">Lesson Plan Approval/);
+  assert.ok(!groups.some((g) => /<summary>[\s\S]*?Lesson Plans <svg/.test(g.slice(0, g.indexOf('</summary>') + 10))), 'no Lesson Plans group of its own');
+  assert.match(res.text, /data-match="\/admin\/lesson-plans"/, "the phone bar's Teachers/Assistants button lights up on Lesson Plans pages");
 });

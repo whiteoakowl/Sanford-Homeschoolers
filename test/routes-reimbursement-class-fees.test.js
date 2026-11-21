@@ -161,7 +161,7 @@ test('Class Fees page: teacher -> fee-collecting classes with correct numbers; n
   assert.equal(res.status, 200);
   assert.match(res.text, /href="\/admin\/teachers\/class-fees"[^>]*>[\s\S]*?Class Fees/);
   const wanda = /data-class-fees-teacher="Wanda Woodwork">([\s\S]*?)<\/section>/.exec(res.text)[1];
-  assert.match(wanda, /Woodworking<\/td>\s*<td>Monday<\/td>[\s\S]*?Fall 2026<\/td>\s*<td[^>]*>\$55\.00<\/td>\s*<td[^>]*>\$50\.00<\/td>\s*<td[^>]*>\$5\.00<\/td>/);
+  assert.match(wanda, /Woodworking<\/td>\s*<td[^>]*>Monday<\/td>[\s\S]*?Fall 2026<\/td>\s*<td[^>]*>\$55\.00<\/td>\s*<td[^>]*>\$50\.00<\/td>\s*<td[^>]*>\$5\.00<\/td>/);
   assert.doesNotMatch(wanda, /Free Reading/);
   const carl = /data-class-fees-teacher="Carl Cowork">([\s\S]*?)<\/section>/.exec(res.text)[1];
   assert.match(carl, /Woodworking/, 'a co-taught class appears under each teacher');

@@ -40,7 +40,25 @@
     <% } %>
     <% t.groups.forEach(function(g) { %>
       <<%= subTag %> class="member-schedule-subheading"><%= g.label %></<%= subTag %>>
-      <table class="member-schedule-table" data-schedule-group="<%= g.key %>">
+      <%# A real request: "Outside of the class cards their should be
+          distinct day titles seperating the schedules by day." Each
+          group's classes split by day (in week order), a day title
+          above each day's own table. %>
+      <% var dayOrder = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']; %>
+      <% var dayNames = { sunday: 'Sunday', monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday' }; %>
+      <%# A real request: "class should be separated by semester" - the
+          group's classes split by semester first (in the semester order
+          the rows already come sorted in), a semester title above each,
+          then by day within it. Entries with no semester (a floater
+          hour, an untagged class) sit together without a title. %>
+      <% var semesters = []; var bySem = {}; g.entries.forEach(function(e) { var k = e.semesterTitle || ''; if (!bySem[k]) { bySem[k] = []; semesters.push(k); } bySem[k].push(e); }); %>
+      <% semesters.forEach(function(semKey) { %>
+      <% if (semKey) { %><p class="member-schedule-semester-title"><svg class="icon"><use href="#icon-book"/></svg> <%= semKey %></p><% } %>
+      <% var byDay = {}; bySem[semKey].forEach(function(e) { (byDay[e.day] = byDay[e.day] || []).push(e); }); %>
+      <% var days = Object.keys(byDay).sort(function(a, b) { return dayOrder.indexOf(a) - dayOrder.indexOf(b); }); %>
+      <% days.forEach(function(dayKey) { %>
+      <p class="member-schedule-day-title"><svg class="icon"><use href="#icon-calendar-check"/></svg> <%= dayNames[dayKey] || dayKey %></p>
+      <table class="member-schedule-table" data-schedule-group="<%= g.key %>" data-schedule-day="<%= dayKey %>">
         <thead>
           <tr>
             <th scope="col">Class Details</th>
@@ -48,10 +66,9 @@
           </tr>
         </thead>
         <tbody>
-          <% g.entries.forEach(function(e) { %>
+          <% byDay[dayKey].forEach(function(e) { %>
             <% var href = e.classId ? hrefFor(e.classId) : null; %>
             <% var names = e.instructors.map(function (i) { return i.name; }).join(', '); %>
-            <% var where = [e.room, names].filter(Boolean).join(' / '); %>
             <tr>
               <td class="member-schedule-details" data-label="Class Details">
                 <% if (href) { %>
@@ -63,9 +80,13 @@
                 <span class="member-schedule-line member-schedule-daytime"><%= e.dayShort %><% if (e.timeLabel) { %> <%= e.timeLabel %><% } %></span>
               </td>
               <td class="member-schedule-location" data-label="Location/ Instructor">
-                <span class="member-schedule-line"><%= where || '—' %></span>
+                <%# Room, then teacher, on their own lines - each item one row,
+                    so a phone's narrow column doesn't cut the name short. %>
+                <% if (!e.room && !names) { %><span class="member-schedule-line">—</span><% } %>
+                <% if (e.room) { %><span class="member-schedule-line member-schedule-room" title="<%= e.room %>"><%= e.room %></span><% } %>
+                <% if (names) { %><span class="member-schedule-line member-schedule-teacher" title="<%= names %>"><%= names %></span><% } %>
                 <% e.instructors.forEach(function(i) { %>
-                  <% if (i.email) { %><a class="member-schedule-line member-schedule-email" href="mailto:<%= i.email %>"><%= i.email %></a><% } %>
+                  <% if (i.email) { %><a class="member-schedule-line member-schedule-email" href="mailto:<%= i.email %>" title="<%= i.email %>"><%= i.email %></a><% } %>
                   <% if (i.phone) { %><span class="member-schedule-line member-schedule-phone"><%= i.phone %></span><% } %>
                 <% }); %>
               </td>
@@ -73,6 +94,8 @@
           <% }); %>
         </tbody>
       </table>
+      <% }); %>
+      <% }); %>
     <% }); %>
   </section>
 <% }); %>

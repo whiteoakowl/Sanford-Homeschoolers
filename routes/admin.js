@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../db');
 const requireAdmin = require('../middleware/requireAdmin');
 const requireFullAdmin = require('../middleware/requireFullAdmin');
-const { todayISO, formatDateLabel, formatShortDateLabel, weekdayOf, isValidISODate } = require('../utils/dates');
+const { todayISO, formatDateLabel, formatShortDateLabel, weekdayOf, isValidISODate, formatTimestamp } = require('../utils/dates');
 const { buildTemplateWorkbook } = require('../utils/spreadsheet');
 const { todaysSessionDays, absenceFormSubmissionsForRoster } = require('../utils/alerts');
 const {
@@ -320,14 +320,37 @@ router.get('/', requireAdmin, async (req, res) => {
   // requests." Same queues the Lesson Plan Approval page (pending),
   // Teachers > Reimbursements (still Submitted) and Design > Name Tag
   // Requests (not archived) list.
-  const countOf = async (sql) => Number(((await db.prepare(sql).get()) || {}).n || 0);
+  // A count that fails (e.g. a table the database doesn't have yet) shows
+  // 0 rather than breaking the whole homepage.
+  const countOf = async (sql) => {
+    try {
+      return Number(((await db.prepare(sql).get()) || {}).n || 0);
+    } catch (err) {
+      console.error('Pending request count failed:', err.message);
+      return 0;
+    }
+  };
   const [lessonApprovalsCount, reimbursementsCount, nameTagRequestsCount] = await Promise.all([
-    countOf("SELECT COUNT(*) AS n FROM class_assignments WHERE approval_status = 'pending' AND submitted_at IS NOT NULL"),
+    // Lessons waiting, plus lessons with substitute plans sent along with
+    // them waiting (utils/academics.js's lessonsForApprovalQueue).
+    countOf("SELECT COUNT(*) AS n FROM class_assignments ca WHERE (ca.approval_status = 'pending' AND ca.submitted_at IS NOT NULL) OR EXISTS (SELECT 1 FROM class_substitute_plans sp WHERE sp.submitted_with_assignment_id = ca.id AND sp.approval_status = 'pending')"),
     countOf("SELECT COUNT(*) AS n FROM reimbursement_requests WHERE status = 'submitted'"),
     countOf('SELECT COUNT(*) AS n FROM name_tag_requests WHERE archived = 0'),
   ]);
+  // A real request: "Add all of the new requests to the pending request
+  // on the co-op admin portal homepage" - Schedule Change Requests and
+  // Co-op Withdraw waiting on a decision, and Teacher Interest Forms no
+  // admin has opened yet.
+  const [scheduleChangeCount, coopWithdrawCount, teacherInterestCount] = await Promise.all([
+    countOf("SELECT COUNT(*) AS n FROM schedule_change_requests WHERE status = 'pending'"),
+    countOf("SELECT COUNT(*) AS n FROM coop_withdrawals WHERE status = 'pending'"),
+    countOf('SELECT COUNT(*) AS n FROM teacher_interest_submissions WHERE seen_at IS NULL'),
+  ]);
 
   res.render('admin-dashboard', {
+    scheduleChangeCount,
+    coopWithdrawCount,
+    teacherInterestCount,
     lessonApprovalsCount,
     reimbursementsCount,
     nameTagRequestsCount,
@@ -389,7 +412,7 @@ async function renderSettings(req, res, error, success, activeTab) {
     // settings" - moved here from Classes > Settings > Kiosk (routes/
     // admin-schedule.js used to own this). Only fetched for the tab that
     // actually needs it, same as every other tab-scoped query here.
-    semesters: tab === 'kiosk' || tab === 'semesters' ? await listSemesters() : null,
+    semesters: tab === 'semesters' ? (await listSemesters({ includeArchived: true })).map((s) => ({ ...s, archivedAtLabel: s.archived_at ? formatTimestamp(s.archived_at) : null })) : tab === 'kiosk' ? await listSemesters() : null,
     activeKioskSemesterId: tab === 'kiosk' ? await getActiveKioskSemesterId() : null,
     // A real request: "Add a semester settings should be under the gear
     // settings icon at the top." Moved here from Classes > Settings >

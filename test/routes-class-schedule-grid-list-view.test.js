@@ -85,3 +85,20 @@ test('an empty day shows "No classes yet." in the list view too, not just the gr
   const listSection = res.text.slice(res.text.indexOf('data-class-schedule-view="list"'));
   assert.match(listSection, /No classes yet\./);
 });
+
+// A real request: "class list view, should be able to click on each class
+// and see the information for the class the same as clicking on a class
+// in grid view" - each list row carries the same data-view-class hook as
+// a grid card (public/js/class-schedule-view.js opens the class's page).
+test('each list-view row opens its class, the same as a grid card', async () => {
+  const cookie = await loginAsAdmin();
+  const id = await createClass({ day: 'monday', hourPosition: 3, className: 'Clickable List Class', room: 'Room C' });
+  const res = await request(app).get('/admin/schedule?tab=monday').set('Cookie', cookie);
+  assert.equal(res.status, 200);
+  const listView = res.text.slice(res.text.indexOf('data-class-schedule-view="list"'));
+  const row = listView.split('<tr').find((r) => r.includes('Clickable List Class'));
+  assert.match(row, new RegExp(`data-view-class="${id}"`));
+  assert.match(row, /role="link" tabindex="0"/);
+  const gridView = res.text.slice(res.text.indexOf('data-class-schedule-view="grid"'), res.text.indexOf('data-class-schedule-view="list"'));
+  assert.match(gridView, new RegExp(`data-view-class="${id}"`), 'the grid card uses the same hook');
+});

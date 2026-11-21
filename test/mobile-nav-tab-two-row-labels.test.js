@@ -61,13 +61,16 @@ async function createPortalMember({ name, familyId, memberType, roleKey }) {
   return loginRes.headers['set-cookie'];
 }
 
-test('Co-op Admin mobile tabs: Floater Assignments, Teachers/Assistants, Lesson Plans split into two rows', async () => {
+// A later real request: "Lesson plans tab should be deleted. Lesson plans
+// sub page and Lesson plan approvals subpage should be under
+// teacher/assistants tab" - no Lesson Plans tab of its own any more.
+test('Co-op Admin mobile tabs: Floater Assignments, Teachers/Assistants split into two rows; no Lesson Plans tab', async () => {
   const cookie = await loginAsAdmin();
   const res = await request(app).get('/admin/members').set('Cookie', cookie);
   assert.equal(res.status, 200);
   assert.match(res.text, /Floater<br\/?>Assignments/);
   assert.match(res.text, /Teachers<br\/?>Assistants/);
-  assert.match(res.text, /Lesson<br\/?>Plans/);
+  assert.doesNotMatch(res.text, /Lesson<br\/?>Plans/);
 });
 
 test('Main Admin mobile tabs: Business Directory, Family School Management, Name Tags, Resource Links, Custom Forms, Annual Calendar split into two rows', async () => {

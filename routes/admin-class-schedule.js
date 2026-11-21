@@ -1,5 +1,30 @@
 const express = require('express');
 const router = express.Router();
+
+// A real request: "Be able to simply view anything from an archived
+// semester." A class in an archived semester (Settings > Semesters) is
+// view-only: any change to it - its details, staff, roster, lessons,
+// content, chat, substitute plans - is refused here, before the route
+// runs. Duplicating it (into an active semester) is still allowed.
+const ARCHIVED_CLASS_MESSAGE = 'This class is in an archived semester, so it is view-only. Unarchive the semester (Settings > Semesters) to make changes.';
+async function classIdForArchiveCheck(kind, id) {
+  if (kind === 'classes') return id;
+  if (kind === 'assignments') {
+    const row = await db.prepare('SELECT class_id FROM class_assignments WHERE id = ?').get(id);
+    return row ? row.class_id : null;
+  }
+  const row = await db.prepare('SELECT ca.class_id FROM lesson_content_items i JOIN class_assignments ca ON ca.id = i.assignment_id WHERE i.id = ?').get(id);
+  return row ? row.class_id : null;
+}
+router.post(/^\/class-schedule\/(classes|assignments|content)\/(\d+)(\/.*)?$/, async (req, res, next) => {
+  const [kind, id, rest] = [req.params[0], parseInt(req.params[1], 10), req.params[2] || ''];
+  if (kind === 'classes' && rest === '/duplicate') return next();
+  const classId = await classIdForArchiveCheck(kind, id);
+  if (!classId || !(await isClassArchived(classId))) return next();
+  const wantsJson = (req.headers.accept && req.headers.accept.includes('application/json')) || req.get('X-Requested-With') === 'fetch';
+  if (wantsJson) return res.status(409).json({ ok: false, error: ARCHIVED_CLASS_MESSAGE });
+  res.redirect(`/admin/class-schedule/classes/${classId}/manage?error=` + encodeURIComponent(ARCHIVED_CLASS_MESSAGE));
+});
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -46,8 +71,14 @@ const { toCsvRow, sendCsv, buildTemplateWorkbook, readRowsFromFile } = require('
 const { spreadsheetFileFilter, imageFileFilter, lessonAttachmentFileFilter } = require('../utils/uploads');
 const { createStorageClient, uploadFile, deleteFile, generateKey } = require('../utils/storage');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
+const { mountSubstitutePlanRoutes } = require('./substitutePlanRoutes');
+const { buildRosterGridData, rosterDates } = require('../utils/rosterGrid');
 const {
   CLASS_DAY_LABELS_FULL,
+  ensureDayRoster,
+  isClassArchived,
+  classGlobalSettings,
+  saveColumnOrder,
   HOUR_POSITIONS,
   COLOR_PALETTE,
   GRADE_LEVELS,
@@ -339,6 +370,17 @@ router.post('/class-schedule/:day/edit', requireFullAdmin, requireClassDay, asyn
 // from public/js/room-row-reorder.js right after a drag ends, not a full
 // form submit, so reordering stays a single smooth interaction instead of
 // a page reload.
+// A real request: "Be able to move columns like we do rows." Saves the
+// grid's column (hour) display order for this semester+day
+// (utils/classSchedule.js's saveColumnOrder) - display only, so each
+// column keeps its own hour, times and classes.
+router.post('/class-schedule/:day/columns/reorder', requireFullAdmin, requireClassDay, async (req, res) => {
+  const semesterId = req.body.semesterId ? parseInt(req.body.semesterId, 10) || null : null;
+  const positions = [].concat(req.body.positions || []).map((n) => parseInt(n, 10)).filter((n) => n > 0);
+  await saveColumnOrder(req.params.day, semesterId, positions);
+  res.json({ ok: true });
+});
+
 router.post('/class-schedule/:day/rooms/reorder', requireFullAdmin, requireClassDay, async (req, res) => {
   const day = req.params.day;
   const rooms = [].concat(req.body.rooms || []).map((r) => String(r));
@@ -386,7 +428,7 @@ router.post('/class-schedule/classes/new', requireFullAdmin, async (req, res) =>
     day,
     hourPosition,
     className,
-    room: (req.body.room || '').trim(),
+    room: req.body.room === '__other' ? (req.body.roomOther || '').trim() : (req.body.room || '').trim(),
     ageGroup: [].concat(req.body.ageGroup || []).join(', '),
     numericAges: [].concat(req.body.numericAges || []).join(', '),
     color: req.body.color || null,
@@ -462,7 +504,10 @@ router.get('/class-schedule/classes/:id/view-fragment', requireFullAdmin, async 
   });
 });
 
-const CLASS_MANAGE_TABS = ['details', 'staffRoster', 'assignments', 'grades', 'chat'];
+// 'attendance' - a real request: "Add an attendance tab to the classes...
+// it will show the attendance grid. Be able to manually check attendance
+// and check in and out buttons."
+const CLASS_MANAGE_TABS = ['details', 'staffRoster', 'assignments', 'attendance', 'grades', 'chat'];
 
 // Kept as a standalone page too (direct-link/bookmark friendly), even
 // though the grid's own class card now links straight here instead of
@@ -539,8 +584,29 @@ router.get('/class-schedule/classes/:id/manage', requireFullAdmin, async (req, r
     chatBaseHref = `/admin/class-schedule/classes/${id}/manage?tab=chat&`;
   }
 
+  // The class's attendance grid - one column per session date of its
+  // day's Student roster (a class roster borrows those dates), same as
+  // Attendance > Class Rosters and the class QR code page.
+  let attendanceGrid = null;
+  if (activeTab === 'attendance' && cls.roster_id) {
+    const roster = await db.prepare('SELECT * FROM rosters WHERE id = ?').get(cls.roster_id);
+    if (roster) {
+      const dates = await rosterDates(await ensureDayRoster(cls.day, 'student', cls.semester_id));
+      attendanceGrid = await buildRosterGridData(roster, dates);
+    }
+  }
+
+  const archivedSemester = (await isClassArchived(cls.id))
+    ? await db.prepare('SELECT id, title FROM semesters WHERE id = ?').get(cls.semester_id)
+    : null;
+
+  const lockAllSettings = await classGlobalSettings();
   res.render('admin-class-schedule-manage', {
+    lockAllByGrade: !!lockAllSettings.defaultLockByGrade,
+    lockAllByAge: !!lockAllSettings.defaultLockByAge,
     title: `Manage - ${cls.class_name}`,
+    attendanceGrid,
+    archivedSemester,
     cls,
     activeTab,
     openLessonId: req.query.open ? parseInt(req.query.open, 10) : null,
@@ -555,7 +621,7 @@ router.get('/class-schedule/classes/:id/manage', requireFullAdmin, async (req, r
     availableStudents: (await activeStudents()).filter((s) => !enrolledIds.includes(s.id)),
     enrolledStudents: await enrichRosterStudents(cls.students),
     availableStaff: (await activeMembersForStaff()).filter((p) => !staffIds.includes(p.id)),
-    semesters: await listSemesters(),
+    semesters: await listSemesters({ includeArchived: true }),
     accountingCategories: await listAccountingCategories(),
     classImageUrl: classImageUrl(cls.image_key),
     assignments,
@@ -1237,7 +1303,8 @@ router.post('/class-schedule/classes/:id/duplicate', requireFullAdmin, async (re
     await syncDayMemberRosters(target.day);
   }
 
-  res.redirect(`/admin/class-schedule/classes/${newId}/manage?notice=` + encodeURIComponent(`Duplicated as "${cls.class_name}" on ${target.label}.`));
+  const verb = (await isClassArchived(id)) ? 'Copied' : 'Duplicated';
+  res.redirect(`/admin/class-schedule/classes/${newId}/manage?notice=` + encodeURIComponent(`${verb} as "${cls.class_name}" on ${target.label}.`));
 });
 
 
@@ -1293,6 +1360,32 @@ router.post('/class-schedule/classes/:id/enrollment/add', requireFullAdmin, asyn
     return res.json({ ok: true, rowsHtml: rowsHtml.join(''), addedIds: newStudents.map((s) => s.id) });
   }
   res.redirect(`/admin/class-schedule/${cls.day}?semesterId=${qsSemester(cls.semester_id)}`);
+});
+
+// A real request: the Class Registration Log's trash button "Cancel
+// registration" (views/partials/class-registration-log.ejs) - the same
+// as the class roster's own Remove just below (off the class list, the
+// registration marked Cancelled, waitlist/charge bookkeeping), then back
+// to whichever log it came from. Only an active (confirmed/waitlisted)
+// registration can be cancelled.
+const CLASS_REG_LOG_RETURN = /^\/admin\/(logs\?tab=classregistration|schedule\?tab=classregistrationlog)(&[\w=%.+-]*)*$/;
+router.post('/class-registrations/:id/cancel', requireFullAdmin, async (req, res) => {
+  const returnTo = CLASS_REG_LOG_RETURN.test(String(req.body.returnTo || '')) ? req.body.returnTo : '/admin/schedule?tab=classregistrationlog';
+  const back = (key, msg) => res.redirect(`${returnTo}${returnTo.includes('?') ? '&' : '?'}${key}=${encodeURIComponent(msg)}`);
+  const registration = await db
+    .prepare('SELECT cr.*, m.name AS student_name, c.class_name FROM class_registrations cr JOIN members m ON m.id = cr.student_id JOIN classes c ON c.id = cr.class_id WHERE cr.id = ?')
+    .get(parseInt(req.params.id, 10));
+  if (!registration) return back('error', 'That registration no longer exists.');
+  if (registration.status !== 'confirmed' && registration.status !== 'waitlisted') return back('error', 'That registration is already cancelled.');
+  if (await isClassArchived(registration.class_id)) return back('error', ARCHIVED_CLASS_MESSAGE);
+  const cls = await getClass(registration.class_id);
+  try {
+    if (cls) await setEnrollment(cls.id, cls.students.map((s) => s.id).filter((sid) => sid !== registration.student_id));
+    await adminRemoveStudentFromClass(registration.class_id, registration.student_id, req.portalAccount ? req.portalAccount.id : null);
+  } catch (err) {
+    return back('error', `Could not cancel the registration: ${err.message}`);
+  }
+  back('notice', `Cancelled ${registration.student_name}'s registration for ${registration.class_name}.`);
 });
 
 router.post('/class-schedule/classes/:id/enrollment/:studentId/remove', requireFullAdmin, async (req, res) => {
@@ -1440,6 +1533,10 @@ router.get('/class-schedule/classes/:id/roster/export.csv', requireFullAdmin, as
   sendCsv(res, `${cls.class_name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-roster.csv`, lines);
 });
 
+// A real request: "When you click on a class it should have a print
+// roster button at the top. Pop up asks if you want to include
+// medical/allergy information with a check box" - ?medical=1 adds the
+// Medical/Allergy Notes column; without it the roster leaves it off.
 router.get('/class-schedule/classes/:id/roster/print', requireFullAdmin, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const cls = await getClass(id);
@@ -1448,6 +1545,7 @@ router.get('/class-schedule/classes/:id/roster/print', requireFullAdmin, async (
     title: `${cls.class_name} Roster`,
     cls: { ...cls, students: cls.students.map((s) => ({ ...s, age: ageFromBirthday(s.birthday) })) },
     dayLabel: CLASS_DAY_LABELS_FULL[cls.day],
+    includeMedical: req.query.medical === '1',
   });
 });
 
@@ -1462,6 +1560,7 @@ router.get('/class-schedule/classes/:id/roster/download.pdf', requireFullAdmin, 
     title: `${cls.class_name} Roster`,
     cls: { ...cls, students: cls.students.map((s) => ({ ...s, age: ageFromBirthday(s.birthday) })) },
     dayLabel: CLASS_DAY_LABELS_FULL[cls.day],
+    includeMedical: req.query.medical === '1',
     // partials/admin-nav reads isFullAdmin straight off res.locals on a
     // normal res.render() - req.app.render() (what renderViewToPdf uses
     // under the hood) never sees res.locals at all, so it has to be
@@ -1732,7 +1831,7 @@ router.post('/class-schedule/:day/import', requireFullAdmin, requireClassDay, up
 async function printSemester(req) {
   const requested = comboSemesterId(req);
   const semesterId = requested !== undefined ? requested : await getActiveKioskSemesterId();
-  const semester = semesterId ? (await listSemesters()).find((s) => s.id === semesterId) : null;
+  const semester = semesterId ? (await listSemesters({ includeArchived: true })).find((s) => s.id === semesterId) : null;
   const title = semester ? semester.title : semesterId === null ? 'No Semester' : '';
   const slug = title ? `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}-` : '';
   return { semesterId: semesterId === undefined ? undefined : semesterId, title, slug };
@@ -1787,6 +1886,17 @@ router.get('/class-schedule/:day/download.pdf', requireAdmin, requireClassDay, a
   res.set('Content-Type', 'application/pdf');
   res.set('Content-Disposition', `attachment; filename="${sem.slug}${day}-class-schedule.pdf"`);
   res.send(pdf);
+});
+
+// A real request: substitute plans on a class, next to its lessons -
+// Co-op Admin can manage any class's (routes/substitutePlanRoutes.js).
+mountSubstitutePlanRoutes(router, {
+  pathPrefix: '/class-schedule/classes',
+  middleware: [requireFullAdmin],
+  pathFor: (classId) => `/admin/class-schedule/classes/${classId}/substitute-plan`,
+  loadClass: (req) => getClass(parseInt(req.params.id, 10)),
+  onForbidden: (res) => res.status(404).render('404', { title: 'Not Found' }),
+  view: 'admin-class-substitute-plan',
 });
 
 module.exports = router;

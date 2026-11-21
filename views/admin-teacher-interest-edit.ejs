@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%# Edit Form for the Teacher Interest Form: its title/intro, and each
+    checkbox list's options added one by one (or removed). %>
+<body class="admin-page">
+  <%- include('partials/admin-nav') %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p class="no-print"><a href="/admin/teachers/interest-form">&larr; Teacher Interest Form</a></p>
+    <h1>Edit Teacher Interest Form</h1>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+    <section class="manage-section">
+      <form method="POST" action="/admin/teachers/interest-form/edit" class="stack-form">
+        <label>Form Title <input type="text" name="title" value="<%= settings.title %>" required /></label>
+        <label>Instructions <textarea name="intro" rows="3"><%= settings.intro %></textarea></label>
+        <button type="submit" class="primary-btn">Save</button>
+      </form>
+      <p class="hint">Name and Class Ideas 1, 2 and 3 are always on the form.</p>
+    </section>
+
+    <div class="ti-edit-lists">
+      <% lists.forEach(function(l) { %>
+        <section class="manage-section" id="list-<%= l.key %>">
+          <h2><%= l.label %></h2>
+          <% if (settings[l.key].length === 0) { %>
+            <p class="hint">No options yet - this list won't show on the form.</p>
+          <% } else { %>
+            <ul class="ti-option-list">
+              <% settings[l.key].forEach(function(opt) { %>
+                <li>
+                  <span><input type="checkbox" disabled aria-hidden="true" /> <%= opt %></span>
+                  <form method="POST" action="/admin/teachers/interest-form/options/remove">
+                    <input type="hidden" name="list" value="<%= l.key %>" />
+                    <input type="hidden" name="value" value="<%= opt %>" />
+                    <button type="submit" class="icon-btn icon-btn-danger" aria-label="Remove <%= opt %>" title="Remove"><svg class="icon"><use href="#icon-trash"/></svg></button>
+                  </form>
+                </li>
+              <% }); %>
+            </ul>
+          <% } %>
+          <form method="POST" action="/admin/teachers/interest-form/options/add" class="ti-add-option">
+            <input type="hidden" name="list" value="<%= l.key %>" />
+            <input type="text" name="value" placeholder="Add an option" aria-label="Add to <%= l.label %>" required />
+            <button type="submit" class="roster-action-btn">+ Add</button>
+          </form>
+        </section>
+      <% }); %>
+    </div>
+  </main>
+</body>
+</html>

@@ -326,12 +326,53 @@ async function getClass(id) {
 // there's nothing even less specific than that to also include.
 async function classesForDaySemester(day, semesterId) {
   if (semesterId === undefined) {
-    return db.prepare('SELECT * FROM classes WHERE day = ? ORDER BY hour_position, LOWER(class_name)').all(day);
+    return db.prepare(`SELECT * FROM classes c WHERE day = ? AND ${NOT_IN_ARCHIVED_SEMESTER_SQL} ORDER BY hour_position, LOWER(class_name)`).all(day);
   }
   if (semesterId === null) {
     return db.prepare('SELECT * FROM classes WHERE day = ? AND semester_id IS NULL ORDER BY hour_position, LOWER(class_name)').all(day);
   }
   return db.prepare('SELECT * FROM classes WHERE day = ? AND (semester_id = ? OR semester_id IS NULL) ORDER BY hour_position, LOWER(class_name)').all(day, semesterId);
+}
+
+// A real request: archiving a semester means its classes, rosters, class
+// chats and registrations "will not show up on ANY portals" (Settings >
+// Semesters, semesters.archived_at). Drop into a WHERE clause for any
+// query aliasing classes as `c` - true for a class with no semester, or
+// one whose semester isn't archived.
+const NOT_IN_ARCHIVED_SEMESTER_SQL = 'NOT EXISTS (SELECT 1 FROM semesters arch WHERE arch.id = c.semester_id AND arch.archived_at IS NOT NULL)';
+
+// Both checks treat "can't tell" (e.g. a database that doesn't have the
+// archived_at column yet) as not archived, so they never block a save -
+// a real bug report traced class edits silently failing to exactly that.
+async function isSemesterArchived(semesterId) {
+  if (semesterId == null) return false;
+  try {
+    const row = await db.prepare('SELECT archived_at FROM semesters WHERE id = ?').get(semesterId);
+    return !!(row && row.archived_at);
+  } catch (err) {
+    console.error('isSemesterArchived failed:', err.message);
+    return false;
+  }
+}
+
+// The class's own semester is archived - its pages are view-only.
+async function isClassArchived(classId) {
+  try {
+    const row = await db
+      .prepare('SELECT s.archived_at FROM classes c JOIN semesters s ON s.id = c.semester_id WHERE c.id = ?')
+      .get(classId);
+    return !!(row && row.archived_at);
+  } catch (err) {
+    console.error('isClassArchived failed:', err.message);
+    return false;
+  }
+}
+
+async function setSemesterArchived(semesterId, archived) {
+  await db.prepare(`UPDATE semesters SET archived_at = ${archived ? 'now_text()' : 'NULL'} WHERE id = ?`).run(semesterId);
+  // The cached member schedules drop (or regain) this semester's classes.
+  const days = await db.prepare('SELECT DISTINCT day FROM classes WHERE semester_id = ?').all(semesterId);
+  for (const { day } of days) await syncMemberSchedulesForDay(day);
 }
 
 // Every class on a day, grouped under its hour slot - the shape the
@@ -475,6 +516,28 @@ async function saveRoomOrder(day, rooms) {
   await setAppSetting(roomOrderSettingKey(day), JSON.stringify(rooms));
 }
 
+// The Class Schedule grid's saved column (hour) display order for one
+// semester+day - [] when never moved (columns show in hour order).
+function columnOrderSettingKey(day, semesterId) {
+  return `${day}_${semesterId == null ? 'none' : semesterId}_column_order`;
+}
+
+async function getColumnOrder(day, semesterId) {
+  const raw = await appSetting(columnOrderSettingKey(day, semesterId), null);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map((n) => parseInt(n, 10)).filter((n) => n > 0) : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+async function saveColumnOrder(day, semesterId, positions) {
+  const clean = [...new Set(positions.map((n) => parseInt(n, 10)).filter((n) => n > 0))];
+  await setAppSetting(columnOrderSettingKey(day, semesterId), JSON.stringify(clean));
+}
+
 // A semester+day's own declared room list (the new Add/Edit Class
 // Schedule Grid popup's Rooms column) - [] if that combo has never had
 // one authored, meaning roomGridForDay/roomsForDay keep deriving rooms
@@ -561,9 +624,16 @@ async function roomGridForDay(day, semesterId) {
   );
   const gridPositions = [];
   for (let p = 1; p <= gridPositionCount; p++) gridPositions.push(p);
+  // A real request: "Be able to move columns like we do rows." The saved
+  // column order (drag a column's handle - POST /class-schedule/:day/
+  // columns/reorder) is display order only: each column keeps its own
+  // hour position, so floater hours, member schedules and times aren't
+  // touched; any position not in the saved order is appended in order.
+  const savedColumnOrder = (await getColumnOrder(day, layoutSemesterId)).filter((p) => gridPositions.includes(p));
+  const displayPositions = [...savedColumnOrder, ...gridPositions.filter((p) => !savedColumnOrder.includes(p))];
   const storedByPosition = {};
   storedHours.forEach((h) => { storedByPosition[h.position] = h; });
-  const hours = gridPositions.map((p) => {
+  const hours = displayPositions.map((p) => {
     const h = storedByPosition[p] || { day, position: p, label: `Hour ${p}`, start_time: null, end_time: null };
     const minutes = earliestMinutesByPosition[h.position];
     return minutes != null ? { ...h, label: minutesToClockLabelLocal(minutes) } : h;
@@ -646,8 +716,13 @@ async function roomGridForDay(day, semesterId) {
     });
 
     const cells = [];
-    let h = 1;
-    while (h <= gridPositionCount) {
+    // Walks the columns in display order. A class only spans into the
+    // next column (or merges with a matching class there) while that
+    // column really is its next hour - once columns are moved apart, it
+    // shows in its own starting hour instead.
+    let i = 0;
+    while (i < displayPositions.length) {
+      const h = displayPositions[i];
       const here = byHour[h];
 
       // Preferred over the name/color/grade merge below when the class
@@ -670,15 +745,15 @@ async function roomGridForDay(day, semesterId) {
       // column still gets its own cell on the next loop iteration
       // instead of being swallowed.
       if (here.length === 1 && here[0].endTimeSpan > 1) {
-        const maxSpan = Math.min(here[0].endTimeSpan, gridPositionCount - h + 1);
+        const maxSpan = Math.min(here[0].endTimeSpan, displayPositions.length - i);
         let span = 1;
-        while (span < maxSpan && byHour[h + span].length === 0) span++;
+        while (span < maxSpan && displayPositions[i + span] === h + span && byHour[h + span].length === 0) span++;
         cells.push({ span, classes: [here[0]] });
-        h += span;
+        i += span;
         continue;
       }
 
-      const next = byHour[h + 1];
+      const next = displayPositions[i + 1] === h + 1 ? byHour[h + 1] : null;
       // age_group (grade) is part of this match, not just name/color - a
       // real bug report: a recurring class name split across grade bands
       // (e.g. "Forest Wildlings" for K-2 at 10am and again for 3-5 at
@@ -697,10 +772,10 @@ async function roomGridForDay(day, semesterId) {
         (next[0].age_group || '') === (here[0].age_group || '')
       ) {
         cells.push({ span: 2, classes: [here[0]] });
-        h += 2;
+        i += 2;
       } else {
         cells.push({ span: 1, classes: here });
-        h += 1;
+        i += 1;
       }
     }
     return { room, cells };
@@ -1000,8 +1075,15 @@ const CLASS_SETTINGS_DEFAULTS = {
   ageRestrictionMode: 'start_date', // 'start_date' | 'fixed_date'
   ageRestrictionMonth: '8',
   ageRestrictionDay: '31',
+  // A real request: "Should be able to lock grade or age levels per
+  // class. But also be able to lock age or grade levels for all classes.
+  // That setting override the rest." These two are now "Lock all classes
+  // by age/grade": on, every class is locked that way whatever its own
+  // Lock class by age/grade box says; off (the default), each class
+  // decides for itself. (Keys kept as defaultLockBy* so a saved value
+  // carries over.)
   defaultLockByAge: false,
-  defaultLockByGrade: true,
+  defaultLockByGrade: false,
   cancellationPolicy: 'through_end', // 'through_end' | 'before_start' | 'never'
   autoCreditOnParentOrSystemRemoval: true,
   autoCreditOnAdminRemoval: false,
@@ -1034,8 +1116,11 @@ async function saveClassGlobalSettings(fields) {
 // class only ever belongs to one semester at a time (a dropdown, not a
 // multi-select). Task #181's orientation rebuild groups members by this
 // same semester.
-async function listSemesters() {
-  return db.prepare('SELECT * FROM semesters ORDER BY id DESC').all();
+// Archived semesters are left out of every picker unless asked for
+// (Settings > Semesters lists them, to unarchive or view).
+async function listSemesters(opts = {}) {
+  if (opts.includeArchived) return db.prepare('SELECT * FROM semesters ORDER BY id DESC').all();
+  return db.prepare('SELECT * FROM semesters WHERE archived_at IS NULL ORDER BY id DESC').all();
 }
 
 async function createSemester(title) {
@@ -1206,7 +1291,8 @@ async function listScheduleCombos() {
     .prepare(
       `SELECT cs.id AS id, cs.day_of_week AS day, cs.semester_id AS semester_id, cs.start_date AS start_date, cs.end_date AS end_date, cs.visible_to_members AS visible_to_members, cs.visible_to_public AS visible_to_public, s.title AS semester_title
        FROM class_schedules cs
-       LEFT JOIN semesters s ON s.id = cs.semester_id`
+       LEFT JOIN semesters s ON s.id = cs.semester_id
+       WHERE s.archived_at IS NULL`
     )
     .all();
   const mapped = rows.map((r) => ({
@@ -1825,7 +1911,9 @@ const HOUR_LABEL_SQL = `COALESCE(
   (SELECT h.label FROM class_schedule_hours h WHERE h.day = c.day AND h.position = c.hour_position AND h.semester_id = c.semester_id),
   (SELECT h.label FROM class_schedule_hours h WHERE h.day = c.day AND h.position = c.hour_position AND h.semester_id IS NULL))`;
 
-async function allClassesList(day, semesterId) {
+// opts.includeArchived: also list classes in an archived semester (only
+// the archived semester's own read-only View page asks for that).
+async function allClassesList(day, semesterId, opts = {}) {
   const dayParam = day || null;
   const semesterParam = semesterId !== undefined ? semesterId : null;
   const rows = await db
@@ -1835,6 +1923,7 @@ async function allClassesList(day, semesterId) {
        FROM classes c
        WHERE (?::text IS NULL OR c.day = ?::text)
          AND (?::integer IS NULL OR c.semester_id = ?::integer)
+         ${opts.includeArchived ? '' : `AND ${NOT_IN_ARCHIVED_SEMESTER_SQL}`}
        ORDER BY LOWER(c.class_name)`
     )
     .all(dayParam, dayParam, semesterParam, semesterParam);
@@ -2115,7 +2204,7 @@ function effectiveClassRange(cls, hourByPosition) {
 }
 
 async function ownPositionsAndFamilyWindowsForDay(day) {
-  const classes = await db.prepare('SELECT * FROM classes WHERE day = ?').all(day);
+  const classes = await db.prepare(`SELECT c.* FROM classes c WHERE c.day = ? AND ${NOT_IN_ARCHIVED_SEMESTER_SQL}`).all(day);
   const hours = await hoursForDay(day);
   const hoursOfClass = await hourMapsForClasses(day, classes);
   const positionRanges = derivedHourTimeRanges(classes, hours);
@@ -2621,7 +2710,7 @@ async function timeRangeForClass(cls) {
 // hourPosition-keyed map, not yet the fixed 4-row array
 // getMemberSchedule's own shape needs.
 async function liveMemberScheduleRowsForDay(day) {
-  const classes = await db.prepare('SELECT * FROM classes WHERE day = ?').all(day);
+  const classes = await db.prepare(`SELECT c.* FROM classes c WHERE c.day = ? AND ${NOT_IN_ARCHIVED_SEMESTER_SQL}`).all(day);
   const hours = await hoursForDay(day);
   const hourByPosition = {};
   hours.forEach((h) => { hourByPosition[h.position] = h; });
@@ -2709,7 +2798,7 @@ async function liveMemberScheduleRowsForDay(day) {
 // not to any specific class, so it never overwrites a real one.
 //
 async function syncMemberSchedulesForDay(day) {
-  const classes = await db.prepare('SELECT * FROM classes WHERE day = ?').all(day);
+  const classes = await db.prepare(`SELECT c.* FROM classes c WHERE c.day = ? AND ${NOT_IN_ARCHIVED_SEMESTER_SQL}`).all(day);
   const hours = await hoursForDay(day);
   const hourByPosition = {};
   hours.forEach((h) => { hourByPosition[h.position] = h; });
@@ -2771,6 +2860,12 @@ async function membersForSectionRaw(listId, sectionId) {
 }
 
 module.exports = {
+  getColumnOrder,
+  saveColumnOrder,
+  NOT_IN_ARCHIVED_SEMESTER_SQL,
+  isSemesterArchived,
+  isClassArchived,
+  setSemesterArchived,
   HOUR_POSITIONS,
   loadHourColumnCount,
   primaryClassScheduleForClass,

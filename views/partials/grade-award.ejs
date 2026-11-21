@@ -56,7 +56,12 @@ var finishedY = (L[1] + (L[2] - L[1]) * 0.3) * H + 18;
 var gradeY = (L[1] + (L[2] - L[1]) * 0.8) * H + 22;
 var pTop = PANEL_TOP[A.design] || L[2];
 var p = function (f) { return (pTop + (L[3] - pTop) * f) * H; };
-var labelY = p(0.22), line1 = p(0.45), line2 = p(0.68), line3 = p(0.91);
+// A real request: the child's name larger and standing out in the
+// center, the two parent signature lines side by side, a bit apart, below
+// it. Name line, its caption, then both signature lines and captions.
+var nameLine = p(0.46), nameCap = nameLine + 24, sigLine = p(0.86), sigCap = sigLine + 21;
+var NF = A.nameFontStyle || { css: "'Caveat', cursive", weight: 700 };
+var PF = A.parentFontStyle || NF;
 var gradeSize = A.gradeDisplay.length > 12 ? 82 : 90;
 %>
 <svg class="grade-award grade-award-<%= A.design %>" viewBox="0 0 1100 850" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Congratulations! You finished <%= A.gradeLabel %>">
@@ -75,17 +80,17 @@ var gradeSize = A.gradeDisplay.length > 12 ? 82 : 90;
     <text x="550" y="<%= gradeY %>" font-size="<%= gradeSize %>" fill="<%= T.g %>"<% if (!T.dark) { %> stroke="#ffffff" stroke-width="7" paint-order="stroke"<% } else { %> filter="url(#ga-shadow-<%= U %>)"<% } %>><%= A.gradeDisplay %></text>
   </g>
 
-  <g font-family="'Open Sans', Arial, sans-serif" font-weight="700" fill="<%= T.lab %>">
-    <text x="550" y="<%= labelY %>" font-size="25" text-anchor="middle">Student Name:</text>
-    <line x1="385" y1="<%= line1 %>" x2="715" y2="<%= line1 %>" stroke="<%= T.lab %>" stroke-width="2" />
-    <text x="385" y="<%= line2 - 3 %>" font-size="21">Parent/Teacher:</text>
-    <line x1="560" y1="<%= line2 %>" x2="715" y2="<%= line2 %>" stroke="<%= T.lab %>" stroke-width="2" />
-    <text x="385" y="<%= line3 - 3 %>" font-size="21">Parent/Teacher:</text>
-    <line x1="560" y1="<%= line3 %>" x2="715" y2="<%= line3 %>" stroke="<%= T.lab %>" stroke-width="2" />
+  <g font-family="'Open Sans', Arial, sans-serif" font-weight="700" fill="<%= T.lab %>" text-anchor="middle">
+    <line x1="330" y1="<%= nameLine %>" x2="770" y2="<%= nameLine %>" stroke="<%= T.lab %>" stroke-width="2.5" />
+    <text x="550" y="<%= nameCap %>" font-size="19" letter-spacing="1">STUDENT NAME</text>
+    <line x1="205" y1="<%= sigLine %>" x2="455" y2="<%= sigLine %>" stroke="<%= T.lab %>" stroke-width="2" />
+    <text x="330" y="<%= sigCap %>" font-size="16" letter-spacing="0.5">Parent/Teacher</text>
+    <line x1="645" y1="<%= sigLine %>" x2="895" y2="<%= sigLine %>" stroke="<%= T.lab %>" stroke-width="2" />
+    <text x="770" y="<%= sigCap %>" font-size="16" letter-spacing="0.5">Parent/Teacher</text>
   </g>
-  <g font-family="'Caveat', 'Segoe Print', cursive" font-weight="700" fill="#1b2a55" text-anchor="middle">
-    <% if (A.studentName) { %><text x="550" y="<%= line1 - 8 %>" font-size="44" textLength="<%= Math.min(320, A.studentName.length * 21) %>" lengthAdjust="spacingAndGlyphs"><%= A.studentName %></text><% } %>
-    <% if (A.parent1) { %><text x="637" y="<%= line2 - 6 %>" font-size="32" textLength="<%= Math.min(150, A.parent1.length * 14) %>" lengthAdjust="spacingAndGlyphs"><%= A.parent1 %></text><% } %>
-    <% if (A.parent2) { %><text x="637" y="<%= line3 - 6 %>" font-size="32" textLength="<%= Math.min(150, A.parent2.length * 14) %>" lengthAdjust="spacingAndGlyphs"><%= A.parent2 %></text><% } %>
+  <g fill="#1b2a55" text-anchor="middle">
+    <% if (A.studentName) { %><text x="550" y="<%= nameLine - 10 %>" font-family="<%= NF.css %>" font-weight="<%= NF.weight %>" font-size="62"<% if (A.studentName.length > 22) { %> textLength="440" lengthAdjust="spacingAndGlyphs"<% } %>><%= A.studentName %></text><% } %>
+    <% if (A.parent1) { %><text x="330" y="<%= sigLine - 7 %>" font-family="<%= PF.css %>" font-weight="<%= PF.weight %>" font-size="32"<% if (A.parent1.length > 18) { %> textLength="240" lengthAdjust="spacingAndGlyphs"<% } %>><%= A.parent1 %></text><% } %>
+    <% if (A.parent2) { %><text x="770" y="<%= sigLine - 7 %>" font-family="<%= PF.css %>" font-weight="<%= PF.weight %>" font-size="32"<% if (A.parent2.length > 18) { %> textLength="240" lengthAdjust="spacingAndGlyphs"<% } %>><%= A.parent2 %></text><% } %>
   </g>
 </svg>

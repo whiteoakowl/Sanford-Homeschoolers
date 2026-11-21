@@ -74,7 +74,9 @@ test('picking a member from the dialog and applying the filter still narrows the
   // the OTHER options inside the (now-relocated) name <select> itself -
   // this only checks that the actual schedule list was narrowed down, same
   // as the old standalone dropdown already did.
-  const listMatch = /<div class="member-schedule-list">[\s\S]*?<\/section>\s*<\/div>/.exec(res.text);
+  // (Now a list of families under their primary parent - the same
+  // narrowing applies to it.)
+  const listMatch = /<div class="ms-families">[\s\S]*?<\/details>\s*<\/div>/.exec(res.text);
   assert.ok(listMatch, 'expected to find the member schedule list');
   assert.match(listMatch[0], /Kept Schedule Member/);
   assert.doesNotMatch(listMatch[0], /Excluded Schedule Member/, 'only the picked member\'s own schedule should remain in the list');

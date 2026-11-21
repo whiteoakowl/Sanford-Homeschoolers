@@ -8,6 +8,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const db = require('../db');
+const { isClassArchived } = require('../utils/classSchedule');
 const { requirePortalAuth, requirePortal, requirePortalPermission } = require('../middleware/portalAuth');
 const { memberForAccount } = require('../utils/portalAuth');
 const {
@@ -61,6 +62,9 @@ const { findMemberByBarcodeOrName } = require('../utils/memberLookup');
 const { createRateLimiter } = require('../utils/rateLimit');
 const trainingModule = require('../utils/training');
 const { teacherLessonPlanBlock } = require('../utils/lessonPlans');
+const { mountSubstitutePlanRoutes } = require('./substitutePlanRoutes');
+const { lessonPlanSummary } = require('../utils/lessonPlanSummary');
+const { submitSubstitutePlansForClass, unsubmittedSubstitutePlanCount, substitutePlansForClass } = require('../utils/substitutePlans');
 
 // Same per-device throttle shape as the kiosk's own Class Check-In scan
 // (routes/kiosk-class-checkin.js's own classScanLimiter) - its own
@@ -298,7 +302,44 @@ router.get('/classes/download.pdf', requirePortalPermission('view_teacher_classe
 // happens to hold this same teacher role. The old roster/assignment-
 // management page moved to its own "Edit Class" button/route below
 // rather than being what clicking a class lands on first.
-const TEACHER_CLASS_DETAIL_TABS = ['details', 'lessons', 'chat'];
+// A real request: "Teacher portal, when teacher clicks on class the tabs
+// should be details, lessons, Attendance, chat and grades." Attendance is
+// today's attendance (the same screen as Attendance > class), Grades the
+// class's lessons with how many students are graded (each opening the
+// lesson's own gradebook). Attendance/Grades need the same portal
+// permissions as the pages they come from.
+const TEACHER_CLASS_DETAIL_TABS = ['details', 'lessons', 'attendance', 'chat', 'grades'];
+const TEACHER_CLASS_TAB_PERMISSIONS = { attendance: 'view_teacher_attendance', grades: 'view_teacher_assignments' };
+
+function teacherClassTabs(req) {
+  return TEACHER_CLASS_DETAIL_TABS.filter((t) => !TEACHER_CLASS_TAB_PERMISSIONS[t] || req.portalPermissions.has(TEACHER_CLASS_TAB_PERMISSIONS[t]));
+}
+
+// Today's attendance grid for one class - GET /classes/:id/attendance and
+// the class page's Attendance tab.
+async function todayAttendanceForClass(cls) {
+  const today = todayISO();
+  const empty = { dateLabel: formatDateLong(today), rows: [], summary: { present: 0, late: 0, absent: 0 } };
+  if (!cls.roster_id) return empty;
+  const roster = await db.prepare('SELECT * FROM rosters WHERE id = ?').get(cls.roster_id);
+  if (!roster) return empty;
+  const grid = await buildRosterGridData(roster, [today]);
+  return { dateLabel: formatDateLong(today), rows: grid.rows, summary: grid.summary[0] || empty.summary };
+}
+
+async function gradesForClass(classId) {
+  return Promise.all(
+    (await assignmentsForClass(classId)).map(async (a) => {
+      const { rows } = await gradebookForAssignment(a.id);
+      return {
+        ...a,
+        dueDateLabel: a.due_date ? formatDateLabel(a.due_date) : null,
+        gradedCount: rows.filter((r) => r.points_earned != null).length,
+        studentCount: rows.length,
+      };
+    })
+  );
+}
 
 // A real request: "Teacher portal, class schedule, ... Be able to click
 // on classes and see the details and read the descriptions." The Class
@@ -312,7 +353,8 @@ const TEACHER_CLASS_DETAIL_TABS = ['details', 'lessons', 'chat'];
 // signing up for anything, just looking up what a class actually is.
 router.get('/classes/:id/fragment', requirePortalPermission('view_teacher_classes'), async (req, res) => {
   const cls = await getClass(parseInt(req.params.id, 10));
-  if (!cls) return res.status(404).send('Not found');
+  // An archived semester's classes don't show on any portal.
+  if (!cls || (await isClassArchived(cls.id))) return res.status(404).send('Not found');
   const staff = cls.staff || [];
   const enrolledCount = Number((await db.prepare('SELECT COUNT(*) AS c FROM class_enrollments WHERE class_id = ?').get(cls.id)).c);
   res.render('teacher-class-fragment', {
@@ -333,18 +375,21 @@ router.get('/classes/:id', requirePortalPermission('view_teacher_classes'), asyn
   if (!cls) {
     return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher', backLabel: 'Back to Co-op Teacher Portal' });
   }
-  let tab = TEACHER_CLASS_DETAIL_TABS.includes(req.query.tab) ? req.query.tab : 'details';
-  if (tab === 'chat' && !cls.allow_parent_chat) tab = 'details';
+  const tabs = teacherClassTabs(req);
+  const tab = tabs.includes(req.query.tab) ? req.query.tab : 'details';
   const lessons = tab === 'lessons' ? await lessonsForStudentView(cls.id, null, { includeUnapproved: true }) : [];
   const chatMessages =
-    tab === 'chat'
+    tab === 'chat' && cls.allow_parent_chat
       ? (await db.prepare('SELECT * FROM class_chat_messages WHERE class_id = ? ORDER BY id ASC').all(cls.id)).map((m) => ({
           ...m,
           createdAtLabel: formatFriendlyTimestamp(m.created_at),
         }))
       : [];
   const lessonPlanId = await classLessonPlanId(cls.id);
-  res.render('teacher-class-detail', { title: cls.class_name, cls, tab, lessons, chatMessages, lessonPlanId, notice: req.query.notice || null });
+  const subPlans = tab === 'lessons' ? await substitutePlansForClass(cls.id) : [];
+  const attendance = tab === 'attendance' ? await todayAttendanceForClass(cls) : null;
+  const grades = tab === 'grades' ? await gradesForClass(cls.id) : [];
+  res.render('teacher-class-detail', { title: cls.class_name, cls, tab, tabs, lessons, subPlans, chatMessages, attendance, grades, lessonPlanId, notice: req.query.notice || null });
 });
 
 router.post('/classes/:id/chat', requirePortalPermission('view_teacher_classes'), async (req, res) => {
@@ -468,7 +513,8 @@ router.get('/classes/:id/lesson-plan{/:lessonId}', requirePortalPermission('view
     cls,
     lessons,
     openLessonId,
-    canSubmit: lessons.some((l) => l.approval_status === 'draft' || l.approval_status === 'rejected'),
+    unsubmittedSubPlans: await unsubmittedSubstitutePlanCount(cls.id),
+    canSubmit: lessons.some((l) => l.approval_status === 'draft' || l.approval_status === 'rejected') || (await unsubmittedSubstitutePlanCount(cls.id)) > 0,
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
@@ -480,14 +526,33 @@ router.post('/classes/:id/lesson-plan/submit', requirePortalPermission('view_tea
   const cls = await ownClassForTeacher(req);
   if (!cls) return notYourClass(res);
   const back = `/teacher/classes/${cls.id}/lesson-plan`;
-  let count = 0;
-  for (const lesson of await assignmentsForClass(cls.id)) {
+  const lessons = await assignmentsForClass(cls.id);
+  const submittedIds = [];
+  for (const lesson of lessons) {
     if (lesson.approval_status === 'draft' || lesson.approval_status === 'rejected') {
-      if (await submitAssignmentForApproval(lesson.id, req.portalAccount.id)) count += 1;
+      if (await submitAssignmentForApproval(lesson.id, req.portalAccount.id)) submittedIds.push(lesson.id);
     }
   }
-  if (!count) return res.redirect(back + '?error=' + encodeURIComponent('There are no draft or rejected lessons to submit.'));
-  res.redirect(back + '?notice=' + encodeURIComponent(`Submitted ${count} lesson${count === 1 ? '' : 's'} for admin approval. Students will see ${count === 1 ? 'it' : 'them'} once approved.`));
+  // A real request: "When teachers submit lessons for approval it will
+  // send the entire lesson and any substitute lessons together for
+  // approval." Draft/rejected substitute plans ride along with the first
+  // lesson being sent - or, when no lesson needs sending, with the
+  // class's most recent lesson, so Co-op Admin still reviews them on a
+  // lesson's own approval page. They need a lesson to travel with.
+  let subCount = 0;
+  if (await unsubmittedSubstitutePlanCount(cls.id)) {
+    const carrierId = submittedIds[0] || (lessons.length ? lessons[lessons.length - 1].id : null);
+    if (!carrierId && !submittedIds.length) {
+      return res.redirect(back + '?error=' + encodeURIComponent('Add a lesson first - substitute plans are sent for approval together with a lesson.'));
+    }
+    subCount = await submitSubstitutePlansForClass(cls.id, carrierId, req.portalAccount.id);
+  }
+  const count = submittedIds.length;
+  if (!count && !subCount) return res.redirect(back + '?error=' + encodeURIComponent('There are no draft or rejected lessons or substitute plans to submit.'));
+  const parts = [];
+  if (count) parts.push(`${count} lesson${count === 1 ? '' : 's'}`);
+  if (subCount) parts.push(`${subCount} substitute plan${subCount === 1 ? '' : 's'}`);
+  res.redirect(back + '?notice=' + encodeURIComponent(`Submitted ${parts.join(' and ')} for admin approval. ${count && subCount ? 'Students and substitutes' : count ? 'Students' : 'Substitutes'} will see ${count + subCount === 1 ? 'it' : 'them'} once approved.`));
 });
 
 router.post('/classes/:id/assignments', requirePortalPermission('view_teacher_assignments'), async (req, res) => {
@@ -915,19 +980,23 @@ router.get('/classes/:id/attendance', requirePortalPermission('view_teacher_atte
   if (!cls) {
     return res.status(403).render('403', { title: 'Not Authorized', message: "You don't teach that class.", backHref: '/teacher/attendance', backLabel: 'Back to Attendance' });
   }
-  if (!cls.roster_id) {
-    return res.render('teacher-class-attendance', { title: `${cls.class_name} Attendance`, cls, dateLabel: formatDateLong(todayISO()), rows: [], summary: { present: 0, late: 0, absent: 0 } });
-  }
-  const roster = await db.prepare('SELECT * FROM rosters WHERE id = ?').get(cls.roster_id);
-  const today = todayISO();
-  const grid = await buildRosterGridData(roster, [today]);
-  res.render('teacher-class-attendance', {
-    title: `${cls.class_name} Attendance`,
-    cls,
-    dateLabel: formatDateLong(today),
-    rows: grid.rows,
-    summary: grid.summary[0] || { present: 0, late: 0, absent: 0 },
-  });
+  res.render('teacher-class-attendance', { title: `${cls.class_name} Attendance`, cls, ...(await todayAttendanceForClass(cls)) });
+});
+
+// A real request: the sidebar Attendance page "should only have check in,
+// check out, view lesson plan and view substitute plan" - read-only views
+// of this teacher's own class (every status, with its badge), same
+// content as the class QR code's pages.
+router.get('/classes/:id/view-lesson-plan', requirePortalPermission('view_teacher_attendance'), async (req, res) => {
+  const cls = await ownClassForTeacher(req);
+  if (!cls) return notYourClass(res);
+  res.render('teacher-class-view-lesson-plan', { title: `${cls.class_name} Lesson Plan`, cls, lessons: await lessonPlanSummary(cls.id, { approvedOnly: false }) });
+});
+
+router.get('/classes/:id/view-substitute-plan', requirePortalPermission('view_teacher_attendance'), async (req, res) => {
+  const cls = await ownClassForTeacher(req);
+  if (!cls) return notYourClass(res);
+  res.render('teacher-class-view-substitute-plan', { title: `${cls.class_name} Substitute Plan`, cls, plans: await substitutePlansForClass(cls.id) });
 });
 
 // Same status:<memberId>:<date> body-key convention as every other
@@ -1226,6 +1295,18 @@ router.get('/training', requirePortalPermission('view_teacher_training'), async 
   if (!member) return res.render('teacher-training', { title: 'Training', assignments: [] });
   req.session.trainingMemberId = member.id;
   res.render('teacher-training', { title: 'Training', assignments: await trainingModule.myAssignments(member.id) });
+});
+
+// A real request: "Next to add a lesson plan button should be the add a
+// substitute plan button" - a teacher's own classes only.
+mountSubstitutePlanRoutes(router, {
+  pathPrefix: '/classes',
+  middleware: [requirePortalPermission('view_teacher_assignments')],
+  pathFor: (classId) => `/teacher/classes/${classId}/substitute-plan`,
+  loadClass: ownClassForTeacher,
+  onForbidden: notYourClass,
+  view: 'teacher-substitute-plan',
+  newPlanStatus: 'draft',
 });
 
 module.exports = router;

@@ -9,9 +9,11 @@
 // checkouts row for that roster+date, since anybody can walk up and check
 // in with no enrollment step at all (see playgroundLogForDate below).
 const db = require('../db');
-const { CLASS_DAY_LABELS_FULL, hoursForDay } = require('./classSchedule');
+const { CLASS_DAY_LABELS_FULL, hoursForDay, listActiveClassDays, listSemesters, ensureDayRoster, HOUR_POSITIONS } = require('./classSchedule');
+const { getActiveKioskSemesterId } = require('./kioskSettings');
+const { rosterDates } = require('./rosterGrid');
 const { byLastName } = require('./members');
-const { formatTime } = require('./dates');
+const { formatTime, formatClockTime, formatDateLabel, formatDateLong, isValidISODate, todayISO, weekdayOf } = require('./dates');
 
 // The same per-day hour label (e.g. "Hour 1", or whatever an admin has
 // renamed it to on the Class Schedule page's Edit Hours dialog) every
@@ -73,4 +75,88 @@ async function playgroundLogForDate(rosterId, date) {
     }));
 }
 
-module.exports = { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate };
+// A real request: "Co-op admin portal, attendance playground check in/out.
+// This sub page should be called Playground roster. On this page their
+// should be a filter button that filters by semester, the day, then date.
+// Page then shows the date and times and a list of those that were
+// checked in under each time." Session dates come from that semester's
+// own Student roster for the day (the same dates a class/playground
+// slot already borrows); the hours and their times from that semester's
+// own Class Schedule hours. A playground slot's check-ins are per (day,
+// hour) and date, so the date alone already scopes them to the semester.
+async function playgroundRosterFilterOptions() {
+  const semesters = await listSemesters();
+  const days = await listActiveClassDays();
+  // { [semesterKey]: { [day]: [{ date, label }] } } - semesterKey '' when
+  // there are no semesters at all (the site-wide active one is used).
+  const keys = semesters.length ? semesters.map((s) => String(s.id)) : [''];
+  const datesBySemesterDay = {};
+  for (const key of keys) {
+    datesBySemesterDay[key] = {};
+    for (const day of days) {
+      const rosterId = await ensureDayRoster(day, 'student', key === '' ? undefined : Number(key));
+      datesBySemesterDay[key][day] = (await rosterDates(rosterId)).map((d) => ({ date: d, label: formatDateLabel(d) }));
+    }
+  }
+  return {
+    semesters: semesters.map((s) => ({ id: String(s.id), title: s.title })),
+    days: days.map((d) => ({ day: d, label: CLASS_DAY_LABELS_FULL[d] })),
+    datesBySemesterDay,
+  };
+}
+
+function hourTimeLabel(hour) {
+  if (!hour) return null;
+  if (hour.start_time && hour.end_time) return `${formatClockTime(hour.start_time)} - ${formatClockTime(hour.end_time)}`;
+  if (hour.start_time) return formatClockTime(hour.start_time);
+  return null;
+}
+
+// query: { semesterId, day, date } (strings, any may be missing/invalid).
+// Defaults: the Kiosk's active semester, today's weekday when it's an
+// active day (else the first one), then the latest session date on or
+// before today (else the last one).
+async function playgroundRosterPage(query) {
+  const options = await playgroundRosterFilterOptions();
+  const semesterKeys = Object.keys(options.datesBySemesterDay);
+  const activeSemester = await getActiveKioskSemesterId();
+  const semesterId = semesterKeys.includes(String(query.semesterId || ''))
+    ? String(query.semesterId || '')
+    : semesterKeys.includes(String(activeSemester)) ? String(activeSemester) : semesterKeys[0];
+  const dayKeys = options.days.map((d) => d.day);
+  const today = todayISO();
+  const todayDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][weekdayOf(today)];
+  const day = dayKeys.includes(query.day) ? query.day : dayKeys.includes(todayDay) ? todayDay : dayKeys[0] || null;
+  const dates = day ? options.datesBySemesterDay[semesterId][day] || [] : [];
+  const dateList = dates.map((d) => d.date);
+  const date = isValidISODate(query.date) && dateList.includes(query.date)
+    ? query.date
+    : [...dateList].reverse().find((d) => d <= today) || dateList[dateList.length - 1] || null;
+
+  const hours = [];
+  if (day) {
+    const semesterArg = semesterId === '' ? undefined : Number(semesterId);
+    const hourRows = await hoursForDay(day, semesterArg);
+    const positions = hourRows.length ? hourRows.map((h) => h.position) : HOUR_POSITIONS;
+    for (const position of positions) {
+      const row = hourRows.find((h) => h.position === position);
+      const slot = await db.prepare('SELECT roster_id FROM playground_rosters WHERE day = ? AND hour_position = ?').get(day, position);
+      const log = date && slot ? await playgroundLogForDate(slot.roster_id, date) : [];
+      hours.push({ position, label: (row && row.label) || `Hour ${position}`, timeLabel: hourTimeLabel(row), log });
+    }
+  }
+  const semester = options.semesters.find((s) => s.id === semesterId);
+  return {
+    filterOptions: options,
+    semesterId,
+    semesterTitle: semester ? semester.title : null,
+    day,
+    dayLabel: day ? CLASS_DAY_LABELS_FULL[day] : null,
+    date,
+    dateLongLabel: date ? formatDateLong(date) : null,
+    hours,
+    totalCheckedIn: hours.reduce((n, h) => n + h.log.length, 0),
+  };
+}
+
+module.exports = { ensurePlaygroundRoster, playgroundHourLabel, playgroundLogForDate, playgroundRosterPage };

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%# Co-op Admin > Teachers/Assistants > Teacher Interest Form: every
+    submission, newest first, stamped with its Eastern date and time.
+    Click a row to see its class ideas. (routes/admin-teacher-interest.js) %>
+<body class="admin-page">
+  <%- include('partials/admin-nav') %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <div class="roster-toolbar">
+      <div><h1>Teacher Interest Form</h1></div>
+      <div class="roster-btn-row no-print">
+        <a class="roster-action-btn" href="/admin/teachers/interest-form/edit"><svg class="icon"><use href="#icon-edit"/></svg> Edit Form</a>
+        <a class="icon-btn" href="/admin/teachers/interest-form/export.csv" aria-label="Export CSV" title="Export CSV"><svg class="icon"><use href="#icon-download"/></svg></a>
+      </div>
+    </div>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+
+    <% if (submissions.length === 0) { %>
+      <p class="roster-empty">No teacher interest forms have been submitted yet.</p>
+    <% } else { %>
+      <div class="ti-submissions">
+        <% submissions.forEach(function(s) { %>
+          <details class="ti-submission">
+            <summary>
+              <span class="ti-submission-name"><svg class="icon"><use href="#icon-user"/></svg> <%= s.name %><% if (s.isNew) { %> <span class="badge-pill badge-pill-orange">New</span><% } %></span>
+              <span class="ti-submission-when"><svg class="icon"><use href="#icon-clock"/></svg> <%= s.dateLabel %> · <%= s.timeLabel %></span>
+              <svg class="icon ti-submission-chevron"><use href="#icon-chevron-down"/></svg>
+            </summary>
+            <div class="ti-submission-body">
+              <dl class="ti-submission-fields">
+                <% lists.forEach(function(l) { %>
+                  <dt><%= l.label %></dt>
+                  <dd><% if (s[l.key].length) { %><% s[l.key].forEach(function(v) { %><span class="ti-chip"><%= v %></span><% }); %><% } else { %>&mdash;<% } %></dd>
+                <% }); %>
+                <% [1, 2, 3].forEach(function(n) { var idea = s['idea' + n]; %>
+                  <dt>Class Idea <%= n %></dt>
+                  <dd class="ti-idea"><%= idea || '—' %></dd>
+                <% }); %>
+              </dl>
+              <form method="POST" action="/admin/teachers/interest-form/<%= s.id %>/delete" data-confirm="Delete <%= s.name %>'s teacher interest form?">
+                <button type="submit" class="btn-secondary"><svg class="icon"><use href="#icon-trash"/></svg> Delete</button>
+              </form>
+            </div>
+          </details>
+        <% }); %>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

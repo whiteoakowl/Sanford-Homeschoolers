@@ -44,6 +44,7 @@
 // that's the only thing "offline-first" ever meant to buy this app, and
 // it costs nothing now that freshness itself no longer depends on it.
 const STATIC_CACHE = 'sh-static';
+const NETWORK_TIMEOUT_MS = 4000;
 const STATIC_EXTENSIONS = ['.css', '.js', '.png', '.jpg', '.jpeg', '.svg', '.webp', '.ico'];
 
 function isStaticAsset(url) {
@@ -97,15 +98,28 @@ self.addEventListener('fetch', (event) => {
   //    The fix: clone the response synchronously in the single .then()
   //    that first receives it, before returning it to respondWith at all -
   //    that's the only point where nobody has touched the body yet.
+  // A real bug report: "Every time I reopen the app I have to refresh the
+  // page in order to click on any pages and go to a new one. Otherwise it
+  // sits frozen." When a phone wakes the installed app, its old network
+  // connections are often dead, and a fetch() on one can hang for a long
+  // time with no error. A page's stylesheet is render-blocking, so the
+  // browser kept showing the OLD page while the new page's CSS hung here
+  // - every tap looked like nothing happened until a refresh opened fresh
+  // connections. Now the network gets NETWORK_TIMEOUT_MS; past that, a
+  // cached copy (if this device has one) is served at once while the real
+  // fetch still finishes in the background and refreshes the cache. With
+  // nothing cached, it simply keeps waiting on the network as before.
+  const network = fetch(event.request, { cache: 'no-store' }).then((response) => {
+    if (response.ok) {
+      const copy = response.clone();
+      event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.put(event.request, copy)));
+    }
+    return response;
+  });
+  event.waitUntil(network.catch(() => {}));
+  const cached = () => caches.open(STATIC_CACHE).then((cache) => cache.match(event.request));
+  const timedOut = new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT_MS)).then(cached).then((hit) => hit || network);
   event.respondWith(
-    fetch(event.request, { cache: 'no-store' })
-      .then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.put(event.request, copy)));
-        }
-        return response;
-      })
-      .catch(() => caches.open(STATIC_CACHE).then((cache) => cache.match(event.request)))
+    Promise.race([network, timedOut]).catch(() => cached().then((hit) => hit || Response.error()))
   );
 });

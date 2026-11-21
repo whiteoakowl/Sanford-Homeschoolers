@@ -4,7 +4,7 @@
   <%- include('partials/head', { title }) %>
   <style>@page { size: letter; margin: 0.4in; }</style>
 </head>
-<body class="admin-page">
+<body class="admin-page log-print-page">
   <%- include('partials/admin-nav') %>
   <main id="main-content" tabindex="-1" class="admin-main">
     <div class="print-preview-header no-print">
@@ -23,18 +23,19 @@
 
       <table class="roster-table members-table condensed-table">
         <thead>
-          <tr><th>Name</th><th>Class</th><th>Day</th><th>Date</th><th>Status</th></tr>
+          <tr><th>Name</th><th>Class</th><th>Day</th><th>Date</th><th>Time</th><th>Status</th></tr>
         </thead>
         <tbody>
           <% if (allSubmissions.length === 0) { %>
-            <tr><td colspan="5" class="roster-empty">No class registrations<%= dateFilter ? ' for this date' : ' yet' %>.</td></tr>
+            <tr><td colspan="6" class="roster-empty">No class registrations<%= dateFilter ? ' for this date' : ' yet' %>.</td></tr>
           <% } %>
           <% allSubmissions.forEach(function(r) { %>
             <tr>
-              <td><%= r.memberName %></td>
+              <td><%= r.memberName %><% if (r.isNew) { %> <strong>(New)</strong><% } %></td>
               <td><%= r.className %></td>
               <td><%= r.classDayLabel %></td>
               <td><%= r.dateLabel %></td>
+              <td><%= r.timeLabel %></td>
               <td><%= r.statusLabel %></td>
             </tr>
           <% }); %>

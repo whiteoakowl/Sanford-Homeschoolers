@@ -7,19 +7,69 @@
   <%- include('partials/admin-nav') %>
   <main id="main-content" tabindex="-1" class="admin-main">
     <h1>Lesson Plan Approval</h1>
-    <p class="hint">Lessons teachers have submitted from the Co-op Teacher Portal. A lesson is only visible to the
-      students enrolled in its class once it's approved here.</p>
+    <p class="hint">Lessons teachers have submitted from the Co-op Teacher Portal, with any substitute plans sent along with them. A lesson is only visible to the
+      students enrolled in its class, and a substitute plan to substitutes, once it's approved here.</p>
 
     <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
 
     <div class="view-tabs no-print">
-      <a class="view-tab<%= status === 'pending' ? ' active' : '' %>" href="/admin/lesson-plans/approval">Pending</a>
-      <a class="view-tab<%= status === 'approved' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=approved">Approved</a>
-      <a class="view-tab<%= status === 'rejected' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=rejected">Rejected</a>
-      <a class="view-tab<%= status === 'all' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=all">All</a>
+      <a class="view-tab<%= view === 'classes' ? ' active' : '' %>" href="/admin/lesson-plans/approval">By Class</a>
+      <a class="view-tab<%= view === 'list' && status === 'pending' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=pending">Pending</a>
+      <a class="view-tab<%= view === 'list' && status === 'approved' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=approved">Approved</a>
+      <a class="view-tab<%= view === 'list' && status === 'rejected' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=rejected">Rejected</a>
+      <a class="view-tab<%= view === 'list' && status === 'all' ? ' active' : '' %>" href="/admin/lesson-plans/approval?status=all">All</a>
     </div>
 
+    <% if (view === 'classes') { %>
+      <%# A real request: "Should list all of the classes by semester/day.
+          Drop down menu to switch semester/day. Hour sections, class name,
+          teacher name, lesson plan column, substitute plan column. Bubbles
+          under each column and each row and it says approved, rejected,
+          submitted or nothing. Button at the end of each row that says view
+          submission if something has been submitted." %>
+      <% var bubble = function (st) {
+           if (!st) return '<span class="lpa-bubble lpa-bubble-none" aria-label="Nothing submitted"></span>';
+           var label = { pending: 'Submitted', approved: 'Approved', rejected: 'Rejected' }[st];
+           return '<span class="lpa-bubble lpa-bubble-' + st + '">' + label + '</span>';
+         }; %>
+      <% if (!combos.length) { %>
+        <p class="roster-empty">No semester/day schedules have been set up yet.</p>
+      <% } else { %>
+        <form method="GET" action="/admin/lesson-plans/approval" class="lpa-picker no-print">
+          <label for="lpa-combo">Semester/Day</label>
+          <select id="lpa-combo" name="combo" onchange="this.form.submit()">
+            <% combos.forEach(function(c) { %><option value="<%= c.id %>" <%= combo && combo.id === c.id ? 'selected' : '' %>><%= c.label %></option><% }); %>
+          </select>
+        </form>
+        <% if (!hours.length) { %>
+          <p class="roster-empty">No classes on <%= combo.label %> yet.</p>
+        <% } %>
+        <% hours.forEach(function(h) { %>
+          <section class="lpa-hour">
+            <h2 class="lpa-hour-title"><%= h.label %><% if (h.time) { %> <span class="hint"><%= h.time %></span><% } %></h2>
+            <div class="roster-scroll">
+              <table class="roster-table condensed-table lpa-table">
+                <thead><tr><th>Class</th><th class="lpa-teacher-col">Teacher</th><th class="lpa-col">Lesson Plan</th><th class="lpa-col">Substitute Plan</th><th></th></tr></thead>
+                <tbody>
+                  <% h.classes.forEach(function(c) { var a = c.approval || {}; %>
+                    <tr>
+                      <td class="table-stack-heading"><a href="/admin/class-schedule/classes/<%= c.id %>/manage"><%= c.class_name %></a><span class="lpa-teacher-inline"><%= c.teacherNames || '—' %></span></td>
+                      <td data-label="Teacher" class="lpa-teacher-col"><%= c.teacherNames || '—' %></td>
+                      <td data-label="Lesson Plan" class="lpa-col"><%- bubble(a.lessonStatus) %></td>
+                      <td data-label="Substitute Plan" class="lpa-col"><%- bubble(a.subStatus) %></td>
+                      <td class="lpa-action">
+                        <% if (a.viewAssignmentId) { %><a class="roster-action-btn lpa-view-btn" href="/admin/lesson-plans/approval/<%= a.viewAssignmentId %>" aria-label="View Submission for <%= c.class_name %>"><span class="lpa-view-full">View Submission</span><span class="lpa-view-short">View</span></a><% } %>
+                      </td>
+                    </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        <% }); %>
+      <% } %>
+    <% } else { %>
     <div class="manage-section">
       <% if (lessons.length === 0) { %>
         <p class="roster-empty">
@@ -45,6 +95,7 @@
                   <td class="roster-name-col table-stack-heading">
                     <a href="/admin/lesson-plans/approval/<%= a.id %>"><%= a.title %></a>
                     <% if (a.approval_status === 'rejected' && a.review_note) { %><div class="hint">Message: <%= a.review_note %></div><% } %>
+                    <% if (a.subPlanCount) { %><div class="hint">+ <%= a.subPlanCount %> substitute plan<%= a.subPlanCount === 1 ? '' : 's' %></div><% } %>
                   </td>
                   <td data-label="Class"><%= a.class_name %></td>
                   <td data-label="Teacher"><%= a.submitted_by_name || '—' %></td>
@@ -52,7 +103,7 @@
                   <td data-label="Submitted"><%= a.submittedAtLabel || '—' %></td>
                   <% if (status !== 'pending') { %><td data-label="Reviewed"><%= a.reviewedAtLabel || '—' %></td><% } %>
                   <td>
-                    <a class="roster-action-btn" href="/admin/lesson-plans/approval/<%= a.id %>"><%= a.approval_status === 'pending' ? 'Review' : 'View' %></a>
+                    <a class="roster-action-btn" href="/admin/lesson-plans/approval/<%= a.id %>"><%= a.approval_status === 'pending' || status === 'pending' ? 'Review' : 'View' %></a>
                   </td>
                 </tr>
               <% }); %>
@@ -61,6 +112,7 @@
         </div>
       <% } %>
     </div>
+    <% } %>
   </main>
 </body>
 </html>

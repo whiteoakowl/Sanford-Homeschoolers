@@ -63,7 +63,7 @@ test('Class Check-In QR Codes picker lists every class, with no description text
 
   const res = await request(app).get('/admin/design?tab=print').set('Cookie', cookie);
   assert.equal(res.status, 200);
-  assert.match(res.text, /Class Check-In QR Codes/);
+  assert.match(res.text, /QR Codes for Classes/);
   assert.match(res.text, new RegExp(`name="classIds" value="${classId}"`));
   assert.match(res.text, /QR Picker Class/);
   assert.doesNotMatch(res.text, /One QR code per selected class/);

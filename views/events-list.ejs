@@ -104,7 +104,13 @@
               has no month/year picker to merge into, so Student Portal
               keeps this row exactly like every other caller there. %>
           <% if (!(effectivePortal === 'student' && view === 'calendar')) { %>
-            <div class="roster-btn-row">
+            <%# A real request: "Parent portal event calendar. The export,
+                pdf and print icons should be in a row side by side, not a
+                column" - icon-only, so it takes the same one-line
+                .class-schedule-icon-row layout on phones as the Class
+                Schedule's own icon row (styles.css) instead of the
+                mobile toolbar grid, which stacks icons in one column. %>
+            <div class="roster-btn-row class-schedule-icon-row">
               <div class="class-schedule-view-toggle" role="group" aria-label="List or calendar view">
                 <a class="icon-btn<%= view === 'list' ? ' icon-btn-active' : '' %>" href="/events?view=list<%= portalQuerySuffix %>" aria-pressed="<%= view === 'list' %>" aria-label="List view" title="List view"><svg class="icon"><use href="#icon-clipboard-list"/></svg></a>
                 <a class="icon-btn<%= view === 'calendar' ? ' icon-btn-active' : '' %>" href="/events?view=calendar<%= portalQuerySuffix %>" aria-pressed="<%= view === 'calendar' %>" aria-label="Calendar view" title="Calendar view"><svg class="icon"><use href="#icon-calendar-check"/></svg></a>

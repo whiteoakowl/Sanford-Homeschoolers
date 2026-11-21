@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body class="admin-page">
+  <%- include('partials/admin-nav') %>
+  <%# Attendance > Class Rosters > class > View Lesson Plan / View
+      Substitute Plan (routes/admin-rosters.js) - read-only, every status
+      with its badge. kind: 'lesson' or 'substitute'. %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p class="subtitle no-print"><a href="<%= backHref %>">&larr; Back to <%= cls.class_name %> Roster</a></p>
+    <h1><%= cls.class_name %> <%= kind === 'lesson' ? 'Lesson Plan' : 'Substitute Plan' %></h1>
+    <% if (kind === 'lesson') { %>
+      <%- include('partials/lesson-plan-readonly', { lessons, showStatus: true }) %>
+    <% } else { %>
+      <%- include('partials/substitute-plan-readonly', { plans, showStatus: true }) %>
+    <% } %>
+  </main>
+</body>
+</html>

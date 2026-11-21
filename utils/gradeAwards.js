@@ -44,6 +44,21 @@ const AWARD_DESIGNS = [
 ];
 const DESIGN_KEYS = AWARD_DESIGNS.map((d) => d.key);
 
+// A real request: "Add font choice for child's name and parents names."
+// Loaded from Google Fonts by views/partials/grade-award.ejs.
+const AWARD_FONTS = [
+  { key: 'handwriting', label: 'Handwriting (Caveat)', css: "'Caveat', 'Segoe Print', cursive", weight: 700 },
+  { key: 'print', label: 'Neat Print', css: "'Patrick Hand', 'Comic Sans MS', cursive", weight: 400 },
+  { key: 'marker', label: 'Marker', css: "'Permanent Marker', cursive", weight: 400 },
+  { key: 'rounded', label: 'Bold Rounded', css: "'Baloo 2', 'Arial Rounded MT Bold', sans-serif", weight: 800 },
+  { key: 'playful', label: 'Playful', css: "'Fredoka', 'Arial Rounded MT Bold', sans-serif", weight: 600 },
+  { key: 'brush', label: 'Brush Script', css: "'Kaushan Script', 'Brush Script MT', cursive", weight: 400 },
+  { key: 'script', label: 'Fancy Script', css: "'Great Vibes', cursive", weight: 400 },
+  { key: 'classic', label: 'Classic Serif', css: "'EB Garamond', Georgia, serif", weight: 700 },
+];
+const FONT_KEYS = AWARD_FONTS.map((f) => f.key);
+const fontFor = (key) => AWARD_FONTS.find((f) => f.key === key) || AWARD_FONTS[0];
+
 const clean = (v) => String(v || '').trim().slice(0, 80);
 
 // The builder's query string -> exactly what one award shows.
@@ -59,6 +74,10 @@ function awardFromQuery(q) {
     studentName: clean(query.studentName),
     parent1: clean(query.parent1),
     parent2: clean(query.parent2),
+    nameFont: FONT_KEYS.includes(query.nameFont) ? query.nameFont : 'handwriting',
+    parentFont: FONT_KEYS.includes(query.parentFont) ? query.parentFont : 'handwriting',
+    nameFontStyle: fontFor(query.nameFont),
+    parentFontStyle: fontFor(query.parentFont),
   };
 }
 
@@ -69,7 +88,9 @@ function awardQuery(award, overrides) {
   if (a.studentName) params.set('studentName', a.studentName);
   if (a.parent1) params.set('parent1', a.parent1);
   if (a.parent2) params.set('parent2', a.parent2);
+  if (a.nameFont && a.nameFont !== 'handwriting') params.set('nameFont', a.nameFont);
+  if (a.parentFont && a.parentFont !== 'handwriting') params.set('parentFont', a.parentFont);
   return params.toString();
 }
 
-module.exports = { GRADE_LEVELS, AWARD_DESIGNS, awardFromQuery, awardQuery };
+module.exports = { GRADE_LEVELS, AWARD_DESIGNS, AWARD_FONTS, awardFromQuery, awardQuery };

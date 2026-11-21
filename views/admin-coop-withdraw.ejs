@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%# Co-op Admin > Classes > Co-op Withdraw (routes/admin-coop-withdraw.js):
+    every family's withdrawal request, pending first. Click a family for
+    its note and full schedule, then Confirm or Reject. %>
+<body class="admin-page">
+  <%- include('partials/admin-nav') %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <h1>Co-op Withdraw</h1>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+
+    <% if (withdrawals.length === 0) { %>
+      <p class="roster-empty">No families have asked to withdraw from co-op classes.</p>
+    <% } else { %>
+      <div class="cw-list">
+        <% withdrawals.forEach(function(w) { var open = selected && selected.id === w.id; %>
+          <a class="cw-row<%= open ? ' cw-row-open' : '' %>" href="/admin/coop-withdraw<%= open ? '' : '?id=' + w.id %>">
+            <span class="cw-family"><svg class="icon"><use href="#icon-users"/></svg> <%= w.familyLabel %></span>
+            <span class="cw-when"><svg class="icon"><use href="#icon-clock"/></svg> <%= w.requestedLabel %></span>
+            <span class="cw-status cw-status-<%= w.status %>"><%= w.status === 'pending' ? 'Pending' : w.status === 'confirmed' ? 'Confirmed' : 'Rejected' %></span>
+            <svg class="icon cw-chevron"><use href="#icon-chevron-down"/></svg>
+          </a>
+          <% if (open) { %>
+            <div class="cw-detail">
+              <p><strong>Requested by:</strong> <%= w.member_name || '—' %> &middot; <%= w.requestedLabel %></p>
+              <p><strong>Note:</strong> <%= w.note || 'No note.' %></p>
+              <% if (w.status !== 'pending') { %>
+                <p class="hint"><%= w.status === 'confirmed' ? 'Confirmed' : 'Rejected' %><%= w.decided_by ? ' by ' + w.decided_by : '' %><%= w.decidedLabel ? ' · ' + w.decidedLabel : '' %></p>
+              <% } %>
+              <% if (w.removed) { %>
+                <details class="cw-removed"><summary>What was removed</summary>
+                  <ul>
+                    <% w.removed.classes.forEach(function(c) { %><li><%= c %></li><% }); %>
+                    <% w.removed.staff.forEach(function(c) { %><li><%= c %></li><% }); %>
+                    <li><%= w.removed.lists %> floater/setup/cleanup list entr<%= w.removed.lists === 1 ? 'y' : 'ies' %></li>
+                  </ul>
+                </details>
+              <% } %>
+              <% if (w.status === 'pending') { %>
+                <div class="roster-btn-row cw-actions">
+                  <form method="POST" action="/admin/coop-withdraw/<%= w.id %>/confirm" data-confirm="Confirm withdrawal for the <%= w.familyLabel %>? Everyone in the family is removed from their co-op classes, teaching and assistant spots, floater lists and setup/cleanup teams. Their member records stay." data-confirm-yes-label="Yes, Confirm">
+                    <button type="submit" class="roster-action-btn roster-action-btn-danger">Confirm Withdrawal</button>
+                  </form>
+                  <form method="POST" action="/admin/coop-withdraw/<%= w.id %>/reject" data-confirm="Reject this withdrawal request? Nothing will change for the <%= w.familyLabel %>." data-confirm-icon="icon-x-circle" data-confirm-safe="1" data-confirm-yes-label="Yes, Reject">
+                    <button type="submit" class="btn-secondary">Reject</button>
+                  </form>
+                </div>
+              <% } %>
+              <h2 class="cw-schedule-title">Family Schedule</h2>
+              <% if (tables.length === 0) { %>
+                <p class="hint">No family members found.</p>
+              <% } else { %>
+                <div class="member-schedule-list">
+                  <%- include('partials/member-schedule-table', { tables, classHref: function (id) { return '/admin/class-schedule/classes/' + id + '/manage'; }, memberHref: function (m) { return '/admin/schedule/member/' + m.id + '/manage'; } }) %>
+                </div>
+              <% } %>
+            </div>
+          <% } %>
+        <% }); %>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

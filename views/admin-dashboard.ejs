@@ -64,10 +64,14 @@
 
     <%- include('partials/pending-requests-card', {
       viewAllHref: '/admin/lesson-plans/approval',
+      compact: true,
       items: [
         { icon: 'clipboard-list', color: 'blue', label: 'Lesson Plan Approvals', value: lessonApprovalsCount, href: '/admin/lesson-plans/approval' },
         { icon: 'coin', color: 'green', label: 'Teacher Reimbursements', value: reimbursementsCount, href: '/admin/teachers/reimbursements?status=submitted' },
         { icon: 'badge', color: 'orange', label: 'Name Tag Requests', value: nameTagRequestsCount, href: '/admin/design?tab=requests' },
+        { icon: 'shuffle', color: 'purple', label: 'Schedule Change Requests', value: scheduleChangeCount, href: '/admin/schedule-changes' },
+        { icon: 'log-out', color: 'gold', label: 'Co-op Withdraw', value: coopWithdrawCount, href: '/admin/coop-withdraw' },
+        { icon: 'lightbulb', color: 'teal', label: 'Teacher Interest Forms', value: teacherInterestCount, href: '/admin/teachers/interest-form' },
       ],
     }) %>
     <%# A real request: match a provided design - 4 status rows (Checked

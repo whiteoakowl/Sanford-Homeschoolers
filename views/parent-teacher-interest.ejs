@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%# Parent Portal > Forms > Teacher Interest Form (routes/parent-teacher-
+    interest.js). The checkbox lists are whatever Co-op Admin set up on
+    Teachers/Assistants > Teacher Interest Form > Edit Form. %>
+<% var isChecked = function (key, opt) { var v = values[key]; return Array.isArray(v) ? v.indexOf(opt) !== -1 : v === opt; }; %>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Parent Portal' }) %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <div class="form-wrap teacher-interest-wrap">
+      <h1><%= settings.title %></h1>
+      <% if (settings.intro) { %><p class="subtitle"><%= settings.intro %></p><% } %>
+
+      <% if (sent) { %>
+        <div class="alert alert-success">Thank you! Your teacher interest form was sent to the co-op admins.</div>
+        <p><a href="/parent">&larr; Back to Home</a></p>
+      <% } else { %>
+        <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+        <form method="POST" action="/parent/teacher-interest" class="stack-form">
+          <label>Name
+            <input type="text" name="name" value="<%= values.name != null ? values.name : defaultName %>" required />
+          </label>
+          <% lists.forEach(function(l) { if (!settings[l.key].length) return; %>
+            <fieldset class="teacher-interest-group">
+              <legend><%= l.label %></legend>
+              <div class="teacher-interest-options">
+                <% settings[l.key].forEach(function(opt) { %>
+                  <label class="checkbox-option"><input type="checkbox" name="<%= l.key %>" value="<%= opt %>" <%= isChecked(l.key, opt) ? 'checked' : '' %> /> <%= opt %></label>
+                <% }); %>
+              </div>
+            </fieldset>
+          <% }); %>
+          <% [1, 2, 3].forEach(function(n) { %>
+            <label>Class Idea <%= n %>
+              <textarea name="idea<%= n %>" rows="5" placeholder="Class name, what students would learn, supplies needed..."><%= values['idea' + n] || '' %></textarea>
+            </label>
+          <% }); %>
+          <button type="submit" class="primary-btn">Submit</button>
+        </form>
+      <% } %>
+    </div>
+  </main>
+</body>
+</html>
