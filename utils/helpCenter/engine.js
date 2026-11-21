@@ -2,13 +2,14 @@
 // from a list of category content files. See utils/helpCenter/index.js
 // (member Help Center) and utils/helpCenter/admin.js (Admin Help Center)
 // for the article format and who each one is for.
-function createHelpCenter({ name, contentDir, categoryFiles, faqFile, audiences, viewerFromRequest }) {
+// `categories` and `faqs` are the already-required content modules.
+// They must be required with literal paths by the caller: Netlify bundles
+// the app with esbuild, which can't follow a require() built from a
+// variable, so computed paths crash the live function.
+function createHelpCenter({ name, categories, faqs, audiences, viewerFromRequest }) {
   const AUDIENCES = new Set(audiences);
 
-  const CATEGORIES = categoryFiles.map((file) => {
-    const cat = require(`${contentDir}/${file}`);
-    return { ...cat, articles: cat.articles.map((a) => ({ ...a, category: cat.slug })) };
-  });
+  const CATEGORIES = categories.map((cat) => ({ ...cat, articles: cat.articles.map((a) => ({ ...a, category: cat.slug })) }));
   const ARTICLES = new Map();
   for (const cat of CATEGORIES) {
     for (const article of cat.articles) {
@@ -17,7 +18,7 @@ function createHelpCenter({ name, contentDir, categoryFiles, faqFile, audiences,
       ARTICLES.set(article.slug, article);
     }
   }
-  const FAQS = require(`${contentDir}/${faqFile}`);
+  const FAQS = faqs;
 
   function canSee(viewer, item) {
     if (!item.audiences.some((a) => viewer.audiences.has(a))) return false;
