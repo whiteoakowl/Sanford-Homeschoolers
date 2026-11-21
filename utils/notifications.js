@@ -9,6 +9,7 @@
 const db = require('../db');
 const smsProvider = require('./smsProvider');
 const emailProvider = require('./emailProvider');
+const pushProvider = require('./pushProvider');
 
 async function listTypes() {
   return db.prepare('SELECT * FROM notification_types ORDER BY label').all();
@@ -18,8 +19,11 @@ async function getType(key) {
   return db.prepare('SELECT * FROM notification_types WHERE key = ?').get(key);
 }
 
-async function setAutoSend(key, { email, sms }) {
+// `push` left undefined keeps the type's current push setting (callers
+// written before push existed only pass email/sms).
+async function setAutoSend(key, { email, sms, push }) {
   await db.prepare('UPDATE notification_types SET auto_send_email_enabled = ?, auto_send_sms_enabled = ? WHERE key = ?').run(email ? 1 : 0, sms ? 1 : 0, key);
+  if (push !== undefined) await db.prepare('UPDATE notification_types SET auto_send_push_enabled = ? WHERE key = ?').run(push ? 1 : 0, key);
 }
 
 // Merges an account's stored overrides onto the "enabled by default"
@@ -32,11 +36,8 @@ async function preferencesForAccount(accountId) {
     type,
     email: overrides.find((o) => o.type_key === type.key && o.channel === 'email')?.enabled ?? 1,
     sms: overrides.find((o) => o.type_key === type.key && o.channel === 'sms')?.enabled ?? 1,
-    // A real request: "a notifications settings card to control email,
-    // text and push notifications." No real push-delivery mechanism
-    // exists yet (see this file's own notify() - only email/sms are
-    // ever attempted) - this preference saves and shows correctly today,
-    // ready for whenever a real push channel is wired up.
+    // Push to the member's own devices (utils/pushProvider.js) - only
+    // reaches devices where they've turned push on.
     push: overrides.find((o) => o.type_key === type.key && o.channel === 'push')?.enabled ?? 1,
   }));
 }
@@ -89,6 +90,21 @@ async function notify(accountId, typeKey, { title, body, linkUrl = null, mediaUr
     await recordDelivery(notificationId, 'sms', {
       status: 'skipped',
       detail: type.auto_send_sms_enabled ? 'Recipient opted out of this notification type by SMS.' : 'Auto-send by SMS is turned off for this notification type.',
+    });
+  }
+
+  if (type.auto_send_push_enabled !== 0 && (await accountPrefersChannel(accountId, typeKey, 'push'))) {
+    let result;
+    try {
+      result = await pushProvider.sendToAccount(accountId, { title, body, linkUrl });
+    } catch (err) {
+      result = { status: 'failed', detail: `Push failed: ${err.message}`.slice(0, 500) };
+    }
+    await recordDelivery(notificationId, 'push', result);
+  } else {
+    await recordDelivery(notificationId, 'push', {
+      status: 'skipped',
+      detail: type.auto_send_push_enabled === 0 ? 'Auto-send by push is turned off for this notification type.' : 'Recipient opted out of this notification type by push.',
     });
   }
 

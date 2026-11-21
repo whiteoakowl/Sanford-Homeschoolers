@@ -35,6 +35,7 @@
           <p class="hint"><%= t.description %></p>
           <label class="checkbox-option"><input type="checkbox" name="email" value="1" <%= t.auto_send_email_enabled ? 'checked' : '' %> /> Email</label>
           <label class="checkbox-option"><input type="checkbox" name="sms" value="1" <%= t.auto_send_sms_enabled ? 'checked' : '' %> /> Text</label>
+          <label class="checkbox-option"><input type="checkbox" name="push" value="1" <%= t.auto_send_push_enabled !== 0 ? 'checked' : '' %> /> Push</label>
           <div class="notes-dialog-actions">
             <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Close</button>
             <button type="submit" class="primary-btn">Save</button>

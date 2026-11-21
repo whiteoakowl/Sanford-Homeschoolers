@@ -18,6 +18,17 @@
 
     <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
 
+    <section class="team-info-card" id="push-device-card" style="margin-bottom: 1rem;" data-public-key="<%= pushConfigured ? pushPublicKey : '' %>">
+      <h2>Push notifications on this device</h2>
+      <p class="hint">Get alerts on this phone, tablet or computer, even when the site isn't open. Turn it on separately on each device you use.<% if (pushDeviceCount > 0) { %> You have push on for <%= pushDeviceCount %> device<%= pushDeviceCount === 1 ? '' : 's' %>.<% } %></p>
+      <p id="push-device-status" role="status" aria-live="polite"><%= pushConfigured ? 'Checking this device...' : 'Push notifications are not set up on this site yet.' %></p>
+      <div class="notes-dialog-actions">
+        <button type="button" class="primary-btn" id="push-enable-btn" hidden>Turn on for this device</button>
+        <button type="button" class="btn-secondary" id="push-disable-btn" hidden>Turn off for this device</button>
+        <button type="button" class="btn-secondary" id="push-test-btn" hidden>Send a test</button>
+      </div>
+    </section>
+
     <form method="POST" action="/notifications/preferences">
       <div class="roster-scroll">
         <table class="roster-table members-table condensed-table">
@@ -48,12 +59,8 @@
                     <span class="hint" title="This notification type is always email-only.">N/A</span>
                   <% } %>
                 </td>
-                <%# A real request: "a notifications settings card to
-                    control email, text and push notifications." No real
-                    push-delivery mechanism exists yet - see utils/
-                    notifications.js's own notify() - this saves and
-                    shows correctly today, ready for whenever a real push
-                    channel is wired up. %>
+                <%# Push goes to every device where this member turned
+                    push on (card above) - see utils/pushProvider.js. %>
                 <td><input type="checkbox" name="push_<%= p.type.key %>" value="1" <%= p.push ? 'checked' : '' %> /></td>
               </tr>
             <% }); %>
@@ -63,5 +70,6 @@
       <button type="submit" class="primary-btn">Save</button>
     </form>
   </main>
+  <script src="/js/push-notifications.js" defer></script>
 </body>
 </html>

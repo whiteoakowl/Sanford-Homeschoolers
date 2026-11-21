@@ -123,3 +123,38 @@ self.addEventListener('fetch', (event) => {
     Promise.race([network, timedOut]).catch(() => cached().then((hit) => hit || Response.error()))
   );
 });
+
+// Push notifications (utils/pushProvider.js sends them; the member turns
+// them on per device on Notifications > Preferences). The payload is
+// { title, body, url } - url is always a same-site path.
+self.addEventListener('push', (event) => {
+  let data;
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+  const title = data.title || 'Sanford Homeschoolers';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || '',
+      icon: '/img/logo.png',
+      badge: '/img/logo.png',
+      data: { url: typeof data.url === 'string' && data.url.startsWith('/') && !data.url.startsWith('//') ? data.url : '/notifications' },
+    })
+  );
+});
+
+// Tapping a notification focuses an already-open app window (and moves
+// it to the notification's page) or opens a new one.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || '/notifications', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      const existing = windows.find((w) => new URL(w.url).origin === self.location.origin);
+      if (existing) return existing.navigate(target).then((w) => (w || existing).focus());
+      return self.clients.openWindow(target);
+    })
+  );
+});

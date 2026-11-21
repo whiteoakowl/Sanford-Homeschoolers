@@ -8,6 +8,7 @@ const express = require('express');
 const router = express.Router();
 const { requirePortalAuth } = require('../middleware/portalAuth');
 const notifications = require('../utils/notifications');
+const pushProvider = require('../utils/pushProvider');
 const { paginate, parsePage, parsePageSize, DEFAULT_PAGE_SIZE } = require('../utils/pagination');
 
 router.use(requirePortalAuth);
@@ -44,7 +45,42 @@ router.post('/read-all', async (req, res) => {
 
 router.get('/preferences', async (req, res) => {
   const preferences = await notifications.preferencesForAccount(req.portalAccount.id);
-  res.render('notifications-preferences', { title: 'Notification Preferences', preferences, notice: req.query.notice || null });
+  res.render('notifications-preferences', {
+    title: 'Notification Preferences',
+    preferences,
+    notice: req.query.notice || null,
+    pushConfigured: pushProvider.isConfigured(),
+    pushPublicKey: pushProvider.publicKey(),
+    pushDeviceCount: await pushProvider.deviceCount(req.portalAccount.id),
+  });
+});
+
+// Push notifications on THIS device (public/js/push-notifications.js).
+// JSON, sent with the page's X-CSRF-Token header like every other
+// signed-in POST.
+router.post('/push/subscribe', async (req, res) => {
+  if (!pushProvider.isConfigured()) return res.status(503).json({ ok: false, error: 'Push notifications are not set up on this site yet.' });
+  const subscription = req.body && req.body.subscription;
+  if (!pushProvider.isValidSubscription(subscription)) return res.status(400).json({ ok: false, error: 'That device subscription was not valid.' });
+  await pushProvider.saveSubscription(req.portalAccount.id, subscription, req.get('User-Agent'));
+  res.json({ ok: true, deviceCount: await pushProvider.deviceCount(req.portalAccount.id) });
+});
+
+router.post('/push/unsubscribe', async (req, res) => {
+  const endpoint = req.body && typeof req.body.endpoint === 'string' ? req.body.endpoint : null;
+  if (endpoint) await pushProvider.removeSubscription(req.portalAccount.id, endpoint);
+  res.json({ ok: true, deviceCount: await pushProvider.deviceCount(req.portalAccount.id) });
+});
+
+// "Send me a test" - lets a member confirm push really reaches this
+// device without waiting for a real announcement.
+router.post('/push/test', async (req, res) => {
+  const result = await pushProvider.sendToAccount(req.portalAccount.id, {
+    title: 'Test notification',
+    body: 'Push notifications are working on this device.',
+    linkUrl: '/notifications/preferences',
+  });
+  res.status(result.status === 'sent' ? 200 : 400).json({ ok: result.status === 'sent', detail: result.detail });
 });
 
 router.post('/preferences', async (req, res) => {

@@ -33,8 +33,9 @@ router.get('/', async (req, res) => {
 router.post('/:key/auto-send', async (req, res) => {
   const email = req.body.email === '1';
   const sms = req.body.sms === '1';
-  await notifications.setAutoSend(req.params.key, { email, sms });
-  await auditLog.record(req.portalAccount.id, 'notification_auto_send_toggled', 'notification_type', null, `${req.params.key}: email ${email ? 'on' : 'off'}, text ${sms ? 'on' : 'off'}`);
+  const push = req.body.push === '1';
+  await notifications.setAutoSend(req.params.key, { email, sms, push });
+  await auditLog.record(req.portalAccount.id, 'notification_auto_send_toggled', 'notification_type', null, `${req.params.key}: email ${email ? 'on' : 'off'}, text ${sms ? 'on' : 'off'}, push ${push ? 'on' : 'off'}`);
   res.redirect('/main-admin/notifications?notice=' + encodeURIComponent('Saved.'));
 });
 
