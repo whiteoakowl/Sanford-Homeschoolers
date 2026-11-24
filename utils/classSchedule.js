@@ -934,7 +934,7 @@ async function updateClassTeacherFields(id, { className, description, supplyList
   await db.prepare('UPDATE classes SET class_name = ?, description = ?, supply_list = ? WHERE id = ?').run(className, description || null, supplyList || null, id);
 }
 
-async function updateClass(id, fields) {
+async function updateClass(id, fields, { skipSync = false } = {}) {
   const before = await db.prepare('SELECT roster_id, day FROM classes WHERE id = ?').get(id);
   await db.prepare(
     `UPDATE classes SET day = ?, hour_position = ?, class_name = ?, room = ?, age_group = ?, numeric_ages = ?, color = ?, start_time = ?, end_time = ?, start_date = ?, end_date = ?, capacity = ?, registration_open = ?, description = ?, supply_list = ?,
@@ -982,6 +982,9 @@ async function updateClass(id, fields) {
   // Re-derive roster membership + member_schedules for whichever day(s)
   // are affected - both the old day (in case this class just moved off
   // it) and the new one.
+  // skipSync: a caller saving many classes at once (bulkUpdateClasses)
+  // syncs each affected day once itself, afterwards.
+  if (skipSync) return;
   await syncDayMemberRosters(fields.day);
   if (before && before.day && before.day !== fields.day) await syncDayMemberRosters(before.day);
 }
@@ -996,11 +999,23 @@ async function updateClass(id, fields) {
 // own current value rather than silently resetting to a default, which
 // is exactly what this does: load each selected class, overlay just the
 // patched keys on top of its current values, and save that merged row.
+// A real bug report: "Inactivity timeout when editing all classes." Each
+// class's save used to rebuild its whole day's member rosters, once per
+// selected class - dozens of identical day-wide syncs for one Save, long
+// enough for the request to time out. Each class is now saved with
+// skipSync and every affected day is synced exactly once at the end; the
+// class row is read directly (no roster/staff lists - not needed here).
 async function bulkUpdateClasses(ids, patch) {
   let updated = 0;
-  for (const id of ids) {
-    const cls = await getClass(id);
-    if (!cls) continue;
+  const daysToSync = new Set();
+  // A real request: "Bulk edit on 60-80 classes" - classes are saved 8 at
+  // a time (each its own few queries, in parallel over the connection
+  // pool) rather than strictly one after another, so a large selection
+  // still finishes well inside the host's request time limit.
+  const saveOne = async (id) => {
+    const cls = await db.prepare('SELECT * FROM classes WHERE id = ?').get(id);
+    if (!cls) return;
+    daysToSync.add(cls.day);
     await updateClass(id, {
       day: cls.day,
       hourPosition: patch.hourPosition !== undefined ? patch.hourPosition : cls.hour_position,
@@ -1032,12 +1047,17 @@ async function bulkUpdateClasses(ids, patch) {
       lockByAge: patch.lockByAge !== undefined ? patch.lockByAge : !!cls.lock_by_age,
       allowParentCompleteLessons: patch.allowParentCompleteLessons !== undefined ? patch.allowParentCompleteLessons : !!cls.allow_parent_complete_lessons,
       allowParentChat: patch.allowParentChat !== undefined ? patch.allowParentChat : !!cls.allow_parent_chat,
-    });
+    }, { skipSync: true });
     if (patch.semesterId !== undefined) {
       await setClassSemester(id, patch.semesterId);
     }
     updated++;
+  };
+  const BATCH = 8;
+  for (let start = 0; start < ids.length; start += BATCH) {
+    await Promise.all(ids.slice(start, start + BATCH).map(saveOne));
   }
+  for (const day of daysToSync) await syncDayMemberRosters(day);
   return updated;
 }
 
