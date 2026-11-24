@@ -1155,10 +1155,17 @@ router.post('/class-schedule/:day/bulk-edit', requireFullAdmin, async (req, res)
   // semester on the selected classes" field. Same "stay on that
   // semester" bug fix as every other redirect in this file.
   const gridSemesterId = req.body.gridSemesterId || 'none';
-  const ids = (req.body.classIds || '')
+  // A real request: "When selecting all classes to edit it should only
+  // edit the class grid you are viewing." Only this day's classes are
+  // ever touched, whatever ids arrive (the page itself only sends the
+  // classes visible on the grid - public/js/class-schedule-bulk-edit.js).
+  const requestedIds = [...new Set((req.body.classIds || '')
     .split(',')
     .map((v) => parseInt(v, 10))
-    .filter(Boolean);
+    .filter(Boolean))];
+  const ids = requestedIds.length
+    ? (await db.prepare(`SELECT id FROM classes WHERE day = ? AND id IN (${requestedIds.map(() => '?').join(',')})`).all(day, ...requestedIds)).map((r) => r.id)
+    : [];
   if (ids.length === 0) {
     return res.redirect(`/admin/schedule?tab=${day}&semesterId=${gridSemesterId}&error=` + encodeURIComponent('No classes were selected.'));
   }
@@ -1184,6 +1191,18 @@ router.post('/class-schedule/:day/bulk-edit', requireFullAdmin, async (req, res)
   if (req.body.closeClass === '1' && req.body.openClass !== '1') patch.registrationOpen = false;
   if (req.body.semesterId === 'none') patch.semesterId = null;
   else if (req.body.semesterId) patch.semesterId = parseInt(req.body.semesterId, 10);
+  // Yes/No settings: '' = don't change.
+  for (const key of ['allowParentCompleteLessons', 'allowParentChat', 'lockByGrade', 'lockByAge']) {
+    if (req.body[key] === '1') patch[key] = true;
+    else if (req.body[key] === '0') patch[key] = false;
+  }
+  if (req.body.makeFree === '1') patch.priceCents = null;
+  else if ((req.body.priceDollars || '').trim() !== '' && Number.isFinite(parseFloat(req.body.priceDollars)) && parseFloat(req.body.priceDollars) >= 0) {
+    patch.priceCents = Math.round(parseFloat(req.body.priceDollars) * 100) || null;
+  }
+  if (req.body.pricePer === 'students' || req.body.pricePer === 'students_and_staff') patch.pricePer = req.body.pricePer;
+  if (req.body.accountingCategoryId === 'none') patch.accountingCategoryId = null;
+  else if (req.body.accountingCategoryId) patch.accountingCategoryId = parseInt(req.body.accountingCategoryId, 10) || null;
 
   const updated = await bulkUpdateClasses(ids, patch);
   res.redirect(`/admin/schedule?tab=${day}&semesterId=${gridSemesterId}&notice=` + encodeURIComponent(`Updated ${updated} class${updated === 1 ? '' : 'es'}.`));

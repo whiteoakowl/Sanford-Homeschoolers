@@ -116,7 +116,7 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
           below), so there's nothing to select while Grid is showing. %>
       <div class="class-schedule-archive-controls" id="class-schedule-bulk-edit-controls-<%= day %>" data-bulk-edit-controls="class-bulk-edit-form-<%= day %>" hidden>
         <label class="checkbox-option class-schedule-select-all">
-          <input type="checkbox" data-select-all-for="class-bulk-edit-form-<%= day %>" />
+          <input type="checkbox" data-select-all-for="class-bulk-edit-form-<%= day %>" data-select-visible-only />
           Select All
         </label>
       </div>
@@ -779,9 +779,43 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
       <input type="date" name="endDate" />
     </label>
     <div class="member-form-full">
-      <label class="checkbox-option"><input type="checkbox" name="openClass" value="1" /> Open Class</label>
-      <label class="checkbox-option"><input type="checkbox" name="closeClass" value="1" /> Close Class</label>
+      <label class="checkbox-option"><input type="checkbox" name="openClass" value="1" /> Open Registration</label>
+      <label class="checkbox-option"><input type="checkbox" name="closeClass" value="1" /> Close Registration</label>
     </div>
+    <%# A real request: "Bulk edit should include Close Registration,
+        Parents Can Complete Lessons, Parents Can Use Class Chat, Price,
+        Charged per, Account category, Lock class by age, Lock class by
+        grade." Each yes/no setting is Don't change / Yes / No, so an
+        untouched one leaves every selected class as it was. %>
+    <% [['allowParentCompleteLessons', 'Parents Can Complete Lessons'], ['allowParentChat', 'Parents Can Use Class Chat'], ['lockByGrade', 'Lock class by grade'], ['lockByAge', 'Lock class by age']].forEach(function(f) { %>
+      <label><%= f[1] %>
+        <select name="<%= f[0] %>">
+          <option value="">Don't change</option>
+          <option value="1">Yes</option>
+          <option value="0">No</option>
+        </select>
+      </label>
+    <% }); %>
+    <label>Price ($)
+      <input type="number" name="priceDollars" min="0" step="0.01" placeholder="Don't change" />
+      <span class="checkbox-option bulk-edit-free"><input type="checkbox" name="makeFree" value="1" /> Make free (no price)</span>
+    </label>
+    <label>Charged per
+      <select name="pricePer">
+        <option value="">Don't change</option>
+        <option value="students">Students</option>
+        <option value="students_and_staff">Students and Teachers/Assistants</option>
+      </select>
+    </label>
+    <label>Account Category
+      <select name="accountingCategoryId">
+        <option value="">Don't change</option>
+        <option value="none">None</option>
+        <% (typeof accountingCategories !== 'undefined' ? accountingCategories : []).forEach(function(c) { %>
+          <option value="<%= c.id %>"><%= c.name %></option>
+        <% }); %>
+      </select>
+    </label>
     <label class="member-form-full">Description
       <textarea name="description" rows="3" placeholder="Don't change"></textarea>
     </label>

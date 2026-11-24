@@ -30,7 +30,7 @@
 
   document.addEventListener('change', (e) => {
     const master = e.target.closest('[data-select-all-for]');
-    if (!master) return;
+    if (!master || master.hasAttribute('data-select-visible-only')) return;
     const formId = master.getAttribute('data-select-all-for');
     document.querySelectorAll(`input[type="checkbox"][form="${formId}"]`).forEach((cb) => {
       cb.checked = master.checked;
@@ -45,7 +45,10 @@
     if (!(cb instanceof HTMLInputElement) || cb.type !== 'checkbox' || !cb.form || cb.matches('[data-select-all-for]')) return;
     const selectAll = document.querySelector(`[data-select-all-for="${cb.getAttribute('form')}"]`);
     if (!selectAll) return;
-    const boxes = Array.from(document.querySelectorAll(`input[type="checkbox"][form="${cb.getAttribute('form')}"]:not(.archive-offpage-checkbox)`)).filter((b) => !b.hidden);
+    const visibleOnly = selectAll.hasAttribute('data-select-visible-only');
+    const boxes = Array.from(document.querySelectorAll(`input[type="checkbox"][form="${cb.getAttribute('form')}"]:not(.archive-offpage-checkbox)`)).filter(
+      (b) => !b.hidden && (!visibleOnly || (b.closest('.class-card, tr') || b).getClientRects().length > 0)
+    );
     selectAll.checked = boxes.length > 0 && boxes.every((b) => b.checked);
   });
 

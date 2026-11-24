@@ -53,3 +53,40 @@ test('moving a column saves a display order; classes keep their own hour; a span
   const order = [...reloaded.text.matchAll(/<th data-col-position="(\d)">/g)].map((m) => m[1]).join(',');
   assert.equal(order, '3,1,4,2');
 });
+
+// A real request: "When selecting all classes to edit it should only edit
+// the class grid you are viewing. Bulk edit should include Close
+// Registration, Parents Can Complete Lessons, Parents Can Use Class Chat,
+// Price, Charged per, Account category, Lock class by age, Lock class by
+// grade."
+test('Bulk Edit sets the new fields, leaves "Don\'t change" alone, and only touches the grid\'s own day', async () => {
+  const mon = await createClass({ day: 'monday', hourPosition: 1, className: 'Bulk Mon', room: 'R1', priceCents: 1000 });
+  const wed = await createClass({ day: 'wednesday', hourPosition: 1, className: 'Bulk Wed', room: 'R1' });
+  const admin = request.agent(app);
+  await admin.post('/login').type('form').send({ email: 'mainadmin@coop.local', password: 'changeme123' });
+  const page = await admin.get('/admin/schedule?tab=monday');
+  const dialog = /<dialog id="bulk-edit-dialog-monday"[\s\S]*?<\/dialog>/.exec(page.text)[0];
+  for (const name of ['closeClass', 'allowParentCompleteLessons', 'allowParentChat', 'priceDollars', 'pricePer', 'accountingCategoryId', 'lockByAge', 'lockByGrade']) {
+    assert.match(dialog, new RegExp(`name="${name}"`), name);
+  }
+  assert.match(dialog, /Close Registration<\/label>/);
+  assert.match(page.text, /data-select-all-for="class-bulk-edit-form-monday" data-select-visible-only/);
+
+  await admin.post('/admin/class-schedule/monday/bulk-edit').type('form').send({
+    _csrf: csrfOf(page.text), classIds: `${mon},${wed}`, closeClass: '1', allowParentCompleteLessons: '1', allowParentChat: '0', lockByGrade: '0', lockByAge: '', pricePer: 'students_and_staff', accountingCategoryId: '',
+  });
+  const m = await db.prepare('SELECT * FROM classes WHERE id = ?').get(mon);
+  assert.equal(Number(m.registration_open), 0);
+  assert.equal(Number(m.allow_parent_complete_lessons), 1);
+  assert.equal(Number(m.allow_parent_chat), 0);
+  assert.equal(Number(m.lock_by_grade), 0);
+  assert.equal(Number(m.lock_by_age), 1, "Don't change leaves it");
+  assert.equal(m.price_cents, 1000, 'blank price leaves it');
+  assert.equal(m.price_per, 'students_and_staff');
+  const w = await db.prepare('SELECT registration_open, price_per FROM classes WHERE id = ?').get(wed);
+  assert.equal(Number(w.registration_open), 1, 'another day\'s class is never touched');
+  assert.equal(w.price_per, 'students');
+
+  await admin.post('/admin/class-schedule/monday/bulk-edit').type('form').send({ _csrf: csrfOf(page.text), classIds: String(mon), makeFree: '1' });
+  assert.equal((await db.prepare('SELECT price_cents FROM classes WHERE id = ?').get(mon)).price_cents, null, 'Make free clears the price');
+});

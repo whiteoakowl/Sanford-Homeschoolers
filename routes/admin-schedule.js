@@ -1,4 +1,5 @@
 const express = require('express');
+const { listAccountingCategories } = require('../utils/events');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
@@ -273,6 +274,7 @@ router.get('/schedule', requireAdmin, async (req, res) => {
       // Needed for the Bulk Edit dialog's own semester dropdown (a real
       // request), which didn't previously exist on this tab (only the
       // Settings tab had the semester list before).
+      accountingCategories: await listAccountingCategories(),
       semesters: await listSemesters(),
       error: req.query.error || null,
       notice: req.query.notice || null,

@@ -1025,13 +1025,13 @@ async function bulkUpdateClasses(ids, patch) {
       minCapacity: cls.min_capacity,
       allowCancel: !!cls.allow_cancel,
       autoRefundOnCancel: !!cls.auto_refund_on_cancel,
-      priceCents: cls.price_cents,
-      pricePer: cls.price_per,
-      accountingCategoryId: cls.accounting_category_id,
-      lockByGrade: !!cls.lock_by_grade,
-      lockByAge: !!cls.lock_by_age,
-      allowParentCompleteLessons: !!cls.allow_parent_complete_lessons,
-      allowParentChat: !!cls.allow_parent_chat,
+      priceCents: patch.priceCents !== undefined ? patch.priceCents : cls.price_cents,
+      pricePer: patch.pricePer !== undefined ? patch.pricePer : cls.price_per,
+      accountingCategoryId: patch.accountingCategoryId !== undefined ? patch.accountingCategoryId : cls.accounting_category_id,
+      lockByGrade: patch.lockByGrade !== undefined ? patch.lockByGrade : !!cls.lock_by_grade,
+      lockByAge: patch.lockByAge !== undefined ? patch.lockByAge : !!cls.lock_by_age,
+      allowParentCompleteLessons: patch.allowParentCompleteLessons !== undefined ? patch.allowParentCompleteLessons : !!cls.allow_parent_complete_lessons,
+      allowParentChat: patch.allowParentChat !== undefined ? patch.allowParentChat : !!cls.allow_parent_chat,
     });
     if (patch.semesterId !== undefined) {
       await setClassSemester(id, patch.semesterId);

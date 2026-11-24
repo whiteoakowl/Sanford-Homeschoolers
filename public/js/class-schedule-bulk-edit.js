@@ -14,6 +14,24 @@
   if (window.__classScheduleBulkEditInstalled) return;
   window.__classScheduleBulkEditInstalled = true;
 
+  // A class's checkbox counts only while its card/row is actually on
+  // screen - its Grid/List view showing and no filter hiding it.
+  function isShowing(cb) {
+    const holder = cb.closest('.class-card, tr') || cb;
+    return holder.getClientRects().length > 0;
+  }
+
+  // Select All on the class grid (data-select-visible-only) ticks only the
+  // classes showing; public/js/archive-select-toggle.js's generic Select
+  // All skips it.
+  document.addEventListener('change', (e) => {
+    const master = e.target.closest('[data-select-all-for][data-select-visible-only]');
+    if (!master) return;
+    document.querySelectorAll(`input[type="checkbox"][form="${master.getAttribute('data-select-all-for')}"]`).forEach((cb) => {
+      cb.checked = master.checked && isShowing(cb);
+    });
+  });
+
   document.addEventListener('click', (e) => {
     const toggle = e.target.closest('[data-bulk-edit-toggle]');
     if (!toggle) return;
@@ -30,7 +48,11 @@
       return;
     }
 
-    const checkedIds = Array.from(checkboxes).filter((cb) => cb.checked).map((cb) => cb.value);
+    // A real request: "When selecting all classes to edit it should only
+    // edit the class grid you are viewing" - only checked boxes on a
+    // class actually showing (not one hidden by a filter or sitting in the
+    // other, hidden Grid/List view), each class once.
+    const checkedIds = [...new Set(Array.from(checkboxes).filter((cb) => cb.checked && isShowing(cb)).map((cb) => cb.value))];
     if (checkedIds.length === 0) {
       // Nothing picked yet - treat a second click as Cancel instead of
       // opening an empty bulk-edit form with nothing to apply it to.
