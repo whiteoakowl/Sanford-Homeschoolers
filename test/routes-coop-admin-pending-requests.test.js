@@ -38,12 +38,13 @@ test('Co-op Admin homepage shows a Pending Requests box with lesson plan, reimbu
   assert.match(after.text, /<span class="pr-card-count" aria-label="2 waiting">2<\/span>/);
 });
 
-test('Main Admin homepage Pending Requests uses the new card with six request types', async () => {
+test('Main Admin homepage Pending Requests uses the new card with seven request types (incl. Refund Approvals)', async () => {
   const admin = request.agent(app);
   await admin.post('/login').type('form').send({ email: 'mainadmin@coop.local', password: 'changeme123', next: '/main-admin' });
   const res = await admin.get('/main-admin');
   assert.equal(res.status, 200);
-  assert.equal((res.text.match(/<a class="pr-card-item"/g) || []).length, 6);
+  assert.equal((res.text.match(/<a class="pr-card-item"/g) || []).length, 7);
   for (const color of ['blue', 'purple', 'green', 'orange', 'teal', 'gold']) assert.match(res.text, new RegExp(`pr-card-item-icon pr-color-${color}`));
   assert.match(res.text, /Business Directory Requests/);
+  assert.match(res.text, /Refund Approvals/);
 });
