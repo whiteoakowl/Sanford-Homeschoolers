@@ -89,4 +89,14 @@ test('Bulk Edit sets the new fields, leaves "Don\'t change" alone, and only touc
 
   await admin.post('/admin/class-schedule/monday/bulk-edit').type('form').send({ _csrf: csrfOf(page.text), classIds: String(mon), makeFree: '1' });
   assert.equal((await db.prepare('SELECT price_cents FROM classes WHERE id = ?').get(mon)).price_cents, null, 'Make free clears the price');
+
+  // A real request: "Be able to edit the number of teachers, assistants
+  // and students allowed for the classes under bulk edit as well."
+  for (const name of ['capacity', 'teacherSlots', 'assistantSlots']) assert.match(dialog, new RegExp(`name="${name}"`), name);
+  await admin.post('/admin/class-schedule/monday/bulk-edit').type('form').send({ _csrf: csrfOf(page.text), classIds: String(mon), capacity: '12', teacherSlots: '1', assistantSlots: '2' });
+  let limits = await db.prepare('SELECT capacity, teacher_slots, assistant_slots FROM classes WHERE id = ?').get(mon);
+  assert.deepEqual({ ...limits }, { capacity: 12, teacher_slots: 1, assistant_slots: 2 });
+  await admin.post('/admin/class-schedule/monday/bulk-edit').type('form').send({ _csrf: csrfOf(page.text), classIds: String(mon), capacity: '', assistantSlotsNoLimit: '1' });
+  limits = await db.prepare('SELECT capacity, teacher_slots, assistant_slots FROM classes WHERE id = ?').get(mon);
+  assert.deepEqual({ ...limits }, { capacity: 12, teacher_slots: 1, assistant_slots: null }, 'blank leaves it; No limit clears it');
 });

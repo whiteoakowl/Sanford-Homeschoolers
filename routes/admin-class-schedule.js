@@ -1200,6 +1200,11 @@ router.post('/class-schedule/:day/bulk-edit', requireFullAdmin, async (req, res)
   else if ((req.body.priceDollars || '').trim() !== '' && Number.isFinite(parseFloat(req.body.priceDollars)) && parseFloat(req.body.priceDollars) >= 0) {
     patch.priceCents = Math.round(parseFloat(req.body.priceDollars) * 100) || null;
   }
+  for (const key of ['capacity', 'teacherSlots', 'assistantSlots']) {
+    const raw = String(req.body[key] || '').trim();
+    if (req.body[`${key}NoLimit`] === '1') patch[key] = null;
+    else if (/^\d+$/.test(raw)) patch[key] = parseInt(raw, 10);
+  }
   if (req.body.pricePer === 'students' || req.body.pricePer === 'students_and_staff') patch.pricePer = req.body.pricePer;
   if (req.body.accountingCategoryId === 'none') patch.accountingCategoryId = null;
   else if (req.body.accountingCategoryId) patch.accountingCategoryId = parseInt(req.body.accountingCategoryId, 10) || null;

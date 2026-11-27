@@ -796,6 +796,15 @@ const gridReadOnly = typeof readOnly !== 'undefined' && readOnly;
         </select>
       </label>
     <% }); %>
+    <%# A real request: "Be able to edit the number of teachers,
+        assistants and students allowed for the classes under bulk edit
+        as well." Blank leaves each class as it is; "No limit" clears it. %>
+    <% [['capacity', 'Students allowed'], ['teacherSlots', 'Teachers allowed'], ['assistantSlots', 'Assistants allowed']].forEach(function(f) { %>
+      <label><%= f[1] %>
+        <input type="number" name="<%= f[0] %>" min="0" step="1" placeholder="Don't change" />
+        <span class="checkbox-option bulk-edit-free"><input type="checkbox" name="<%= f[0] %>NoLimit" value="1" /> No limit</span>
+      </label>
+    <% }); %>
     <label>Price ($)
       <input type="number" name="priceDollars" min="0" step="0.01" placeholder="Don't change" />
       <span class="checkbox-option bulk-edit-free"><input type="checkbox" name="makeFree" value="1" /> Make free (no price)</span>
