@@ -54,7 +54,13 @@ const {
   backfillPortalRoleDescriptions,
 } = require('./bootstrapPg');
 
-const MIGRATIONS_DIR = path.join(__dirname, '..', 'supabase', 'migrations');
+// On Netlify the app is bundled into one function file, so __dirname no
+// longer points at the repo - netlify.toml's included_files copies the
+// migrations to LAMBDA_TASK_ROOT/supabase/migrations instead (same
+// approach server.js uses for views/).
+const MIGRATIONS_DIR = process.env.LAMBDA_TASK_ROOT
+  ? path.join(process.env.LAMBDA_TASK_ROOT, 'supabase', 'migrations')
+  : path.join(__dirname, '..', 'supabase', 'migrations');
 
 // Every *.sql file in the migrations directory, in filename order - the
 // timestamp prefix Supabase's own CLI generates (YYYYMMDDHHMMSS_name.sql)

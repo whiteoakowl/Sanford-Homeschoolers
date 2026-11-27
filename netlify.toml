@@ -84,7 +84,12 @@
   # resolve these paths via LAMBDA_TASK_ROOT to match where these actually
   # end up, instead of the __dirname they use for a normal local/LAN
   # install.
-  included_files = ["views/**", "utils/spreadsheetWorker.js"]
+  # - supabase/migrations/** - db/index.js's applyRuntimeMigrations reads
+  #   these .sql files from disk on boot so the live database picks up new
+  #   tables/columns by itself. Without this they were never deployed and
+  #   every new column (e.g. semesters.fees_due_date) had to be added by
+  #   hand in the Supabase SQL Editor.
+  included_files = ["views/**", "utils/spreadsheetWorker.js", "supabase/migrations/**"]
 
 # Every path not matched by an actual file in `public/` falls through to
 # the one function - this has to be the last/only redirect rule (a 200
