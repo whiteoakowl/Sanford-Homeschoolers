@@ -17548,17 +17548,6 @@ h1 + .help-context-link { margin: -0.35rem 0 0.85rem; }
 .refund-table .refund-reason { white-space: normal; min-width: 10rem; }
 .refund-table td { vertical-align: top; }
 
-/* Moving Class Schedule grid columns (public/js/room-row-reorder.js). */
-.class-schedule-room-grid th[data-col-position] { white-space: nowrap; }
-.col-drag-handle { display: inline-flex; vertical-align: middle; cursor: grab; touch-action: none; color: var(--muted); margin-right: 0.25rem; }
-.col-drag-handle .icon { width: 0.9rem; height: 0.9rem; }
-.class-schedule-room-grid th.col-dragging { opacity: 0.6; outline: 2px dashed var(--brand-dark); }
-@media (max-width: 480px) {
-  .class-schedule-room-grid th[data-col-position] { white-space: normal; text-align: center; }
-  .col-drag-handle { display: flex; justify-content: center; margin: 0 0 0.1rem; }
-  .col-drag-handle .icon { width: 0.7rem; height: 0.7rem; }
-}
-
 /* Due dates on the member Accounting page (semester class fees due date). */
 .pay-now-due { display: block; font-size: 0.8rem; }
 .pay-now-due.is-overdue, .accounting-overdue { color: var(--red); font-weight: 700; }

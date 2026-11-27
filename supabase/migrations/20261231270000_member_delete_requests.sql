@@ -25,3 +25,8 @@ create index if not exists idx_member_delete_requests_status on member_delete_re
 insert into notification_types (key, label, description) values
   ('member_delete_request', 'Member Account Deleted', 'A member deleted their account from Parent Portal Settings (Main Admin).')
 on conflict (key) do nothing;
+
+-- Same as every other table (20261231200000_rls_all_tables.sql): the app
+-- connects as the owner; nothing reaches this table through Supabase's
+-- public API.
+alter table public.member_delete_requests enable row level security;
