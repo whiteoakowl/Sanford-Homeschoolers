@@ -134,4 +134,8 @@ test('Schedule Changes lists each student\'s classes in day and time order with 
   assert.match(info.text, /href="\/setup"[^>]*>[\s\S]*?Setup\/Cleanup Assignments/);
   assert.match(info.text, /href="\/parent\/handbook"[\s\S]*?Policy Handbook/);
   assert.match(info.text, /Steps for Participating in Co-op Classes/);
+  assert.match(info.text, /href="\/parent\/teacher-interest"[\s\S]*?Teacher Interest Form/);
+  assert.match(info.text, /Read the <a href="\/parent\/handbook">Policy Handbook<\/a>/);
+  assert.match(info.text, /<a href="\/accounting">your account<\/a>/);
+  assert.match(info.text, /<a href="\/parent\/classes\/dashboard\?changes=1"><strong>Schedule Changes\/Withdraw<\/strong><\/a>/);
 });
