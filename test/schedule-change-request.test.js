@@ -132,10 +132,25 @@ test('Schedule Changes lists each student\'s classes in day and time order with 
   assert.equal(info.status, 200);
   assert.match(info.text, /href="\/volunteers"[^>]*>[\s\S]*?Floater Assignments/);
   assert.match(info.text, /href="\/setup"[^>]*>[\s\S]*?Setup\/Cleanup Assignments/);
-  assert.match(info.text, /href="\/parent\/handbook"[\s\S]*?Policy Handbook/);
   assert.match(info.text, /Steps for Participating in Co-op Classes/);
   assert.match(info.text, /href="\/parent\/teacher-interest"[\s\S]*?Teacher Interest Form/);
-  assert.match(info.text, /Read the <a href="\/parent\/handbook">Policy Handbook<\/a>/);
+  // A real request: "Add co-op class procedures under settings on co-op
+  // admin portal. Parent information page policies links to this instead."
+  assert.match(info.text, /href="\/parent\/classes\/procedures"[\s\S]*?Co-op Class Procedures/);
+  assert.match(info.text, /Read the <a href="\/parent\/classes\/procedures">Co-op Class Procedures<\/a>/);
+  const infoMain = info.text.slice(info.text.indexOf('<main'));
+  assert.doesNotMatch(infoMain, /href="\/parent\/handbook"/, 'the page itself links to the procedures, not the handbook');
+  assert.match((await agent.get('/parent/classes/procedures')).text, /haven't been posted yet/);
+  const admin = request.agent(app);
+  await admin.post('/login').type('form').send({ email: 'mainadmin@coop.local', password: 'changeme123' });
+  const hub = await admin.get('/admin/settings');
+  assert.match(hub.text, /href="\/admin\/settings\?tab=procedures"[\s\S]*?Co-op Class Procedures/);
+  const tab = await admin.get('/admin/settings?tab=procedures');
+  assert.match(tab.text, /name="proceduresHtml"/);
+  await admin.post('/admin/settings/procedures').type('form').send({ _csrf: csrfOf(tab.text), proceduresHtml: '<p>Drop off at 8:50am.</p><script>alert(1)</script>' });
+  const shown = (await agent.get('/parent/classes/procedures')).text;
+  assert.match(shown, /Drop off at 8:50am\./);
+  assert.doesNotMatch(shown, /<script>alert/);
   assert.match(info.text, /<a href="\/accounting">your account<\/a>/);
   assert.match(info.text, /<a href="\/parent\/classes\/dashboard\?changes=1"><strong>Schedule Changes\/Withdraw<\/strong><\/a>/);
 });

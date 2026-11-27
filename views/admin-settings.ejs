@@ -55,6 +55,12 @@
           </a>
         </div>
         <div class="team-col">
+          <a class="team-info-card" href="/admin/settings?tab=procedures">
+            <span class="team-info-icon"><svg class="icon"><use href="#icon-clipboard-list"/></svg></span>
+            <h2 class="team-info-title">Co-op Class Procedures</h2>
+          </a>
+        </div>
+        <div class="team-col">
           <a class="team-info-card" href="/admin/settings?tab=semesters">
             <span class="team-info-icon"><svg class="icon"><use href="#icon-calendar-check"/></svg></span>
             <h2 class="team-info-title">Semesters</h2>
@@ -103,6 +109,20 @@
             already honors wherever its forms' own back field points. %>
         <h2>Semesters</h2>
         <%- include('partials/semester-manager', { semesters, classDays, classDayLabels, classSchedules, backUrl: '/admin/settings?tab=semesters' }) %>
+      <% } else if (activeTab === 'procedures') { %>
+        <%# A real request: "Add co-op class procedures under settings on
+            co-op admin portal. Parent information page policies links to
+            this instead." Parents read it at /parent/classes/procedures. %>
+        <div class="manage-section">
+          <h2>Co-op Class Procedures</h2>
+          <p class="hint">What parents see from <strong>Parent Portal &rarr; Co-op Classes &rarr; Parent Information</strong>. <a href="/parent/classes/procedures" target="_blank">Preview the parent page</a></p>
+          <form method="POST" action="/admin/settings/procedures" class="stack-form" data-forum-editor>
+            <%- include('partials/forum-editor-toolbar') %>
+            <div class="forum-editable" data-forum-editable contenteditable="true"><%- proceduresHtml %></div>
+            <input type="hidden" name="proceduresHtml" data-forum-body-input />
+            <button type="submit" class="primary-btn">Save Procedures</button>
+          </form>
+        </div>
       <% } else if (activeTab === 'install') { %>
         <div class="manage-section">
           <h2>Install as an App</h2>

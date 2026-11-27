@@ -5,7 +5,8 @@
 </head>
 <%# Parent Portal > Co-op Classes > Parent Information (routes/parent-
     portal.js). A real request: buttons for Floater Assignments, Setup/
-    Cleanup Assignments and the Policy Handbook, then the steps for
+    Cleanup Assignments, the Teacher Interest Form and Co-op Class
+    Procedures (a later request: "policies links to this instead"), then the steps for
     taking part in co-op classes. %>
 <body>
   <%- include('partials/portal-nav', { portalTitle: 'Parent Portal' }) %>
@@ -32,9 +33,9 @@
         </a>
       </div>
       <div class="team-col">
-        <a class="team-info-card" href="/parent/handbook">
+        <a class="team-info-card" href="/parent/classes/procedures">
           <span class="team-info-icon"><svg class="icon"><use href="#icon-book"/></svg></span>
-          <h3 class="team-info-title">Policy Handbook</h3>
+          <h3 class="team-info-title">Co-op Class Procedures</h3>
         </a>
       </div>
     </div>
@@ -43,7 +44,7 @@
       <h2>Steps for Participating in Co-op Classes</h2>
       <ol>
         <li><strong>Keep your group membership active.</strong> Group membership is the first step - co-op classes are an add-on for members.</li>
-        <li><strong>Read the <a href="/parent/handbook">Policy Handbook</a></strong> so you know how co-op days run and what's expected of parents and students.</li>
+        <li><strong>Read the <a href="/parent/classes/procedures">Co-op Class Procedures</a></strong> so you know how co-op days run and what's expected of parents and students.</li>
         <li><strong>Register your students</strong> under <a href="/parent/classes">Class Registration</a> when registration opens. Each class shows its age/grade range, time, room and any class fee.</li>
         <li><strong>Pay your fees.</strong> The co-op fee and class fees are added to <a href="/accounting">your account</a>, each with its due date.</li>
         <li><strong>Volunteer.</strong> Sign up to teach or assist a class if you can, and check your <strong>Floater Assignment</strong> and <strong>Setup/Cleanup team</strong> before each co-op day.</li>

@@ -394,7 +394,7 @@ router.get('/import-template/names.xlsx', requireAdmin, (req, res) => {
 // A real request: "Remove text/email notifications" from Co-op Admin's
 // gear - those same messages are still edited from Main Admin's own
 // /main-admin/notifications page.
-const SETTINGS_TABS = ['classcheckin', 'kiosk', 'semesters', 'quicklinks', 'install'];
+const SETTINGS_TABS = ['classcheckin', 'kiosk', 'semesters', 'quicklinks', 'install', 'procedures'];
 
 async function renderSettings(req, res, error, success, activeTab) {
   // A real request: "change co-op admin settings gear to cards for each
@@ -425,6 +425,7 @@ async function renderSettings(req, res, error, success, activeTab) {
     classDays: tab === 'semesters' ? CLASS_DAYS : null,
     classDayLabels: tab === 'semesters' ? CLASS_DAY_LABELS_FULL : null,
     classSchedules: tab === 'semesters' ? await listClassSchedules() : null,
+    proceduresHtml: tab === 'procedures' ? await require('../utils/classProcedures').getProceduresHtml() : null,
     error,
     success,
   });
@@ -442,6 +443,13 @@ router.get('/settings', requireAdmin, async (req, res) => {
 // Assignments, Setup/Cleanup, and Class Check-In/Check-Out all resolve
 // this same setting (see utils/kioskSettings.js) and scope their own
 // data to whichever semester is picked here.
+// A real request: "Add co-op class procedures under settings on co-op
+// admin portal" - parents read it from Parent Information.
+router.post('/settings/procedures', requireAdmin, requireFullAdmin, async (req, res) => {
+  await require('../utils/classProcedures').saveProceduresHtml(req.body.proceduresHtml);
+  res.redirect('/admin/settings?tab=procedures&notice=' + encodeURIComponent('Co-op Class Procedures saved.'));
+});
+
 router.post('/settings/kiosk-semester', requireAdmin, requireFullAdmin, async (req, res) => {
   const semesterId = parseInt(req.body.semesterId, 10);
   if (!semesterId) {

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%# Parent Portal > Co-op Classes > Parent Information > Co-op Class
+    Procedures. Written by a Co-op Admin under Settings > Co-op Class
+    Procedures (utils/classProcedures.js). %>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Parent Portal' }) %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p><a href="/parent/classes/info">&larr; Parent Information</a></p>
+    <h1>Co-op Class Procedures</h1>
+    <% if (proceduresHtml) { %>
+      <div class="forum-editable-display"><%- proceduresHtml %></div>
+    <% } else { %>
+      <p class="roster-empty">The co-op class procedures haven't been posted yet.</p>
+    <% } %>
+  </main>
+</body>
+</html>
