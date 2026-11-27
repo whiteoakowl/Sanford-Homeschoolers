@@ -1162,7 +1162,12 @@ router.get('/classes/info', requirePortalPermission('view_parent_classes'), (req
 });
 
 router.get('/classes/procedures', requirePortalPermission('view_parent_handbook'), async (req, res) => {
-  res.render('parent-class-procedures', { title: 'Co-op Class Procedures', proceduresHtml: await require('../utils/classProcedures').getProceduresHtml() });
+  const procedures = require('../utils/classProcedures');
+  res.render('parent-class-procedures', { title: 'Co-op Class Procedures', proceduresHtml: await procedures.getProceduresHtml(), proceduresFile: await procedures.getProceduresFile() });
+});
+
+router.get('/classes/procedures/file', requirePortalPermission('view_parent_handbook'), async (req, res) => {
+  if (!(await require('../utils/classProcedures').sendProceduresFile(res))) res.status(404).render('404', { title: 'Not Found' });
 });
 
 // The Policy Handbook subpage became Co-op Class Procedures (a real

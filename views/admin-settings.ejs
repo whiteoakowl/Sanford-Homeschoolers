@@ -123,6 +123,23 @@
             <button type="submit" class="primary-btn">Save Procedures</button>
           </form>
         </div>
+        <div class="manage-section">
+          <h2>Procedures Document <span class="hint">(optional PDF/Word download)</span></h2>
+          <% if (proceduresFile) { %>
+            <p class="hint">Currently posted: <a href="/admin/settings/procedures/file" target="_blank"><%= proceduresFile.originalName %></a></p>
+            <form method="POST" action="/admin/settings/procedures/file/delete" class="inline-block-form" data-confirm="Remove the uploaded procedures document? Parents will no longer be able to download it.">
+              <button type="submit" class="roster-action-btn roster-action-btn-danger">Remove File</button>
+            </form>
+          <% } else { %>
+            <p class="hint">No document uploaded yet.</p>
+          <% } %>
+          <form method="POST" action="/admin/settings/procedures/file" enctype="multipart/form-data" class="stack-form stack-form-narrow">
+            <label>Upload <%= proceduresFile ? 'a Replacement' : 'a' %> File
+              <input type="file" name="file" accept=".pdf,.doc,.docx" required />
+            </label>
+            <button type="submit" class="primary-btn">Upload</button>
+          </form>
+        </div>
       <% } else if (activeTab === 'install') { %>
         <div class="manage-section">
           <h2>Install as an App</h2>

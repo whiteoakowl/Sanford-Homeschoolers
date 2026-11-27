@@ -11,9 +11,12 @@
   <main id="main-content" tabindex="-1" class="admin-main">
     <p><a href="/parent/classes/info">&larr; Parent Information</a></p>
     <h1>Co-op Class Procedures</h1>
+    <% if (proceduresFile) { %>
+      <p><a class="roster-action-btn" href="/parent/classes/procedures/file" target="_blank"><svg class="icon"><use href="#icon-download"/></svg> Download <%= proceduresFile.originalName %></a></p>
+    <% } %>
     <% if (proceduresHtml) { %>
       <div class="forum-editable-display"><%- proceduresHtml %></div>
-    <% } else { %>
+    <% } else if (!proceduresFile) { %>
       <p class="roster-empty">The co-op class procedures haven't been posted yet.</p>
     <% } %>
   </main>

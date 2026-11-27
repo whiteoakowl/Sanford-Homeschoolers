@@ -426,6 +426,7 @@ async function renderSettings(req, res, error, success, activeTab) {
     classDayLabels: tab === 'semesters' ? CLASS_DAY_LABELS_FULL : null,
     classSchedules: tab === 'semesters' ? await listClassSchedules() : null,
     proceduresHtml: tab === 'procedures' ? await require('../utils/classProcedures').getProceduresHtml() : null,
+    proceduresFile: tab === 'procedures' ? await require('../utils/classProcedures').getProceduresFile() : null,
     error,
     success,
   });
@@ -445,6 +446,34 @@ router.get('/settings', requireAdmin, async (req, res) => {
 // data to whichever semester is picked here.
 // A real request: "Add co-op class procedures under settings on co-op
 // admin portal" - parents read it from Parent Information.
+// "Class procedures should have an upload for pdf and documents too."
+const proceduresFileUpload = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 }, fileFilter: require('../utils/uploads').documentFileFilter });
+function proceduresUpload(req, res, next) {
+  proceduresFileUpload.single('file')(req, res, (err) => {
+    if (err) return res.redirect('/admin/settings?tab=procedures&error=' + encodeURIComponent(err.code === 'LIMIT_FILE_SIZE' ? 'That file is too large - the limit is 20MB.' : 'Upload a PDF or Word document.'));
+    next();
+  });
+}
+
+router.post('/settings/procedures/file', requireAdmin, requireFullAdmin, proceduresUpload, async (req, res) => {
+  if (!req.file) return res.redirect('/admin/settings?tab=procedures&error=' + encodeURIComponent('Choose a PDF or Word file to upload.'));
+  try {
+    await require('../utils/classProcedures').saveProceduresFile(req.file);
+  } catch (err) {
+    return res.redirect('/admin/settings?tab=procedures&error=' + encodeURIComponent(`Upload failed: ${err.message}`));
+  }
+  res.redirect('/admin/settings?tab=procedures&notice=' + encodeURIComponent('Procedures document uploaded.'));
+});
+
+router.get('/settings/procedures/file', requireAdmin, async (req, res) => {
+  if (!(await require('../utils/classProcedures').sendProceduresFile(res))) res.status(404).send('Not found');
+});
+
+router.post('/settings/procedures/file/delete', requireAdmin, requireFullAdmin, async (req, res) => {
+  await require('../utils/classProcedures').removeProceduresFile();
+  res.redirect('/admin/settings?tab=procedures&notice=' + encodeURIComponent('Procedures document removed.'));
+});
+
 router.post('/settings/procedures', requireAdmin, requireFullAdmin, async (req, res) => {
   await require('../utils/classProcedures').saveProceduresHtml(req.body.proceduresHtml);
   res.redirect('/admin/settings?tab=procedures&notice=' + encodeURIComponent('Co-op Class Procedures saved.'));

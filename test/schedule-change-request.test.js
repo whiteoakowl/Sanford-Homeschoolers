@@ -151,6 +151,21 @@ test('Schedule Changes lists each student\'s classes in day and time order with 
   const shown = (await agent.get('/parent/classes/procedures')).text;
   assert.match(shown, /Drop off at 8:50am\./);
   assert.doesNotMatch(shown, /<script>alert/);
+
+  // "Class procedures should have an upload for pdf and documents too."
+  const pdf = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF');
+  const up = await admin.post(`/admin/settings/procedures/file?_csrf=${encodeURIComponent(csrfOf(tab.text))}`).attach('file', pdf, { filename: 'Procedures 2026.pdf', contentType: 'application/pdf' });
+  assert.match(decodeURIComponent(up.headers.location), /Procedures document uploaded/);
+  const withFile = await admin.get('/admin/settings?tab=procedures');
+  assert.match(withFile.text, /Currently posted: <a href="\/admin\/settings\/procedures\/file"[^>]*>Procedures 2026\.pdf</);
+  const parentView = (await agent.get('/parent/classes/procedures')).text;
+  assert.match(parentView, /href="\/parent\/classes\/procedures\/file"[\s\S]*?Download Procedures 2026\.pdf/);
+  const download = await agent.get('/parent/classes/procedures/file');
+  assert.equal(download.status, 200);
+  assert.match(download.headers['content-type'], /application\/pdf/);
+  await admin.post('/admin/settings/procedures/file/delete').type('form').send({ _csrf: csrfOf(withFile.text) });
+  assert.equal((await agent.get('/parent/classes/procedures/file')).status, 404);
+  assert.doesNotMatch((await agent.get('/parent/classes/procedures')).text, /Download Procedures/);
   assert.match(info.text, /<a href="\/accounting">your account<\/a>/);
   assert.match(info.text, /<a href="\/parent\/classes\/dashboard\?changes=1"><strong>Schedule Changes\/Withdraw<\/strong><\/a>/);
 });
