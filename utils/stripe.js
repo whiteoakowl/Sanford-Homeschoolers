@@ -6,7 +6,7 @@
 //
 // Configuration lives in environment variables (Netlify > Site
 // configuration > Environment variables), never in the database or code:
-//   STRIPE_SECRET_KEY       sk_test_... / sk_live_...   (required)
+//   STRIPE_SECRET_KEY       rk_test_/rk_live_ (restricted, preferred) or sk_test_/sk_live_ (required)
 //   STRIPE_WEBHOOK_SECRET   whsec_...                   (required for webhooks)
 //   STRIPE_FEE_PERCENT      card fee percent passed to members (default 2.9)
 //   STRIPE_FEE_FIXED_CENTS  card fee fixed cents passed to members (default 30)
@@ -19,13 +19,13 @@ function secretKey() {
 }
 
 function isConfigured() {
-  return /^sk_(test|live)_/.test(secretKey());
+  return /^[sr]k_(test|live)_/.test(secretKey());
 }
 
 function mode() {
   const key = secretKey();
-  if (key.startsWith('sk_live_')) return 'live';
-  if (key.startsWith('sk_test_')) return 'test';
+  if (/^[sr]k_live_/.test(key)) return 'live';
+  if (/^[sr]k_test_/.test(key)) return 'test';
   return null;
 }
 
