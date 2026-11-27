@@ -53,6 +53,20 @@
           <h3 class="team-info-title">Download App</h3>
         </a>
       </div>
+      <%# A real request: "Under parent settings. There should be a tab for
+          delete account, in red. When member clicks this button there is
+          a pop up that says, are you sure..." %>
+      <div class="team-col">
+        <form method="POST" action="/portal/delete-account" class="settings-delete-account-form"
+              data-confirm="Are you sure you want to delete your account? This cannot be reversed. If you want to return to Sanford Homeschoolers you will have to create a new account. We hope you have a wonderful school year and we wish you luck on your homeschool journey."
+              data-confirm-icon="icon-trash" data-confirm-yes-label="Yes, Delete My Account">
+          <input type="hidden" name="confirm" value="1" />
+          <button type="submit" class="team-info-card settings-delete-account-card">
+            <span class="team-info-icon"><svg class="icon"><use href="#icon-trash"/></svg></span>
+            <h3 class="team-info-title">Delete Account</h3>
+          </button>
+        </form>
+      </div>
     </div>
   </main>
 </body>

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Main Admin' }) %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <h1>Member Delete Requests</h1>
+    <p class="hint">Members who deleted their own account from Parent Portal Settings. Their account is already closed and they can't sign in. <strong>Delete Records</strong> permanently removes their login and member record (a member with accounting history is archived instead, so the co-op's books stay complete); <strong>Dismiss</strong> keeps their records.</p>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <div class="roster-scroll">
+      <table class="roster-table members-table condensed-table table-stack-mobile">
+        <thead><tr><th>Date</th><th>Member</th><th>Family</th><th>Email</th><th>Balance Owed</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <% if (requests.length === 0) { %><tr><td colspan="7" class="roster-empty">No delete requests.</td></tr><% } %>
+          <% requests.forEach(function(r) { %>
+            <tr>
+              <td data-label="Date"><%= r.createdLabel %></td>
+              <td class="table-stack-heading"><% if (r.member_id && r.status === 'pending') { %><a href="/main-admin/members/<%= r.member_id %>/edit"><%= r.member_name %></a><% } else { %><%= r.member_name %><% } %></td>
+              <td data-label="Family"><%= r.family_name || '—' %></td>
+              <td data-label="Email"><%= r.email || '—' %></td>
+              <td data-label="Balance Owed"><% if (r.balance_cents > 0) { %><span class="accounting-overdue"><%= formatCents(r.balance_cents) %></span><% } else { %>$0.00<% } %></td>
+              <td data-label="Status"><span class="badge-pill badge-pill-<%= r.status === 'pending' ? 'orange' : r.status === 'deleted' ? 'gray' : 'green' %>"><%= r.status === 'pending' ? 'Waiting' : r.status === 'deleted' ? 'Deleted' : 'Dismissed' %></span><% if (r.decidedLabel) { %><br><span class="hint"><%= r.decidedLabel %></span><% } %></td>
+              <td class="roster-btn-row">
+                <% if (r.status === 'pending') { %>
+                  <form method="POST" action="/main-admin/members/delete-requests/<%= r.id %>/complete" class="inline-block-form" data-confirm="Permanently delete <%= r.member_name %>'s member record and login? This cannot be undone.<%= r.balance_cents > 0 ? ' They still owe ' + formatCents(r.balance_cents) + '.' : '' %>" data-confirm-yes-label="Yes, Delete Records">
+                    <button type="submit" class="roster-action-btn roster-action-btn-danger">Delete Records</button>
+                  </form>
+                  <form method="POST" action="/main-admin/members/delete-requests/<%= r.id %>/dismiss" class="inline-block-form">
+                    <button type="submit" class="roster-action-btn">Dismiss</button>
+                  </form>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>

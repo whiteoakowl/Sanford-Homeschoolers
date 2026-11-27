@@ -199,6 +199,44 @@ const MEMBERS_TAB_PERMISSION = {
   settings: 'view_members_settings',
 };
 
+// A real request: "Member delete requests is a subpage under members."
+// Accounts a member deleted themselves from Parent Portal Settings - the
+// account is already closed; Delete Records removes the member and their
+// login for good, Dismiss keeps the records (the account stays closed).
+router.get('/delete-requests', async (req, res) => {
+  const memberDeleteRequests = require('../utils/memberDeleteRequests');
+  const { formatFriendlyTimestamp } = require('../utils/dates');
+  const requests = (await memberDeleteRequests.listRequests()).map((r) => ({ ...r, createdLabel: formatFriendlyTimestamp(r.created_at), decidedLabel: r.decided_at ? formatFriendlyTimestamp(r.decided_at) : null }));
+  res.render('main-admin-member-delete-requests', { title: 'Member Delete Requests', requests, formatCents: require('../utils/payments').formatCents, notice: req.query.notice || null });
+});
+
+router.post('/delete-requests/:id/complete', async (req, res) => {
+  const decided = await require('../utils/memberDeleteRequests').decide(parseInt(req.params.id, 10), 'deleted', req.portalAccount.id);
+  let notice = 'Already handled.';
+  if (decided) {
+    if (decided.account_id) await db.prepare("DELETE FROM member_accounts WHERE id = ? AND status = 'closed'").run(decided.account_id);
+    notice = `Deleted ${decided.member_name}'s records.`;
+    if (decided.member_id) {
+      // Charges and payments belong to the member row (and would be
+      // deleted with it), so a member with any accounting history is
+      // archived instead - the co-op's books stay complete.
+      const hasMoney = await db.prepare('SELECT 1 FROM payment_charges WHERE member_id = ? LIMIT 1').get(decided.member_id);
+      if (hasMoney) {
+        await db.prepare('UPDATE members SET active = 0, archived_at = now_text() WHERE id = ?').run(decided.member_id);
+        notice = `Removed ${decided.member_name}'s login. Their member record was archived (not deleted) to keep their accounting history.`;
+      } else {
+        await deleteMemberById(decided.member_id);
+      }
+    }
+  }
+  res.redirect('/main-admin/members/delete-requests?notice=' + encodeURIComponent(notice));
+});
+
+router.post('/delete-requests/:id/dismiss', async (req, res) => {
+  const decided = await require('../utils/memberDeleteRequests').decide(parseInt(req.params.id, 10), 'dismissed', req.portalAccount.id);
+  res.redirect('/main-admin/members/delete-requests?notice=' + encodeURIComponent(decided ? 'Dismissed - their records were kept and the account stays closed.' : 'Already handled.'));
+});
+
 router.get('/', async (req, res) => {
   rememberMemberListUrl(req, '/main-admin/members');
   const activeTab = MEMBERS_TABS.includes(req.query.tab) ? req.query.tab : 'members';

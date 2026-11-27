@@ -603,6 +603,20 @@ router.get('/portal/settings', (req, res) => {
 // used - a ?portal=student|teacher query (portal-nav.ejs's own
 // cornerPortalQuery) disambiguates a dual-role account the same way it
 // already does for My Profile/Settings everywhere else.
+// A real request: "Under parent settings. There should be a tab for
+// delete account, in red." Closes the account immediately (utils/
+// memberDeleteRequests.js) and signs out; a Main Admin finishes removing
+// the member's records from Members > Member Delete Requests.
+router.post('/portal/delete-account', async (req, res) => {
+  if (!req.portalAccount) return res.redirect('/login');
+  if (req.body.confirm !== '1') return res.redirect('/parent/family-school/settings-hub');
+  await require('../utils/memberDeleteRequests').closeAccount(req.portalAccount.id);
+  req.session.destroy(() => {
+    res.clearCookie('connect.sid');
+    res.render('account-deleted', { title: 'Account Deleted' });
+  });
+});
+
 router.get('/portal/settings-hub', (req, res) => {
   if (!req.portalAccount) return res.redirect('/login?next=%2Fportal%2Fsettings-hub');
   res.render('portal-settings-hub', { title: 'Settings', navPortalTitle: res.locals.sharedPortalTitle('Settings') });

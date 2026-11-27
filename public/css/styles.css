@@ -17572,3 +17572,10 @@ h1 + .help-context-link { margin: -0.35rem 0 0.85rem; }
 /* Store cart (routes/store.js). */
 .store-cart-checkout { margin-top: 0.9rem; text-align: right; }
 .store-cart-checkout .hint { margin-top: 0.4rem; }
+
+/* Parent Settings > Delete Account (red card). */
+.settings-delete-account-form { margin: 0; height: 100%; }
+.settings-delete-account-card { width: 100%; height: 100%; font: inherit; cursor: pointer; border: 2px solid var(--red); background: var(--red-bg); color: var(--red); }
+.settings-delete-account-card .team-info-icon, .settings-delete-account-card .team-info-title { color: var(--red); }
+.settings-delete-account-card:hover, .settings-delete-account-card:focus-visible { background: var(--red); color: #fff; }
+.settings-delete-account-card:hover .team-info-icon, .settings-delete-account-card:hover .team-info-title, .settings-delete-account-card:focus-visible .team-info-icon, .settings-delete-account-card:focus-visible .team-info-title { color: #fff; }
