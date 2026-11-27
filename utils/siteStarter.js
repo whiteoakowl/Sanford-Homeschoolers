@@ -142,7 +142,7 @@ function homePage() {
 
   const t3 = text('Co-op Classes', 'h2', 'h2', 90, 56, 800, center);
   const when = text('<strong>Wednesdays &middot; 9:00 am &ndash; 2:00 pm</strong>', 'p', 'h3', 190, 56 + t3.layout.desktop.h + 8, 600, { ...center, color: 'theme:primary' }, 'Wednesdays · 9:00 am – 2:00 pm');
-  const p3 = text(esc('Parent-led classes for every age, from science and art to writing and more. Members register online through the Parent Portal.'), 'p', 'p', 140, when.layout.desktop.y + when.layout.desktop.h + 10, 700, center);
+  const p3 = text(esc('Parent-led classes for every age, from science and art to writing and more. An optional add-on for group members, with its own semester fee plus each class fee. Members register online through the Parent Portal.'), 'p', 'p', 140, when.layout.desktop.y + when.layout.desktop.h + 10, 700, center);
   const s3 = section('Co-op Classes', [t3, when, p3, button('Class Information', '/classes', 380, p3.layout.desktop.y + p3.layout.desktop.h + 20, 220)], light);
 
   const t4 = text('Our Community', 'h2', 'h2', 90, 56, 800, center);
@@ -171,14 +171,14 @@ function classesPage() {
   const t = text('Co-op Classes on Wednesdays', 'h2', 'h2', 90, 56, 800, center);
   const when = text('<strong>Every Wednesday &middot; 9:00 am &ndash; 2:00 pm</strong>', 'p', 'h3', 190, 56 + t.layout.desktop.h + 8, 600, { ...center, color: 'theme:primary' }, 'Every Wednesday · 9:00 am – 2:00 pm');
   const body = text(
-    esc('Our co-op classes are taught by member parents and volunteers. Classes are grouped by age and grade, and change each semester. Enrolling is optional - you can be a member without taking any classes. Members browse the class schedule and register their students online through the Parent Portal, where class fees and due dates are shown on their account.'),
+    esc('Our co-op classes are taught by member parents and volunteers. Classes are grouped by age and grade, and change each semester. Co-op is an optional add-on for group members: it has its own fee each semester on top of group membership, plus each class fee. Members browse the class schedule and register their students online through the Parent Portal, where fees and due dates are shown on their account.'),
     'p', 'p', 140, when.layout.desktop.y + when.layout.desktop.h + 14, 700, center
   );
   const s1 = section('Class details', [t, when, body]);
   const t2 = text('This Semester\'s Classes', 'h2', 'h2', 60, 48, 860);
   const s2 = section('Classes', [t2, widget('classes', 60, 48 + t2.layout.desktop.h + 16, 860, 240, { showButton: true })], light, { autoHide: true });
   const t3 = text('Questions about classes?', 'h2', 'h2', 90, 56, 800, center);
-  const s3 = section('Questions', [t3, button('Contact Us', '/contact', 380, 56 + t3.layout.desktop.h + 20, 220)]);
+  const s3 = section('Questions', [t3, button('See Pricing', '/pricing', 270, 56 + t3.layout.desktop.h + 20, 200), button('Contact Us', '/contact', 510, 56 + t3.layout.desktop.h + 20, 200)]);
   return { title: 'Co-op Classes', slug: 'classes', sections: [pageHeader('Co-op Classes', 'Wednesdays, 9am - 2pm, for every age.'), s1, s2, s3] };
 }
 
@@ -199,8 +199,8 @@ function communityPage() {
 // features. Co-op $45/semester + additional class fees." The prices come
 // live from Main Admin > Settings > Pricing.
 function pricingPage() {
-  const t = text('Simple, family-friendly pricing', 'h2', 'h2', 90, 56, 800, center);
-  const p = text(esc('One membership for the whole family, with co-op classes as an optional add-on.'), 'p', 'p', 140, 56 + t.layout.desktop.h + 10, 700, center);
+  const t = text('Start with group membership', 'h2', 'h2', 90, 56, 800, center);
+  const p = text(esc('Group membership is the first step and the main membership for your whole family. Co-op classes are an optional add-on with their own semester fee, plus each class fee.'), 'p', 'p', 140, 56 + t.layout.desktop.h + 10, 700, center);
   const grid = widget('pricing', 60, p.layout.desktop.y + p.layout.desktop.h + 30, 860, 640);
   grid.layout.desktop.h = 640;
   const s1 = section('Pricing', [t, p, grid]);

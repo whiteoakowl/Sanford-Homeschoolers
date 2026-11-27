@@ -14,6 +14,7 @@
       <% [['membership', 'Group Membership', pricing.membership], ['coop', 'Co-op Classes', pricing.coop]].forEach(function(row) { var k = row[0], plan = row[2]; %>
         <section class="manage-section member-form-grid">
           <h2 class="member-form-full"><%= row[1] %></h2>
+          <label>Label above the title<input type="text" name="<%= k %>Label" value="<%= plan.label || '' %>" maxlength="60" placeholder="<%= k === 'membership' ? 'Step 1 · Main membership' : 'Step 2 · Optional add-on' %>" /></label>
           <label>Title<input type="text" name="<%= k %>Title" value="<%= plan.title %>" maxlength="80" /></label>
           <label>Price ($)<input type="text" name="<%= k %>Price" value="<%= plan.price %>" maxlength="20" placeholder="20" /></label>
           <label>Period<input type="text" name="<%= k %>Period" value="<%= plan.period %>" maxlength="40" placeholder="per year" /></label>

@@ -1050,3 +1050,15 @@
   text-align: center;
   opacity: 0.8;
 }
+
+.wx-price-label {
+  align-self: flex-start;
+  margin: 0 0 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--hp-light, #f5f7fa);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}

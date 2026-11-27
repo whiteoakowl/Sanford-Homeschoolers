@@ -47,7 +47,9 @@ test('Main Admin loads the Sanford Homeschoolers pages into the draft; once publ
   assert.match(pricing.text, /Group Membership/);
   assert.match(pricing.text, /\$20<\/span> <span class="wx-price-period">per year/);
   assert.match(pricing.text, /\$45<\/span> <span class="wx-price-period">per semester/);
-  assert.match(pricing.text, /\+ additional class fees/);
+  assert.match(pricing.text, /Step 1 · Main membership/);
+  assert.match(pricing.text, /Step 2 · Optional add-on/);
+  assert.match(pricing.text, /in addition to group membership, plus each class fee/);
   assert.match(pricing.text, /Custom transcripts &amp; high school diplomas/);
   assert.match(live.text, /href="\/pricing"/);
   const hub = await admin.get('/main-admin/settings');
