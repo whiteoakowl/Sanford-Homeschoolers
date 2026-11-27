@@ -308,11 +308,13 @@ const PARENT_NAV_LINKS = [
   // way there now.
   { href: '/events?view=calendar&portal=parent', icon: 'calendar-check', label: 'Events', perm: 'view_parent_events' },
   { href: '/parent/classes', icon: 'graduation-cap', label: 'Co-op Classes', mobileLabel: 'Co-op<br>Classes', subpages: [
+    // A real request: "Parent information should be the first subpage
+    // under co-op classes."
+    { href: '/parent/classes/info', label: 'Parent Information', perm: 'view_parent_classes' },
     { href: '/parent/classes', label: 'Class Registration', perm: 'view_parent_classes' },
     // A real request: "This form can be found on the parent portal under
     // class registration tab as a subpage."
     { href: '/parent/classes/dashboard', label: 'Classroom Dashboard', perm: 'view_parent_classroom_dashboard' },
-    { href: '/parent/classes/info', label: 'Parent Information', perm: 'view_parent_classes' },
     { href: '/name-tag', label: 'Name Tag Form', perm: 'view_parent_name_tag_form' },
     { href: '/absence', label: 'Absence/Late Form', perm: 'view_parent_absence_form' },
     { href: '/parent/handbook', label: 'Policy Handbook', perm: 'view_parent_handbook' },

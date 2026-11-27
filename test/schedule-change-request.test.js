@@ -127,6 +127,7 @@ test('Schedule Changes lists each student\'s classes in day and time order with 
   // Parent Information subpage.
   const nav = await agent.get('/parent/classes');
   assert.match(nav.text, /href="\/parent\/classes\/info">Parent Information</);
+  assert.ok(nav.text.indexOf('>Parent Information<') < nav.text.indexOf('>Class Registration<'), 'Parent Information is the first Co-op Classes subpage');
   const info = await agent.get('/parent/classes/info');
   assert.equal(info.status, 200);
   assert.match(info.text, /href="\/volunteers"[^>]*>[\s\S]*?Floater Assignments/);
