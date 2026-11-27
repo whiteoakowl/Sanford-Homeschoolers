@@ -17568,3 +17568,7 @@ h1 + .help-context-link { margin: -0.35rem 0 0.85rem; }
 .held-checkout-timer strong { font-variant-numeric: tabular-nums; font-size: 1.2rem; }
 .held-checkout-timer.is-low { background: var(--red-bg); color: var(--red); }
 .held-checkout-actions { margin-top: 0.8rem; gap: 0.6rem; }
+
+/* Store cart (routes/store.js). */
+.store-cart-checkout { margin-top: 0.9rem; text-align: right; }
+.store-cart-checkout .hint { margin-top: 0.4rem; }

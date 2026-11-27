@@ -167,6 +167,22 @@ async function setProductOptionGroups(productId, groups) {
 // picked from (order doesn't matter, and it's fine to include ids that
 // don't apply - each group only looks for its own).
 async function buildOrderLines(items, saleType) {
+  // A cart can hold several lines (a real request: "Store charges are
+  // immediate and added to a cart for final purchases") - if a later line
+  // fails, the stock already taken for earlier lines is put back.
+  const taken = [];
+  try {
+    return await buildOrderLinesTaking(items, saleType, taken);
+  } catch (err) {
+    for (const t of taken) {
+      if (t.optionId) await db.prepare('UPDATE store_product_options SET quantity = quantity + ? WHERE id = ? AND quantity IS NOT NULL').run(t.quantity, t.optionId);
+      else await db.prepare('UPDATE store_products SET inventory_count = inventory_count + ? WHERE id = ? AND inventory_count IS NOT NULL').run(t.quantity, t.productId);
+    }
+    throw err;
+  }
+}
+
+async function buildOrderLinesTaking(items, saleType, taken) {
   let totalCents = 0;
   const lineItems = [];
   for (const { productId, quantity, optionValueIds } of items) {
@@ -189,6 +205,7 @@ async function buildOrderLines(items, saleType) {
       if (chosen.quantity != null) {
         const dec = await db.prepare('UPDATE store_product_options SET quantity = quantity - ? WHERE id = ? AND quantity >= ?').run(quantity, chosen.id, quantity);
         if (dec.changes === 0) throw new Error(`Only ${chosen.quantity} of "${product.name} - ${chosen.name}" left in stock.`);
+        taken.push({ optionId: chosen.id, quantity });
       }
       chosenValues.push({ ...chosen, groupName: group.name });
     }
@@ -209,6 +226,7 @@ async function buildOrderLines(items, saleType) {
       // simple no-options product.
       const dec = await db.prepare('UPDATE store_products SET inventory_count = inventory_count - ? WHERE id = ? AND inventory_count >= ?').run(quantity, product.id, quantity);
       if (dec.changes === 0) throw new Error(`Only ${product.inventory_count} of "${product.name}" left in stock.`);
+      taken.push({ productId: product.id, quantity });
     }
     totalCents += unitPriceCents * quantity;
     lineItems.push({
@@ -221,6 +239,36 @@ async function buildOrderLines(items, saleType) {
     });
   }
   return { totalCents, lineItems };
+}
+
+// A cart line's name, options and price as it would be bought right now,
+// without touching stock. { error } when it can no longer be bought.
+async function previewCartLine({ productId, quantity, optionValueIds }) {
+  const product = await getProduct(productId);
+  if (!product || product.status !== 'active' || (product.availability !== 'online' && product.availability !== 'both')) {
+    return { error: 'This item is no longer available.', productName: product ? product.name : 'Item', quantity, lineCents: 0 };
+  }
+  const wanted = new Set((optionValueIds || []).map(Number));
+  const groups = await availableOptionGroupsForProduct(product.id);
+  const chosen = [];
+  for (const group of groups) {
+    const v = group.values.find((x) => wanted.has(x.id));
+    if (!v) return { error: `Choose a ${group.name}.`, productName: product.name, quantity, lineCents: 0 };
+    if (v.quantity != null && v.quantity < quantity) return { error: `Only ${v.quantity} of "${product.name} - ${v.name}" left in stock.`, productName: product.name, quantity, lineCents: 0 };
+    chosen.push(v);
+  }
+  if (!chosen.length && product.inventory_count != null && product.inventory_count < quantity) {
+    return { error: `Only ${product.inventory_count} of "${product.name}" left in stock.`, productName: product.name, quantity, lineCents: 0 };
+  }
+  const priced = chosen.filter((v) => v.price_cents != null);
+  const unitPriceCents = priced.length ? priced.reduce((sum, v) => sum + v.price_cents, 0) : product.price_cents;
+  return {
+    productName: product.name,
+    optionLabel: chosen.map((v) => v.name).join(', '),
+    quantity,
+    unitPriceCents,
+    lineCents: unitPriceCents * quantity,
+  };
 }
 
 async function insertOrderItems(orderId, lineItems) {
@@ -239,12 +287,14 @@ async function insertOrderItems(orderId, lineItems) {
 // Member-facing online checkout - the order and its charge both start
 // unpaid; a Main Admin records the real payment later through Accounting,
 // same as every other charge in this app.
-async function placeOnlineOrder(memberId, accountId, items) {
+// billedMemberId (optional): who the charge goes on - the family's
+// primary parent for a cart checkout, so the whole cart is one payment.
+async function placeOnlineOrder(memberId, accountId, items, { billedMemberId } = {}) {
   const { totalCents, lineItems } = await buildOrderLines(items, 'online');
   const orderInfo = await db.prepare("INSERT INTO store_orders (member_id, placed_by_account_id, sale_type, total_cents) VALUES (?, ?, 'online', ?)").run(memberId, accountId, totalCents);
   const orderId = orderInfo.lastInsertRowid;
   await insertOrderItems(orderId, lineItems);
-  const chargeId = await payments.createCharge(memberId, accountId, 'store_order', orderId, `Store order #${orderId}`, totalCents);
+  const chargeId = await payments.createCharge(billedMemberId || memberId, accountId, 'store_order', orderId, `Store order #${orderId}`, totalCents);
   await db.prepare('UPDATE store_orders SET charge_id = ? WHERE id = ?').run(chargeId, orderId);
   return orderId;
 }
@@ -275,7 +325,14 @@ async function cancelOrder(id) {
   const order = await getOrder(id);
   if (!order || order.status === 'cancelled') return;
   for (const item of order.items) {
-    if (item.product_id) await db.prepare('UPDATE store_products SET inventory_count = inventory_count + ? WHERE id = ? AND inventory_count IS NOT NULL').run(item.quantity, item.product_id);
+    // An item bought with options took its stock from each chosen option
+    // (not the product's own count) - put it back the same way.
+    const chosen = await db.prepare('SELECT option_id FROM store_order_item_options WHERE order_item_id = ? AND option_id IS NOT NULL').all(item.id);
+    if (chosen.length) {
+      for (const c of chosen) await db.prepare('UPDATE store_product_options SET quantity = quantity + ? WHERE id = ? AND quantity IS NOT NULL').run(item.quantity, c.option_id);
+    } else if (item.product_id) {
+      await db.prepare('UPDATE store_products SET inventory_count = inventory_count + ? WHERE id = ? AND inventory_count IS NOT NULL').run(item.quantity, item.product_id);
+    }
   }
   await db.prepare("UPDATE store_orders SET status = 'cancelled', cancelled_at = now_text() WHERE id = ?").run(id);
   if (order.charge_id) await payments.cancelCharge(order.charge_id);
@@ -424,6 +481,7 @@ async function updateStoreSettings(data) {
 }
 
 module.exports = {
+  previewCartLine,
   parseSizes,
   listCategories,
   getCategory,

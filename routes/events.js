@@ -549,7 +549,7 @@ router.get('/:id/checkout', requirePortalAuth, async (req, res) => {
     portalTitle: 'Events',
     navLinks: [
       { href: '/portal', icon: 'home', label: 'My Portals' },
-      { href: back, icon: 'calendar', label: 'Back to Event' },
+      { href: back, icon: 'calendar-check', label: 'Back to Event' },
     ],
     items,
     subtotalCents,

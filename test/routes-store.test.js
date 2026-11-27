@@ -81,6 +81,20 @@ async function createActiveProduct(admin, overrides = {}) {
   return productId;
 }
 
+// A real request: "Store charges are immediate and added to a cart for
+// final purchases." Buying is now Add to Cart then Checkout; with online
+// payments off (as here) Checkout places the order on the family's
+// account straight away. Returns the Add to Cart response when it was
+// refused, otherwise the new order's id.
+async function buy(parent, productId, fields) {
+  const add = await request(app).post(`/store/${productId}/buy`).set('Cookie', parent.cookie).type('form').send({ ...fields, _csrf: parent.csrfToken });
+  if (!/^\/store\/cart\?notice=/.test(add.headers.location)) return { refused: add };
+  const done = await request(app).post('/store/cart/checkout').set('Cookie', parent.cookie).type('form').send({ _csrf: parent.csrfToken });
+  assert.match(done.headers.location, /^\/store\/orders\?notice=/);
+  const order = await db.prepare('SELECT id FROM store_orders WHERE placed_by_account_id = (SELECT id FROM member_accounts WHERE member_id = ?) ORDER BY id DESC LIMIT 1').get(parent.memberId);
+  return { orderId: order.id };
+}
+
 test('store requires sign-in', async () => {
   const res = await request(app).get('/store');
   assert.equal(res.status, 302);
@@ -92,12 +106,7 @@ test('an online order starts pending and creates a real charge in Accounting', a
   const productId = await createActiveProduct(admin);
   const parent = await createParentAccount();
 
-  const buyRes = await request(app)
-    .post(`/store/${productId}/buy`)
-    .set('Cookie', parent.cookie)
-    .type('form')
-    .send({ memberId: String(parent.memberId), quantity: '2', _csrf: parent.csrfToken });
-  const orderId = /\/store\/orders\/(\d+)/.exec(buyRes.headers.location)[1];
+  const { orderId } = await buy(parent, productId, { memberId: String(parent.memberId), quantity: '2' });
 
   const order = await db.prepare('SELECT * FROM store_orders WHERE id = ?').get(orderId);
   assert.equal(order.status, 'pending');
@@ -135,18 +144,10 @@ test('inventory is checked live and decremented, rejecting an order that exceeds
   const productId = await createActiveProduct(admin, { name: 'Limited Item', inventoryCount: '1' });
   const parent = await createParentAccount();
 
-  const tooMany = await request(app)
-    .post(`/store/${productId}/buy`)
-    .set('Cookie', parent.cookie)
-    .type('form')
-    .send({ memberId: String(parent.memberId), quantity: '2', _csrf: parent.csrfToken });
-  assert.match(decodeURIComponent(tooMany.headers.location), /Only 1 of/);
+  const tooMany = await buy(parent, productId, { memberId: String(parent.memberId), quantity: '2' });
+  assert.match(decodeURIComponent(tooMany.refused.headers.location), /Only 1 of/);
 
-  await request(app)
-    .post(`/store/${productId}/buy`)
-    .set('Cookie', parent.cookie)
-    .type('form')
-    .send({ memberId: String(parent.memberId), quantity: '1', _csrf: parent.csrfToken });
+  await buy(parent, productId, { memberId: String(parent.memberId), quantity: '1' });
 
   const product = await db.prepare('SELECT inventory_count FROM store_products WHERE id = ?').get(productId);
   assert.equal(product.inventory_count, 0);
@@ -184,22 +185,14 @@ test('a limited product option is checked and decremented live, rejecting a buye
 
   // Takes 1 of the 2 in stock, leaving exactly 1.
   const parentA = await createParentAccount();
-  const boughtRes = await request(app)
-    .post(`/store/${productId}/buy`)
-    .set('Cookie', parentA.cookie)
-    .type('form')
-    .send({ memberId: String(parentA.memberId), quantity: '1', 'optionValues[0]': String(optionValue.id), _csrf: parentA.csrfToken });
-  assert.match(boughtRes.headers.location, /\/store\/orders\/\d+/);
+  const bought = await buy(parentA, productId, { memberId: String(parentA.memberId), quantity: '1', 'optionValues[0]': String(optionValue.id) });
+  assert.ok(bought.orderId);
 
   // Asks for 2 more when only 1 is actually left - rejected, and the
   // live quantity must not have been touched (still 1, not -1).
   const parentB = await createParentAccount();
-  const rejectedRes = await request(app)
-    .post(`/store/${productId}/buy`)
-    .set('Cookie', parentB.cookie)
-    .type('form')
-    .send({ memberId: String(parentB.memberId), quantity: '2', 'optionValues[0]': String(optionValue.id), _csrf: parentB.csrfToken });
-  assert.match(decodeURIComponent(rejectedRes.headers.location), /Only 1 of "Limited Shirt - Large" left in stock/);
+  const rejected = await buy(parentB, productId, { memberId: String(parentB.memberId), quantity: '2', 'optionValues[0]': String(optionValue.id) });
+  assert.match(decodeURIComponent(rejected.refused.headers.location), /Only 1 of "Limited Shirt - Large" left in stock/);
 
   const value = await db.prepare('SELECT quantity FROM store_product_options WHERE id = ?').get(optionValue.id);
   assert.equal(value.quantity, 1, 'the rejected order should not have decremented the option quantity');
@@ -210,12 +203,7 @@ test('cancelling an order restores inventory and cancels its charge instead of l
   const productId = await createActiveProduct(admin, { name: 'Cancel Me', inventoryCount: '5' });
   const parent = await createParentAccount();
 
-  const buyRes = await request(app)
-    .post(`/store/${productId}/buy`)
-    .set('Cookie', parent.cookie)
-    .type('form')
-    .send({ memberId: String(parent.memberId), quantity: '2', _csrf: parent.csrfToken });
-  const orderId = /\/store\/orders\/(\d+)/.exec(buyRes.headers.location)[1];
+  const { orderId } = await buy(parent, productId, { memberId: String(parent.memberId), quantity: '2' });
 
   await request(app).post(`/main-admin/store/orders/${orderId}/cancel`).set('Cookie', admin.cookie).type('form').send({ _csrf: admin.csrfToken });
 
@@ -242,12 +230,7 @@ test('an account cannot buy for a member outside its own family, and cannot view
     .send({ memberId: String(parentB.memberId), quantity: '1', _csrf: parentA.csrfToken });
   assert.match(decodeURIComponent(res.headers.location), /You can only buy for yourself or your own family/);
 
-  const buyRes = await request(app)
-    .post(`/store/${productId}/buy`)
-    .set('Cookie', parentB.cookie)
-    .type('form')
-    .send({ memberId: String(parentB.memberId), quantity: '1', _csrf: parentB.csrfToken });
-  const orderId = /\/store\/orders\/(\d+)/.exec(buyRes.headers.location)[1];
+  const { orderId } = await buy(parentB, productId, { memberId: String(parentB.memberId), quantity: '1' });
 
   const view = await request(app).get(`/store/orders/${orderId}`).set('Cookie', parentA.cookie);
   assert.equal(view.status, 403);

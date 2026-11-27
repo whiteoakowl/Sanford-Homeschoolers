@@ -14,6 +14,7 @@
     navLinks: [
       { href: '/portal', icon: 'home', label: 'My Portals' },
       { href: '/store', icon: 'tag', label: 'Store' },
+      { href: '/store/cart', icon: 'cart', label: typeof cartCount !== 'undefined' && cartCount ? 'Cart (' + cartCount + ')' : 'Cart' },
       { href: '/store/orders', icon: 'file-text', label: 'My Orders' },
     ],
   }) %>
@@ -53,8 +54,7 @@
         <input type="number" name="quantity" min="1" value="1" <% if (optionGroups.length === 0 && product.inventory_count != null) { %>max="<%= product.inventory_count %>"<% } %> />
       </label>
       <div class="member-form-full">
-        <button type="submit" class="primary-btn">Order</button>
-        <p class="hint">You'll owe the balance in Accounting - there's no online payment here. A Main Admin records payment once it's received.</p>
+        <button type="submit" class="primary-btn"><svg class="icon"><use href="#icon-cart"/></svg> Add to Cart</button>
       </div>
     </form>
   </main>

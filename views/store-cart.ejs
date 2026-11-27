@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%# A real request: "Store charges are immediate and added to a cart for
+    final purchases." Locals: lines [{ index, productName, optionLabel,
+    memberName, quantity, unitPriceCents, lineCents, error }], totalCents,
+    feeCents, payNow, notice, error, paymentNotice, formatCents. %>
+<body>
+  <%- include('partials/portal-nav', {
+    portalTitle: sharedPortalTitle('Store'),
+    navLinks: [
+      { href: '/portal', icon: 'home', label: 'My Portals' },
+      { href: '/store', icon: 'tag', label: 'Store' },
+      { href: '/store/cart', icon: 'cart', label: cartCount ? 'Cart (' + cartCount + ')' : 'Cart' },
+      { href: '/store/orders', icon: 'file-text', label: 'My Orders' },
+    ],
+  }) %>
+
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <h1>Cart</h1>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+    <% if (paymentNotice === 'cancelled') { %><div class="alert alert-info">Payment cancelled - nothing was charged and your order was cancelled.</div><% } %>
+
+    <% if (lines.length === 0) { %>
+      <p class="roster-empty">Your cart is empty. <a href="/store">Browse the store</a>.</p>
+    <% } else { %>
+      <div class="roster-scroll">
+        <table class="roster-table members-table condensed-table table-stack-mobile store-cart-table">
+          <thead><tr><th>Item</th><th>For</th><th>Qty</th><th>Price</th><th></th></tr></thead>
+          <tbody>
+            <% lines.forEach(function(l) { %>
+              <tr>
+                <td class="table-stack-heading"><%= l.productName %><% if (l.optionLabel) { %> <span class="hint">(<%= l.optionLabel %>)</span><% } %><% if (l.error) { %><br><span class="accounting-overdue"><%= l.error %></span><% } %></td>
+                <td data-label="For"><%= l.memberName %></td>
+                <td data-label="Qty"><%= l.quantity %></td>
+                <td data-label="Price"><%= l.error ? '—' : formatCents(l.lineCents) %></td>
+                <td>
+                  <form method="POST" action="/store/cart/remove" class="inline-block-form">
+                    <input type="hidden" name="index" value="<%= l.index %>" />
+                    <button type="submit" class="icon-btn icon-btn-danger" aria-label="Remove <%= l.productName %>" title="Remove"><svg class="icon"><use href="#icon-trash"/></svg></button>
+                  </form>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+      <div class="pay-now-totals">
+        <div><span>Subtotal</span><strong><%= formatCents(totalCents) %></strong></div>
+        <% if (payNow) { %>
+          <div><span>Card processing fee</span><strong><%= formatCents(feeCents) %></strong></div>
+          <div class="pay-now-total"><span>Total</span><strong><%= formatCents(totalCents + feeCents) %></strong></div>
+        <% } %>
+      </div>
+      <form method="POST" action="/store/cart/checkout" class="store-cart-checkout">
+        <button type="submit" class="primary-btn">Checkout</button>
+        <p class="hint">
+          <% if (payNow) { %>You'll have 10 minutes to pay by card. If you don't finish in time, the order is cancelled and your cart is cleared.<% } else { %>Your order's total will be added to your account in Accounting.<% } %>
+        </p>
+      </form>
+    <% } %>
+  </main>
+</body>
+</html>

@@ -20,6 +20,7 @@
     navLinks: [
       { href: '/portal', icon: 'home', label: 'My Portals' },
       { href: '/store', icon: 'tag', label: 'Store' },
+      { href: '/store/cart', icon: 'cart', label: typeof cartCount !== 'undefined' && cartCount ? 'Cart (' + cartCount + ')' : 'Cart' },
       { href: '/store/orders', icon: 'file-text', label: 'My Orders' },
     ],
   }) %>

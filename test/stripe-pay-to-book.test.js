@@ -138,3 +138,71 @@ test('a priced event ticket is paid at booking: held, then booked when paid or r
   assert.equal(k.status, 'confirmed');
   assert.equal((await payments.getCharge(k.charge_id)).hold_until, null);
 });
+
+test('the store cart is paid at checkout on a 10-minute hold: paid -> order placed, not paid -> cancelled and restocked', async () => {
+  await onlinePayments.setEnabled(true);
+  const admin = request.agent(app);
+  await admin.post('/login').type('form').send({ email: 'mainadmin@coop.local', password: 'changeme123' });
+  const adminPage = await admin.get('/main-admin');
+  const created = await admin.post('/main-admin/store').type('form').send({ _csrf: csrfOf(adminPage.text), name: 'Tote Bag', price: '12.00', availability: 'both', inventoryCount: '5' });
+  const productId = /\/main-admin\/store\/(\d+)\/edit/.exec(created.headers.location)[1];
+  await admin.post(`/main-admin/store/${productId}/status`).type('form').send({ _csrf: csrfOf(adminPage.text), status: 'active' });
+  await db.prepare("UPDATE store_settings SET store_enabled = 1").run();
+
+  const fam = (await db.prepare("INSERT INTO families (name) VALUES ('Shop') RETURNING id").get()).id;
+  const parent = (await db.prepare("INSERT INTO members (name, barcode, member_type, family_id, is_primary_parent, active) VALUES ('Sam Shop', 'SS1', 'parent', ?, 1, 1) RETURNING id").get(fam)).id;
+  const acct = (await db.prepare("INSERT INTO member_accounts (member_id, email, password_hash, status, approved_at) VALUES (?, 'shop@example.com', ?, 'active', now_text()) RETURNING id").get(parent, hashPassword('testpassword123'))).id;
+  await db.prepare("INSERT INTO member_account_roles (member_account_id, role_id) VALUES (?, (SELECT id FROM roles WHERE key = 'parent'))").run(acct);
+  const shopper = request.agent(app);
+  await shopper.post('/login').type('form').send({ email: 'shop@example.com', password: 'testpassword123' });
+  const csrf = csrfOf((await shopper.get('/store')).text);
+  const stock = async () => (await db.prepare('SELECT inventory_count FROM store_products WHERE id = ?').get(productId)).inventory_count;
+  const addTwo = () => shopper.post(`/store/${productId}/buy`).type('form').send({ _csrf: csrf, memberId: parent, quantity: '2' });
+
+  // Add to cart: nothing reserved or owed yet.
+  let res = await addTwo();
+  assert.match(res.headers.location, /^\/store\/cart\?notice=/);
+  const cartPage = await shopper.get('/store/cart');
+  assert.match(cartPage.text, /Tote Bag/);
+  assert.match(cartPage.text, /\$24\.00/);
+  assert.match(cartPage.text, /10 minutes to pay/);
+  assert.equal(await stock(), 5);
+
+  // Checkout -> held order, countdown page -> Cancel: cancelled and restocked.
+  res = await shopper.post('/store/cart/checkout').type('form').send({ _csrf: csrf });
+  assert.equal(res.headers.location, '/store/checkout');
+  assert.equal(await stock(), 3, 'stock reserved while paying');
+  let page = await shopper.get('/store/checkout');
+  assert.match(page.text, /Time left to pay/);
+  assert.match(page.text, /Store order #\d+/);
+  await shopper.post('/store/checkout/cancel').type('form').send({ _csrf: csrf });
+  assert.equal(await stock(), 5);
+  let order = await db.prepare('SELECT * FROM store_orders WHERE member_id = ? ORDER BY id DESC LIMIT 1').get(parent);
+  assert.equal(order.status, 'cancelled');
+  assert.equal((await shopper.get('/store/cart')).text.includes('Your cart is empty'), true, 'cart cleared');
+
+  // Checkout, then the 10 minutes run out: released, cart stays cleared.
+  await addTwo();
+  await shopper.post('/store/cart/checkout').type('form').send({ _csrf: csrf });
+  order = await db.prepare('SELECT * FROM store_orders WHERE member_id = ? ORDER BY id DESC LIMIT 1').get(parent);
+  await db.prepare("UPDATE payment_charges SET hold_until = '2000-01-01T00:00:00.000Z' WHERE id = ?").run(order.charge_id);
+  res = await shopper.get('/store/checkout?expired=1');
+  assert.match(decodeURIComponent(res.headers.location), /Time ran out/);
+  assert.equal((await db.prepare('SELECT status FROM store_orders WHERE id = ?').get(order.id)).status, 'cancelled');
+  assert.equal(await stock(), 5);
+
+  // Checkout and pay: order paid, charge paid, stock stays taken.
+  await addTwo();
+  await shopper.post('/store/cart/checkout').type('form').send({ _csrf: csrf });
+  res = await shopper.get('/store/checkout/pay');
+  assert.equal(res.status, 303);
+  const checkoutId = /cs_test_(\d+)/.exec(res.headers.location)[1];
+  await webhook('checkout.session.completed', checkoutId);
+  order = await db.prepare('SELECT * FROM store_orders WHERE member_id = ? ORDER BY id DESC LIMIT 1').get(parent);
+  assert.equal(order.status, 'paid');
+  assert.equal((await payments.getCharge(order.charge_id)).status, 'paid');
+  assert.equal(await stock(), 3);
+  res = await shopper.get(`/pay/return?session_id=cs_test_${checkoutId}&next=${encodeURIComponent('/store/orders')}`);
+  assert.equal(res.headers.location, '/store/orders?payment=success');
+  assert.match((await shopper.get(res.headers.location)).text, /Your payment went through/);
+});

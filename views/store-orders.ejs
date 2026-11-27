@@ -14,12 +14,16 @@
     navLinks: [
       { href: '/portal', icon: 'home', label: 'My Portals' },
       { href: '/store', icon: 'tag', label: 'Store' },
+      { href: '/store/cart', icon: 'cart', label: typeof cartCount !== 'undefined' && cartCount ? 'Cart (' + cartCount + ')' : 'Cart' },
       { href: '/store/orders', icon: 'file-text', label: 'My Orders' },
     ],
   }) %>
 
   <main id="main-content" tabindex="-1" class="admin-main">
     <h1>My Orders</h1>
+    <% if (typeof notice !== 'undefined' && notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <% if (typeof paymentNotice !== 'undefined' && paymentNotice === 'success') { %><div class="alert alert-success">Thank you! Your payment went through and your order is placed.</div><% } %>
+    <% if (typeof paymentNotice !== 'undefined' && paymentNotice === 'processing') { %><div class="alert alert-info">Thank you! Your payment is processing - your order will update in a few minutes.</div><% } %>
 
     <% if (orders.length === 0) { %>
       <p class="roster-empty">No orders yet.</p>
