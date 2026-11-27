@@ -129,7 +129,7 @@ test('Mobile orange bar: every subpages-bearing item gets its own popup trigger 
   const sections = [
     // Locked (a real request: "add a lock icon on each member. Add a
     // subpage called locked") added a 5th Members subpage.
-    { slug: 'members', tabCount: 5 },
+    { slug: 'members', tabCount: 6 }, // + Member Delete Requests
     // Reports/Transactions/Receipts (a real request: "accounting, add a
     // subpage called reports... add a subpage called transactions...
     // add a subpage called receipts") grew this from 7 to 10 subpages.
