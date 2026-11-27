@@ -65,13 +65,13 @@ const {
   lessonsForStudentView,
   isLessonLockedForStudent,
   nextContentItemAfter,
-  getContentItem,
   getQuizAttempt,
   submitQuizAttempt,
   submitAssignment,
   saveSubmissionFile,
   existingSubmissionFileKey,
   contentItemsForAssignment,
+  getStudentVisibleContentItem,
   markLessonItemComplete,
   TRANSCRIPT_GRADE_LETTERS,
   transcriptBuilderForStudent,
@@ -1001,7 +1001,7 @@ router.post('/classes/dashboard/:id/chat', requirePortalPermission('view_parent_
 // read-only result via partials/lesson-content-detail).
 router.get('/content/:id', requirePortalPermission('view_parent_classroom_dashboard'), async (req, res) => {
   const contentItemId = parseInt(req.params.id, 10);
-  const contentItem = await getContentItem(contentItemId);
+  const contentItem = await getStudentVisibleContentItem(contentItemId);
   if (!contentItem) return res.status(404).render('404', { title: 'Not Found' });
   const assignment = await db.prepare('SELECT * FROM class_assignments WHERE id = ?').get(contentItem.assignment_id);
   if (!assignment) return res.status(404).render('404', { title: 'Not Found' });
@@ -1058,7 +1058,7 @@ router.get('/content/:id', requirePortalPermission('view_parent_classroom_dashbo
 // complete_lessons on - either failing gets the same 404 a nonexistent
 // quiz would, so this route can't be used to probe which classes exist.
 async function contentItemForParent(req, contentItemId, { requireQuiz = true } = {}) {
-  const contentItem = await getContentItem(contentItemId);
+  const contentItem = await getStudentVisibleContentItem(contentItemId);
   if (!contentItem) return null;
   if (requireQuiz && contentItem.type !== 'quiz') return null;
   if (!requireQuiz && contentItem.type === 'quiz') return null;

@@ -98,7 +98,7 @@ var lcmScripts = typeof includeScripts === 'undefined' || includeScripts;
             <tr data-content-reorder-row="<%= item.id %>">
               <td class="roster-drag-col"><span data-content-reorder-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span></td>
               <td class="roster-name-col table-stack-heading">
-                <button type="button" class="link-btn content-item-title-trigger" onclick="document.getElementById('edit-content-dialog-<%= item.id %>').showModal()"><%= item.title || '(untitled)' %></button>
+                <button type="button" class="link-btn content-item-title-trigger" onclick="document.getElementById('edit-content-dialog-<%= item.id %>').showModal()"><%= item.title || '(untitled)' %></button><% if (item.teacher_only) { %> <span class="badge-pill badge-pill-gray teacher-only-badge" title="Only teachers, subs and admins see this">Teacher only</span><% } %>
                 <%# A real request: "the text is formatted row wise should
                     be how it is displayed for parent/student portal
                     view" - that view's own Lessons tab already shows
@@ -163,6 +163,7 @@ var lcmScripts = typeof includeScripts === 'undefined' || includeScripts;
           <label>Due Date <span class="hint">(optional)</span>
             <input type="date" name="contentDueDate" value="<%= item.due_date || '' %>" />
           </label>
+          <label class="checkbox-option teacher-only-option"><input type="checkbox" name="teacherOnly" value="1" <%= item.teacher_only ? 'checked' : '' %> /> Teacher only <span class="hint">(hidden from students and parents)</span></label>
           <% if (item.type === 'video') { %>
             <label>Video URL
               <input type="url" name="videoUrl" value="<%= item.video_url || '' %>" placeholder="https://..." />
@@ -244,6 +245,10 @@ var lcmScripts = typeof includeScripts === 'undefined' || includeScripts;
       <label class="member-form-full">Due Date <span class="hint">(optional)</span>
         <input type="date" name="contentDueDate" />
       </label>
+      <%# A real request: "mark them teacher only... only available to
+          teachers, subs and admins. It won't be available for students
+          or parents." %>
+      <label class="checkbox-option member-form-full teacher-only-option"><input type="checkbox" name="teacherOnly" value="1" /> Teacher only <span class="hint">(only teachers, subs and admins see it &mdash; hidden from students and parents)</span></label>
       <label class="member-form-full" data-toggle-field="video">Video URL
         <input type="url" name="videoUrl" placeholder="https://..." />
       </label>

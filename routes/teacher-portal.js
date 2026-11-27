@@ -764,6 +764,8 @@ router.post('/assignments/:id/content', requirePortalPermission('view_teacher_as
     attachmentName,
     pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
     dueDate: (req.body.contentDueDate || '').trim() || null,
+    // A real request: "mark them teacher only" - hidden from students and parents.
+    teacherOnly: req.body.teacherOnly === '1',
   });
   res.redirect(back + '?notice=' + encodeURIComponent('Assignment added.'));
 });
@@ -804,6 +806,8 @@ router.post('/content/:id/edit', requirePortalPermission('view_teacher_assignmen
     attachmentName,
     pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
     dueDate: (req.body.contentDueDate || '').trim() || null,
+    // A real request: "mark them teacher only" - hidden from students and parents.
+    teacherOnly: req.body.teacherOnly === '1',
   });
   res.redirect(back + '?notice=' + encodeURIComponent('Assignment updated.'));
 });

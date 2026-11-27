@@ -300,6 +300,7 @@ mountLessonPlanContentRoutes(router, {
   managePath: (id) => `/admin/lesson-plans/${id}`,
   canEdit: async () => true,
   renderQuestions: (req, res, locals) => res.render('admin-lesson-plan-quiz-questions', locals),
+  allowTeacherOnly: true,
 });
 
 module.exports = router;

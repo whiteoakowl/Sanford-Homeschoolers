@@ -42,7 +42,11 @@ const NOT_ALLOWED = 'This lesson plan is locked, or you do not have permission t
 //   middleware  - extra middleware for every route (e.g. a portal permission check)
 //   canEdit     - async (req, plan) => boolean
 //   renderQuestions - (req, res, locals) => renders the Manage Questions page
-function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePath, middleware = [], canEdit, renderQuestions }) {
+//   allowTeacherOnly - true for the co-op's shared library (Co-op Admin):
+//                 items can be marked "Teacher only" (a real request:
+//                 "only available to teachers, subs and admins"). A
+//                 family's own copy never has teacher-only items.
+function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePath, middleware = [], canEdit, renderQuestions, allowTeacherOnly = false }) {
   function uploadLessonAttachment(req, res, next) {
     lessonAttachmentUpload.single('attachment')(req, res, (err) => {
       if (err && err.code === 'LIMIT_FILE_SIZE') {
@@ -142,6 +146,7 @@ function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePat
       attachmentUrl,
       attachmentName,
       pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
+      teacherOnly: allowTeacherOnly && req.body.teacherOnly === '1',
     });
     const created = await getLessonPlanContentItem(newItemId);
     res.redirect(backTo(lessonPlanId, created && created.lesson_id, 'notice', 'Assignment added.'));
@@ -176,6 +181,7 @@ function mountLessonPlanContentRoutes(router, { pathPrefix, urlPrefix, managePat
       attachmentUrl,
       attachmentName,
       pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
+      teacherOnly: allowTeacherOnly ? req.body.teacherOnly === '1' : undefined,
     });
     res.redirect(backTo(contentItem.lesson_plan_id, contentItem.lesson_id, 'notice', 'Assignment updated.'));
   });

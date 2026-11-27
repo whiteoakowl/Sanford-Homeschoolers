@@ -74,7 +74,8 @@ async function copyLessonPlanForFamily(lessonPlanId, familyId, createdByAccountI
       ).id;
       lessonIdMap.set(lesson.id, newLessonId);
     }
-    const items = await tx.prepare('SELECT * FROM lesson_plan_content_items WHERE lesson_plan_id = ? ORDER BY position, id').all(plan.id);
+    // Teacher-only items stay with co-op teachers - never copied to a family.
+    const items = await tx.prepare('SELECT * FROM lesson_plan_content_items WHERE lesson_plan_id = ? AND teacher_only = false ORDER BY position, id').all(plan.id);
     for (const item of items) {
       const newItemId = (
         await tx
@@ -204,11 +205,14 @@ async function getLessonPlanContentItem(id) {
 // includeAnswerKey - same reasoning as contentItemsForAssignment's own
 // comment (utils/academics.js): true only for the admin's own editing
 // view, never anywhere a non-admin could read the response.
-async function contentItemsForLessonPlan(lessonPlanId, { includeAnswerKey = false } = {}) {
+// includeTeacherOnly (defaults to includeAnswerKey): teacher-only items
+// (a real request: "only available to teachers, subs and admins") are
+// left out of every family-facing read.
+async function contentItemsForLessonPlan(lessonPlanId, { includeAnswerKey = false, includeTeacherOnly = includeAnswerKey } = {}) {
   const items = await db
     .prepare(
       `SELECT ci.* FROM lesson_plan_content_items ci LEFT JOIN lesson_plan_lessons l ON l.id = ci.lesson_id
-       WHERE ci.lesson_plan_id = ? ORDER BY l.position NULLS FIRST, l.id NULLS FIRST, ci.position, ci.id`
+       WHERE ci.lesson_plan_id = ?${includeTeacherOnly ? '' : ' AND ci.teacher_only = false'} ORDER BY l.position NULLS FIRST, l.id NULLS FIRST, ci.position, ci.id`
     )
     .all(lessonPlanId);
   return decorateLessonPlanItems(items, includeAnswerKey);
@@ -216,8 +220,10 @@ async function contentItemsForLessonPlan(lessonPlanId, { includeAnswerKey = fals
 
 // A real request: a library plan holds lessons, each with its own
 // assignments - the same lesson/assignment design as the Teacher Portal.
-async function contentItemsForLessonPlanLesson(lessonId, { includeAnswerKey = false } = {}) {
-  const items = await db.prepare('SELECT * FROM lesson_plan_content_items WHERE lesson_id = ? ORDER BY position, id').all(lessonId);
+async function contentItemsForLessonPlanLesson(lessonId, { includeAnswerKey = false, includeTeacherOnly = includeAnswerKey } = {}) {
+  const items = await db
+    .prepare(`SELECT * FROM lesson_plan_content_items WHERE lesson_id = ?${includeTeacherOnly ? '' : ' AND teacher_only = false'} ORDER BY position, id`)
+    .all(lessonId);
   return decorateLessonPlanItems(items, includeAnswerKey);
 }
 
@@ -237,7 +243,7 @@ async function decorateLessonPlanItems(items, includeAnswerKey) {
 // lessonId - which of the plan's lessons this assignment belongs to; when
 // left out it goes on the plan's first lesson (one is made if the plan
 // has none yet).
-async function createLessonPlanContentItem({ lessonPlanId, lessonId, type, title, videoUrl, body, fileUrl, description, attachmentUrl, attachmentName, pointsPossible }) {
+async function createLessonPlanContentItem({ lessonPlanId, lessonId, type, title, videoUrl, body, fileUrl, description, attachmentUrl, attachmentName, pointsPossible, teacherOnly }) {
   let targetLessonId = lessonId || null;
   if (targetLessonId) {
     const lesson = await getLessonPlanLesson(targetLessonId);
@@ -249,9 +255,9 @@ async function createLessonPlanContentItem({ lessonPlanId, lessonId, type, title
     .get(targetLessonId);
   const info = await db
     .prepare(
-      'INSERT INTO lesson_plan_content_items (lesson_plan_id, lesson_id, type, position, title, video_url, body, file_url, description, attachment_url, attachment_name, points_possible) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id'
+      'INSERT INTO lesson_plan_content_items (lesson_plan_id, lesson_id, type, position, title, video_url, body, file_url, description, attachment_url, attachment_name, points_possible, teacher_only) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id'
     )
-    .get(lessonPlanId, targetLessonId, type, nextPosition, title || null, videoUrl || null, body || null, fileUrl || null, description || null, attachmentUrl || null, attachmentName || null, pointsPossible != null ? pointsPossible : null);
+    .get(lessonPlanId, targetLessonId, type, nextPosition, title || null, videoUrl || null, body || null, fileUrl || null, description || null, attachmentUrl || null, attachmentName || null, pointsPossible != null ? pointsPossible : null, !!teacherOnly);
   return info.id;
 }
 
@@ -261,11 +267,11 @@ async function getLessonPlanLesson(id) {
   return id ? db.prepare('SELECT * FROM lesson_plan_lessons WHERE id = ?').get(id) : null;
 }
 
-async function lessonsForLessonPlan(lessonPlanId, { includeAnswerKey = false } = {}) {
+async function lessonsForLessonPlan(lessonPlanId, { includeAnswerKey = false, includeTeacherOnly = includeAnswerKey } = {}) {
   const lessons = await db.prepare('SELECT * FROM lesson_plan_lessons WHERE lesson_plan_id = ? ORDER BY position, id').all(lessonPlanId);
   const out = [];
   for (const lesson of lessons) {
-    out.push({ ...lesson, contentItems: await contentItemsForLessonPlanLesson(lesson.id, { includeAnswerKey }) });
+    out.push({ ...lesson, contentItems: await contentItemsForLessonPlanLesson(lesson.id, { includeAnswerKey, includeTeacherOnly }) });
   }
   return out;
 }
@@ -295,7 +301,8 @@ async function firstLessonPlanLessonId(lessonPlanId) {
   return createLessonPlanLesson({ lessonPlanId, title: plan ? plan.title : 'Lesson 1', description: plan ? plan.description : null });
 }
 
-async function updateLessonPlanContentItem(id, { title, videoUrl, body, fileUrl, description, attachmentUrl, attachmentName, pointsPossible }) {
+async function updateLessonPlanContentItem(id, { title, videoUrl, body, fileUrl, description, attachmentUrl, attachmentName, pointsPossible, teacherOnly }) {
+  if (teacherOnly !== undefined) await db.prepare('UPDATE lesson_plan_content_items SET teacher_only = ? WHERE id = ?').run(!!teacherOnly, id);
   await db
     .prepare(
       'UPDATE lesson_plan_content_items SET title = ?, video_url = ?, body = ?, file_url = ?, description = ?, attachment_url = ?, attachment_name = ?, points_possible = ? WHERE id = ?'
@@ -405,6 +412,7 @@ async function assignLessonPlanToClass(lessonPlanId, classId, createdByAccountId
         attachmentUrl: item.attachment_url,
         attachmentName: item.attachment_name,
         pointsPossible: item.points_possible,
+        teacherOnly: !!item.teacher_only,
       });
       if (item.type === 'quiz') {
         for (const q of item.questions) {

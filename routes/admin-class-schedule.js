@@ -858,6 +858,8 @@ router.post('/class-schedule/assignments/:id/content', requireFullAdmin, uploadL
     // Submission item carries its own instead.
     pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
     dueDate: (req.body.contentDueDate || '').trim() || null,
+    // A real request: "mark them teacher only" - hidden from students and parents.
+    teacherOnly: req.body.teacherOnly === '1',
   });
   res.redirect(withMsg(back, 'notice', 'Assignment added.'));
 });
@@ -902,6 +904,8 @@ router.post('/class-schedule/content/:id/edit', requireFullAdmin, uploadLessonAt
     attachmentName,
     pointsPossible: type === 'assignment_submission' && req.body.submissionPointsPossible ? parseInt(req.body.submissionPointsPossible, 10) : null,
     dueDate: (req.body.contentDueDate || '').trim() || null,
+    // A real request: "mark them teacher only" - hidden from students and parents.
+    teacherOnly: req.body.teacherOnly === '1',
   });
   res.redirect(withMsg(back, 'notice', 'Assignment updated.'));
 });

@@ -15,7 +15,7 @@
     <% if (lesson.contentItems.length) { %>
       <ul class="kiosk-plan-items">
         <% lesson.contentItems.forEach(function(item) { %>
-          <li><%= item.title || 'Untitled' %><% if (item.dueDateLabel) { %> &mdash; due <%= item.dueDateLabel %><% } %></li>
+          <li><%= item.title || 'Untitled' %><% if (item.teacherOnly || item.teacher_only) { %> <span class="badge-pill badge-pill-gray teacher-only-badge">Teacher only</span><% } %><% if (item.dueDateLabel) { %> &mdash; due <%= item.dueDateLabel %><% } %></li>
         <% }); %>
       </ul>
     <% } %>

@@ -37,7 +37,7 @@
       <% } %>
       <% contentItems.forEach(function(item, idx) { %>
         <div class="portal-dashboard-card portal-dashboard-card-wide">
-          <h3><%= idx + 1 %>. <%= item.title || 'Untitled' %> <span class="badge-pill badge-pill-gray"><%= { video: 'Video', text: 'Text', file: 'File', quiz: 'Quiz', assignment_upload: 'Assignment', assignment_submission: 'Assignment Submission' }[item.type] || item.type %></span></h3>
+          <h3><%= idx + 1 %>. <%= item.title || 'Untitled' %> <span class="badge-pill badge-pill-gray"><%= { video: 'Video', text: 'Text', file: 'File', quiz: 'Quiz', assignment_upload: 'Assignment', assignment_submission: 'Assignment Submission' }[item.type] || item.type %></span><% if (item.teacher_only) { %> <span class="badge-pill badge-pill-gray teacher-only-badge">Teacher only</span><% } %></h3>
           <% if (item.dueDateLabel) { %><p class="hint">Due <%= item.dueDateLabel %></p><% } %>
           <% if (item.type === 'video') { %>
             <% if (item.description) { %><p><%= item.description %></p><% } %>

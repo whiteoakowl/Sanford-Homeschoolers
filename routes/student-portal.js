@@ -42,13 +42,13 @@ const {
   lessonsForStudentView,
   isLessonLockedForStudent,
   nextContentItemAfter,
-  getContentItem,
   getQuizAttempt,
   submitQuizAttempt,
   submitAssignment,
   saveSubmissionFile,
   existingSubmissionFileKey,
   contentItemsForAssignment,
+  getStudentVisibleContentItem,
   markLessonItemComplete,
   generateTranscriptsForEndedClasses,
 } = require('../utils/academics');
@@ -504,7 +504,7 @@ router.get('/classes/dashboard/:id', requirePortalPermission('view_student_class
 router.get('/content/:id', requirePortalPermission('view_student_classes_dashboard'), async (req, res) => {
   const contentItemId = parseInt(req.params.id, 10);
   const member = await memberForAccount(req.portalAccount.id);
-  const contentItem = await getContentItem(contentItemId);
+  const contentItem = await getStudentVisibleContentItem(contentItemId);
   if (!contentItem) return res.status(404).render('404', { title: 'Not Found' });
   const assignment = await db.prepare('SELECT * FROM class_assignments WHERE id = ?').get(contentItem.assignment_id);
   const classes = await classesForStudent(member);
@@ -538,7 +538,7 @@ router.get('/content/:id', requirePortalPermission('view_student_classes_dashboa
 // can't take a quiz that isn't even in one of their own classes.
 async function contentItemForStudent(req, contentItemId) {
   const member = await memberForAccount(req.portalAccount.id);
-  const contentItem = await getContentItem(contentItemId);
+  const contentItem = await getStudentVisibleContentItem(contentItemId);
   if (!contentItem || contentItem.type !== 'quiz') return null;
   const assignment = await db.prepare('SELECT * FROM class_assignments WHERE id = ?').get(contentItem.assignment_id);
   const classes = await classesForStudent(member);
@@ -582,7 +582,7 @@ router.post('/content/:id/quiz', requirePortalPermission('view_student_classes_d
 // own classes.
 router.post('/content/:id/complete', requirePortalPermission('view_student_classes_dashboard'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
-  const contentItem = await getContentItem(parseInt(req.params.id, 10));
+  const contentItem = await getStudentVisibleContentItem(parseInt(req.params.id, 10));
   if (!contentItem || contentItem.type === 'quiz') return res.status(404).render('404', { title: 'Not Found' });
   const assignment = await db.prepare('SELECT * FROM class_assignments WHERE id = ?').get(contentItem.assignment_id);
   const classes = await classesForStudent(member);
@@ -602,7 +602,7 @@ const uploadAssignmentSubmission = multer({ storage: multer.memoryStorage(), lim
 
 router.post('/content/:id/submit', requirePortalPermission('view_student_classes_dashboard'), uploadAssignmentSubmission.single('submissionFile'), async (req, res) => {
   const member = await memberForAccount(req.portalAccount.id);
-  const contentItem = await getContentItem(parseInt(req.params.id, 10));
+  const contentItem = await getStudentVisibleContentItem(parseInt(req.params.id, 10));
   // A real request: students hand in an "Assignment Upload" or
   // "Assignment (student uploads work)" item by typing a response in the
   // full editor, uploading a file (Word, PDF, ...), or both.

@@ -26,7 +26,7 @@
             <tr data-content-reorder-row="<%= item.id %>">
               <td class="roster-drag-col"><span data-content-reorder-handle class="lesson-drag-handle" title="Drag to reorder">&#9776;</span></td>
               <td class="roster-name-col table-stack-heading">
-                <button type="button" class="link-btn content-item-title-trigger" onclick="document.getElementById('edit-content-dialog-<%= item.id %>').showModal()"><%= item.title || '(untitled)' %></button>
+                <button type="button" class="link-btn content-item-title-trigger" onclick="document.getElementById('edit-content-dialog-<%= item.id %>').showModal()"><%= item.title || '(untitled)' %></button><% if (item.teacher_only) { %> <span class="badge-pill badge-pill-gray teacher-only-badge" title="Only teachers, subs and admins see this">Teacher only</span><% } %>
                 <% if (item.type === 'video' && item.video_url) { %><div class="hint"><a href="<%= item.video_url %>" target="_blank" rel="noopener">Video link</a></div><% } %>
                 <% if (item.type === 'video' && item.description) { %><div class="hint"><%= item.description %></div><% } %>
                 <% if (item.type === 'file' && item.file_url) { %><div class="hint"><a href="<%= item.file_url %>" target="_blank" rel="noopener">File link</a></div><% } %>
@@ -66,6 +66,9 @@
           <label>Title
             <input type="text" name="title" value="<%= item.title || '' %>" />
           </label>
+          <% if (plan.family_id == null) { %>
+          <label class="checkbox-option teacher-only-option"><input type="checkbox" name="teacherOnly" value="1" <%= item.teacher_only ? 'checked' : '' %> /> Teacher only <span class="hint">(hidden from students and parents)</span></label>
+          <% } %>
           <% if (item.type === 'video') { %>
             <label>Video URL
               <input type="url" name="videoUrl" value="<%= item.video_url || '' %>" placeholder="https://..." />
@@ -169,6 +172,12 @@
       <label class="member-form-full" data-toggle-field="assignment_submission" style="display: none;">Points Possible
         <input type="number" name="submissionPointsPossible" min="0" />
       </label>
+      <% if (plan.family_id == null) { %>
+      <%# A real request: "mark them teacher only... only available to
+          teachers, subs and admins. It won't be available for students
+          or parents." %>
+      <label class="checkbox-option member-form-full teacher-only-option"><input type="checkbox" name="teacherOnly" value="1" /> Teacher only <span class="hint">(only teachers, subs and admins see it &mdash; hidden from students and parents)</span></label>
+      <% } %>
       <div class="notes-dialog-actions">
         <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
         <button type="submit" class="primary-btn">Add Assignments</button>

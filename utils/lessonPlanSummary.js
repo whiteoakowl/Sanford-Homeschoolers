@@ -10,12 +10,14 @@ async function lessonPlanSummary(classId, { approvedOnly = true } = {}) {
   const lessons = [];
   for (const lesson of await assignmentsForClass(classId)) {
     if (approvedOnly && lesson.approval_status !== 'approved') continue;
-    const items = await contentItemsForAssignment(lesson.id);
+    // Staff-only summaries (admin rosters, teacher view, kiosk sub view) -
+    // teacher-only items included and labelled.
+    const items = await contentItemsForAssignment(lesson.id, { includeTeacherOnly: true });
     lessons.push({
       ...lesson,
       openDateLabel: lesson.open_date ? formatDateLong(lesson.open_date) : null,
       closeDateLabel: lesson.close_date ? formatDateLong(lesson.close_date) : null,
-      contentItems: items.map((i) => ({ title: i.title, type: i.type, dueDateLabel: i.due_date ? formatDateLong(i.due_date) : null })),
+      contentItems: items.map((i) => ({ title: i.title, type: i.type, teacherOnly: !!i.teacher_only, dueDateLabel: i.due_date ? formatDateLong(i.due_date) : null })),
     });
   }
   return lessons;

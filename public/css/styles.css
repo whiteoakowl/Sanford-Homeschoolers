@@ -17572,3 +17572,7 @@ h1 + .help-context-link { margin: -0.35rem 0 0.85rem; }
 /* Pay Online: pay part of a charge now (accounting-home.ejs). */
 .pay-now-partial { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: -0.2rem 0 0.5rem 1.9rem; font-size: 0.9rem; }
 .pay-now-partial input { width: 6.5rem; }
+
+/* Teacher-only lesson items (hidden from students and parents). */
+.teacher-only-badge { margin-left: 0.35rem; vertical-align: middle; font-size: 0.72rem; }
+.teacher-only-option { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }

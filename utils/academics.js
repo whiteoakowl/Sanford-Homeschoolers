@@ -807,12 +807,25 @@ async function getContentItem(id) {
   return db.prepare('SELECT * FROM lesson_content_items WHERE id = ?').get(id);
 }
 
+// For Student/Parent routes: a teacher-only item behaves as if it didn't
+// exist (no viewing, completing, quiz-taking or submitting by direct URL).
+async function getStudentVisibleContentItem(id) {
+  const item = await getContentItem(id);
+  return item && !item.teacher_only ? item : undefined;
+}
+
 // includeAnswerKey=true (Co-op Admin/Teacher editing) attaches each
 // question's own choices WITH is_correct; false (Student/Parent viewing
 // or quiz-taking) strips is_correct off every choice so a browser
 // devtools poke at the page's own JSON/DOM can't leak the answer key.
-async function contentItemsForAssignment(assignmentId, { includeAnswerKey = false } = {}) {
-  const items = await db.prepare('SELECT * FROM lesson_content_items WHERE assignment_id = ? ORDER BY position, id').all(assignmentId);
+// includeTeacherOnly (defaults to includeAnswerKey - i.e. the staff
+// views): a real request: "mark them teacher only... only available to
+// teachers, subs and admins. It won't be available for students or
+// parents." Student/Parent views never get a teacher-only item at all.
+async function contentItemsForAssignment(assignmentId, { includeAnswerKey = false, includeTeacherOnly = includeAnswerKey } = {}) {
+  const items = await db
+    .prepare(`SELECT * FROM lesson_content_items WHERE assignment_id = ?${includeTeacherOnly ? '' : ' AND teacher_only = false'} ORDER BY position, id`)
+    .all(assignmentId);
   return Promise.all(
     items.map(async (item) => {
       const withAttachment = { ...item, attachmentUrl: lessonAttachmentUrl(item.attachment_url) };
@@ -829,15 +842,15 @@ async function contentItemsForAssignment(assignmentId, { includeAnswerKey = fals
 // dueDate: a real request: "Due dates should be on the assignments, not
 // on the lesson" - every content item (any type) can carry its own now,
 // instead of only the parent lesson having one.
-async function createContentItem({ assignmentId, type, title, videoUrl, body, fileUrl, description, attachmentUrl, attachmentName, pointsPossible, dueDate }) {
+async function createContentItem({ assignmentId, type, title, videoUrl, body, fileUrl, description, attachmentUrl, attachmentName, pointsPossible, dueDate, teacherOnly }) {
   const { next_position: nextPosition } = await db
     .prepare('SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM lesson_content_items WHERE assignment_id = ?')
     .get(assignmentId);
   const info = await db
     .prepare(
-      'INSERT INTO lesson_content_items (assignment_id, type, position, title, video_url, body, file_url, description, attachment_url, attachment_name, points_possible, due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO lesson_content_items (assignment_id, type, position, title, video_url, body, file_url, description, attachment_url, attachment_name, points_possible, due_date, teacher_only) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
-    .run(assignmentId, type, nextPosition, title || null, videoUrl || null, body || null, fileUrl || null, description || null, attachmentUrl || null, attachmentName || null, pointsPossible != null ? pointsPossible : null, dueDate || null);
+    .run(assignmentId, type, nextPosition, title || null, videoUrl || null, body || null, fileUrl || null, description || null, attachmentUrl || null, attachmentName || null, pointsPossible != null ? pointsPossible : null, dueDate || null, !!teacherOnly);
   return info.lastInsertRowid;
 }
 
@@ -850,7 +863,8 @@ async function createContentItem({ assignmentId, type, title, videoUrl, body, fi
 // attachmentName are passed through as whatever the caller already has
 // (the existing stored one, or a freshly uploaded replacement) rather
 // than cleared, since not every edit replaces the file.
-async function updateContentItem(id, { title, videoUrl, body, fileUrl, description, attachmentUrl, attachmentName, pointsPossible, dueDate }) {
+async function updateContentItem(id, { title, videoUrl, body, fileUrl, description, attachmentUrl, attachmentName, pointsPossible, dueDate, teacherOnly }) {
+  if (teacherOnly !== undefined) await db.prepare('UPDATE lesson_content_items SET teacher_only = ? WHERE id = ?').run(!!teacherOnly, id);
   await db
     .prepare(
       'UPDATE lesson_content_items SET title = ?, video_url = ?, body = ?, file_url = ?, description = ?, attachment_url = ?, attachment_name = ?, points_possible = ?, due_date = ? WHERE id = ?'
@@ -1252,7 +1266,9 @@ async function completionStatsForAssignments(classId) {
       stats[a.id] = null;
       continue;
     }
-    const items = await db.prepare('SELECT id, type FROM lesson_content_items WHERE assignment_id = ?').all(a.id);
+    // Teacher-only items are never shown to students, so they never count
+    // toward a student's progress either.
+    const items = await db.prepare('SELECT id, type FROM lesson_content_items WHERE assignment_id = ? AND teacher_only = false').all(a.id);
     if (items.length === 0) {
       stats[a.id] = null;
       continue;
@@ -1325,6 +1341,7 @@ module.exports = {
   transcriptBuilderDataForStudent,
   getContentItem,
   contentItemsForAssignment,
+  getStudentVisibleContentItem,
   createContentItem,
   updateContentItem,
   deleteContentItem,
