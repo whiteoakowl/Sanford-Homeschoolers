@@ -15,7 +15,7 @@ const ENABLED_KEY = 'online_payments_enabled';
 // On by default once Stripe keys are set; Main Admin can switch it off.
 async function isEnabled() {
   if (!stripe.isConfigured()) return false;
-  return (await appSetting(ENABLED_KEY, '1')) !== '0';
+  return (await appSetting(ENABLED_KEY, '0')) === '1';
 }
 
 async function setEnabled(on) {

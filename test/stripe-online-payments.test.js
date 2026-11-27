@@ -73,6 +73,13 @@ test('Pay Online -> Stripe Checkout -> webhook marks the charges paid once; refu
   const c1 = await payments.createCharge(parent, acct, 'manual', null, 'Fall Pottery', 2500);
   const c2 = await payments.createCharge(parent, acct, 'manual', null, 'Field Trip', 1000);
 
+  const onlinePayments = require('../utils/onlinePayments');
+  assert.equal(await onlinePayments.isEnabled(), false, 'Pay Online starts switched off until an admin turns it on');
+  const off = request.agent(app);
+  await off.post('/login').type('form').send({ email: 'payer@example.com', password: 'testpassword123', next: '/accounting' });
+  assert.doesNotMatch((await off.get('/accounting')).text, /Pay Online/);
+  await onlinePayments.setEnabled(true);
+
   const fam1 = request.agent(app);
   await fam1.post('/login').type('form').send({ email: 'payer@example.com', password: 'testpassword123', next: '/accounting' });
   const page = await fam1.get('/accounting');
