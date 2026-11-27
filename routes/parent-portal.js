@@ -780,10 +780,32 @@ router.get('/classes/dashboard', requirePortalPermission('view_parent_classroom_
   days.forEach((d) => byDay[d].sort(byHourPosition));
 
   const withdrawMember = await memberForAccount(req.portalAccount.id);
+  // A real request: "schedule change request form shouldn't be a subpage
+  // it should be a button on the classroom dashboard. It should say
+  // schedule changes/withdraw." Everything the popup needs: each child's
+  // current classes (to delete) and classes with room (to replace them).
+  // A real request: "the classes should be in day and time order for easy
+  // reading... Clear division between days" - sorted by day, then start
+  // time (hour slot when there's no time), and grouped by day in the view.
+  const dayTimeOrder = (a, b) =>
+    (CLASS_DAY_ORDER[a.day] ?? 99) - (CLASS_DAY_ORDER[b.day] ?? 99) ||
+    String(a.start_time || '').localeCompare(String(b.start_time || '')) ||
+    (a.hour_position || 0) - (b.hour_position || 0) ||
+    String(a.class_name).localeCompare(String(b.class_name));
+  const changeKids = [];
+  for (const child of children) {
+    const current = (await classesForChild(child.id)).slice().sort(dayTimeOrder);
+    const available = (await scheduleChange.availableClassesFor(child.id)).slice().sort(dayTimeOrder);
+    changeKids.push({ child, current, available });
+  }
   res.render('parent-class-dashboard', {
     title: 'Class Dashboard',
     pendingWithdrawal: withdrawMember ? await coopWithdrawal.pendingForFamily(withdrawMember.family_id) : null,
     withdrawNotice: req.query.notice || null,
+    changeError: req.query.error || null,
+    openChanges: req.query.changes === '1',
+    changeKids,
+    changeHistory: withdrawMember ? await scheduleChange.requestsForFamily(withdrawMember.family_id, withdrawMember.id) : [],
     children,
     parents,
     selectedChild,
@@ -809,30 +831,19 @@ router.post('/classes/withdraw', requirePortalPermission('view_parent_classroom_
 // Schedule Change Request (utils/scheduleChange.js) - each child's
 // current classes with Cancel boxes, then classes with room to add, and a
 // note; a Co-op Admin approves it on Classes > Schedule Change Requests.
-router.get('/classes/schedule-change', requirePortalPermission('view_parent_classes'), async (req, res) => {
-  const children = await childrenForAccount(req.portalAccount);
-  const member = await memberForAccount(req.portalAccount.id);
-  const kids = [];
-  for (const child of children) {
-    kids.push({ child, current: await classesForChild(child.id), available: await scheduleChange.availableClassesFor(child.id) });
-  }
-  res.render('parent-schedule-change', {
-    title: 'Schedule Change Request',
-    kids,
-    dayLabels: CLASS_DAY_LABELS_FULL,
-    history: member ? await scheduleChange.requestsForFamily(member.family_id, member.id) : [],
-    notice: req.query.notice || null,
-    error: req.query.error || null,
-  });
+// The old Schedule Change Request page now lives in the Classroom
+// Dashboard's Schedule Changes/Withdraw popup - old links open it there.
+router.get('/classes/schedule-change', requirePortalPermission('view_parent_classes'), (req, res) => {
+  res.redirect('/parent/classes/dashboard?changes=1');
 });
 
 router.post('/classes/schedule-change', requirePortalPermission('view_parent_classes'), async (req, res) => {
   const children = await childrenForAccount(req.portalAccount);
   const member = await memberForAccount(req.portalAccount.id);
-  if (!member) return res.redirect('/parent/classes/schedule-change');
+  if (!member) return res.redirect('/parent/classes/dashboard');
   const result = await scheduleChange.submitRequest({ member, accountId: req.portalAccount.id, children, body: req.body });
-  if (!result.ok) return res.redirect('/parent/classes/schedule-change?error=' + encodeURIComponent(result.error));
-  res.redirect('/parent/classes/schedule-change?notice=' + encodeURIComponent('Your schedule change request was sent to the co-op admins.'));
+  if (!result.ok) return res.redirect('/parent/classes/dashboard?changes=1&error=' + encodeURIComponent(result.error));
+  res.redirect('/parent/classes/dashboard?notice=' + encodeURIComponent('Your schedule change request was sent to the co-op admins. Nothing changes until they approve it.'));
 });
 
 // A real request: "Remove assignment tab from classroom dashboard" -
@@ -1141,6 +1152,16 @@ router.post('/content/:id/submit', requirePortalPermission('view_parent_classroo
 // account membership application already shows (views/portal-
 // register.ejs), just as a plain read-only page for an already-signed-in
 // parent rather than the scroll-to-agree checkbox flow that page needs.
+// A real request: "Parent portal co-op classes. There should be a
+// subpage called parent information. Here there is a button for floater
+// assignments and a button for setup/cleanup assignments and a button for
+// policy handbook. Listed below are steps for participating in co-op
+// classes." Floater/Setup-Cleanup open the same member-facing day pages
+// the Quick Links use (routes/volunteers.js, routes/setup.js).
+router.get('/classes/info', requirePortalPermission('view_parent_classes'), (req, res) => {
+  res.render('parent-classes-info', { title: 'Parent Information' });
+});
+
 router.get('/handbook', requirePortalPermission('view_parent_handbook'), async (req, res) => {
   res.render('parent-handbook', { title: 'Policy Handbook', handbookHtml: await getHandbookHtml() });
 });

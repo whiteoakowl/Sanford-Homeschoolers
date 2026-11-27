@@ -43,15 +43,7 @@
       </div>
     </div>
   <% if (selectedChild || selectedParent) { %></a><% } %>
-  <% if (selectedChild) { %>
-    <div class="class-dash-card-actions">
-      <button
-        type="button"
-        class="roster-action-btn roster-action-btn-danger roster-action-btn-small"
-        data-withdraw-class-btn
-        data-withdraw-class-url="/parent/classes/<%= c.id %>/unregister"
-        data-withdraw-student-id="<%= selectedChild.id %>"
-      >Withdraw</button>
-    </div>
-  <% } %>
+  <%# The per-class Withdraw button was removed (a real request) -
+      withdrawing now goes through the dashboard's Schedule
+      Changes/Withdraw button. %>
 </div>

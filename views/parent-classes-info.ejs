@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%# Parent Portal > Co-op Classes > Parent Information (routes/parent-
+    portal.js). A real request: buttons for Floater Assignments, Setup/
+    Cleanup Assignments and the Policy Handbook, then the steps for
+    taking part in co-op classes. %>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Parent Portal' }) %>
+  <main id="main-content" tabindex="-1" class="admin-main parent-info-page">
+    <h1>Parent Information</h1>
+
+    <div class="team-card-grid settings-hub-card-grid parent-info-buttons">
+      <div class="team-col">
+        <a class="team-info-card" href="/volunteers" target="_blank" rel="noopener">
+          <span class="team-info-icon"><svg class="icon"><use href="#icon-users"/></svg></span>
+          <h3 class="team-info-title">Floater Assignments</h3>
+        </a>
+      </div>
+      <div class="team-col">
+        <a class="team-info-card" href="/setup" target="_blank" rel="noopener">
+          <span class="team-info-icon"><svg class="icon"><use href="#icon-broom"/></svg></span>
+          <h3 class="team-info-title">Setup/Cleanup Assignments</h3>
+        </a>
+      </div>
+      <div class="team-col">
+        <a class="team-info-card" href="/parent/handbook">
+          <span class="team-info-icon"><svg class="icon"><use href="#icon-book"/></svg></span>
+          <h3 class="team-info-title">Policy Handbook</h3>
+        </a>
+      </div>
+    </div>
+
+    <section class="manage-section parent-info-steps">
+      <h2>Steps for Participating in Co-op Classes</h2>
+      <ol>
+        <li><strong>Keep your group membership active.</strong> Group membership is the first step - co-op classes are an add-on for members.</li>
+        <li><strong>Read the Policy Handbook</strong> so you know how co-op days run and what's expected of parents and students.</li>
+        <li><strong>Register your students</strong> under <a href="/parent/classes">Class Registration</a> when registration opens. Each class shows its age/grade range, time, room and any class fee.</li>
+        <li><strong>Pay your fees.</strong> The co-op fee and class fees are added to your account under Accounting, each with its due date.</li>
+        <li><strong>Volunteer.</strong> Sign up to teach or assist a class if you can, and check your <strong>Floater Assignment</strong> and <strong>Setup/Cleanup team</strong> before each co-op day.</li>
+        <li><strong>On co-op day</strong> (Wednesdays, 9am - 2pm), check in at the kiosk when you arrive and check out when you leave.</li>
+        <li><strong>Follow your classes</strong> on the <a href="/parent/classes/dashboard">Classroom Dashboard</a> - lessons, assignments, grades and class chat.</li>
+        <li><strong>Absent or running late?</strong> Send the <a href="/absence">Absence/Late Form</a>.</li>
+        <li><strong>Need to change classes or withdraw?</strong> Use <strong>Schedule Changes/Withdraw</strong> on the Classroom Dashboard. A co-op admin approves every change.</li>
+      </ol>
+    </section>
+  </main>
+</body>
+</html>

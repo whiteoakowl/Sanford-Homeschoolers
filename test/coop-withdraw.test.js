@@ -53,8 +53,13 @@ test('a family asks to withdraw, the admin sees it with their schedule, and Conf
   const parentAgent = request.agent(app);
   await parentAgent.post('/login').type('form').send({ email: 'leaving@example.com', password: 'testpassword123', next: '/parent' });
   const dash = await parentAgent.get('/parent/classes/dashboard');
-  assert.match(dash.text, /Withdraw from Co-op Classes<\/button>/);
-  assert.match(dash.text, /Are you sure you want to delete your enrollment to co-op and cancel all of your students' classes\?/);
+  // Now inside the dashboard's Schedule Changes/Withdraw popup: "Withdraw
+  // from all classes gives the final warning and submit button."
+  assert.match(dash.text, /Schedule Changes\/Withdraw<\/button>/);
+  assert.match(dash.text, /Would you like to withdraw from all classes\?/);
+  assert.match(dash.text, /Final warning:<\/strong> this asks the co-op admins to delete your enrollment in co-op and cancel <strong>all<\/strong> of your students' classes/);
+  assert.match(dash.text, /<form method="POST" action="\/parent\/classes\/withdraw">/);
+  assert.match(dash.text, />Submit Withdrawal<\/button>/);
   assert.match(dash.text, /<textarea name="note"/);
   await parentAgent.post('/parent/classes/withdraw').type('form').send({ _csrf: csrfOf(dash.text), note: 'Moving out of state' });
   const after = await parentAgent.get('/parent/classes/dashboard');

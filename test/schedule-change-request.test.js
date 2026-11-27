@@ -52,10 +52,19 @@ test('parent requests a switch; admin approves it, declining one addition; roste
 
   const parentAgent = request.agent(app);
   await parentAgent.post('/login').type('form').send({ email: 'switch@example.com', password: 'testpassword123', next: '/parent' });
+  // A real request: "schedule change request form shouldn't be a subpage
+  // it should be a button on the classroom dashboard. It should say
+  // schedule changes/withdraw."
   const nav = await parentAgent.get('/parent/classes');
-  assert.match(nav.text, /href="\/parent\/classes\/schedule-change">Schedule Change Request</);
-  const form = await parentAgent.get('/parent/classes/schedule-change');
-  assert.match(form.text, new RegExp(`name="drop" value="${kid}:${oldClass}" /> Cancel`), 'current class with Cancel');
+  assert.doesNotMatch(nav.text, /Schedule Change Request</, 'no longer its own subpage');
+  const old = await parentAgent.get('/parent/classes/schedule-change');
+  assert.equal(old.headers.location, '/parent/classes/dashboard?changes=1', 'old links open the popup');
+  const form = await parentAgent.get('/parent/classes/dashboard?changes=1');
+  assert.match(form.text, /data-open-schedule-changes>[\s\S]*Schedule Changes\/Withdraw<\/button>/);
+  assert.match(form.text, /Would you like to change your classes\?/);
+  assert.match(form.text, /Would you like to withdraw from all classes\?/);
+  assert.match(form.text, /data-open-on-load/);
+  assert.match(form.text, new RegExp(`name="drop" value="${kid}:${oldClass}" /> Delete`), 'current class with Delete');
   assert.match(form.text, new RegExp(`name="add" value="${kid}:${newArt}"`), 'class with room offered');
   assert.doesNotMatch(form.text, new RegExp(`name="add" value="${kid}:${full}"`), 'a full class is not offered');
   assert.doesNotMatch(form.text, new RegExp(`name="add" value="${kid}:${oldClass}"`), 'not a class they already have');
@@ -66,7 +75,7 @@ test('parent requests a switch; admin approves it, declining one addition; roste
   const admin = request.agent(app);
   await admin.post('/login').type('form').send({ email: 'mainadmin@coop.local', password: 'changeme123' });
   const settings = await admin.get('/admin/settings?tab=quicklinks');
-  assert.match(settings.text, /href="\/parent\/classes\/schedule-change" target="_blank">Schedule Change Request</);
+  assert.match(settings.text, /href="\/parent\/classes\/dashboard\?changes=1" target="_blank">Schedule Changes\/Withdraw</);
   const log = await admin.get('/admin/schedule-changes');
   assert.match(log.text, /href="\/admin\/schedule-changes">Schedule Change Requests/);
   assert.match(log.text, /Switch Family/);
@@ -89,6 +98,39 @@ test('parent requests a switch; admin approves it, declining one addition; roste
   assert.ok(tag, 'a name tag reprint was requested');
   assert.equal((await db.prepare('SELECT status FROM schedule_change_requests WHERE id = ?').get(id)).status, 'partial');
 
-  const history = await parentAgent.get('/parent/classes/schedule-change');
+  const history = await parentAgent.get('/parent/classes/dashboard');
   assert.match(history.text, /Add: Kim Switch &ndash; New Chess[^<]*<span class="hint">\(Declined\)/);
+});
+
+// A real request: "the classes should be in day and time order for easy
+// reading... Clear division between days."
+test('Schedule Changes lists each student\'s classes in day and time order with a heading per day', async () => {
+  const fam = (await db.prepare("INSERT INTO families (name) VALUES ('Order') RETURNING id").get()).id;
+  const parent = (await db.prepare("INSERT INTO members (name, barcode, member_type, family_id, is_primary_parent, active) VALUES ('Olive Order', 'OO', 'parent', ?, 1, 1) RETURNING id").get(fam)).id;
+  const kid = (await db.prepare("INSERT INTO members (name, barcode, member_type, family_id, active) VALUES ('Otto Order', 'OT', 'student', ?, 1) RETURNING id").get(fam)).id;
+  const acct = (await db.prepare("INSERT INTO member_accounts (member_id, email, password_hash, status, approved_at) VALUES (?, 'order@example.com', ?, 'active', now_text()) RETURNING id").get(parent, hashPassword('testpassword123'))).id;
+  await db.prepare("INSERT INTO member_account_roles (member_account_id, role_id) VALUES (?, (SELECT id FROM roles WHERE key = 'parent'))").run(acct);
+  const wedLate = await createClass({ day: 'wednesday', hourPosition: 3, className: 'Wed Late Class' });
+  const monEarly = await createClass({ day: 'monday', hourPosition: 1, className: 'Mon Early Class' });
+  const wedEarly = await createClass({ day: 'wednesday', hourPosition: 1, className: 'Wed Early Class' });
+  await setEnrollment(wedLate, [kid]);
+  await setEnrollment(monEarly, [kid]);
+  await setEnrollment(wedEarly, [kid]);
+  const agent = request.agent(app);
+  await agent.post('/login').type('form').send({ email: 'order@example.com', password: 'testpassword123' });
+  const page = (await agent.get('/parent/classes/dashboard')).text;
+  const current = page.slice(page.indexOf('Current Class Schedule'), page.indexOf('Replacement Class Options'));
+  const order = ['<li class="sc-day">Monday', 'Mon Early Class', '<li class="sc-day">Wednesday', 'Wed Early Class', 'Wed Late Class'].map((t) => current.indexOf(t));
+  assert.ok(order.every((v) => v >= 0), 'all present');
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'day headings and classes in day/time order');
+
+  // Parent Information subpage.
+  const nav = await agent.get('/parent/classes');
+  assert.match(nav.text, /href="\/parent\/classes\/info">Parent Information</);
+  const info = await agent.get('/parent/classes/info');
+  assert.equal(info.status, 200);
+  assert.match(info.text, /href="\/volunteers"[^>]*>[\s\S]*?Floater Assignments/);
+  assert.match(info.text, /href="\/setup"[^>]*>[\s\S]*?Setup\/Cleanup Assignments/);
+  assert.match(info.text, /href="\/parent\/handbook"[\s\S]*?Policy Handbook/);
+  assert.match(info.text, /Steps for Participating in Co-op Classes/);
 });

@@ -4,7 +4,7 @@
 module.exports = [
   { q: 'How do I register my child for a class?', a: 'Open **Co-op Classes**, then **Class Registration**, select the class, and select **Register** next to your child.', article: 'register-for-a-class', audiences: ['parent'] },
   { q: 'What does "Waitlist", "Not Eligible" or "Closed" mean?', a: '**Waitlist**: the class is full. **Not Eligible**: wrong age or grade. **Closed**: registration isn\'t open right now.', article: 'class-registration-statuses', audiences: ['parent'] },
-  { q: 'How do I drop a class?', a: 'Open the class on **Class Registration** and select **Withdraw**, or send a **Schedule Change Request**.', article: 'withdraw-from-a-class', audiences: ['parent'] },
+  { q: 'How do I drop a class?', a: 'Open the class on **Class Registration** and select **Withdraw**, or use **Schedule Changes/Withdraw** on the **Classroom Dashboard**.', article: 'withdraw-from-a-class', audiences: ['parent'] },
   { q: 'How do I see my child\'s schedule?', a: 'Open **My Profile** and select the **Schedules** tab.', article: 'view-your-schedule', audiences: ['parent', 'teacher'] },
   { q: 'How do I see my schedule?', a: 'Open **Co-op Schedule** in your Student Portal menu.', article: 'student-co-op-schedule', audiences: ['student'] },
   { q: 'How do I find my class and room?', a: 'Your schedule lists each class\'s room and teacher: **My Profile**, **Schedules** (or **Co-op Schedule** for students).', article: 'view-your-schedule', audiences: ['member'] },

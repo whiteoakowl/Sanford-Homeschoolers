@@ -106,7 +106,10 @@ test('the View/Cancel Classes page no longer exists', async () => {
 // should say withdraw and be much smaller." The whole card (color bar +
 // body) is now its own link to the class detail page instead of a
 // separate View Class button, and the remaining button reads Withdraw.
-test('Classroom Dashboard: each enrolled class card is itself a link to the class detail page, plus a small Withdraw button', async () => {
+// A later real request: "Get rid of the current withdraw button on each
+// class ... Instead they click the schedule changes/withdraw." The card
+// is still a link to the class; the Withdraw button is gone.
+test('Classroom Dashboard: each enrolled class card is itself a link to the class detail page, with no per-class Withdraw button', async () => {
   const admin = await loginAsAdmin();
   const cls = await createClass(admin);
   const parent = await createParentWithChild();
@@ -120,16 +123,10 @@ test('Classroom Dashboard: each enrolled class card is itself a link to the clas
   assert.equal(dashboard.status, 200);
   assert.match(dashboard.text, new RegExp(`<a class="class-dash-card-link" href="/parent/classes/dashboard/${cls.id}\\?studentId=${parent.childId}">`));
   assert.doesNotMatch(dashboard.text, />View Class</);
-  assert.match(dashboard.text, new RegExp(`data-withdraw-class-url="/parent/classes/${cls.id}/unregister"`));
-  assert.match(dashboard.text, new RegExp(`data-withdraw-student-id="${parent.childId}"`));
-  assert.match(dashboard.text, />Withdraw<\/button>/);
-});
-
-test('Classroom Dashboard withdraw JS carries the exact confirmation wording and Cancel/Confirm buttons', async () => {
-  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'classroom-dashboard-withdraw.js'), 'utf8');
-  assert.match(js, /Are you sure you want to withdraw from this class\? This action can't be reversed and a waitlisted student may take your spot\./);
-  assert.match(js, /yesLabel: 'Confirm'/);
-  assert.match(js, /cancelLabel: 'Cancel'/);
+  assert.doesNotMatch(dashboard.text, /data-withdraw-class-btn/);
+  assert.doesNotMatch(dashboard.text, />Withdraw<\/button>/);
+  assert.doesNotMatch(dashboard.text, /Withdraw from Co-op Classes<\/button>/);
+  assert.match(dashboard.text, /Schedule Changes\/Withdraw<\/button>/);
 });
 
 test('Cancelling a class registration automatically files a name tag reprint request', async () => {
@@ -173,7 +170,7 @@ test('the class card disappears from the enrolled child\'s own Classroom Dashboa
     .send({ studentId: String(parent.childId), day: 'monday', _csrf: parent.csrfToken });
 
   const dashboard = await request(app).get(`/parent/classes/dashboard?studentId=${parent.childId}`).set('Cookie', parent.cookie);
-  assert.match(dashboard.text, /Should Disappear Class/);
+  assert.match(dashboard.text, /class-dash-card-title">Should Disappear Class</);
   const csrf = extractCsrf(dashboard.text);
 
   await request(app)
@@ -185,7 +182,9 @@ test('the class card disappears from the enrolled child\'s own Classroom Dashboa
     .send({ studentId: String(parent.childId) });
 
   const after = await request(app).get(`/parent/classes/dashboard?studentId=${parent.childId}`).set('Cookie', parent.cookie);
-  assert.doesNotMatch(after.text, /Should Disappear Class/);
+  // The card is gone (the class may still be listed in the Schedule
+  // Changes/Withdraw popup as a class with room to switch into).
+  assert.doesNotMatch(after.text, /class-dash-card-title">Should Disappear Class</);
 });
 
 // A real request: "Student portal does not have delete class button, only

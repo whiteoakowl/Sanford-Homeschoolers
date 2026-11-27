@@ -10,34 +10,118 @@
     <div class="roster-toolbar">
       <div><h1>Classroom Dashboard</h1></div>
     <%- include('partials/help/link', { slug: 'classroom-dashboard-parent', label: 'Classroom help' }) %>
-      <%# A real request: "At the top add a button that says Withdraw from
-          co-op classes. A popup occurs and asks are you sure you want to
-          delete your enrollment to co-op and cancel all of your students
-          classes? Option to add a note to admins. Confirm and cancel
-          buttons." Only a request - admins confirm it (routes/admin-
-          coop-withdraw.js). %>
-      <% if (!pendingWithdrawal) { %>
-        <div class="roster-btn-row no-print">
-          <button type="button" class="roster-action-btn roster-action-btn-danger" onclick="document.getElementById('coop-withdraw-dialog').showModal()"><svg class="icon"><use href="#icon-log-out"/></svg> Withdraw from Co-op Classes</button>
-        </div>
-      <% } %>
+      <%# A real request: "schedule change request form shouldn't be a
+          subpage it should be a button on the classroom dashboard. It
+          should say schedule changes/withdraw... Two checkboxes appear,
+          would you like to change your classes or withdrawal from all
+          classes." Replaces the old per-class Withdraw buttons and the
+          Withdraw from Co-op Classes button. Both are only requests -
+          a co-op admin approves them. %>
+      <div class="roster-btn-row no-print">
+        <button type="button" class="roster-action-btn" data-open-schedule-changes><svg class="icon"><use href="#icon-calendar-check"/></svg> Schedule Changes/Withdraw</button>
+      </div>
     </div>
     <% if (withdrawNotice) { %><div class="alert alert-success"><%= withdrawNotice %></div><% } %>
     <% if (pendingWithdrawal) { %>
       <div class="alert alert-info">Your request to withdraw from co-op classes is waiting for a co-op admin to review it. Your family's classes stay as they are until then.</div>
     <% } %>
-    <dialog id="coop-withdraw-dialog" class="member-picker-dialog">
-      <form method="POST" action="/parent/classes/withdraw">
-        <h3>Withdraw from Co-op Classes</h3>
-        <p>Are you sure you want to delete your enrollment to co-op and cancel all of your students' classes?</p>
-        <label>Note to admins <span class="hint">(optional)</span>
-          <textarea name="note" rows="3" placeholder="Anything you'd like the admins to know"></textarea>
-        </label>
-        <div class="notes-dialog-actions">
-          <button type="button" class="btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
-          <button type="submit" class="roster-action-btn roster-action-btn-danger">Confirm</button>
-        </div>
-      </form>
+    <% var scStatusLabel = { pending: 'Waiting for admin', approved: 'Approved', partial: 'Approved (some additions declined)', declined: 'Declined' }; %>
+    <dialog id="schedule-changes-dialog" class="member-picker-dialog schedule-changes-dialog"<%= openChanges ? ' data-open-on-load' : '' %>>
+      <h3>Schedule Changes/Withdraw</h3>
+      <% if (changeError) { %><div class="alert alert-error"><%= changeError %></div><% } %>
+      <div class="schedule-changes-choices" role="group" aria-label="What would you like to do?">
+        <label class="checkbox-option"><input type="checkbox" data-sc-choice="change" /> Would you like to change your classes?</label>
+        <label class="checkbox-option"><input type="checkbox" data-sc-choice="withdraw" /> Would you like to withdraw from all classes?</label>
+      </div>
+
+      <div data-sc-panel="change" hidden>
+        <% if (changeKids.length === 0) { %>
+          <p class="hint">No students are linked to your account yet.</p>
+        <% } else { %>
+          <form method="POST" action="/parent/classes/schedule-change" class="sc-form">
+            <% changeKids.forEach(function(k) { %>
+              <section class="sc-student">
+                <h4><%= k.child.name %></h4>
+                <p class="sc-sub">Current Class Schedule <span class="hint">(check any class to delete)</span></p>
+                <% if (k.current.length === 0) { %>
+                  <p class="hint">Not in any classes right now.</p>
+                <% } else { %>
+                  <ul class="sc-list">
+                    <% k.current.forEach(function(c, idx) { %>
+                      <% if (idx === 0 || k.current[idx - 1].day !== c.day) { %><li class="sc-day"><%= dayLabels[c.day] || c.day %></li><% } %>
+                      <li>
+                        <span class="sc-class"><strong><%= c.class_name %></strong> <span class="hint"><%= c.timeLabel || ('Hour ' + c.hour_position) %><%= c.room ? ' · ' + c.room : '' %></span></span>
+                        <label class="sc-cancel"><input type="checkbox" name="drop" value="<%= k.child.id %>:<%= c.id %>" /> Delete</label>
+                      </li>
+                    <% }); %>
+                  </ul>
+                <% } %>
+                <p class="sc-sub">Replacement Class Options <span class="hint">(classes with room)</span></p>
+                <% if (k.available.length === 0) { %>
+                  <p class="hint">No classes with open seats right now.</p>
+                <% } else { %>
+                  <ul class="sc-list">
+                    <% k.available.forEach(function(c, idx) { %>
+                      <% if (idx === 0 || k.available[idx - 1].day !== c.day) { %><li class="sc-day"><%= dayLabels[c.day] || c.day %></li><% } %>
+                      <li>
+                        <label class="sc-add">
+                          <input type="checkbox" name="add" value="<%= k.child.id %>:<%= c.id %>" />
+                          <span class="sc-class"><strong><%= c.class_name %></strong> <span class="hint"><%= c.timeLabel || ('Hour ' + c.hour_position) %><%= c.room ? ' · ' + c.room : '' %></span></span>
+                        </label>
+                        <span class="sc-spots"><%= c.spotsLeft == null ? 'Open' : c.spotsLeft + ' spot' + (c.spotsLeft === 1 ? '' : 's') + ' left' %></span>
+                      </li>
+                    <% }); %>
+                  </ul>
+                <% } %>
+              </section>
+            <% }); %>
+            <label class="sc-note">Note to admins <span class="hint">(optional)</span>
+              <textarea name="note" rows="2"></textarea>
+            </label>
+            <p class="hint">A co-op admin approves the change &mdash; nothing changes until then.</p>
+            <div class="notes-dialog-actions">
+              <button type="button" class="btn-secondary" data-close-dialog>Cancel</button>
+              <button type="submit" class="primary-btn">Send Request</button>
+            </div>
+          </form>
+        <% } %>
+        <% if (changeHistory.length) { %>
+          <details class="sc-history-details">
+            <summary>Your past requests (<%= changeHistory.length %>)</summary>
+            <% changeHistory.forEach(function(r) { %>
+              <div class="sc-history">
+                <p><strong><%= r.requestedLabel %></strong> &middot; <span class="sc-status sc-status-<%= r.status %>"><%= scStatusLabel[r.status] || r.status %></span></p>
+                <ul class="sc-item-list">
+                  <% r.items.forEach(function(i) { %>
+                    <li><%= i.action === 'drop' ? 'Delete' : 'Add' %>: <%= i.student_name %> &ndash; <%= i.classLabel %><% if (i.result) { %> <span class="hint">(<%= i.result %>)</span><% } %></li>
+                  <% }); %>
+                </ul>
+              </div>
+            <% }); %>
+          </details>
+        <% } %>
+      </div>
+
+      <div data-sc-panel="withdraw" hidden>
+        <% if (pendingWithdrawal) { %>
+          <p>Your request to withdraw from all co-op classes is already waiting for a co-op admin to review it.</p>
+          <div class="notes-dialog-actions"><button type="button" class="btn-secondary" data-close-dialog>Close</button></div>
+        <% } else { %>
+          <form method="POST" action="/parent/classes/withdraw">
+            <div class="alert alert-error sc-final-warning">
+              <strong>Final warning:</strong> this asks the co-op admins to delete your enrollment in co-op and cancel <strong>all</strong> of your students' classes. Once an admin confirms it, your students lose their seats.
+            </div>
+            <label>Note to admins <span class="hint">(optional)</span>
+              <textarea name="note" rows="2" placeholder="Anything you'd like the admins to know"></textarea>
+            </label>
+            <div class="notes-dialog-actions">
+              <button type="button" class="btn-secondary" data-close-dialog>Cancel</button>
+              <button type="submit" class="roster-action-btn roster-action-btn-danger">Submit Withdrawal</button>
+            </div>
+          </form>
+        <% } %>
+      </div>
+      <div class="notes-dialog-actions" data-sc-panel="none"><button type="button" class="btn-secondary" data-close-dialog>Close</button></div>
     </dialog>
     <div id="classroom-dashboard-status" class="alert alert-error no-print" hidden></div>
 
@@ -97,6 +181,6 @@
       <% } %>
     <% } %>
   </main>
-  <script src="/js/classroom-dashboard-withdraw.js"></script>
+  <script src="/js/schedule-changes-dialog.js"></script>
 </body>
 </html>
