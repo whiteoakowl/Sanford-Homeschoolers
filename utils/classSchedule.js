@@ -1298,11 +1298,17 @@ async function publicShowcaseClasses() {
         startTime: cls.start_time,
         endTime: cls.end_time,
         color: cls.color,
+        hourPosition: cls.hour_position,
       });
     }
   }
+  // Day, then time - falling back to the class period when no time is set.
   return results.sort(
-    (a, b) => CLASS_DAY_ORDER[a.day] - CLASS_DAY_ORDER[b.day] || (a.startTime || '').localeCompare(b.startTime || '') || a.className.localeCompare(b.className)
+    (a, b) =>
+      CLASS_DAY_ORDER[a.day] - CLASS_DAY_ORDER[b.day] ||
+      (a.startTime || '').localeCompare(b.startTime || '') ||
+      (a.hourPosition || 0) - (b.hourPosition || 0) ||
+      a.className.localeCompare(b.className)
   );
 }
 

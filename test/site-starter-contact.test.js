@@ -34,11 +34,12 @@ test('Main Admin loads the Sanford Homeschoolers pages into the draft; once publ
   await site.publish(null, 'test');
 
   live = await request(app).get('/');
-  for (const s of [/Welcome to Sanford Homeschoolers!/, /501\(c\)\(3\) nonprofit, secular and inclusive/, /Wednesdays (·|&middot;) 9:00 am (–|&ndash;) 2:00 pm/, /Field Trips/, /Park Days/, /Holiday Parties/, /High School Diplomas/, /Custom Transcripts/, /Reading Challenges/, /Rewards/, /Student Portal/, /Homeschool Management/, /href="\/classes"/, /href="\/community"/, /href="\/contact"/]) {
+  for (const s of [/Welcome to Sanford Homeschoolers!/, /We are a 501\(c\)\(3\) nonprofit, secular and inclusive organization, established in 2019, and located in Sanford, North Carolina\. Sanford Homeschooler’s mission is to facilitate/, /Wednesdays (·|&middot;) 9:00 am (–|&ndash;) 2:00 pm/, /Field Trips/, /Park Days/, /Holiday Parties/, /High School Diplomas/, /Custom Transcripts/, /Reading Challenges/, /Rewards/, /Student Portal/, /Homeschool Management/, /href="\/classes"/, /href="\/community"/, /href="\/contact"/]) {
     assert.match(live.text, s, String(s));
   }
   assert.doesNotMatch(live.text, /Monday/, 'co-op classes are only on Wednesdays');
-  assert.match((await request(app).get('/classes')).text, /Every Wednesday/);
+  const classesPage = (await request(app).get('/classes')).text;
+  assert.match(classesPage, /Every Wednesday/);
   assert.match((await request(app).get('/community')).text, /Teen Hangouts/);
   // A real request: "Pricing page. $20 annual group membership and
   // features. Co-op $45/semester + additional class fees. Settings on

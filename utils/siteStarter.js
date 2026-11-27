@@ -124,21 +124,26 @@ const MEMBER_FEATURES = [
   ['arrow-right', 'Buy / Sell / Trade', 'Pass along curriculum, books and supplies to other families.'],
 ];
 
+const MAIN_DESCRIPTION =
+  'We are a 501(c)(3) nonprofit, secular and inclusive organization, established in 2019, and located in Sanford, North Carolina. Sanford Homeschooler\u2019s mission is to facilitate and maintain a self directed learning environment by allowing our children to deeply engage with the world through their passions and interests. We embrace choice and freedom along with collaboration between peers, parents, instructors, and the local community. We pride ourselves on being a diverse group that provides an affordable, accessible, and non-coercive space for learning experiences and building community.';
+
 function homePage() {
   const h1 = text('Welcome to Sanford Homeschoolers!', 'h1', 'h1', 40, 80, 900, white);
   const intro = text(
-    esc('A 501(c)(3) nonprofit, secular and inclusive homeschool group in Sanford, North Carolina. Established in 2019, we are 150 families strong with activities planned every day of the week!'),
+    esc('A secular, inclusive homeschool community in Sanford, North Carolina - 150 families strong, with activities planned every day of the week!'),
     'p', 'p', 140, 80 + h1.layout.desktop.h + 16, 700, white
   );
   const by = intro.layout.desktop.y + intro.layout.desktop.h + 28;
   const s1 = section('Welcome', [h1, intro, button('Join Us', '/register', 270, by, 200), button('Contact Us', '/contact', 510, by, 200)], hero);
 
-  const t2 = text('Participate as much or as little as you like', 'h2', 'h2', 90, 56, 800, center);
-  const p2 = text(
+  // A real request: "This should be the main page description."
+  const t2 = text('About Sanford Homeschoolers', 'h2', 'h2', 90, 56, 800, center);
+  const p2 = text(esc(MAIN_DESCRIPTION), 'p', 'p', 110, 56 + t2.layout.desktop.h + 12, 760, center);
+  const p2b = text(
     esc('All group activities are optional, so your family can choose how much you would like to participate. You do NOT have to enroll in co-op classes to be a member of our group.'),
-    'p', 'p', 140, 56 + t2.layout.desktop.h + 12, 700, center
+    'p', 'p', 140, p2.layout.desktop.y + p2.layout.desktop.h + 16, 700, { ...center, fontWeight: 600 }
   );
-  const s2 = section('About', [t2, p2]);
+  const s2 = section('About', [t2, p2, p2b]);
 
   const t3 = text('Co-op Classes', 'h2', 'h2', 90, 56, 800, center);
   const when = text('<strong>Wednesdays &middot; 9:00 am &ndash; 2:00 pm</strong>', 'p', 'h3', 190, 56 + t3.layout.desktop.h + 8, 600, { ...center, color: 'theme:primary' }, 'Wednesdays · 9:00 am – 2:00 pm');
@@ -164,7 +169,7 @@ function homePage() {
   const b7 = p7.layout.desktop.y + p7.layout.desktop.h + 24;
   const s7 = section('Join', [t7, p7, button('Member Registration', '/register', 140, b7, 230), button('See Pricing', '/pricing', 390, b7, 200), button('Contact Us', '/contact', 610, b7, 220)], hero);
 
-  return { title: 'Home', slug: 'home', isHome: true, seo: { description: 'Sanford Homeschoolers is a 501(c)(3) secular, inclusive homeschool group in Sanford, NC with co-op classes, field trips, park days and more.' }, sections: [s1, s2, s3, s4, s5, s6, s7] };
+  return { title: 'Home', slug: 'home', isHome: true, seo: { description: 'A 501(c)(3) nonprofit, secular and inclusive homeschool organization in Sanford, North Carolina, established in 2019 - co-op classes, field trips, park days and community.' }, sections: [s1, s2, s3, s4, s5, s6, s7] };
 }
 
 function classesPage() {
@@ -175,11 +180,14 @@ function classesPage() {
     'p', 'p', 140, when.layout.desktop.y + when.layout.desktop.h + 14, 700, center
   );
   const s1 = section('Class details', [t, when, body]);
-  const t2 = text('This Semester\'s Classes', 'h2', 'h2', 60, 48, 860);
+  const t2 = text('Our Co-op Classes', 'h2', 'h2', 60, 48, 860);
   const s2 = section('Classes', [t2, widget('classes', 60, 48 + t2.layout.desktop.h + 16, 860, 240, { showButton: true })], light, { autoHide: true });
   const t3 = text('Questions about classes?', 'h2', 'h2', 90, 56, 800, center);
   const s3 = section('Questions', [t3, button('See Pricing', '/pricing', 270, 56 + t3.layout.desktop.h + 20, 200), button('Contact Us', '/contact', 510, 56 + t3.layout.desktop.h + 20, 200)]);
-  return { title: 'Co-op Classes', slug: 'classes', sections: [pageHeader('Co-op Classes', 'Wednesdays, 9am - 2pm, for every age.'), s1, s2, s3] };
+  // A real request: "Show the public view of the co-op classes on the
+  // bottom of the public classes page." (Classes from schedule grids
+  // marked Visible to public, day and time order.)
+  return { title: 'Co-op Classes', slug: 'classes', sections: [pageHeader('Co-op Classes', 'Wednesdays, 9am - 2pm, for every age.'), s1, s3, s2] };
 }
 
 function communityPage() {
