@@ -127,6 +127,19 @@ const MEMBER_FEATURES = [
 const MAIN_DESCRIPTION =
   'We are a 501(c)(3) nonprofit, secular and inclusive organization, established in 2019, and located in Sanford, North Carolina. Sanford Homeschooler\u2019s mission is to facilitate and maintain a self directed learning environment by allowing our children to deeply engage with the world through their passions and interests. We embrace choice and freedom along with collaboration between peers, parents, instructors, and the local community. We pride ourselves on being a diverse group that provides an affordable, accessible, and non-coercive space for learning experiences and building community.';
 
+// "Your Family's Homeschool Hub" - the member resources list, on the Home
+// page (with a button to the Family Hub page) and, a real request, "At
+// the bottom of family hub page include the your family's homeschool hub
+// resources list from the main public page."
+function memberHubSection({ withHubButton = false } = {}) {
+  const t5 = text('Your Family\'s Homeschool Hub', 'h2', 'h2', 90, 56, 800, center);
+  const p5 = text(esc('Membership includes online tools for parents and students.'), 'p', 'p', 140, 56 + t5.layout.desktop.h + 8, 700, center);
+  const grid5 = featureGrid(MEMBER_FEATURES, p5.layout.desktop.y + p5.layout.desktop.h + 36);
+  const g5Bottom = Math.max(...grid5.map((e) => e.layout.desktop.y + e.layout.desktop.h));
+  const extra = withHubButton ? [button('Explore the Family Hub', '/family-hub', 370, g5Bottom + 24, 240)] : [];
+  return section('Member Features', [t5, p5, ...grid5, ...extra], light);
+}
+
 function homePage() {
   const h1 = text('Welcome to Sanford Homeschoolers!', 'h1', 'h1', 40, 80, 900, white);
   const intro = text(
@@ -156,10 +169,7 @@ function homePage() {
   const g4Bottom = Math.max(...grid4.map((e) => e.layout.desktop.y + e.layout.desktop.h));
   const s4 = section('Group Activities', [t4, p4, ...grid4, button('Activities & Events', '/community', 380, g4Bottom + 24, 220)]);
 
-  const t5 = text('Your Family\'s Homeschool Hub', 'h2', 'h2', 90, 56, 800, center);
-  const p5 = text(esc('Membership includes online tools for parents and students.'), 'p', 'p', 140, 56 + t5.layout.desktop.h + 8, 700, center);
-  const grid5 = featureGrid(MEMBER_FEATURES, p5.layout.desktop.y + p5.layout.desktop.h + 36);
-  const s5 = section('Member Features', [t5, p5, ...grid5], light);
+  const s5 = memberHubSection({ withHubButton: true });
 
   const t6 = text('Upcoming Events', 'h2', 'h2', 60, 48, 860);
   const s6 = section('Upcoming Events', [t6, widget('events', 60, 48 + t6.layout.desktop.h + 16, 860, 220, { limit: 4 })], null, { autoHide: true });
@@ -218,6 +228,67 @@ function pricingPage() {
   return { title: 'Pricing', slug: 'pricing', sections: [pageHeader('Membership & Pricing', 'Group membership and co-op classes'), s1, s2] };
 }
 
+// A real request: "Add a public page called family hub. Create a longer
+// description explains how each family can manage their homeschool needs,
+// classes and assignments through the family school management portal."
+const FAMILY_HUB_FEATURES = [
+  ['home', 'Family Classes', 'Create your own classes for each child, add lessons and assignments - videos, readings, files, quizzes and work your students hand in - and set due dates.'],
+  ['book', 'Ready-Made Lesson Plans', 'Start from lesson plans shared by the co-op and make them your own, or build your plans from scratch.'],
+  ['check-circle', 'Grades & Gradebook', 'Grade assignments and quizzes, and see every student\'s progress and grades in one place.'],
+  ['calendar', 'Attendance', 'Track your school days and attendance for each child - ready when you need records.'],
+  ['pencil', 'Daily Learning Log', 'Jot down what each child learned today, including field trips, reading and hands-on projects.'],
+  ['clock', 'Annual & Weekly Planners', 'Map out your school year, then plan each week so everyone knows what\'s next.'],
+  ['award', 'Transcripts & Diplomas', 'Build a professional high school transcript with credits and GPA, and design your own diploma.'],
+  ['star', 'Rewards Certificates', 'Celebrate milestones with printable certificates and rewards.'],
+  ['camera', 'Portfolio', 'Keep samples of your students\' best work together, year after year.'],
+];
+
+function familyHubPage() {
+  const t1 = text('Your homeschool, organized in one place', 'h2', 'h2', 90, 56, 800, center);
+  const intro = [
+    'Every member family gets Family School Management - a private portal for running your own homeschool alongside everything the co-op offers. Plan your year, teach your own classes, give and grade assignments, and keep the records you need, all from your computer or phone.',
+    'It works the way your family does. Set up a class for each subject and each child, add lessons with videos, readings, files and quizzes, and give assignments with due dates. Your students log in to the Student Portal to see what is due, complete their work and hand it in, and you grade it and see their progress at a glance.',
+    'Your records build themselves as you go. Attendance, a daily learning log, grades and a portfolio of your students\' work are all saved in one place, and when the time comes you can print a professional high school transcript and design your own diploma - with your family school\'s own name, logo and colors.',
+  ];
+  let y = 56 + t1.layout.desktop.h + 14;
+  const paras = intro.map((txt) => {
+    const el = text(esc(txt), 'p', 'p', 110, y, 760, center);
+    y += el.layout.desktop.h + 12;
+    return el;
+  });
+  const s1 = section('About the Family Hub', [t1, ...paras]);
+
+  const t2 = text('What your family can do', 'h2', 'h2', 90, 56, 800, center);
+  const grid = featureGrid(FAMILY_HUB_FEATURES, 56 + t2.layout.desktop.h + 36);
+  const s2 = section('Family Hub Features', [t2, ...grid], light);
+
+  const t3 = text('How it works', 'h2', 'h2', 90, 56, 800, center);
+  const steps = [
+    '1. Join Sanford Homeschoolers - group membership includes the Family Hub.',
+    '2. Sign in and open Family School Management from your portal.',
+    '3. Add your students and set up your family school\'s name, logo and colors.',
+    '4. Create classes, use a co-op lesson plan or write your own, and give assignments.',
+    '5. Your students complete their work in the Student Portal - you grade it, track attendance and keep your records up to date.',
+  ];
+  let sy = 56 + t3.layout.desktop.h + 14;
+  const stepEls = steps.map((txt) => {
+    const el = text(esc(txt), 'p', 'p', 190, sy, 600);
+    sy += el.layout.desktop.h + 6;
+    return el;
+  });
+  const s3 = section('How It Works', [t3, ...stepEls]);
+
+  const t4 = text('Ready to bring your homeschool together?', 'h2', 'h2', 90, 56, 800, white);
+  const b = 56 + t4.layout.desktop.h + 24;
+  const s4 = section('Join', [t4, button('Become a Member', '/register', 250, b, 230), button('See Pricing', '/pricing', 510, b, 220)], hero);
+  return {
+    title: 'Family Hub',
+    slug: 'family-hub',
+    seo: { description: 'Family School Management for Sanford Homeschoolers members: classes, assignments, grades, attendance, planners, transcripts and diplomas in one place.' },
+    sections: [pageHeader('Family Hub', 'Manage your homeschool, classes and assignments in one place.'), s1, s2, s3, s4, memberHubSection()],
+  };
+}
+
 function contactPage(site) {
   const lines = [];
   if (site && site.contactEmail) lines.push(`Email: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>`);
@@ -234,7 +305,7 @@ function contactPage(site) {
 // a page already using one of the other slugs is replaced in place,
 // otherwise added. The menu gets a link to each one it doesn't have yet.
 function applyStarterPages(doc) {
-  const pages = [homePage(), classesPage(), communityPage(), pricingPage(), contactPage(doc.site)];
+  const pages = [homePage(), classesPage(), communityPage(), familyHubPage(), pricingPage(), contactPage(doc.site)];
   const out = { ...doc, pages: [...doc.pages] };
   for (const pg of pages) {
     const full = { id: id('p'), hidden: false, access: 'public', type: 'standard', seo: {}, isHome: false, ...pg };
@@ -245,11 +316,37 @@ function applyStarterPages(doc) {
   const menu = [...(doc.menu || [])];
   // Home isn't added - the logo already links there, and five links fit
   // the header menu on one line where six don't.
-  for (const pg of ['classes', 'community', 'pricing', 'contact'].map((slug) => out.pages.find((p) => p.slug === slug)).filter(Boolean)) {
+  for (const pg of ['classes', 'community', 'family-hub', 'pricing', 'contact'].map((slug) => out.pages.find((p) => p.slug === slug)).filter(Boolean)) {
     const already = menu.some((m) => (m.type === 'page' && m.pageId === pg.id) || (m.href && m.href === (pg.isHome ? '/' : `/${pg.slug}`)));
     if (!already) menu.push({ id: id('m'), type: 'page', pageId: pg.id, label: pg.isHome ? 'Home' : pg.slug === 'classes' ? 'Classes' : pg.title });
   }
   out.menu = menu;
+  // Five menu links don't fit the standard header's menu area on one line,
+  // so - only when the header still has the standard layout - give the
+  // menu more room (taken from the site name's box, which has spare width).
+  const strip = out.header && out.header.strip;
+  if (strip && Array.isArray(strip.elements)) {
+    const els = strip.elements.map((e) => ({ ...e, layout: { ...e.layout, desktop: { ...e.layout.desktop } } }));
+    const name = els.find((e) => e.id === 'hdr-name');
+    const menuEl = els.find((e) => e.id === 'hdr-menu');
+    const login = els.find((e) => e.id === 'hdr-login');
+    if (menuEl && menuEl.layout.desktop.x === 440 && (!name || name.layout.desktop.x + name.layout.desktop.w <= 440)) {
+      const H = (strip.height && strip.height.desktop) || 84;
+      if (login) {
+        // Room for "Become a Member" with a small "Log in" link under it.
+        login.layout = { ...login.layout, desktop: { x: 980 - 24 - 150, y: 8, w: 150, h: H - 16 } };
+        if (login.layout.mobile) login.layout.mobile = { ...login.layout.mobile, y: 8, h: 48 };
+      }
+      const right = login ? login.layout.desktop.x - 8 : menuEl.layout.desktop.x + menuEl.layout.desktop.w;
+      if (name) name.layout.desktop.w = Math.min(name.layout.desktop.w, 258);
+      menuEl.layout.desktop.x = name ? name.layout.desktop.x + name.layout.desktop.w + 8 : 300;
+      menuEl.layout.desktop.w = right - menuEl.layout.desktop.x;
+      out.header = { ...out.header, strip: { ...strip, elements: els } };
+      // Five links fit on one line with slightly tighter, smaller menu text.
+      if (out.header.navSpacing == null || out.header.navSpacing === 24) out.header.navSpacing = 16;
+      if (out.header.navSize == null || out.header.navSize === 16) out.header.navSize = 15;
+    }
+  }
   return out;
 }
 

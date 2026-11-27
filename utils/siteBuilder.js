@@ -291,7 +291,7 @@ function normProps(type, p) {
     case 'contactform':
       return clean({ title: str(p.title, 200), description: str(p.description, 500), buttonLabel: str(p.buttonLabel, 60) });
     case 'login':
-      return clean({ loginLabel: str(p.loginLabel, 40), portalLabel: str(p.portalLabel, 40) });
+      return clean({ loginLabel: str(p.loginLabel, 40), portalLabel: str(p.portalLabel, 40), memberLabel: str(p.memberLabel, 40) });
     case 'menu':
       return clean({ label: str(p.label, 60), burgerAt: oneOf(p.burgerAt, ['never', 'mobile', 'tablet'], undefined), align: oneOf(p.align, ['left', 'center', 'right'], undefined) });
     case 'logo':

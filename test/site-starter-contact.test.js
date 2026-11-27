@@ -66,6 +66,16 @@ test('Main Admin loads the Sanford Homeschoolers pages into the draft; once publ
   assert.match(pricing.text, /\$50<\/span>/);
   assert.match(pricing.text, /Park days/);
   assert.doesNotMatch(pricing.text, /Rewards &amp; reading challenges/);
+  // Family Hub page, with the member hub list at the bottom.
+  const hubPage = (await request(app).get("/family-hub")).text;
+  assert.match(hubPage, /Family School Management/);
+  assert.match(hubPage, /How it works/);
+  assert.ok(Math.max(hubPage.lastIndexOf("Your Family&#39;s Homeschool Hub"), hubPage.lastIndexOf("Your Family's Homeschool Hub")) > hubPage.indexOf("How it works"), "hub list at the bottom");
+  assert.match(live.text, /href="\/family-hub"/);
+  // Signed out: Become a Member + a small Log in link; signed in: My Portals.
+  assert.match(live.text, /<a class="wx-btn wx-join-btn" href="\/register"><span class="wx-join-long">Become a Member<\/span>/);
+  assert.match(live.text, /<a class="wx-login-link" href="\/login">Log in<\/a>/);
+  assert.match((await admin.get('/')).text, /href="\/portal">My Portals</);
   const contact = await request(app).get('/contact');
   assert.match(contact.text, /action="\/contact\/send"/);
 

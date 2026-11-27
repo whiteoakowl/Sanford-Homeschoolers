@@ -219,7 +219,12 @@ function contentFields(el) {
       break;
     }
     case 'login':
-      out.push(field('Signed-out text', textInput(p.loginLabel, set('loginLabel'), { placeholder: 'Log in' })), field('Signed-in text', textInput(p.portalLabel, set('portalLabel'), { placeholder: 'My Portals' })), h('p.wxe-hint', null, 'Links to the app\'s existing member login (/login) and portals.'));
+      out.push(
+        field('Signed-out button', textInput(p.memberLabel, set('memberLabel'), { placeholder: 'Become a Member' })),
+        field('Signed-out login link', textInput(p.loginLabel, set('loginLabel'), { placeholder: 'Log in' })),
+        field('Signed-in text', textInput(p.portalLabel, set('portalLabel'), { placeholder: 'My Portals' })),
+        h('p.wxe-hint', null, 'Signed out: the button goes to Member Registration (it says "Join" on phones) with a small Log in link under it. Signed in: My Portals.')
+      );
       break;
     case 'menu':
       out.push(

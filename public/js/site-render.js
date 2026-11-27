@@ -614,8 +614,12 @@
       }
       case 'sitename':
         return `<a class="wx-sitename" href="/">${esc(p.text || (ctx.site && ctx.site.orgName) || 'Site name')}</a>`;
+      // A real request: "Not logged in my portals buttons becomes become
+      // member button" - signed out it's Become a Member (Join on phones)
+      // with a small Log in link under it for existing members.
       case 'login':
-        return ctx.portalAccount ? `<a class="wx-btn" href="/portal">${esc(p.portalLabel || 'My Portals')}</a>` : `<a class="wx-btn" href="/login">${esc(p.loginLabel || 'Log in')}</a>`;
+        if (ctx.portalAccount) return `<a class="wx-btn" href="/portal">${esc(p.portalLabel || 'My Portals')}</a>`;
+        return `<div class="wx-login-stack"><a class="wx-btn wx-join-btn" href="/register"><span class="wx-join-long">${esc(p.memberLabel || 'Become a Member')}</span><span class="wx-join-short">Join</span></a><a class="wx-login-link" href="/login">${esc(p.loginLabel || 'Log in')}</a></div>`;
       case 'menu': {
         // burgerAt: below which device the menu collapses into a ☰ button
         // (Wix's mobile hamburger), per menu element.
