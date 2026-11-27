@@ -174,8 +174,18 @@ async function closeOpenCheckoutsFor(chargeId) {
       try {
         await stripe.expireCheckoutSession(row.session_id);
       } catch (err) {
-        const result = await completeBySessionId(row.session_id).catch(() => ({ recorded: false }));
-        if (result.recorded || result.reason === 'already_recorded') return 'paid';
+        // Stripe refuses to close a page that's no longer open: either it
+        // already expired on its own (fine - carry on releasing) or it was
+        // paid (record it and keep the booking).
+        const session = await stripe.retrieveCheckoutSession(row.session_id).catch(() => null);
+        if (session && session.status === 'expired') {
+          await db.prepare("UPDATE stripe_checkouts SET status = 'expired' WHERE id = ? AND status = 'pending'").run(row.id);
+          continue;
+        }
+        if (session && session.status === 'complete') {
+          const result = await completeCheckoutSession(session);
+          if (result.recorded || result.reason === 'already_recorded' || session.payment_status !== 'paid') return 'paid';
+        }
         console.error('Could not close Stripe checkout:', err.message);
         return 'error';
       }
