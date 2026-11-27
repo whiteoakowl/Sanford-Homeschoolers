@@ -99,6 +99,10 @@
                     <span class="pay-now-desc"><%= c.description %><% if (c.due_date) { %> <span class="hint pay-now-due<%= isOverdue(c) ? ' is-overdue' : '' %>">Due <%= dueLabel(c.due_date) %></span><% } %></span>
                     <span class="pay-now-amount"><%= formatCents(c.owedCents) %></span>
                   </label>
+                  <label class="pay-now-partial">Pay $
+                    <input type="number" name="amount_<%= c.id %>" data-pay-amount-for="<%= c.id %>" min="0.50" max="<%= (c.owedCents / 100).toFixed(2) %>" step="0.01" value="<%= (c.owedCents / 100).toFixed(2) %>" aria-label="Amount to pay toward <%= c.description %>" />
+                    <span class="hint">pay part now, the rest later</span>
+                  </label>
                 </li>
               <% }); %>
             </ul>
@@ -137,7 +141,7 @@
                     <td class="table-stack-heading"><%= c.description %></td>
                     <td data-label="Amount"><%= formatCents(c.amount_cents) %></td>
                     <td data-label="Paid"><%= formatCents(c.amountPaid) %></td>
-                    <td data-label="Status"><span class="badge-pill badge-pill-<%= c.status === 'paid' ? 'green' : c.status === 'cancelled' || c.status === 'refunded' ? 'gray' : 'orange' %>"><%= c.status.replace('_', ' ') %></span></td>
+                    <td data-label="Status"><span class="badge-pill badge-pill-<%= c.status === 'paid' ? 'green' : c.status === 'cancelled' || c.status === 'refunded' ? 'gray' : 'orange' %>"><%= c.status === 'pending' && c.amountPaid > 0 ? 'partially paid' : c.status.replace('_', ' ') %></span></td>
                     <td data-label="Due"><% if (c.due_date) { %><span class="<%= isOverdue(c) ? 'accounting-overdue' : '' %>"><%= dueLabel(c.due_date) %><%= isOverdue(c) ? ' (overdue)' : '' %></span><% } else { %>—<% } %></td>
                     <td data-label="Date"><%= c.dateLabel %></td>
                   </tr>

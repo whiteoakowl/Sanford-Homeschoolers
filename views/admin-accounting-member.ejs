@@ -76,7 +76,7 @@
                   <td><a href="/main-admin/accounting/invoices/<%= c.id %>/edit"><%= c.description %></a></td>
                   <td><%= formatCents(c.amount_cents) %></td>
                   <td><%= formatCents(c.amountPaid) %></td>
-                  <td><span class="badge-pill badge-pill-<%= c.status === 'paid' ? 'green' : c.status === 'cancelled' || c.status === 'refunded' ? 'gray' : 'orange' %>"><%= c.status.replace('_', ' ') %></span></td>
+                  <td><span class="badge-pill badge-pill-<%= c.status === 'paid' ? 'green' : c.status === 'cancelled' || c.status === 'refunded' ? 'gray' : 'orange' %>"><%= c.status === 'pending' && c.amountPaid > 0 ? 'partially paid' : c.status.replace('_', ' ') %></span></td>
                   <td><% var dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(c.due_date || ''); %><%= dm ? dm[2] + '/' + dm[3] + '/' + dm[1] : '—' %></td>
                   <td><%= c.dateLabel %></td>
                   <td class="roster-btn-row member-invoice-actions">

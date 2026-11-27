@@ -17579,3 +17579,7 @@ h1 + .help-context-link { margin: -0.35rem 0 0.85rem; }
 .settings-delete-account-card .team-info-icon, .settings-delete-account-card .team-info-title { color: var(--red); }
 .settings-delete-account-card:hover, .settings-delete-account-card:focus-visible { background: var(--red); color: #fff; }
 .settings-delete-account-card:hover .team-info-icon, .settings-delete-account-card:hover .team-info-title, .settings-delete-account-card:focus-visible .team-info-icon, .settings-delete-account-card:focus-visible .team-info-title { color: #fff; }
+
+/* Pay Online: pay part of a charge now (accounting-home.ejs). */
+.pay-now-partial { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: -0.2rem 0 0.5rem 1.9rem; font-size: 0.9rem; }
+.pay-now-partial input { width: 6.5rem; }

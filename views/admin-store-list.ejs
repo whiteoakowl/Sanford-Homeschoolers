@@ -432,6 +432,10 @@
           <label class="member-form-full">Pickup Instructions <span class="hint">(shown on a member's own order page)</span>
             <textarea name="pickupInstructions" rows="3"><%= storeSettings.pickup_instructions || '' %></textarea>
           </label>
+          <label class="member-form-full">Payment Due (days after order)
+            <input type="number" name="paymentDueDays" min="0" max="365" value="<%= storeSettings.payment_due_days != null ? storeSettings.payment_due_days : 7 %>" />
+            <span class="hint">When an order is billed to the family's account instead of paid by card at checkout.</span>
+          </label>
           <label class="member-form-full">Order Notification Email
             <input type="email" name="orderNotificationEmail" value="<%= storeSettings.order_notification_email || '' %>" placeholder="admin@example.com" />
           </label>

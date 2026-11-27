@@ -167,6 +167,11 @@ router.post('/settings', async (req, res) => {
     pickupInstructions: req.body.pickupInstructions,
     orderNotificationEmail: req.body.orderNotificationEmail,
   });
+  // A real request: "Make sure every type of invoice has due date
+  // settings." Days after an order its invoice is due, when it's billed
+  // to the family's account instead of paid by card at checkout.
+  const days = parseInt(req.body.paymentDueDays, 10);
+  if (Number.isFinite(days) && days >= 0 && days <= 365) await require('../db').prepare('UPDATE store_settings SET payment_due_days = ? WHERE id = 1').run(days);
   res.redirect('/main-admin/store?tab=settings&notice=' + encodeURIComponent('Settings saved.'));
 });
 

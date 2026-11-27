@@ -92,6 +92,7 @@
                 <td class="roster-name-col">
                   <a href="/main-admin/members/<%= m.id %>"><%= m.name %></a>
                   <% if (m.parked) { %> <span class="badge-pill badge-pill-gray" title="Auto-parked: an auto-park invoice is overdue and unpaid">Parked</span><% } %>
+                  <% if (m.archived) { %> <span class="badge-pill badge-pill-gray" title="Archived or deleted member - accounting is kept">Archived</span><% } %>
                 </td>
                 <td class="roster-btn-row accounting-row-icons">
                   <a class="icon-btn" href="/main-admin/accounting/members/<%= m.id %>?autoprint=1" aria-label="Print statement for <%= m.name %>" title="Print statement"><svg class="icon"><use href="#icon-printer"/></svg></a>

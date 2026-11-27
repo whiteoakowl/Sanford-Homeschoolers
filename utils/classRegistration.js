@@ -298,16 +298,19 @@ async function registerForClass({ classId, studentId, accountId, portalRoles, re
 // students are removed from a class by PARENT or when class is
 // cancelled by SYSTEM..." vs "...for any reason by ADMIN" - see
 // adminRemoveStudentFromClass below for the admin-initiated path.
-async function settleChargeOnCancel(chargeId, accountId, autoCredit) {
-  if (!chargeId) return;
-  const paid = await amountPaidForCharge(chargeId);
-  if (paid <= 0) {
-    await cancelCharge(chargeId);
-  } else if (autoCredit) {
-    // A real request: "Admin must approve all refunds, even if the system
-    // automated a refund." Queued for approval (Main Admin > Accounting >
-    // Pending Refunds) instead of recorded on the spot.
-    await require('./refundRequests').requestRefund({ chargeId, amountCents: paid, reason: 'Automatic credit adjustment: class registration removed.', source: 'automatic', accountId });
+async function settleChargeOnCancel(rootChargeId, accountId, autoCredit) {
+  if (!rootChargeId) return;
+  // Every part of a split invoice is settled the same way.
+  for (const chargeId of await require('./payments').chargeParts(rootChargeId)) {
+    const paid = await amountPaidForCharge(chargeId);
+    if (paid <= 0) {
+      await cancelCharge(chargeId);
+    } else if (autoCredit) {
+      // A real request: "Admin must approve all refunds, even if the system
+      // automated a refund." Queued for approval (Main Admin > Accounting >
+      // Pending Refunds) instead of recorded on the spot.
+      await require('./refundRequests').requestRefund({ chargeId, amountCents: paid, reason: 'Automatic credit adjustment: class registration removed.', source: 'automatic', accountId });
+    }
   }
 }
 

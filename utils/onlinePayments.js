@@ -47,11 +47,24 @@ async function payableCharges(memberId) {
 // than Accounting - an event page or the store. held: true (booking a
 // ticket / checking out the cart) makes the Stripe page expire after
 // HOLD_CHECKOUT_MINUTES, so it can never be paid after the hold is gone.
-async function startCheckout({ memberId, accountId, chargeIds, email, baseUrl, successPath, cancelPath, held }) {
+// amounts (optional, Accounting's Pay Online): { chargeId: dollars } to
+// pay only part of a charge now and the rest later - never more than
+// what's owed, never less than 50 cents (Stripe's minimum).
+async function startCheckout({ memberId, accountId, chargeIds, email, baseUrl, successPath, cancelPath, held, amounts }) {
   if (!(await isEnabled())) return { error: 'Online payments are not turned on.' };
   const wanted = new Set((Array.isArray(chargeIds) ? chargeIds : [chargeIds]).map(Number).filter(Boolean));
   const charges = (await payableCharges(memberId)).filter((c) => wanted.has(c.id));
   if (!charges.length) return { error: 'Choose at least one charge to pay.' };
+  if (amounts) {
+    for (const c of charges) {
+      const raw = amounts[String(c.id)];
+      if (raw === undefined || raw === '') continue;
+      const cents = Math.round(parseFloat(raw) * 100);
+      if (!Number.isFinite(cents) || cents < 50) return { error: `Enter at least $0.50 for "${c.description}".` };
+      if (cents > c.owedCents) return { error: `"${c.description}" only has ${payments.formatCents(c.owedCents)} left to pay.` };
+      c.owedCents = cents;
+    }
+  }
   const amount = charges.reduce((s, c) => s + c.owedCents, 0);
   const fee = stripe.cardFeeCents(amount);
   const lineItems = charges.map((c) => ({ quantity: 1, price_data: { currency: 'usd', unit_amount: c.owedCents, product_data: { name: c.description } } }));

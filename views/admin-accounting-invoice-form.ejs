@@ -105,6 +105,22 @@
         <button type="submit" class="primary-btn"><%= isEdit ? 'Update Invoice' : 'Create Invoice' %></button>
       </div>
     </form>
+    <%# A real request: "Make sure invoices can be split to have multiple
+        payments or pay a 2nd part later." Moves part of what's still owed
+        into a second invoice with its own due date. %>
+    <% if (isEdit && charge.status === 'pending') { %>
+      <form method="POST" action="/main-admin/accounting/invoices/<%= charge.id %>/split-payment" class="manage-section member-form-grid accounting-split-payment">
+        <h2 class="member-form-full">Split Into Two Payments</h2>
+        <p class="hint member-form-full">Let the family pay part now and the rest later: the amount below moves to a second invoice with its own due date. Anything already paid stays on this invoice.</p>
+        <label>Second payment amount ($)
+          <input type="number" name="partAmount" min="0.01" step="0.01" required />
+        </label>
+        <label>Second payment due date
+          <input type="date" name="partDueDate" />
+        </label>
+        <div class="member-form-full"><button type="submit" class="roster-action-btn">Split Invoice</button></div>
+      </form>
+    <% } %>
   </main>
   <template data-split-invoice-template>
     <div class="accounting-split-invoice-row">

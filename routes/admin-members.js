@@ -1051,19 +1051,20 @@ router.get('/members/:id/cards/download.pdf', async (req, res) => {
 // photo, which isn't a foreign key the database can clean up on its own.
 // Returns the deleted row (or null if id didn't match anything, e.g. a
 // stale bulk selection for a member someone else already deleted).
+// A real request: "Accounting information for each member never
+// disappears" - a member with invoices on file is archived instead of
+// deleted (utils/memberRemoval.js); result.archived says which happened.
 async function deleteMemberById(id) {
-  const member = await db.prepare('SELECT * FROM members WHERE id = ?').get(id);
-  if (!member) return null;
-  await db.prepare('DELETE FROM members WHERE id = ?').run(id);
-  await deletePhotoFile(member.photo_path);
-  return member;
+  const result = await require('../utils/memberRemoval').removeMember(id, (m) => deletePhotoFile(m.photo_path));
+  if (!result.member) return null;
+  return { ...result.member, archivedInstead: result.archived };
 }
 
 router.post('/members/:id/delete', async (req, res) => {
   const member = await deleteMemberById(parseInt(req.params.id, 10));
   if (isFetch(req)) return res.json({ ok: true });
   res.redirect(
-    '/admin/members?notice=' + encodeURIComponent(member ? `Deleted "${member.name}".` : 'Member deleted.')
+    '/admin/members?notice=' + encodeURIComponent(!member ? 'Member deleted.' : member.archivedInstead ? `"${member.name}" has accounting history, so they were archived instead of deleted - their invoices and payments are kept.` : `Deleted "${member.name}".`)
   );
 });
 

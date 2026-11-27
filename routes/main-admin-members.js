@@ -217,16 +217,8 @@ router.post('/delete-requests/:id/complete', async (req, res) => {
     if (decided.account_id) await db.prepare("DELETE FROM member_accounts WHERE id = ? AND status = 'closed'").run(decided.account_id);
     notice = `Deleted ${decided.member_name}'s records.`;
     if (decided.member_id) {
-      // Charges and payments belong to the member row (and would be
-      // deleted with it), so a member with any accounting history is
-      // archived instead - the co-op's books stay complete.
-      const hasMoney = await db.prepare('SELECT 1 FROM payment_charges WHERE member_id = ? LIMIT 1').get(decided.member_id);
-      if (hasMoney) {
-        await db.prepare('UPDATE members SET active = 0, archived_at = now_text() WHERE id = ?').run(decided.member_id);
-        notice = `Removed ${decided.member_name}'s login. Their member record was archived (not deleted) to keep their accounting history.`;
-      } else {
-        await deleteMemberById(decided.member_id);
-      }
+      const removed = await deleteMemberById(decided.member_id);
+      if (removed && removed.archivedInstead) notice = `Removed ${decided.member_name}'s login. Their member record was archived (not deleted) to keep their accounting history.`;
     }
   }
   res.redirect('/main-admin/members/delete-requests?notice=' + encodeURIComponent(notice));
@@ -1594,18 +1586,19 @@ router.post('/:id/edit', uploadIntakePhotos((req) => `/main-admin/members/${req.
 // --- Delete / archive (single row and Select-All-across-pages bulk,
 // mirroring routes/admin-members.js's identical mechanics). ---
 
+// A real request: "Accounting information for each member never
+// disappears" - a member with invoices on file is archived instead of
+// deleted (utils/memberRemoval.js); result.archived says which happened.
 async function deleteMemberById(id) {
-  const member = await db.prepare('SELECT * FROM members WHERE id = ?').get(id);
-  if (!member) return null;
-  await db.prepare('DELETE FROM members WHERE id = ?').run(id);
-  await deletePhotoFile(member.photo_path);
-  return member;
+  const result = await require('../utils/memberRemoval').removeMember(id, (m) => deletePhotoFile(m.photo_path));
+  if (!result.member) return null;
+  return { ...result.member, archivedInstead: result.archived };
 }
 
 router.post('/:id/delete', async (req, res) => {
   const member = await deleteMemberById(parseInt(req.params.id, 10));
   if (isFetch(req)) return res.json({ ok: true });
-  res.redirect('/main-admin/members?notice=' + encodeURIComponent(member ? `Deleted "${member.name}".` : 'Member deleted.'));
+  res.redirect('/main-admin/members?notice=' + encodeURIComponent(!member ? 'Member deleted.' : member.archivedInstead ? `"${member.name}" has accounting history, so they were archived instead of deleted - their invoices and payments are kept.` : `Deleted "${member.name}".`));
 });
 
 // A real request: "add an icon that shows sending something. when you

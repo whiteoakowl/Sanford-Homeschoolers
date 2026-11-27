@@ -28,10 +28,58 @@ async function createCharge(memberId, accountId, sourceType, sourceId, descripti
       .run(memberId, accountId, sourceType, sourceId, description, amountCents, sourceId);
     return info.lastInsertRowid;
   }
+  // Every invoice type gets a due date (a real request: "Make sure every
+  // type of invoice has due date settings"): an event ticket is due on the
+  // event's payment due date (or the event's own date); a store order a
+  // set number of days after it's placed (Shop settings).
+  let dueDate = null;
+  if (sourceType === 'event_registration' && sourceId) {
+    const ev = await dbHandle.prepare('SELECT payment_due_date, starts_at FROM events WHERE id = ?').get(sourceId);
+    if (ev) dueDate = ev.payment_due_date || (ev.starts_at ? String(ev.starts_at).slice(0, 10) : null);
+  } else if (sourceType === 'store_order') {
+    const st = await dbHandle.prepare('SELECT payment_due_days FROM store_settings WHERE id = 1').get();
+    const days = st && st.payment_due_days != null ? Number(st.payment_due_days) : 7;
+    dueDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  }
   const info = await dbHandle
-    .prepare('INSERT INTO payment_charges (member_id, account_id, source_type, source_id, description, amount_cents) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(memberId, accountId, sourceType, sourceId, description, amountCents);
+    .prepare('INSERT INTO payment_charges (member_id, account_id, source_type, source_id, description, amount_cents, due_date) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(memberId, accountId, sourceType, sourceId, description, amountCents, dueDate);
   return info.lastInsertRowid;
+}
+
+// A real request: "Make sure invoices can be split to have multiple
+// payments or pay a 2nd part later." Moves partCents of a charge's unpaid
+// balance into a new invoice with its own due date - same family, source,
+// category and description (marked "part 2", "part 3"...). The original
+// keeps everything already paid on it.
+async function splitCharge(chargeId, partCents, dueDate, accountId) {
+  const charge = await getCharge(chargeId);
+  if (!charge || charge.status !== 'pending') return { error: 'Only an open (unpaid or part-paid) invoice can be split.' };
+  const owed = (await effectiveChargeAmount(charge)) - (await netCashForCharge(chargeId));
+  if (!(partCents > 0) || partCents >= owed) return { error: `The second payment must be more than $0 and less than the ${formatCents(owed)} still owed.` };
+  const root = charge.split_from_charge_id || charge.id;
+  const parts = Number((await db.prepare('SELECT COUNT(*) AS c FROM payment_charges WHERE split_from_charge_id = ?').get(root)).c);
+  const baseDescription = charge.description.replace(/ \(part \d+\)$/, '');
+  const info = await db
+    .prepare(
+      `INSERT INTO payment_charges (member_id, account_id, source_type, source_id, description, amount_cents, due_date, accounting_category_id, split_from_charge_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(charge.member_id, accountId || charge.account_id, charge.source_type, charge.source_id, `${baseDescription} (part ${parts + 2})`, partCents, dueDate || null, charge.accounting_category_id || null, root);
+  await db.prepare('UPDATE payment_charges SET amount_cents = amount_cents - ?, updated_at = now_text() WHERE id = ?').run(partCents, chargeId);
+  if (!/ \(part \d+\)$/.test(charge.description)) {
+    await db.prepare('UPDATE payment_charges SET description = ? WHERE id = ?').run(`${charge.description} (part 1)`, chargeId);
+  }
+  await recalculateStatus(chargeId);
+  return { ok: true, newChargeId: info.lastInsertRowid };
+}
+
+// A charge and every invoice split off it - cancelling a class/event
+// registration settles all of them, not just the first part.
+async function chargeParts(chargeId) {
+  if (!chargeId) return [];
+  const rows = await db.prepare('SELECT id FROM payment_charges WHERE split_from_charge_id = ? ORDER BY id').all(chargeId);
+  return [Number(chargeId), ...rows.map((r) => r.id)];
 }
 
 async function getCharge(id) {
@@ -175,6 +223,11 @@ async function recordPayment(chargeId, amountCents, method, recordedByAccountId,
 async function cancelCharge(chargeId) {
   const charge = await getCharge(chargeId);
   await db.prepare("UPDATE payment_charges SET status = 'cancelled', updated_at = now_text() WHERE id = ?").run(chargeId);
+  // Unpaid parts split off this invoice go with it; a part that already
+  // has money on it is left for an admin to settle.
+  for (const part of await db.prepare("SELECT id FROM payment_charges WHERE split_from_charge_id = ? AND status = 'pending'").all(chargeId)) {
+    if ((await netCashForCharge(part.id)) <= 0) await db.prepare("UPDATE payment_charges SET status = 'cancelled', updated_at = now_text() WHERE id = ?").run(part.id);
+  }
   if (charge) await recalculateParkedStatus(charge.member_id);
 }
 
@@ -342,6 +395,8 @@ function formatCents(cents) {
 
 module.exports = {
   createCharge,
+  splitCharge,
+  chargeParts,
   getCharge,
   setChargeDetails,
   updateCharge,

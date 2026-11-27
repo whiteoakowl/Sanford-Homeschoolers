@@ -1574,10 +1574,13 @@ async function adminAddRegistrations(eventId, membersData, accountId) {
 // whole feature set agreed to keep events simpler - an unpaid charge
 // always clears, a paid one is always left for a Main Admin to refund by
 // hand).
-async function settleChargeOnCancel(chargeId) {
-  if (!chargeId) return;
-  const paid = await amountPaidForCharge(chargeId);
-  if (paid <= 0) await cancelCharge(chargeId);
+async function settleChargeOnCancel(rootChargeId) {
+  if (!rootChargeId) return;
+  // Every part of a split invoice is settled the same way.
+  for (const chargeId of await require('./payments').chargeParts(rootChargeId)) {
+    const paid = await amountPaidForCharge(chargeId);
+    if (paid <= 0) await cancelCharge(chargeId);
+  }
 }
 
 // Promotes the earliest-waitlisted registration (a seat just opened up)

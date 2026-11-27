@@ -84,6 +84,7 @@ router.post('/pay', async (req, res) => {
       memberId,
       accountId: req.portalAccount.id,
       chargeIds: req.body.chargeIds,
+      amounts: Object.fromEntries(Object.entries(req.body).filter(([k]) => /^amount_\d+$/.test(k)).map(([k, v]) => [k.slice(7), v])),
       email: req.portalAccount.email,
       baseUrl: publicOrigin(req),
     });

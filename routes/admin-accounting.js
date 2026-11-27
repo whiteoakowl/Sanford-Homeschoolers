@@ -102,7 +102,15 @@ async function billedMemberIds() {
 
 async function accountRows(q) {
   const eligibleIds = await billedMemberIds();
-  let members = (await db.prepare('SELECT id, name, parked FROM members WHERE active = 1').all()).filter((m) => eligibleIds.has(m.id)).sort(byLastName);
+  let members = (await db.prepare('SELECT id, name, parked, active FROM members WHERE active = 1').all()).filter((m) => eligibleIds.has(m.id));
+  // A real request: "Accounting information for each member never
+  // disappears. Even if the members account is deleted." Anyone with an
+  // invoice on file stays listed here - archived or not.
+  const listed = new Set(members.map((m) => m.id));
+  for (const m of await db.prepare('SELECT DISTINCT m.id, m.name, m.parked, m.active FROM members m JOIN payment_charges pc ON pc.member_id = m.id WHERE m.active = 0').all()) {
+    if (!listed.has(m.id)) members.push({ ...m, archived: true });
+  }
+  members.sort(byLastName);
   if (q) {
     members = members.filter((m) => m.name.toLowerCase().includes(q));
   }
@@ -359,6 +367,14 @@ router.get('/invoices/:id/edit', requirePortalPermission('view_accounting_invoic
     notice: req.query.notice || null,
     error: req.query.error || null,
   });
+});
+
+// A real request: "Make sure invoices can be split to have multiple
+// payments or pay a 2nd part later." See utils/payments.js's splitCharge.
+router.post('/invoices/:id/split-payment', requirePortalPermission('view_accounting_invoices'), async (req, res) => {
+  const result = await payments.splitCharge(parseInt(req.params.id, 10), toCents(req.body.partAmount), /^\d{4}-\d{2}-\d{2}$/.test(req.body.partDueDate || '') ? req.body.partDueDate : null, req.portalAccount.id);
+  if (result.error) return res.redirect(`/main-admin/accounting/invoices/${req.params.id}/edit?error=` + encodeURIComponent(result.error));
+  res.redirect(`/main-admin/accounting/invoices/${result.newChargeId}/edit?notice=` + encodeURIComponent('Invoice split - this is the second payment.'));
 });
 
 // "+ Split Invoice" (the reference screenshot) - one or more additional

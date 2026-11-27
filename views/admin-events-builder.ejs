@@ -340,6 +340,10 @@
               accounting category" - the list itself is managed from the
               Events list page's own Settings tab (Add/Edit Accounting
               Category), same place/pattern as Categories/Locations. %>
+          <label>Payment Due Date
+            <input type="date" name="paymentDueDate" value="<%= event.payment_due_date || '' %>" <%= financeDisabled %> />
+            <span class="hint">For tickets billed to a family's account (when they're not paid by card at booking). Blank = the event's date.</span>
+          </label>
           <label>Accounting Category
             <select name="accountingCategoryId" <%= financeDisabled %>>
               <option value="">None</option>

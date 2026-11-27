@@ -973,6 +973,11 @@ router.post('/:id/finance', async (req, res) => {
     accountingCategoryId: req.body.accountingCategoryId ? parseInt(req.body.accountingCategoryId, 10) : null,
     paymentInstructionsText: (req.body.paymentInstructionsText || '').trim(),
   });
+  // A real request: "Make sure every type of invoice has due date
+  // settings." Used when a ticket is billed to a family's account instead
+  // of paid at booking; blank means the event's own date.
+  const due = /^\d{4}-\d{2}-\d{2}$/.test(req.body.paymentDueDate || '') ? req.body.paymentDueDate : null;
+  await db.prepare('UPDATE events SET payment_due_date = ? WHERE id = ?').run(due, id);
   res.redirect(`/main-admin/events/${id}/builder?tab=finance&notice=` + encodeURIComponent('Finance saved.'));
 });
 
