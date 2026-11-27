@@ -37,7 +37,7 @@ function mediaUrlForKey(key) {
 const LIMITS = { pages: 40, sections: 60, elements: 150, menu: 80, presets: 30, swatches: 24, listItems: 40 };
 const ELEMENT_TYPES = [
   'text', 'image', 'button', 'icon', 'shape', 'line', 'video', 'gallery', 'slideshow', 'accordion', 'tabs',
-  'social', 'map', 'embed', 'form', 'contactform', 'login', 'menu', 'classes', 'announcements', 'faq', 'events', 'logo', 'sitename',
+  'social', 'map', 'embed', 'form', 'contactform', 'pricing', 'login', 'menu', 'classes', 'announcements', 'faq', 'events', 'logo', 'sitename',
 ];
 
 // Top-level paths the app itself already serves - a page slug can never
@@ -286,6 +286,8 @@ function normProps(type, p) {
       return { html: str(p.html, 20000), title: str(p.title, 120) };
     case 'form':
       return clean({ formId: mediaId(p.formId), title: str(p.title, 200), description: str(p.description, 500), buttonLabel: str(p.buttonLabel, 60) });
+    case 'pricing':
+      return clean({ showButtons: p.showButtons === false ? false : undefined });
     case 'contactform':
       return clean({ title: str(p.title, 200), description: str(p.description, 500), buttonLabel: str(p.buttonLabel, 60) });
     case 'login':
@@ -917,7 +919,9 @@ async function loadWidgetData() {
       .all()
   ).map((e) => ({ ...e, dateLabel: formatFriendlyDateAndTime(e.starts_at) }));
   const forms = await db.prepare("SELECT id, title, description FROM custom_forms WHERE system_key IS NULL AND status = 'published' ORDER BY title").all();
-  return { announcements, faqs, classes, events, forms };
+  // Main Admin > Settings > Pricing (a real request: "Pricing page").
+  const pricing = await require('./pricing').getPricing();
+  return { announcements, faqs, classes, events, forms, pricing };
 }
 
 function findPage(doc, slug) {

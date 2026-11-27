@@ -159,6 +159,17 @@ router.get('/settings', (req, res) => {
   res.render('main-admin-settings-hub', { title: 'Settings' });
 });
 
+// A real request: "Settings on main admin settings to change pricing
+// information" - what the public site's Pricing page shows.
+router.get('/settings/pricing', requirePortalPermission('manage_website'), async (req, res) => {
+  res.render('main-admin-pricing', { title: 'Pricing', pricing: await require('../utils/pricing').getPricing(), notice: req.query.notice || null });
+});
+
+router.post('/settings/pricing', requirePortalPermission('manage_website'), async (req, res) => {
+  await require('../utils/pricing').savePricing(req.body);
+  res.redirect('/main-admin/settings/pricing?notice=' + encodeURIComponent('Pricing saved - the public Pricing page shows it now.'));
+});
+
 // A real request: "Main admin portal, settings gear. Admin login..." and
 // later "The main admin portal is now where the master lives. Master log
 // in as full control of everything." The old separate username/password

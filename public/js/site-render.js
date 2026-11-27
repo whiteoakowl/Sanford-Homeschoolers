@@ -24,7 +24,7 @@
 
   // Element types that grow with their content: rendered with min-height
   // so long text/live data pushes the section taller instead of clipping.
-  const FLOW_TYPES = new Set(['text', 'accordion', 'tabs', 'classes', 'announcements', 'faq', 'events', 'form', 'contactform', 'menu']);
+  const FLOW_TYPES = new Set(['text', 'accordion', 'tabs', 'classes', 'announcements', 'faq', 'events', 'form', 'contactform', 'pricing', 'menu']);
 
   const WIDGET_TYPES = new Set(['classes', 'announcements', 'faq', 'events']);
 
@@ -582,6 +582,16 @@
       // A real request: "Contact button and page." A public contact form
       // anyone can send (routes/contact.js) - messages land in Main
       // Admin > Support > Contact Messages.
+      // A real request: "Pricing page. $20 annual group membership and
+      // features. Co-op $45/semester + additional class fees." Prices and
+      // features come from Main Admin > Settings > Pricing.
+      case 'pricing': {
+        const pr = data.pricing;
+        if (!pr) return placeholder(ctx, 'Pricing - set it in Main Admin > Settings > Pricing');
+        const card = (plan, href, label) =>
+          `<div class="wx-price-card"><h3>${esc(plan.title)}</h3><p class="wx-price"><span class="wx-price-amount">${plan.price ? '$' + esc(plan.price) : ''}</span>${plan.period ? ` <span class="wx-price-period">${esc(plan.period)}</span>` : ''}</p>${plan.note ? `<p class="wx-price-note">${esc(plan.note)}</p>` : ''}<ul class="wx-price-features">${(plan.features || []).map((f) => `<li>${esc(f)}</li>`).join('')}</ul>${p.showButtons === false ? '' : `<a class="wx-btn" href="${href}">${esc(label)}</a>`}</div>`;
+        return `<div class="wx-pricing">${card(pr.membership, '/register', 'Become a Member')}${card(pr.coop, '/classes', 'See Co-op Classes')}</div>${pr.footnote ? `<p class="wx-price-footnote">${esc(pr.footnote)}</p>` : ''}`;
+      }
       case 'contactform': {
         if (ctx.contactSent) {
           return `<div class="wx-form-card wx-contact-form" id="contact-form"><h3>Thank you!</h3><p>Your message was sent. We'll get back to you soon.</p></div>`;

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/portal-nav', { portalTitle: 'Main Admin' }) %>
+  <main id="main-content" tabindex="-1" class="admin-main">
+    <p><a href="/main-admin/settings">&larr; Settings</a></p>
+    <h1>Pricing</h1>
+    <p class="hint">What the public website's Pricing page shows (the Pricing element in the site editor). Saving updates the live site right away.</p>
+    <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <form method="POST" action="/main-admin/settings/pricing" class="pricing-settings-form">
+      <% [['membership', 'Group Membership', pricing.membership], ['coop', 'Co-op Classes', pricing.coop]].forEach(function(row) { var k = row[0], plan = row[2]; %>
+        <section class="manage-section member-form-grid">
+          <h2 class="member-form-full"><%= row[1] %></h2>
+          <label>Title<input type="text" name="<%= k %>Title" value="<%= plan.title %>" maxlength="80" /></label>
+          <label>Price ($)<input type="text" name="<%= k %>Price" value="<%= plan.price %>" maxlength="20" placeholder="20" /></label>
+          <label>Period<input type="text" name="<%= k %>Period" value="<%= plan.period %>" maxlength="40" placeholder="per year" /></label>
+          <label>Note<input type="text" name="<%= k %>Note" value="<%= plan.note %>" maxlength="120" placeholder="+ additional class fees" /></label>
+          <label class="member-form-full">What's included <span class="hint">(one per line)</span>
+            <textarea name="<%= k %>Features" rows="7"><%= plan.features.join('\n') %></textarea>
+          </label>
+        </section>
+      <% }); %>
+      <section class="manage-section member-form-grid">
+        <label class="member-form-full">Note under the prices
+          <textarea name="footnote" rows="2" maxlength="400"><%= pricing.footnote %></textarea>
+        </label>
+        <div class="member-form-full"><button type="submit" class="primary-btn">Save Pricing</button></div>
+      </section>
+    </form>
+  </main>
+</body>
+</html>

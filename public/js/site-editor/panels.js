@@ -88,7 +88,7 @@ const ADD_GROUPS = [
   ['Interactive', [['accordion', null, 'Accordion'], ['tabs', null, 'Tabs'], ['menu', null, 'Menu']]],
   ['Header & brand', [['logo', null, 'Logo'], ['sitename', null, 'Site name'], ['menu', null, 'Site menu'], ['login', null, 'Log In / My Portals']]],
   ['Embed', [['map', null, 'Google Map'], ['embed', null, 'Custom HTML'], ['form', null, 'Custom Form'], ['contactform', null, 'Contact form']]],
-  ['Co-op data', [['classes', null, 'Classes showcase'], ['events', null, 'Upcoming events'], ['announcements', null, 'Announcements'], ['faq', null, 'FAQ']]],
+  ['Co-op data', [['classes', null, 'Classes showcase'], ['events', null, 'Upcoming events'], ['announcements', null, 'Announcements'], ['faq', null, 'FAQ'], ['pricing', null, 'Pricing']]],
 ];
 function addPanel() {
   const query = h('input.wxe-input', { type: 'search', placeholder: 'Search elements', 'aria-label': 'Search elements' });

@@ -162,7 +162,7 @@ function homePage() {
   const t7 = text('Ready to join Sanford Homeschoolers?', 'h2', 'h2', 90, 56, 800, white);
   const p7 = text(esc('Create your family\'s account, or send us a message - we\'d love to meet you.'), 'p', 'p', 140, 56 + t7.layout.desktop.h + 10, 700, white);
   const b7 = p7.layout.desktop.y + p7.layout.desktop.h + 24;
-  const s7 = section('Join', [t7, p7, button('Member Registration', '/register', 250, b7, 230), button('Contact Us', '/contact', 510, b7, 220)], hero);
+  const s7 = section('Join', [t7, p7, button('Member Registration', '/register', 140, b7, 230), button('See Pricing', '/pricing', 390, b7, 200), button('Contact Us', '/contact', 610, b7, 220)], hero);
 
   return { title: 'Home', slug: 'home', isHome: true, seo: { description: 'Sanford Homeschoolers is a 501(c)(3) secular, inclusive homeschool group in Sanford, NC with co-op classes, field trips, park days and more.' }, sections: [s1, s2, s3, s4, s5, s6, s7] };
 }
@@ -195,6 +195,21 @@ function communityPage() {
   return { title: 'Community', slug: 'community', sections: [pageHeader('Community, Activities & Events', 'Field trips, park days, holiday parties, teen hangouts and more.'), s1, s2, s3] };
 }
 
+// A real request: "Pricing page. $20 annual group membership and
+// features. Co-op $45/semester + additional class fees." The prices come
+// live from Main Admin > Settings > Pricing.
+function pricingPage() {
+  const t = text('Simple, family-friendly pricing', 'h2', 'h2', 90, 56, 800, center);
+  const p = text(esc('One membership for the whole family, with co-op classes as an optional add-on.'), 'p', 'p', 140, 56 + t.layout.desktop.h + 10, 700, center);
+  const grid = widget('pricing', 60, p.layout.desktop.y + p.layout.desktop.h + 30, 860, 640);
+  grid.layout.desktop.h = 640;
+  const s1 = section('Pricing', [t, p, grid]);
+  s1.height.mobile = Math.max(s1.height.mobile, 1500);
+  const t2 = text('Questions about membership?', 'h2', 'h2', 90, 56, 800, center);
+  const s2 = section('Questions', [t2, button('Contact Us', '/contact', 380, 56 + t2.layout.desktop.h + 20, 220)], light);
+  return { title: 'Pricing', slug: 'pricing', sections: [pageHeader('Membership & Pricing', 'Group membership and co-op classes'), s1, s2] };
+}
+
 function contactPage(site) {
   const lines = [];
   if (site && site.contactEmail) lines.push(`Email: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>`);
@@ -211,7 +226,7 @@ function contactPage(site) {
 // a page already using one of the other slugs is replaced in place,
 // otherwise added. The menu gets a link to each one it doesn't have yet.
 function applyStarterPages(doc) {
-  const pages = [homePage(), classesPage(), communityPage(), contactPage(doc.site)];
+  const pages = [homePage(), classesPage(), communityPage(), pricingPage(), contactPage(doc.site)];
   const out = { ...doc, pages: [...doc.pages] };
   for (const pg of pages) {
     const full = { id: id('p'), hidden: false, access: 'public', type: 'standard', seo: {}, isHome: false, ...pg };
@@ -220,7 +235,9 @@ function applyStarterPages(doc) {
     else out.pages.push(full);
   }
   const menu = [...(doc.menu || [])];
-  for (const pg of out.pages.filter((p) => ['home', 'classes', 'community', 'contact'].includes(p.slug) || p.isHome)) {
+  // Home isn't added - the logo already links there, and five links fit
+  // the header menu on one line where six don't.
+  for (const pg of ['classes', 'community', 'pricing', 'contact'].map((slug) => out.pages.find((p) => p.slug === slug)).filter(Boolean)) {
     const already = menu.some((m) => (m.type === 'page' && m.pageId === pg.id) || (m.href && m.href === (pg.isHome ? '/' : `/${pg.slug}`)));
     if (!already) menu.push({ id: id('m'), type: 'page', pageId: pg.id, label: pg.isHome ? 'Home' : pg.slug === 'classes' ? 'Classes' : pg.title });
   }

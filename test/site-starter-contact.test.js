@@ -40,6 +40,29 @@ test('Main Admin loads the Sanford Homeschoolers pages into the draft; once publ
   assert.doesNotMatch(live.text, /Monday/, 'co-op classes are only on Wednesdays');
   assert.match((await request(app).get('/classes')).text, /Every Wednesday/);
   assert.match((await request(app).get('/community')).text, /Teen Hangouts/);
+  // A real request: "Pricing page. $20 annual group membership and
+  // features. Co-op $45/semester + additional class fees. Settings on
+  // main admin settings to change pricing information."
+  let pricing = await request(app).get('/pricing');
+  assert.match(pricing.text, /Group Membership/);
+  assert.match(pricing.text, /\$20<\/span> <span class="wx-price-period">per year/);
+  assert.match(pricing.text, /\$45<\/span> <span class="wx-price-period">per semester/);
+  assert.match(pricing.text, /\+ additional class fees/);
+  assert.match(pricing.text, /Custom transcripts &amp; high school diplomas/);
+  assert.match(live.text, /href="\/pricing"/);
+  const hub = await admin.get('/main-admin/settings');
+  assert.match(hub.text, /href="\/main-admin\/settings\/pricing"/);
+  const form = await admin.get('/main-admin/settings/pricing');
+  assert.match(form.text, /name="membershipPrice" value="20"/);
+  await admin.post('/main-admin/settings/pricing').type('form').send({
+    _csrf: csrfOf(form.text), membershipTitle: 'Group Membership', membershipPrice: '25', membershipPeriod: 'per year', membershipNote: 'per family', membershipFeatures: 'Field trips\nPark days',
+    coopTitle: 'Co-op Classes', coopPrice: '50', coopPeriod: 'per semester', coopNote: '+ additional class fees', coopFeatures: 'Wednesdays, 9am - 2pm', footnote: 'Optional!',
+  });
+  pricing = await request(app).get('/pricing');
+  assert.match(pricing.text, /\$25<\/span>/, 'a pricing change is live right away');
+  assert.match(pricing.text, /\$50<\/span>/);
+  assert.match(pricing.text, /Park days/);
+  assert.doesNotMatch(pricing.text, /Rewards &amp; reading challenges/);
   const contact = await request(app).get('/contact');
   assert.match(contact.text, /action="\/contact\/send"/);
 

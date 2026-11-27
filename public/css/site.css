@@ -195,6 +195,7 @@
 
 .wx-widget .wx-btn,
 .wx-form-card .wx-btn,
+.wx-price-card .wx-btn,
 .wx-cookie .wx-btn,
 .wx-el-login .wx-btn {
   width: auto;
@@ -970,4 +971,82 @@
   width: 1px;
   height: 1px;
   overflow: hidden;
+}
+
+/* Pricing (site element 'pricing', Main Admin > Settings > Pricing). */
+.wx-pricing {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+.wx-price-card {
+  display: flex;
+  flex-direction: column;
+  padding: 28px 26px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-top: 6px solid var(--hp-primary);
+  border-radius: 14px;
+  background: var(--hp-cards);
+  color: var(--hp-text);
+}
+
+.wx-price-card + .wx-price-card {
+  border-top-color: var(--hp-accent);
+}
+
+.wx-price-card h3 {
+  margin: 0 0 6px;
+  font-family: var(--hp-font-heading);
+}
+
+.wx-price {
+  margin: 0;
+}
+
+.wx-price-amount {
+  font-family: var(--hp-font-heading);
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.wx-price-period {
+  font-size: 16px;
+  opacity: 0.75;
+}
+
+.wx-price-note {
+  margin: 4px 0 0;
+  font-weight: 700;
+}
+
+.wx-price-features {
+  flex: 1;
+  margin: 18px 0 22px;
+  padding: 0;
+  list-style: none;
+}
+
+.wx-price-features li {
+  position: relative;
+  padding: 5px 0 5px 26px;
+}
+
+.wx-price-features li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: var(--hp-primary);
+  font-weight: 800;
+}
+
+.wx-price-card .wx-btn {
+  align-self: flex-start;
+}
+
+.wx-price-footnote {
+  margin: 18px 0 0;
+  text-align: center;
+  opacity: 0.8;
 }
