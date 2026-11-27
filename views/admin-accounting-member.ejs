@@ -59,6 +59,7 @@
                 <th>Amount</th>
                 <th>Paid</th>
                 <th>Status</th>
+                <th>Due</th>
                 <th>Date</th>
                 <th></th>
                 <th></th>
@@ -76,6 +77,7 @@
                   <td><%= formatCents(c.amount_cents) %></td>
                   <td><%= formatCents(c.amountPaid) %></td>
                   <td><span class="badge-pill badge-pill-<%= c.status === 'paid' ? 'green' : c.status === 'cancelled' || c.status === 'refunded' ? 'gray' : 'orange' %>"><%= c.status.replace('_', ' ') %></span></td>
+                  <td><% var dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(c.due_date || ''); %><%= dm ? dm[2] + '/' + dm[3] + '/' + dm[1] : '—' %></td>
                   <td><%= c.dateLabel %></td>
                   <td class="roster-btn-row member-invoice-actions">
                     <%# A real request: "remove record payment and red

@@ -5,6 +5,17 @@
 </head>
 <body>
   <%
+    // Class fees carry their semester's due date (a real request: "Class
+    // fees get billed to the members account and due date is shown").
+    var dueLabel = function (iso) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+      return m ? m[2] + '/' + m[3] + '/' + m[1] : '';
+    };
+    var isOverdue = function (c) {
+      return c.due_date && c.status === 'pending' && c.due_date < new Date().toISOString().slice(0, 10);
+    };
+  %>
+  <%
     // Same bug class as store-list.ejs's own comment. /accounting is open
     // to ANY signed-in portal account (not just parent/student - a
     // teacher or Main Admin can carry a charge too), so navLinks below
@@ -85,7 +96,7 @@
                 <li>
                   <label class="pay-now-item">
                     <input type="checkbox" name="chargeIds" value="<%= c.id %>" data-cents="<%= c.owedCents %>" checked />
-                    <span class="pay-now-desc"><%= c.description %></span>
+                    <span class="pay-now-desc"><%= c.description %><% if (c.due_date) { %> <span class="hint pay-now-due<%= isOverdue(c) ? ' is-overdue' : '' %>">Due <%= dueLabel(c.due_date) %></span><% } %></span>
                     <span class="pay-now-amount"><%= formatCents(c.owedCents) %></span>
                   </label>
                 </li>
@@ -116,6 +127,7 @@
                   <th>Amount</th>
                   <th>Paid</th>
                   <th>Status</th>
+                  <th>Due</th>
                   <th>Date</th>
                 </tr>
               </thead>
@@ -126,6 +138,7 @@
                     <td data-label="Amount"><%= formatCents(c.amount_cents) %></td>
                     <td data-label="Paid"><%= formatCents(c.amountPaid) %></td>
                     <td data-label="Status"><span class="badge-pill badge-pill-<%= c.status === 'paid' ? 'green' : c.status === 'cancelled' || c.status === 'refunded' ? 'gray' : 'orange' %>"><%= c.status.replace('_', ' ') %></span></td>
+                    <td data-label="Due"><% if (c.due_date) { %><span class="<%= isOverdue(c) ? 'accounting-overdue' : '' %>"><%= dueLabel(c.due_date) %><%= isOverdue(c) ? ' (overdue)' : '' %></span><% } else { %>—<% } %></td>
                     <td data-label="Date"><%= c.dateLabel %></td>
                   </tr>
                 <% }); %>

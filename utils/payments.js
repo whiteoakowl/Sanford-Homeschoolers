@@ -15,6 +15,19 @@ const { formatTimestamp } = require('./dates');
 // utils/members.js's own generateMemberCode for the identical fix,
 // written for this same class of bug).
 async function createCharge(memberId, accountId, sourceType, sourceId, description, amountCents, dbHandle = db) {
+  // A real request: a semester's own fees due date ("Add/edit semester.
+  // Be able to add a due date for all fees charged for classes that are
+  // linked to that semester") - a class charge picks it up from its class's
+  // semester as it's created.
+  if (sourceType === 'class_registration') {
+    const info = await dbHandle
+      .prepare(
+        `INSERT INTO payment_charges (member_id, account_id, source_type, source_id, description, amount_cents, due_date)
+         VALUES (?, ?, ?, ?, ?, ?, (SELECT s.fees_due_date FROM classes c JOIN semesters s ON s.id = c.semester_id WHERE c.id = ?))`
+      )
+      .run(memberId, accountId, sourceType, sourceId, description, amountCents, sourceId);
+    return info.lastInsertRowid;
+  }
   const info = await dbHandle
     .prepare('INSERT INTO payment_charges (member_id, account_id, source_type, source_id, description, amount_cents) VALUES (?, ?, ?, ?, ?, ?)')
     .run(memberId, accountId, sourceType, sourceId, description, amountCents);

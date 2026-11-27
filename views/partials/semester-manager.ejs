@@ -9,6 +9,10 @@ const semesterBackUrl = typeof backUrl !== 'undefined' && backUrl ? backUrl : '/
 // classDays is already in calendar order, so filtering it (rather than
 // mapping classSchedules directly) gives each semester's own day list
 // back in calendar order too, not creation order.
+function fmtDue(iso) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? m[2] + '/' + m[3] + '/' + m[1] : '';
+}
 function daysForSemester(semesterId) {
   const covered = new Set(classSchedules.filter(function (cs) { return cs.semester_id === semesterId; }).map(function (cs) { return cs.day_of_week; }));
   return classDays.filter(function (d) { return covered.has(d); });
@@ -20,6 +24,10 @@ function daysForSemester(semesterId) {
     <input type="hidden" name="back" value="<%= semesterBackUrl %>" />
     <label class="member-form-full">Title
       <input type="text" name="title" placeholder="e.g. Fall 2026" required />
+    </label>
+    <label class="member-form-full">Class Fees Due Date
+      <input type="date" name="feesDueDate" />
+      <span class="hint">Every class fee for this semester's classes is billed to the family's account with this due date. Students stay registered whether or not it's paid yet.</span>
     </label>
     <div class="member-form-full">
       <span class="checkbox-group-label">Add a Schedule</span>
@@ -50,7 +58,7 @@ function daysForSemester(semesterId) {
     <div class="roster-scroll">
       <table class="roster-table members-table condensed-table semester-list-table">
         <thead>
-          <tr><th>Title</th><th>Days</th><th></th></tr>
+          <tr><th>Title</th><th>Days</th><th>Fees Due</th><th></th></tr>
         </thead>
         <tbody>
           <% semesters.forEach(function(s) { %>
@@ -60,6 +68,7 @@ function daysForSemester(semesterId) {
                 <button type="button" class="semester-title-btn" data-semester-edit-toggle="semester-edit-<%= s.id %>"><%= s.title %></button>
               </td>
               <td class="hint"><%= semesterDays.length ? semesterDays.map(function(d){ return classDayLabels[d]; }).join(', ') : 'No days yet' %></td>
+              <td class="hint"><%= fmtDue(s.fees_due_date) || '—' %></td>
               <td class="semester-actions-col">
                 <form method="POST" action="/admin/schedule/semesters/<%= s.id %>/archive" class="inline-block-form" data-confirm="Are you sure you want to archive the &quot;<%= s.title %>&quot; semester? All classes, rosters, class chats, and registration will be archived for this semester and will not show up on ANY portals. You can unarchive it at any time." data-confirm-icon="icon-archive" data-confirm-yes-label="Yes, Archive">
                   <input type="hidden" name="back" value="<%= semesterBackUrl %>" />
@@ -72,11 +81,15 @@ function daysForSemester(semesterId) {
               </td>
             </tr>
             <tr id="semester-edit-<%= s.id %>" class="semester-edit-row" hidden>
-              <td colspan="3">
+              <td colspan="4">
                 <form method="POST" action="/admin/schedule/semesters/<%= s.id %>/update" class="member-form-grid">
                   <input type="hidden" name="back" value="<%= semesterBackUrl %>" />
                   <label class="member-form-full">Title
                     <input type="text" name="title" value="<%= s.title %>" aria-label="Rename <%= s.title %>" required />
+                  </label>
+                  <label class="member-form-full">Class Fees Due Date
+                    <input type="date" name="feesDueDate" value="<%= s.fees_due_date || '' %>" />
+                    <span class="hint">Changing it also updates the due date on every unpaid class fee for this semester.</span>
                   </label>
                   <div class="member-form-full">
                     <span class="checkbox-group-label">Days</span>

@@ -40,6 +40,7 @@ const {
   listSemesters,
   createSemester,
   renameSemester,
+  setSemesterFeesDueDate,
   deleteSemester,
   classGlobalSettings,
   saveClassGlobalSettings,
@@ -496,6 +497,7 @@ router.post('/schedule/semesters', requireFullAdmin, async (req, res) => {
   const sep = back.includes('?') ? '&' : '?';
   try {
     const semester = await createSemester(req.body.title);
+    await setSemesterFeesDueDate(semester.id, req.body.feesDueDate);
     for (const day of checkedClassDays(req)) {
       await createClassSchedule({ title: `${semester.title} - ${CLASS_DAY_LABELS[day]}`, dayOfWeek: day, semesterId: semester.id });
     }
@@ -530,6 +532,7 @@ router.post('/schedule/semesters/:id/update', requireFullAdmin, async (req, res)
   const semesterId = parseInt(req.params.id, 10);
   try {
     await renameSemester(semesterId, req.body.title);
+    await setSemesterFeesDueDate(semesterId, req.body.feesDueDate);
     const semester = (await listSemesters({ includeArchived: true })).find((s) => s.id === semesterId);
     const existing = (await listClassSchedules()).filter((cs) => cs.semester_id === semesterId);
     const days = checkedClassDays(req);

@@ -1149,6 +1149,28 @@ async function createSemester(title) {
   return db.prepare('INSERT INTO semesters (title) VALUES (?) RETURNING *').get(trimmed);
 }
 
+// A semester's fees due date (YYYY-MM-DD, or '' / null to clear). Saving
+// it also moves the due date on every still-unpaid class charge for a
+// class in this semester, so families see the new date straight away.
+// Students stay registered either way - a due date never unregisters.
+function normalizeDueDate(value) {
+  const v = String(value || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+}
+
+async function setSemesterFeesDueDate(id, value) {
+  const due = normalizeDueDate(value);
+  await db.prepare('UPDATE semesters SET fees_due_date = ? WHERE id = ?').run(due, id);
+  await db
+    .prepare(
+      `UPDATE payment_charges SET due_date = ?, updated_at = now_text()
+       WHERE source_type = 'class_registration' AND status = 'pending'
+         AND source_id IN (SELECT id FROM classes WHERE semester_id = ?)`
+    )
+    .run(due, id);
+  return due;
+}
+
 async function deleteSemester(id) {
   await db.prepare('DELETE FROM semesters WHERE id = ?').run(id);
 }
@@ -2880,6 +2902,7 @@ async function membersForSectionRaw(listId, sectionId) {
 }
 
 module.exports = {
+  setSemesterFeesDueDate,
   getColumnOrder,
   saveColumnOrder,
   NOT_IN_ARCHIVED_SEMESTER_SQL,
