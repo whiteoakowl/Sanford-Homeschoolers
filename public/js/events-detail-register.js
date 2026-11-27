@@ -142,7 +142,9 @@
         registerBtn.disabled = true;
         registerBtn.textContent = 'Registering…';
         const data = await postPairs(`/events/${eventId}/register`, [['memberId', row.dataset.memberId]]);
-        if (data.ok) {
+        if (data.ok && data.payUrl) {
+          window.location.href = data.payUrl;
+        } else if (data.ok) {
           markRegistered(row);
         } else {
           registerBtn.disabled = false;
@@ -172,6 +174,7 @@
         const mode = selectedBtn.dataset.mode === 'unregister' ? 'unregister' : 'register';
         selectedBtn.disabled = true;
         selectedBtn.textContent = mode === 'unregister' ? 'Unregistering…' : 'Registering…';
+        let payUrl = null;
         // Sequential, not Promise.all - each call goes through the same
         // capacity/waitlist checks a single Register/Unregister click
         // would, and firing them one at a time keeps that server-side
@@ -186,7 +189,14 @@
           } else if (mode === 'register' && !rowIsRegistered) {
             const data = await postPairs(`/events/${eventId}/register`, [['memberId', checkbox.value]]);
             if (data.ok) markRegistered(row);
+            if (data.ok && data.payUrl) payUrl = data.payUrl;
           }
+        }
+        // Tickets that cost money are paid right away (one card payment
+        // for everyone just booked) before they count as booked.
+        if (payUrl) {
+          window.location.href = payUrl;
+          return;
         }
         updateSelectedButtonState();
       });
@@ -398,10 +408,12 @@
     setWizardButtonsDisabled(true);
     let successCount = 0;
     let lastError = null;
+    let payUrl = null;
     for (const member of queue) {
       const data = await postPairs(`/events/${eventId}/register`, buildParamsForMember(member));
       if (data.ok) {
         successCount++;
+        if (data.payUrl) payUrl = data.payUrl;
         const row = list.querySelector(`.event-register-member-row[data-member-id="${member.id}"]`);
         if (row) markRegistered(row);
       } else {
@@ -411,6 +423,13 @@
     setWizardButtonsDisabled(false);
     if (successCount === 0 && lastError) {
       showError(lastError);
+      return;
+    }
+    // A real request: "Event calendar charges are immediate in order to
+    // book their ticket" - held tickets go straight to Stripe to pay.
+    if (payUrl) {
+      if (lastError) window.alert(`Some registrations could not be completed: ${lastError}`);
+      window.location.href = payUrl;
       return;
     }
     dialog.close();

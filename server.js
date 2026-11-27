@@ -333,6 +333,9 @@ app.post('/stripe/webhook', express.raw({ type: '*/*', limit: '1mb' }), async (r
   try {
     if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
       await require('./utils/onlinePayments').completeCheckoutSession(event.data.object);
+    } else if (event.type === 'checkout.session.expired' || event.type === 'checkout.session.async_payment_failed') {
+      // A held ticket/store order that was never paid - free it up.
+      await require('./utils/onlinePayments').releaseExpiredCheckoutSession(event.data.object);
     }
     res.json({ received: true });
   } catch (err) {
@@ -595,6 +598,7 @@ app.use('/main-admin/forums', adminForumsRouter);
 app.use('/forms', customFormsRouter);
 app.use('/main-admin/forms', adminCustomFormsRouter);
 app.use('/accounting', accountingRouter);
+app.use('/pay', require('./routes/pay'));
 app.use('/main-admin/accounting', adminAccountingRouter);
 app.use('/main-admin/annual-calendar', mainAdminAnnualCalendarRouter);
 app.use('/main-admin/support', mainAdminSupportRouter);

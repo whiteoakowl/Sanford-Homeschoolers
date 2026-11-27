@@ -12,6 +12,8 @@ const { requirePortalAuth, blockTeacherOnlyAccounts, requireAnyPortalPermission 
 const { familyForAccount } = require('../utils/portalAuth');
 const { formatFriendlyTimestamp, formatFriendlyDateAndTime } = require('../utils/dates');
 const events = require('../utils/events');
+const onlinePayments = require('../utils/onlinePayments');
+const { publicOrigin } = require('../utils/pdfRender');
 const signupLists = require('../utils/committeesAndSignupLists');
 const notifications = require('../utils/notifications');
 const { sanitizePostBody } = require('../utils/sanitizeHtml');
@@ -225,6 +227,9 @@ router.post('/submit', requirePortalAuth, async (req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
+  // Frees any ticket held for payment that was never paid in time, so
+  // seat counts below are accurate.
+  await onlinePayments.releaseExpiredHolds().catch((err) => console.error('Releasing expired holds failed:', err.message));
   const event = await events.getEventWithDetails(req.params.id);
   if (!event || event.status === 'draft') return res.status(404).render('404', { title: 'Not Found' });
   if (event.visibility === 'members' && !req.portalAccount) {
@@ -352,6 +357,11 @@ router.get('/:id', async (req, res) => {
   res.render('events-detail', {
     title: event.title,
     settings,
+    // A real request: "Event calendar charges are immediate in order to
+    // book their ticket." With online payments on, a priced ticket is
+    // paid by card right as it's booked.
+    onlinePayNow: await onlinePayments.isEnabled(),
+    paymentNotice: ['success', 'cancelled', 'processing'].includes(req.query.payment) ? req.query.payment : null,
     portalParam,
     organizers,
     isOrganizer,
@@ -472,15 +482,70 @@ router.post('/:id/register', requirePortalAuth, async (req, res) => {
   const volunteerRoleIds = [].concat(req.body.volunteerRoleIds || []).map((v) => parseInt(v, 10)).filter(Boolean);
   const donationItemIds = [].concat(req.body.donationItemIds || []).map((v) => parseInt(v, 10)).filter(Boolean);
   const foodItemIds = [].concat(req.body.foodItemIds || []).map((v) => parseInt(v, 10)).filter(Boolean);
+  await onlinePayments.releaseExpiredHolds().catch((err) => console.error('Releasing expired holds failed:', err.message));
   const result = await events.registerForEvent({ eventId, memberId, accountId: req.portalAccount.id, family, answers, ticketTypeId, volunteerRoleIds, donationItemIds, foodItemIds });
   if (!result.ok) {
     if (wantsJson(req)) return res.status(422).json({ ok: false, error: result.error });
     return res.redirect(back + portalPrefix(req) + 'error=' + encodeURIComponent(result.error));
   }
 
+  // A real request: "Event calendar charges are immediate in order to
+  // book their ticket." With online payments on, a confirmed ticket that
+  // costs money is held while the family pays on Stripe right away (GET
+  // /:id/pay) - paid, it's booked; not paid, it's released.
+  if (result.status === 'confirmed' && result.chargeId && (await onlinePayments.isEnabled())) {
+    const charge = await db.prepare('SELECT * FROM payment_charges WHERE id = ?').get(result.chargeId);
+    if (charge && (await onlinePayments.amountOwed(charge)) > 0) {
+      await onlinePayments.holdCharges([charge.id]);
+      const payUrl = `/events/${eventId}/pay`;
+      if (wantsJson(req)) return res.json({ ok: true, needsPayment: true, payUrl, notice: 'Ticket held - finish paying to book it.' });
+      return res.redirect(payUrl);
+    }
+  }
+
   await notifications.notify(req.portalAccount.id, 'event_registration', { title: result.subject, body: result.notice, linkUrl: back });
   if (wantsJson(req)) return res.json({ ok: true, notice: result.notice });
   res.redirect(back + portalPrefix(req) + 'notice=' + encodeURIComponent(result.notice));
+});
+
+// Sends the family to Stripe to pay for every ticket of theirs on this
+// event that's held for payment (one card payment for the whole family's
+// selection). Nothing held: straight back to the event.
+router.get('/:id/pay', requirePortalAuth, async (req, res) => {
+  const eventId = parseInt(req.params.id, 10);
+  const back = `/events/${eventId}`;
+  const family = await familyForAccount(req.portalAccount.id);
+  const familyIds = family.map((m) => m.id);
+  if (!familyIds.length) return res.redirect(back);
+  const held = await db
+    .prepare(
+      `SELECT DISTINCT pc.id, pc.member_id FROM event_registrations er
+       JOIN payment_charges pc ON pc.id = er.charge_id
+       WHERE er.event_id = ? AND er.status = 'confirmed' AND pc.status = 'pending' AND pc.hold_until IS NOT NULL
+         AND er.member_id IN (${familyIds.map(() => '?').join(',')})`
+    )
+    .all(eventId, ...familyIds);
+  const billedTo = held.length ? held[0].member_id : null;
+  const chargeIds = held.filter((c) => c.member_id === billedTo).map((c) => c.id);
+  if (!chargeIds.length) return res.redirect(back);
+  try {
+    const result = await onlinePayments.startCheckout({
+      memberId: billedTo,
+      accountId: req.portalAccount.id,
+      chargeIds,
+      email: req.portalAccount.email,
+      baseUrl: publicOrigin(req),
+      successPath: back,
+      cancelPath: back,
+      held: true,
+    });
+    if (result.error) throw new Error(result.error);
+    return res.redirect(303, result.url);
+  } catch (err) {
+    console.error('Event ticket checkout failed:', err.message);
+    for (const id of chargeIds) await onlinePayments.releaseHeldCharge(id);
+    return res.redirect(back + '?error=' + encodeURIComponent('Online payment is not available right now, so your ticket was not booked. Please try again later.'));
+  }
 });
 
 // A real request: "add a checkbox for include physical ticket. Members

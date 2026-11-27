@@ -98,6 +98,12 @@ async function retrieveCheckoutSession(id) {
   return stripeRequest('GET', `/checkout/sessions/${encodeURIComponent(id)}`);
 }
 
+// Ends an open Checkout so it can no longer be paid (used when a family
+// backs out of paying for a held ticket/order).
+async function expireCheckoutSession(id) {
+  return stripeRequest('POST', `/checkout/sessions/${encodeURIComponent(id)}/expire`, {});
+}
+
 async function createRefund({ paymentIntent, amountCents, reason }, idempotencyKey) {
   return stripeRequest('POST', '/refunds', { payment_intent: paymentIntent, amount: amountCents, metadata: reason ? { reason } : undefined }, { idempotencyKey });
 }
@@ -130,6 +136,7 @@ module.exports = {
   cardFeeCents,
   createCheckoutSession,
   retrieveCheckoutSession,
+  expireCheckoutSession,
   createRefund,
   verifyWebhook,
 };

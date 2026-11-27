@@ -148,6 +148,14 @@ async function recalculateStatus(chargeId) {
   else if (netCash <= 0) status = hasRefund ? 'refunded' : 'pending';
   else status = hasRefund ? 'partially_refunded' : 'pending';
   await db.prepare('UPDATE payment_charges SET status = ?, updated_at = now_text() WHERE id = ?').run(status, chargeId);
+  // A paid charge is never held for payment any more, and a paid online
+  // store order moves to 'paid' (ready to fulfill) - however it was paid.
+  if (status === 'paid') {
+    await db.prepare('UPDATE payment_charges SET hold_until = NULL WHERE id = ? AND hold_until IS NOT NULL').run(chargeId);
+    if (charge.source_type === 'store_order' && charge.source_id) {
+      await db.prepare("UPDATE store_orders SET status = 'paid' WHERE id = ? AND status = 'pending'").run(charge.source_id);
+    }
+  }
   await recalculateParkedStatus(charge.member_id);
 }
 

@@ -60,6 +60,9 @@
 
         <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
         <% if (notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+        <% if (typeof paymentNotice !== 'undefined' && paymentNotice === 'success') { %><div class="alert alert-success">Payment received - your ticket is booked!</div><% } %>
+        <% if (typeof paymentNotice !== 'undefined' && paymentNotice === 'processing') { %><div class="alert alert-info">Your payment is processing - your ticket is held and will be confirmed in a few minutes.</div><% } %>
+        <% if (typeof paymentNotice !== 'undefined' && paymentNotice === 'cancelled') { %><div class="alert alert-info">Payment cancelled - nothing was charged and the ticket was not booked.</div><% } %>
 
         <% if (event.imageUrl) { %>
           <img src="<%= event.imageUrl %>" alt="" style="width: 100%; max-height: 320px; object-fit: cover; border-radius: var(--radius); margin-bottom: 1.25rem;" />
@@ -200,7 +203,10 @@
               var needsDialog = (event.ticketTypes && event.ticketTypes.length > 0) || (event.extraFields && event.extraFields.length > 0) ||
                 (event.volunteers_enabled && event.volunteerRoles && event.volunteerRoles.length > 0) ||
                 (event.donations_enabled && event.donationItems && event.donationItems.length > 0) ||
-                (event.food_enabled && event.foodItems && event.foodItems.length > 0);
+                (event.food_enabled && event.foodItems && event.foodItems.length > 0) ||
+                // Paid at booking (online payments on): show the payment
+                // step so the price is clear before going to Stripe.
+                (typeof onlinePayNow !== 'undefined' && onlinePayNow && event.price_cents != null && event.price_cents > 0);
               // A real request: "register selected, [but] if all members
               // from that family are selected [and already registered],
               // will say unregister selected" - the bulk button now
@@ -441,10 +447,14 @@
                       <div class="register-dialog-step" data-step="payment" hidden>
                         <h3 class="member-form-full">Payment</h3>
                         <div class="member-form-full" id="event-register-payment-summary"></div>
-                        <p class="hint member-form-full">Online payment isn't set up yet. Clicking Complete Registration below will finish your registration(s) and create an invoice for this amount &ndash; we'll follow up separately on how to pay it.</p>
+                        <% if (typeof onlinePayNow !== 'undefined' && onlinePayNow) { %>
+                          <p class="hint member-form-full">Tickets are paid by card when you book. You'll go to Stripe's secure checkout page next; a card processing fee is added there. Your ticket is held for a few minutes while you pay, and is booked once payment goes through.</p>
+                        <% } else { %>
+                          <p class="hint member-form-full">Online payment isn't set up yet. Clicking Complete Registration below will finish your registration(s) and create an invoice for this amount &ndash; we'll follow up separately on how to pay it.</p>
+                        <% } %>
                         <div class="notes-dialog-actions member-form-full">
                           <button type="button" class="btn-secondary" id="event-register-payment-cancel">Cancel</button>
-                          <button type="button" class="primary-btn" id="event-register-payment-complete">Complete Registration</button>
+                          <button type="button" class="primary-btn" id="event-register-payment-complete"><%= typeof onlinePayNow !== 'undefined' && onlinePayNow ? 'Continue to Payment' : 'Complete Registration' %></button>
                         </div>
                       </div>
                     <% } %>

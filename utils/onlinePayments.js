@@ -43,7 +43,11 @@ async function payableCharges(memberId) {
 // Starts a Stripe Checkout for the chosen charges (only this member's
 // own, each for exactly what's still owed). Returns { url } to send the
 // family to, or { error }.
-async function startCheckout({ memberId, accountId, chargeIds, email, baseUrl }) {
+// successPath/cancelPath (optional) send the family back somewhere other
+// than Accounting - an event page or the store. held: true (booking a
+// ticket / checking out the cart) makes the Stripe page expire after
+// HOLD_CHECKOUT_MINUTES, so it can never be paid after the hold is gone.
+async function startCheckout({ memberId, accountId, chargeIds, email, baseUrl, successPath, cancelPath, held }) {
   if (!(await isEnabled())) return { error: 'Online payments are not turned on.' };
   const wanted = new Set((Array.isArray(chargeIds) ? chargeIds : [chargeIds]).map(Number).filter(Boolean));
   const charges = (await payableCharges(memberId)).filter((c) => wanted.has(c.id));
@@ -63,8 +67,11 @@ async function startCheckout({ memberId, accountId, chargeIds, email, baseUrl })
       client_reference_id: String(row.id),
       metadata: { checkout_id: String(row.id), member_id: String(memberId) },
       payment_intent_data: { metadata: { checkout_id: String(row.id) } },
-      success_url: `${baseUrl}/accounting/pay/return?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/accounting?payment=cancelled`,
+      success_url: successPath
+        ? `${baseUrl}/pay/return?session_id={CHECKOUT_SESSION_ID}&next=${encodeURIComponent(successPath)}`
+        : `${baseUrl}/accounting/pay/return?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancelPath ? `${baseUrl}/pay/cancel?checkout=${row.id}&next=${encodeURIComponent(cancelPath)}` : `${baseUrl}/accounting?payment=cancelled`,
+      expires_at: held ? Math.floor(Date.now() / 1000) + HOLD_CHECKOUT_MINUTES * 60 : undefined,
     },
     `checkout-${row.id}`
   );
@@ -77,6 +84,17 @@ async function startCheckout({ memberId, accountId, chargeIds, email, baseUrl })
 // charge it covered. Safe to call from both the webhook and the return
 // page, in either order, any number of times.
 async function completeCheckoutSession(session) {
+  if (session && session.status === 'complete' && session.payment_status === 'unpaid') {
+    // A bank payment still clearing: keep any held ticket/order booked
+    // while it does (async_payment_succeeded records it; _failed releases).
+    const pendingRow = await db.prepare('SELECT charges_json FROM stripe_checkouts WHERE session_id = ?').get(session.id);
+    if (pendingRow) {
+      const until = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
+      for (const it of JSON.parse(pendingRow.charges_json)) {
+        await db.prepare('UPDATE payment_charges SET hold_until = ? WHERE id = ? AND hold_until IS NOT NULL').run(until, it.id);
+      }
+    }
+  }
   if (!session || session.payment_status !== 'paid') return { recorded: false, reason: 'not_paid' };
   const checkoutId = parseInt((session.metadata && session.metadata.checkout_id) || session.client_reference_id, 10);
   const claimed = await db
@@ -92,7 +110,105 @@ async function completeCheckoutSession(session) {
         .run(session.payment_intent, it.id);
     }
   }
+  await clearHolds(items.map((i) => i.id));
   return { recorded: true, chargeIds: items.map((i) => i.id), amountCents: claimed.amount_cents };
+}
+
+// --- Pay-to-book holds (a real request: "Event calendar charges are
+// immediate in order to book their ticket. Store charges are immediate
+// and added to a cart for final purchases.") A ticket or store order
+// that needs paying is created right away (so the seat/stock is
+// reserved) with its charge held until hold_until. Paying clears the
+// hold; backing out of Stripe's page, or the hold running out, releases
+// it - the registration is cancelled (seat freed, waitlist moves up) or
+// the order cancelled (stock put back), and the unpaid charge cancelled.
+// Stripe's own page closes after HOLD_CHECKOUT_MINUTES (its minimum is
+// 30), always before the hold itself runs out, so a released hold can
+// never be paid afterwards.
+const HOLD_CHECKOUT_MINUTES = 31;
+const HOLD_MINUTES = 40;
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+async function holdCharges(chargeIds) {
+  const ids = [...new Set((chargeIds || []).map(Number).filter(Boolean))];
+  if (!ids.length) return;
+  const until = new Date(Date.now() + HOLD_MINUTES * 60 * 1000).toISOString();
+  await db.prepare(`UPDATE payment_charges SET hold_until = ? WHERE status = 'pending' AND id IN (${ids.map(() => '?').join(',')})`).run(until, ...ids);
+}
+
+async function clearHolds(chargeIds) {
+  const ids = [...new Set((chargeIds || []).map(Number).filter(Boolean))];
+  if (!ids.length) return;
+  await db.prepare(`UPDATE payment_charges SET hold_until = NULL WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+}
+
+// Releases one held charge's ticket(s)/order. Only an unpaid charge is
+// ever released - anything paid stays booked.
+async function releaseHeldCharge(chargeId) {
+  const claimed = await db
+    .prepare("UPDATE payment_charges SET hold_until = NULL WHERE id = ? AND hold_until IS NOT NULL AND status = 'pending' RETURNING *")
+    .get(chargeId);
+  if (!claimed) return false;
+  if ((await payments.netCashForCharge(chargeId)) > 0) return false;
+  if (claimed.source_type === 'event_registration') {
+    const events = require('./events');
+    const regs = await db
+      .prepare("SELECT event_id, member_id FROM event_registrations WHERE charge_id = ? AND status IN ('confirmed', 'waitlisted')")
+      .all(chargeId);
+    for (const r of regs) await events.cancelRegistration(r.event_id, r.member_id);
+  } else if (claimed.source_type === 'store_order' && claimed.source_id) {
+    await require('./store').cancelOrder(claimed.source_id);
+  }
+  const after = await payments.getCharge(chargeId);
+  if (after && after.status === 'pending') await payments.cancelCharge(chargeId);
+  return true;
+}
+
+// Every hold whose time ran out - run whenever someone books a ticket,
+// opens an event/the store, or Stripe reports a closed checkout, so an
+// abandoned hold never blocks a seat or stock for long.
+async function releaseExpiredHolds() {
+  const rows = await db.prepare("SELECT id FROM payment_charges WHERE hold_until IS NOT NULL AND hold_until < ? AND status = 'pending'").all(nowIso());
+  for (const r of rows) await releaseHeldCharge(r.id);
+  return rows.length;
+}
+
+// A Checkout that ended without payment (Stripe's checkout.session.expired
+// webhook, or the family pressing Back on Stripe's page): release every
+// held charge it covered.
+async function releaseCheckout(checkoutId) {
+  const row = await db.prepare("UPDATE stripe_checkouts SET status = 'expired' WHERE id = ? AND status = 'pending' RETURNING *").get(checkoutId);
+  if (!row) return false;
+  for (const it of JSON.parse(row.charges_json)) await releaseHeldCharge(it.id);
+  return true;
+}
+
+async function releaseExpiredCheckoutSession(session) {
+  const checkoutId = parseInt((session && session.metadata && session.metadata.checkout_id) || (session && session.client_reference_id), 10);
+  if (!checkoutId) return false;
+  return releaseCheckout(checkoutId);
+}
+
+// The family pressed Back/cancel on Stripe's page. Closes that Checkout
+// at Stripe first so it can't be paid later, then releases the holds. If
+// Stripe says it was actually paid, it's recorded instead.
+async function cancelHeldCheckout(checkoutId, memberIds) {
+  const row = await db.prepare('SELECT * FROM stripe_checkouts WHERE id = ?').get(checkoutId);
+  if (!row || row.status !== 'pending' || !memberIds.includes(row.member_id)) return { released: false };
+  if (row.session_id) {
+    try {
+      await stripe.expireCheckoutSession(row.session_id);
+    } catch (err) {
+      const result = await completeBySessionId(row.session_id).catch(() => ({ recorded: false }));
+      if (result.recorded || result.reason === 'already_recorded') return { released: false, paid: true };
+      console.error('Could not close Stripe checkout:', err.message);
+      return { released: false };
+    }
+  }
+  return { released: await releaseCheckout(checkoutId) };
 }
 
 async function completeBySessionId(sessionId) {
@@ -133,6 +249,14 @@ async function refundToCard({ chargeId, amountCents, adminAccountId, note }) {
 }
 
 module.exports = {
+  HOLD_MINUTES,
+  holdCharges,
+  clearHolds,
+  releaseHeldCharge,
+  releaseExpiredHolds,
+  releaseCheckout,
+  releaseExpiredCheckoutSession,
+  cancelHeldCheckout,
   isEnabled,
   setEnabled,
   amountOwed,

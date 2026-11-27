@@ -1387,7 +1387,7 @@ async function createOrReactivateRegistration(event, member, accountId, answers 
         .run(registrationId, extraFieldId, value);
     }
 
-    result = { ok: true, status, waitlistPosition };
+    result = { ok: true, status, waitlistPosition, chargeId };
   });
   // renderTemplate reads notification_message_templates on the plain
   // outer `db` connection, not `tx` - calling it from inside the
