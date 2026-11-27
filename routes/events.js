@@ -13,6 +13,8 @@ const { familyForAccount } = require('../utils/portalAuth');
 const { formatFriendlyTimestamp, formatFriendlyDateAndTime } = require('../utils/dates');
 const events = require('../utils/events');
 const onlinePayments = require('../utils/onlinePayments');
+const payments = require('../utils/payments');
+const stripeApi = require('../utils/stripe');
 const { publicOrigin } = require('../utils/pdfRender');
 const signupLists = require('../utils/committeesAndSignupLists');
 const notifications = require('../utils/notifications');
@@ -497,7 +499,7 @@ router.post('/:id/register', requirePortalAuth, async (req, res) => {
     const charge = await db.prepare('SELECT * FROM payment_charges WHERE id = ?').get(result.chargeId);
     if (charge && (await onlinePayments.amountOwed(charge)) > 0) {
       await onlinePayments.holdCharges([charge.id]);
-      const payUrl = `/events/${eventId}/pay`;
+      const payUrl = `/events/${eventId}/checkout`;
       if (wantsJson(req)) return res.json({ ok: true, needsPayment: true, payUrl, notice: 'Ticket held - finish paying to book it.' });
       return res.redirect(payUrl);
     }
@@ -508,29 +510,80 @@ router.post('/:id/register', requirePortalAuth, async (req, res) => {
   res.redirect(back + portalPrefix(req) + 'notice=' + encodeURIComponent(result.notice));
 });
 
-// Sends the family to Stripe to pay for every ticket of theirs on this
-// event that's held for payment (one card payment for the whole family's
-// selection). Nothing held: straight back to the event.
+// Every ticket of this family's on this event that's held for payment,
+// all billed to the same (primary parent) account.
+async function heldEventCharges(eventId, familyIds) {
+  if (!familyIds.length) return [];
+  const rows = await db
+    .prepare(
+      `SELECT DISTINCT pc.* FROM event_registrations er
+       JOIN payment_charges pc ON pc.id = er.charge_id
+       WHERE er.event_id = ? AND er.status = 'confirmed' AND pc.status = 'pending' AND pc.hold_until IS NOT NULL
+         AND er.member_id IN (${familyIds.map(() => '?').join(',')})
+       ORDER BY pc.id`
+    )
+    .all(eventId, ...familyIds);
+  return rows.filter((c) => c.member_id === rows[0].member_id);
+}
+
+const HOLD_EXPIRED_MSG = "Time ran out before payment, so the ticket wasn't booked. You can register again if seats are still open.";
+
+// A real request: "There should be a 10 minute countdown timer for events
+// and shop purchase on the checkout." The held tickets, the total with
+// the card fee, and a countdown; Pay Now goes on to Stripe.
+router.get('/:id/checkout', requirePortalAuth, async (req, res) => {
+  const eventId = parseInt(req.params.id, 10);
+  const back = `/events/${eventId}`;
+  await onlinePayments.releaseExpiredHolds();
+  const family = await familyForAccount(req.portalAccount.id);
+  const held = await heldEventCharges(eventId, family.map((m) => m.id));
+  if (!held.length) return res.redirect(back + (req.query.expired ? '?error=' + encodeURIComponent(HOLD_EXPIRED_MSG) : ''));
+  const items = [];
+  for (const c of held) items.push({ description: c.description, cents: await onlinePayments.amountOwed(c) });
+  const subtotalCents = items.reduce((sum, it) => sum + it.cents, 0);
+  const feeCents = stripeApi.cardFeeCents(subtotalCents);
+  const holdUntil = held.map((c) => c.hold_until).sort()[0];
+  res.render('held-checkout', {
+    title: 'Pay for Tickets',
+    heading: 'Pay for Your Tickets',
+    portalTitle: 'Events',
+    navLinks: [
+      { href: '/portal', icon: 'home', label: 'My Portals' },
+      { href: back, icon: 'calendar', label: 'Back to Event' },
+    ],
+    items,
+    subtotalCents,
+    feeCents,
+    totalCents: subtotalCents + feeCents,
+    holdUntil,
+    payHref: `/events/${eventId}/pay`,
+    cancelAction: `/events/${eventId}/checkout/cancel`,
+    expiredHref: `/events/${eventId}/checkout?expired=1`,
+    formatCents: payments.formatCents,
+  });
+});
+
+router.post('/:id/checkout/cancel', requirePortalAuth, async (req, res) => {
+  const eventId = parseInt(req.params.id, 10);
+  const family = await familyForAccount(req.portalAccount.id);
+  const held = await heldEventCharges(eventId, family.map((m) => m.id));
+  await onlinePayments.releaseHeldCharges(held.map((c) => c.id));
+  res.redirect(`/events/${eventId}?payment=cancelled`);
+});
+
+// Pay Now: on to Stripe for every held ticket (one card payment for the
+// whole family's selection). Nothing still held: back to the event.
 router.get('/:id/pay', requirePortalAuth, async (req, res) => {
   const eventId = parseInt(req.params.id, 10);
   const back = `/events/${eventId}`;
+  await onlinePayments.releaseExpiredHolds();
   const family = await familyForAccount(req.portalAccount.id);
-  const familyIds = family.map((m) => m.id);
-  if (!familyIds.length) return res.redirect(back);
-  const held = await db
-    .prepare(
-      `SELECT DISTINCT pc.id, pc.member_id FROM event_registrations er
-       JOIN payment_charges pc ON pc.id = er.charge_id
-       WHERE er.event_id = ? AND er.status = 'confirmed' AND pc.status = 'pending' AND pc.hold_until IS NOT NULL
-         AND er.member_id IN (${familyIds.map(() => '?').join(',')})`
-    )
-    .all(eventId, ...familyIds);
-  const billedTo = held.length ? held[0].member_id : null;
-  const chargeIds = held.filter((c) => c.member_id === billedTo).map((c) => c.id);
-  if (!chargeIds.length) return res.redirect(back);
+  const held = await heldEventCharges(eventId, family.map((m) => m.id));
+  if (!held.length) return res.redirect(back + '?error=' + encodeURIComponent(HOLD_EXPIRED_MSG));
+  const chargeIds = held.map((c) => c.id);
   try {
     const result = await onlinePayments.startCheckout({
-      memberId: billedTo,
+      memberId: held[0].member_id,
       accountId: req.portalAccount.id,
       chargeIds,
       email: req.portalAccount.email,
@@ -543,7 +596,7 @@ router.get('/:id/pay', requirePortalAuth, async (req, res) => {
     return res.redirect(303, result.url);
   } catch (err) {
     console.error('Event ticket checkout failed:', err.message);
-    for (const id of chargeIds) await onlinePayments.releaseHeldCharge(id);
+    await onlinePayments.releaseHeldCharges(chargeIds);
     return res.redirect(back + '?error=' + encodeURIComponent('Online payment is not available right now, so your ticket was not booked. Please try again later.'));
   }
 });

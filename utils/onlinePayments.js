@@ -125,8 +125,14 @@ async function completeCheckoutSession(session) {
 // Stripe's own page closes after HOLD_CHECKOUT_MINUTES (its minimum is
 // 30), always before the hold itself runs out, so a released hold can
 // never be paid afterwards.
+// A real request: "There should be a 10 minute countdown timer for events
+// and shop purchase on the checkout. If they don't pay by the end of the
+// timer their tickets are available again and their cart is cleared."
+// Stripe won't close its own page sooner than 30 minutes, so releasing a
+// hold always closes the Stripe page first (closeOpenCheckoutsFor) - a
+// released ticket/order can never be paid afterwards.
 const HOLD_CHECKOUT_MINUTES = 31;
-const HOLD_MINUTES = 40;
+const HOLD_MINUTES = 10;
 
 function nowIso() {
   return new Date().toISOString();
@@ -145,9 +151,33 @@ async function clearHolds(chargeIds) {
   await db.prepare(`UPDATE payment_charges SET hold_until = NULL WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
 }
 
+// Closes every still-open Stripe page covering this charge. Returns
+// 'paid' if Stripe says one was actually paid (it's recorded instead),
+// 'error' if Stripe couldn't be reached, otherwise 'closed'.
+async function closeOpenCheckoutsFor(chargeId) {
+  const rows = await db.prepare("SELECT * FROM stripe_checkouts WHERE status = 'pending' AND charges_json LIKE ?").all(`%"id":${Number(chargeId)},%`);
+  for (const row of rows) {
+    if (row.session_id) {
+      try {
+        await stripe.expireCheckoutSession(row.session_id);
+      } catch (err) {
+        const result = await completeBySessionId(row.session_id).catch(() => ({ recorded: false }));
+        if (result.recorded || result.reason === 'already_recorded') return 'paid';
+        console.error('Could not close Stripe checkout:', err.message);
+        return 'error';
+      }
+    }
+    await db.prepare("UPDATE stripe_checkouts SET status = 'expired' WHERE id = ? AND status = 'pending'").run(row.id);
+  }
+  return 'closed';
+}
+
 // Releases one held charge's ticket(s)/order. Only an unpaid charge is
 // ever released - anything paid stays booked.
 async function releaseHeldCharge(chargeId) {
+  const current = await payments.getCharge(chargeId);
+  if (!current || !current.hold_until || current.status !== 'pending') return false;
+  if ((await closeOpenCheckoutsFor(chargeId)) !== 'closed') return false;
   const claimed = await db
     .prepare("UPDATE payment_charges SET hold_until = NULL WHERE id = ? AND hold_until IS NOT NULL AND status = 'pending' RETURNING *")
     .get(chargeId);
@@ -197,18 +227,20 @@ async function releaseExpiredCheckoutSession(session) {
 // Stripe says it was actually paid, it's recorded instead.
 async function cancelHeldCheckout(checkoutId, memberIds) {
   const row = await db.prepare('SELECT * FROM stripe_checkouts WHERE id = ?').get(checkoutId);
-  if (!row || row.status !== 'pending' || !memberIds.includes(row.member_id)) return { released: false };
-  if (row.session_id) {
-    try {
-      await stripe.expireCheckoutSession(row.session_id);
-    } catch (err) {
-      const result = await completeBySessionId(row.session_id).catch(() => ({ recorded: false }));
-      if (result.recorded || result.reason === 'already_recorded') return { released: false, paid: true };
-      console.error('Could not close Stripe checkout:', err.message);
-      return { released: false };
-    }
+  if (!row || !memberIds.includes(row.member_id)) return { released: false };
+  if (row.status === 'completed') return { released: false, paid: true };
+  let released = false;
+  for (const it of JSON.parse(row.charges_json)) {
+    if (await releaseHeldCharge(it.id)) released = true;
   }
-  return { released: await releaseCheckout(checkoutId) };
+  const after = await db.prepare('SELECT status FROM stripe_checkouts WHERE id = ?').get(checkoutId);
+  return { released, paid: after && after.status === 'completed' };
+}
+
+// Releases a list of this family's held charges (Cancel on the checkout
+// page, or the countdown running out).
+async function releaseHeldCharges(chargeIds) {
+  for (const id of chargeIds) await releaseHeldCharge(id);
 }
 
 async function completeBySessionId(sessionId) {
@@ -257,6 +289,7 @@ module.exports = {
   releaseCheckout,
   releaseExpiredCheckoutSession,
   cancelHeldCheckout,
+  releaseHeldCharges,
   isEnabled,
   setEnabled,
   amountOwed,

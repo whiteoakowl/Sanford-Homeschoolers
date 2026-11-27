@@ -81,6 +81,13 @@ test('a priced event ticket is paid at booking: held, then booked when paid or r
   let reg = await regOf(parent);
   assert.equal(reg.status, 'confirmed');
   assert.ok((await payments.getCharge(reg.charge_id)).hold_until, 'charge held while paying');
+  assert.equal(res.body.payUrl, `/events/${eventId}/checkout`);
+  const checkoutPage = await agent.get(`/events/${eventId}/checkout`);
+  assert.match(checkoutPage.text, /data-hold-until="\d{4}-/);
+  assert.match(checkoutPage.text, /Time left to pay/);
+  assert.match(checkoutPage.text, /\$15\.00/);
+  const holdMs = Date.parse((await payments.getCharge(reg.charge_id)).hold_until) - Date.now();
+  assert.ok(holdMs > 9 * 60 * 1000 && holdMs <= 10 * 60 * 1000, 'a 10 minute hold');
   res = await agent.get(`/events/${eventId}/pay`);
   assert.equal(res.status, 303);
   assert.match(res.headers.location, /^https:\/\/checkout\.stripe\.com\//);

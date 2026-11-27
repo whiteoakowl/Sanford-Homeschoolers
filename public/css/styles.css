@@ -17562,3 +17562,9 @@ h1 + .help-context-link { margin: -0.35rem 0 0.85rem; }
 /* Due dates on the member Accounting page (semester class fees due date). */
 .pay-now-due { display: block; font-size: 0.8rem; }
 .pay-now-due.is-overdue, .accounting-overdue { color: var(--red); font-weight: 700; }
+
+/* Pay-by countdown on the event ticket / store checkout page. */
+.held-checkout-timer { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.9rem; margin: 0 0 1rem; border-radius: 999px; background: var(--brand-soft); color: var(--ink); font-size: 1.05rem; }
+.held-checkout-timer strong { font-variant-numeric: tabular-nums; font-size: 1.2rem; }
+.held-checkout-timer.is-low { background: var(--red-bg); color: var(--red); }
+.held-checkout-actions { margin-top: 0.8rem; gap: 0.6rem; }

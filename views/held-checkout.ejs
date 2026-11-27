@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title }) %>
+</head>
+<%# A real request: "There should be a 10 minute countdown timer for
+    events and shop purchase on the checkout. If they don't pay by the end
+    of the timer their tickets are available again and their cart is
+    cleared." Shared by event tickets (routes/events.js) and the store
+    cart (routes/store.js). Locals: title, heading, portalTitle, navLinks,
+    items [{ description, cents }], subtotalCents, feeCents, totalCents,
+    holdUntil (ISO), payHref, cancelAction, expiredHref, formatCents. %>
+<body>
+  <%- include('partials/portal-nav', { portalTitle, navLinks }) %>
+  <main id="main-content" tabindex="-1" class="admin-main held-checkout">
+    <h1><%= heading %></h1>
+    <div class="held-checkout-timer" data-hold-until="<%= holdUntil %>" data-expired-href="<%= expiredHref %>" role="timer" aria-live="polite">
+      <svg class="icon"><use href="#icon-clock"/></svg>
+      <span>Time left to pay: <strong data-hold-remaining>10:00</strong></span>
+    </div>
+    <p class="hint" data-hold-expired-msg hidden>Time's up - your hold was released. Taking you back…</p>
+
+    <section class="manage-section">
+      <ul class="pay-now-list">
+        <% items.forEach(function(it) { %>
+          <li class="pay-now-item"><span class="pay-now-desc"><%= it.description %></span><span class="pay-now-amount"><%= formatCents(it.cents) %></span></li>
+        <% }); %>
+      </ul>
+      <div class="pay-now-totals">
+        <div><span>Subtotal</span><strong><%= formatCents(subtotalCents) %></strong></div>
+        <div><span>Card processing fee</span><strong><%= formatCents(feeCents) %></strong></div>
+        <div class="pay-now-total"><span>Total</span><strong><%= formatCents(totalCents) %></strong></div>
+      </div>
+      <p class="hint">You'll pay on Stripe's secure checkout page. If you don't finish paying before the timer runs out, this is released and nothing is charged.</p>
+      <div class="roster-btn-row held-checkout-actions">
+        <a class="primary-btn" href="<%= payHref %>" data-hold-pay>Pay Now</a>
+        <form method="POST" action="<%= cancelAction %>" class="inline-block-form">
+          <button type="submit" class="btn-secondary">Cancel</button>
+        </form>
+      </div>
+    </section>
+  </main>
+  <script src="/js/hold-countdown.js"></script>
+</body>
+</html>
