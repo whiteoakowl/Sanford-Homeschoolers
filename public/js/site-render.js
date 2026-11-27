@@ -24,7 +24,7 @@
 
   // Element types that grow with their content: rendered with min-height
   // so long text/live data pushes the section taller instead of clipping.
-  const FLOW_TYPES = new Set(['text', 'accordion', 'tabs', 'classes', 'announcements', 'faq', 'events', 'form', 'menu']);
+  const FLOW_TYPES = new Set(['text', 'accordion', 'tabs', 'classes', 'announcements', 'faq', 'events', 'form', 'contactform', 'menu']);
 
   const WIDGET_TYPES = new Set(['classes', 'announcements', 'faq', 'events']);
 
@@ -578,6 +578,17 @@
         // site's cookies/session/DOM.
         if (ctx.editor) return `<iframe class="wx-embed" sandbox="" srcdoc="${esc(p.html)}" title="${esc(p.title || 'Embedded content')}" tabindex="-1"></iframe>`;
         return `<iframe class="wx-embed" sandbox="allow-scripts allow-popups" srcdoc="${esc(p.html)}" title="${esc(p.title || 'Embedded content')}" loading="lazy"></iframe>`;
+      }
+      // A real request: "Contact button and page." A public contact form
+      // anyone can send (routes/contact.js) - messages land in Main
+      // Admin > Support > Contact Messages.
+      case 'contactform': {
+        if (ctx.contactSent) {
+          return `<div class="wx-form-card wx-contact-form" id="contact-form"><h3>Thank you!</h3><p>Your message was sent. We'll get back to you soon.</p></div>`;
+        }
+        const topics = ['Membership', 'Co-op Classes', 'Events & Activities', 'Volunteering', 'Something else'];
+        const dis = ctx.editor ? ' disabled' : '';
+        return `<form class="wx-form-card wx-contact-form" id="contact-form" method="POST" action="/contact/send">${p.title ? `<h3>${esc(p.title)}</h3>` : ''}${p.description ? `<p>${esc(p.description)}</p>` : ''}<input type="hidden" name="back" value="${esc(ctx.pagePath || '/contact')}" /><label class="wx-hp" aria-hidden="true">Leave blank<input type="text" name="website" tabindex="-1" autocomplete="off" /></label><label>Your name<input type="text" name="name" required maxlength="120" autocomplete="name"${dis} /></label><label>Email<input type="email" name="email" required maxlength="200" autocomplete="email"${dis} /></label><label>Phone (optional)<input type="tel" name="phone" maxlength="40" autocomplete="tel"${dis} /></label><label>What's this about?<select name="topic"${dis}>${topics.map((t) => `<option>${esc(t)}</option>`).join('')}</select></label><label>Message<textarea name="message" rows="5" required maxlength="4000"${dis}></textarea></label><button type="submit" class="wx-btn"${dis}>${esc(p.buttonLabel || 'Send Message')}</button></form>`;
       }
       case 'form': {
         const form = (data.forms || []).find((f) => String(f.id) === String(p.formId));

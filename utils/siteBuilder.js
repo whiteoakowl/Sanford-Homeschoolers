@@ -37,7 +37,7 @@ function mediaUrlForKey(key) {
 const LIMITS = { pages: 40, sections: 60, elements: 150, menu: 80, presets: 30, swatches: 24, listItems: 40 };
 const ELEMENT_TYPES = [
   'text', 'image', 'button', 'icon', 'shape', 'line', 'video', 'gallery', 'slideshow', 'accordion', 'tabs',
-  'social', 'map', 'embed', 'form', 'login', 'menu', 'classes', 'announcements', 'faq', 'events', 'logo', 'sitename',
+  'social', 'map', 'embed', 'form', 'contactform', 'login', 'menu', 'classes', 'announcements', 'faq', 'events', 'logo', 'sitename',
 ];
 
 // Top-level paths the app itself already serves - a page slug can never
@@ -286,6 +286,8 @@ function normProps(type, p) {
       return { html: str(p.html, 20000), title: str(p.title, 120) };
     case 'form':
       return clean({ formId: mediaId(p.formId), title: str(p.title, 200), description: str(p.description, 500), buttonLabel: str(p.buttonLabel, 60) });
+    case 'contactform':
+      return clean({ title: str(p.title, 200), description: str(p.description, 500), buttonLabel: str(p.buttonLabel, 60) });
     case 'login':
       return clean({ loginLabel: str(p.loginLabel, 40), portalLabel: str(p.portalLabel, 40) });
     case 'menu':

@@ -19,7 +19,7 @@ router.use(requirePortalAuth, requirePortal('main_admin'));
 
 // Website Feedback is the tab's own first subpage, so it shares the
 // tab's top-level key (same convention as Members/Accounting).
-const PERMISSION_BY_TYPE = { feedback: 'manage_support', support: 'view_support_requests' };
+const PERMISSION_BY_TYPE = { feedback: 'manage_support', support: 'view_support_requests', contact: 'view_support_requests' };
 const STATUS_FILTERS = ['all', 'open', 'completed'];
 
 function requireTypePermission(req, res, next) {
@@ -37,7 +37,7 @@ async function renderLog(req, res, typeKey) {
     e.submittedLabel = formatFriendlyTimestamp(e.submitted_at);
     e.completedLabel = e.completed_at ? formatFriendlyTimestamp(e.completed_at) : null;
   }
-  const form = await supportRequests.formForType(type.key);
+  const form = type.noForm ? null : await supportRequests.formForType(type.key);
   const extraFieldCount = form ? (await customForms.fieldsForForm(form.id)).filter((f) => !customForms.DISPLAY_ONLY_TYPES.has(f.field_type)).length : 0;
   res.render('main-admin-support', {
     title: type.label,
@@ -53,6 +53,7 @@ async function renderLog(req, res, typeKey) {
 
 router.get('/', requirePortalPermission('manage_support'), (req, res) => renderLog(req, res, 'feedback'));
 router.get('/requests', requirePortalPermission('view_support_requests'), (req, res) => renderLog(req, res, 'support'));
+router.get('/contact', requirePortalPermission('view_support_requests'), (req, res) => renderLog(req, res, 'contact'));
 
 // "Create Form" - makes the type's backing Custom Form on first use, then
 // always lands in the existing builder (which links back here).

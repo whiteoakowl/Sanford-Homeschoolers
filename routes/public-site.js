@@ -20,7 +20,9 @@ async function renderSitePage(req, res, { doc, page, preview }) {
   const media = await site.mediaMap();
   const data = await site.loadWidgetData();
   const hydrated = R.hydrate(JSON.parse(JSON.stringify(doc)), media);
-  const ctx = { media, data, portalAccount: !!req.portalAccount, editor: false, year: new Date().getFullYear() };
+  const pagePathForCtx = page.isHome ? '/' : `/${page.slug}`;
+  // contactSent: a contact form on this page was just sent (routes/contact.js).
+  const ctx = { media, data, portalAccount: !!req.portalAccount, editor: false, year: new Date().getFullYear(), pagePath: pagePathForCtx, contactSent: req.query && req.query.sent === '1' };
   const s = hydrated.settings || {};
   const orgName = (hydrated.site && hydrated.site.orgName) || 'Sanford Homeschoolers';
   const seo = page.seo || {};

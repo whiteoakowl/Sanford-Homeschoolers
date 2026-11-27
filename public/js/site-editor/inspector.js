@@ -252,6 +252,14 @@ function contentFields(el) {
     case 'events':
       out.push(field('How many to show', slider(p.limit || (el.type === 'events' ? 4 : 3), set('limit', 'limit'), { min: 1, max: 12 })), h('p.wxe-hint', null, el.type === 'events' ? 'Upcoming, public, published events.' : 'Announcements marked public.'));
       break;
+    case 'contactform':
+      out.push(
+        field('Title', textInput(p.title, set('title'))),
+        field('Intro text', textInput(p.description, set('description'))),
+        field('Button text', textInput(p.buttonLabel, set('buttonLabel'), { placeholder: 'Send Message' })),
+        h('p.wxe-hint', null, 'Anyone can send this - messages arrive in Main Admin > Support > Contact Messages.')
+      );
+      break;
     case 'faq':
       out.push(h('p.wxe-hint', null, 'Lists FAQs marked public (Main Admin > FAQ).'));
       break;

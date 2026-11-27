@@ -35,6 +35,16 @@
         </div>
       </div>
     </div>
+    <% if (typeof notice !== 'undefined' && notice) { %><div class="alert alert-success"><%= notice %></div><% } %>
+    <%# A real request: "Customize the public homepage. Using the
+        information in this photo..." %>
+    <section class="manage-section site-dash-starter">
+      <h2>Sanford Homeschoolers Pages</h2>
+      <p class="hint">Loads a ready-made Home page (welcome, co-op classes on Wednesdays 9am&ndash;2pm, group activities, member features, upcoming events) plus Co-op Classes, Community and Contact pages with a contact form. They go into your draft only &mdash; review and edit them in the editor, then Publish. This replaces your current Home page.</p>
+      <form method="POST" action="/main-admin/website/load-starter" data-confirm="Load the Sanford Homeschoolers pages into your draft? This replaces the draft Home page (and any Classes, Community or Contact page). Nothing goes live until you Publish." data-confirm-safe="1" data-confirm-yes-label="Yes, Load Pages">
+        <button type="submit" class="roster-action-btn">Load the Sanford Homeschoolers Pages</button>
+      </form>
+    </section>
     <p class="hint site-dash-note">The site editor works best on a computer. Changes autosave as a draft &mdash; nothing goes live until you click <strong>Publish</strong> in the editor.</p>
   </main>
 </body>

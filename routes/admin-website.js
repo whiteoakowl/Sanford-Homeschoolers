@@ -56,7 +56,20 @@ router.get('/', async (req, res) => {
     publishedAt: state.publishedAt,
     draftUpdatedAt: state.draftUpdatedAt,
     hasUnpublished: JSON.stringify(state.draft) !== JSON.stringify(state.published),
+    notice: req.query.notice || null,
   });
+});
+
+// A real request: "Customize the public homepage. Using the information
+// in this photo..." - loads the ready-made Sanford Homeschoolers Home,
+// Co-op Classes, Community and Contact pages (utils/siteStarter.js) into
+// the DRAFT only; the admin reviews them in the editor and Publishes.
+router.post('/load-starter', async (req, res) => {
+  const { applyStarterPages } = require('../utils/siteStarter');
+  const state = await site.getState();
+  const result = await site.saveDraft(applyStarterPages(state.draft), state.rev);
+  if (result && result.conflict) return res.redirect('/main-admin/website?notice=' + encodeURIComponent('The site was being edited - please try again.'));
+  res.redirect('/main-admin/website?notice=' + encodeURIComponent('The Sanford Homeschoolers pages are in your draft. Open Edit Site to review them, then click Publish to put them live.'));
 });
 
 router.get('/editor', async (req, res) => {

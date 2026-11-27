@@ -119,6 +119,10 @@ export function createElement(type, preset) {
     case 'faq':
       L(860, 220);
       break;
+    case 'contactform':
+      base.props = { title: 'Send us a message', buttonLabel: 'Send Message' };
+      L(560, 560);
+      break;
     case 'events':
       base.props = { limit: 4 };
       L(860, 200);

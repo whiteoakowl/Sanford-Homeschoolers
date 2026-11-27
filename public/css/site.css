@@ -933,3 +933,41 @@
     padding-left: 16px;
   }
 }
+
+/* Public contact form (site element 'contactform', routes/contact.js). */
+.wx-contact-form {
+  display: grid;
+  gap: 12px;
+}
+
+.wx-contact-form label {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.wx-contact-form input,
+.wx-contact-form select,
+.wx-contact-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+  background: #fff;
+  color: #1f2933;
+}
+
+.wx-contact-form .wx-btn {
+  justify-self: start;
+}
+
+.wx-contact-form .wx-hp {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}

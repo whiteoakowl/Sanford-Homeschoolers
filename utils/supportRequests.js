@@ -11,6 +11,9 @@ const customForms = require('./customForms');
 const REQUEST_TYPES = [
   { key: 'feedback', label: 'Website Feedback', systemKey: 'support_feedback', formTitle: 'Website Feedback Form', adminHref: '/main-admin/support' },
   { key: 'support', label: 'Support', systemKey: 'support_support', formTitle: 'Support Form', adminHref: '/main-admin/support/requests' },
+  // The public website's contact form (routes/contact.js) - no backing
+  // custom form; name/email/phone are kept on the row itself.
+  { key: 'contact', label: 'Contact Messages', systemKey: 'support_contact', formTitle: 'Contact Form', adminHref: '/main-admin/support/contact', noForm: true },
 ];
 
 function typeByKey(key) {
@@ -77,6 +80,13 @@ async function createRequest({ typeKey, subject, message, memberId, accountId, e
   return info.lastInsertRowid;
 }
 
+async function createContactMessage({ name, email, phone, topic, message }) {
+  const info = await db
+    .prepare("INSERT INTO support_requests (request_type, subject, message, contact_name, contact_email, contact_phone) VALUES ('contact', ?, ?, ?, ?, ?)")
+    .run(topic, message, name, email, phone || null);
+  return info.lastInsertRowid;
+}
+
 function parseExtraAnswers(raw) {
   if (!raw) return [];
   try {
@@ -122,6 +132,7 @@ async function setCompleted(id, typeKey, accountId, completed) {
 }
 
 module.exports = {
+  createContactMessage,
   REQUEST_TYPES,
   typeByKey,
   typeBySystemKey,

@@ -87,7 +87,7 @@ const ADD_GROUPS = [
   ['Icons & social', [['icon', 'star', 'Icon'], ['icon', 'heart', 'Heart icon'], ['icon', 'calendar', 'Calendar icon'], ['social', null, 'Social bar']]],
   ['Interactive', [['accordion', null, 'Accordion'], ['tabs', null, 'Tabs'], ['menu', null, 'Menu']]],
   ['Header & brand', [['logo', null, 'Logo'], ['sitename', null, 'Site name'], ['menu', null, 'Site menu'], ['login', null, 'Log In / My Portals']]],
-  ['Embed', [['map', null, 'Google Map'], ['embed', null, 'Custom HTML'], ['form', null, 'Custom Form']]],
+  ['Embed', [['map', null, 'Google Map'], ['embed', null, 'Custom HTML'], ['form', null, 'Custom Form'], ['contactform', null, 'Contact form']]],
   ['Co-op data', [['classes', null, 'Classes showcase'], ['events', null, 'Upcoming events'], ['announcements', null, 'Announcements'], ['faq', null, 'FAQ']]],
 ];
 function addPanel() {

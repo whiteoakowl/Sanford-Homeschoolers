@@ -529,6 +529,7 @@ app.use((req, res, next) => {
 // pointed at /kiosk specifically, not /, so nothing there breaks.
 // /welcome keeps working too (plenty of existing public pages still
 // link back to it by that name) - both URLs render the same page.
+app.use('/contact', require('./routes/contact'));
 app.use('/', publicSiteRouter);
 app.use('/welcome', publicSiteRouter);
 // Security audit: kiosk screens open only on an unlocked kiosk device or
