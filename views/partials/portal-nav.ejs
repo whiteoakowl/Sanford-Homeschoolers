@@ -317,7 +317,9 @@ const PARENT_NAV_LINKS = [
     { href: '/parent/classes/dashboard', label: 'Classroom Dashboard', perm: 'view_parent_classroom_dashboard' },
     { href: '/name-tag', label: 'Name Tag Form', perm: 'view_parent_name_tag_form' },
     { href: '/absence', label: 'Absence/Late Form', perm: 'view_parent_absence_form' },
-    { href: '/parent/handbook', label: 'Policy Handbook', perm: 'view_parent_handbook' },
+    // A real request: "subpage under co-op classes called policy
+    // handbook should say co-op class procedures and show that document."
+    { href: '/parent/classes/procedures', label: 'Co-op Class Procedures', perm: 'view_parent_handbook' },
   ] },
   // A real request: "Homeschool family management tab on parent
   // portal. It needs to become its own portal and all the subpages

@@ -159,7 +159,7 @@ test('Parent Portal Classes group: every real portal page in classLinks has a ma
   // A real request gave /name-tag and /absence the Parent Portal nav
   // shell too for a signed-in parent (see this file's own header
   // comment) - no longer excluded.
-  const hrefs = ['/parent/classes', '/parent/classes/dashboard', '/parent/handbook', '/name-tag', '/absence'];
+  const hrefs = ['/parent/classes', '/parent/classes/dashboard', '/parent/classes/procedures', '/name-tag', '/absence'];
   for (const href of hrefs) {
     const res = await request(app).get(href).set('Cookie', cookie);
     assert.equal(res.status, 200, `${href} should render`);

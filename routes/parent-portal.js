@@ -44,7 +44,6 @@ const { comboSemesterId, findComboId } = require('../utils/scheduleComboLinks');
 const { getActiveKioskSemesterId } = require('../utils/kioskSettings');
 const { listDocumentsForRole } = require('../utils/documents');
 const { documentKind } = require('../utils/documentRender');
-const { getHandbookHtml } = require('../utils/membershipHandbook');
 const { getTemplate, badgeDataForMembers } = require('../utils/nameTagData');
 const { BADGE_WIDTH, BADGE_HEIGHT } = require('../utils/nameTagBadge');
 const { CARD_WIDTH, CARD_HEIGHT } = require('../utils/scheduleCardBadge');
@@ -1162,12 +1161,14 @@ router.get('/classes/info', requirePortalPermission('view_parent_classes'), (req
   res.render('parent-classes-info', { title: 'Parent Information' });
 });
 
-router.get('/classes/procedures', requirePortalPermission('view_parent_classes'), async (req, res) => {
+router.get('/classes/procedures', requirePortalPermission('view_parent_handbook'), async (req, res) => {
   res.render('parent-class-procedures', { title: 'Co-op Class Procedures', proceduresHtml: await require('../utils/classProcedures').getProceduresHtml() });
 });
 
-router.get('/handbook', requirePortalPermission('view_parent_handbook'), async (req, res) => {
-  res.render('parent-handbook', { title: 'Policy Handbook', handbookHtml: await getHandbookHtml() });
+// The Policy Handbook subpage became Co-op Class Procedures (a real
+// request) - old links land there.
+router.get('/handbook', requirePortalPermission('view_parent_handbook'), (req, res) => {
+  res.redirect('/parent/classes/procedures');
 });
 
 // Library - a real request: "Page should show a list of all the library

@@ -139,7 +139,7 @@ test('Parent Portal: the Classes nav tab has all 5 remaining subpages', async ()
     ['/parent/classes/dashboard', 'Classroom Dashboard'],
     ['/name-tag', 'Name Tag Form'],
     ['/absence', 'Absence/Late Form'],
-    ['/parent/handbook', 'Policy Handbook'],
+    ['/parent/classes/procedures', 'Co-op Class Procedures'],
   ].forEach(([href, label]) => {
     assert.match(dialog, new RegExp(`class="view-tab" href="${href.replace('/', '\\/')}">${label}<`));
   });
@@ -187,16 +187,19 @@ test('Class Registration day grid: the fragment popup withdraws via fetch (JSON)
   assert.deepEqual(cancelRes.body, { ok: true });
 });
 
-test('Policy Handbook page renders the admin-edited handbook content', async () => {
+// A real request: the Policy Handbook subpage "should say co-op class
+// procedures and show that document" - old /parent/handbook links go there.
+test('Co-op Class Procedures page renders the Co-op Admin\'s procedures; the old handbook link goes there', async () => {
   const parent = await createParentWithChild();
-  const emptyPage = await request(app).get('/parent/handbook').set('Cookie', parent.cookie);
+  const old = await request(app).get('/parent/handbook').set('Cookie', parent.cookie);
+  assert.equal(old.headers.location, '/parent/classes/procedures');
+  const emptyPage = await request(app).get('/parent/classes/procedures').set('Cookie', parent.cookie);
   assert.equal(emptyPage.status, 200);
-  assert.match(emptyPage.text, /hasn't been published yet/);
+  assert.match(emptyPage.text, /haven't been posted yet/);
 
-  const { setHandbookHtml } = require('../utils/membershipHandbook');
-  await setHandbookHtml('<p>Be kind. Show up on time.</p>');
+  await require('../utils/classProcedures').saveProceduresHtml('<p>Be kind. Show up on time.</p>');
 
-  const page = await request(app).get('/parent/handbook').set('Cookie', parent.cookie);
+  const page = await request(app).get('/parent/classes/procedures').set('Cookie', parent.cookie);
   assert.match(page.text, /Be kind\. Show up on time\./);
 });
 
